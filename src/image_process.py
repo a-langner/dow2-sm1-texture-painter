@@ -9,6 +9,48 @@ from PIL import (
 from src.constant import DEFAULT_IMG_SIZE, ColorOps
 
 
+MAX_TEXTURE_DIMENSION = 16 * 1024
+Image.MAX_IMAGE_PIXELS = MAX_TEXTURE_DIMENSION * MAX_TEXTURE_DIMENSION
+
+
+class TextureValidationError(ValueError):
+    """Raised when a texture cannot safely be used by the workbench."""
+
+
+def _validate_dimensions(img, filepath):
+    width, height = img.size
+    if width <= 0 or height <= 0:
+        raise TextureValidationError(
+            f'"{filepath}" has invalid dimensions {width}x{height}.'
+        )
+    if width > MAX_TEXTURE_DIMENSION or height > MAX_TEXTURE_DIMENSION:
+        raise TextureValidationError(
+            f'"{filepath}" is {width}x{height}. Textures may not exceed '
+            f'{MAX_TEXTURE_DIMENSION} pixels in either dimension.'
+        )
+
+
+def _open_texture(filepath):
+    """Decode an image and return a copy independent of its file handle."""
+    try:
+        with Image.open(filepath) as img:
+            _validate_dimensions(img, filepath)
+            img.load()
+            return img.copy()
+    except TextureValidationError:
+        raise
+    except (OSError, ValueError) as exc:
+        raise TextureValidationError(
+            f'Could not load texture "{filepath}": {exc}'
+        ) from exc
+
+
+def _same_aspect_ratio(first_size, second_size):
+    first_width, first_height = first_size
+    second_width, second_height = second_size
+    return first_width * second_height == first_height * second_width
+
+
 def create_placeholder_img(text="Image PlaceHolder", mode="RGBA"):
     img = Image.new(
         mode=mode, size=(DEFAULT_IMG_SIZE, DEFAULT_IMG_SIZE), color="gray"
@@ -33,11 +75,17 @@ class ImageWorkbench:
         self.apply_dirt = False
         self.apply_spec = False
         self.color_op = ColorOps.OVERLAY.value
+        self.img_dirt = None
+        self.img_spec = None
         self.set_placeholder_img()
 
     def set_placeholder_img(self):
         self.img_og_dif = create_placeholder_img("Select Diffuse Texture", "RGBA")
         self.img_og_tem = create_placeholder_img("Select Channel Texture", "L")
+        self.img_workspace = self.img_og_dif.copy()
+        self.tem_channels = []
+        self.img_dirt = None
+        self.img_spec = None
 
     def process_coloring(self):
         """Process image with current workspace setting"""
@@ -93,11 +141,11 @@ class ImageWorkbench:
             tmp = ImageChops.invert(tmp)
             self.img_workspace.putalpha(tmp)
 
-        if self.apply_dirt:
+        if self.apply_dirt and self.img_dirt is not None:
             self.img_workspace = Image.alpha_composite(
                 self.img_workspace, self.img_dirt
             )
-        if self.apply_spec:
+        if self.apply_spec and self.img_spec is not None:
             self.img_workspace = Image.alpha_composite(
                 self.img_workspace, self.img_spec
             )
@@ -121,17 +169,47 @@ class ImageWorkbench:
         :param filepath: path to file
         :type filepath: str
         """
-        self.img_og_dif = Image.open(filepath)
+        self.img_og_dif = _open_texture(filepath).convert("RGBA")
+        self.img_og_tem = Image.new("L", self.img_og_dif.size, "gray")
+        self.tem_channels = []
+        self.img_dirt = None
+        self.img_spec = None
 
     def load_team_colour_file(self, filepath: str):
-        self.img_og_tem = Image.open(filepath)
-        self.tem_channels = self.img_og_tem.split()
+        img = _open_texture(filepath)
+        if img.size != self.img_og_dif.size:
+            raise TextureValidationError(
+                f'Team-colour texture "{filepath}" is '
+                f'{img.size[0]}x{img.size[1]}, but the diffuse texture is '
+                f'{self.img_og_dif.size[0]}x{self.img_og_dif.size[1]}. '
+                "Team-colour and diffuse textures must have identical dimensions."
+            )
+        if img.mode != "RGBA":
+            raise TextureValidationError(
+                f'Team-colour texture "{filepath}" uses mode {img.mode}. '
+                "An RGBA texture containing four masks is required."
+            )
+        self.img_og_tem = img
+        self.tem_channels = [channel.convert("L") for channel in img.split()]
+
+    def _prepare_optional_map(self, filepath: str, map_name: str):
+        img = _open_texture(filepath)
+        if not _same_aspect_ratio(img.size, self.img_og_dif.size):
+            raise TextureValidationError(
+                f'{map_name} texture "{filepath}" is '
+                f'{img.size[0]}x{img.size[1]}, but the diffuse texture is '
+                f'{self.img_og_dif.size[0]}x{self.img_og_dif.size[1]}. '
+                "The textures must have the same aspect ratio."
+            )
+        if img.size != self.img_og_dif.size:
+            img = img.resize(self.img_og_dif.size, Image.Resampling.LANCZOS)
+        return img.convert("RGBA")
 
     def load_dirt_file(self, filepath: str):
-        self.img_dirt = Image.open(filepath)
+        self.img_dirt = self._prepare_optional_map(filepath, "Dirt")
 
     def load_specular_file(self, filepath: str):
-        self.img_spec = Image.open(filepath)
+        self.img_spec = self._prepare_optional_map(filepath, "Specular")
 
     def save(self, filepath: str):
         if filepath.endswith(".jpg"):

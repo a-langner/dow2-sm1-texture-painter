@@ -26,7 +26,7 @@ from src.constant import (
 import src.color_pattern_handler
 from src.dow1_converter import get_tem_filenames, convert_tem_texture
 from src.color_pattern_handler import army_color_pattern
-from src.image_process import ImageWorkbench
+from src.image_process import ImageWorkbench, TextureValidationError
 from pathlib import Path
 
 from importlib import resources
@@ -321,19 +321,28 @@ class ArmyPainter(tk.Tk):
         tem_filepath = filepath.replace("_dif.", "_tem.")
         if os.path.isfile(tem_filepath) and tem_filepath != filepath:
             print(tem_filepath)
-            self.load_channel_packed_file(tem_filepath)
+            try:
+                self.load_channel_packed_file(tem_filepath)
+            except TextureValidationError as exc:
+                showerror(title="Invalid team-colour texture", message=str(exc))
         else:
             self.open_channel()
 
         # Load associated dirt file
         dirt_filepath = filepath.replace("_dif.", "_drt.")
         if os.path.isfile(dirt_filepath):
-            self.load_dirt_file(dirt_filepath)
+            try:
+                self.load_dirt_file(dirt_filepath)
+            except TextureValidationError as exc:
+                showwarning(title="Invalid dirt texture", message=str(exc))
 
         # Load associated spec file
         spec_filepath = filepath.replace("_dif.", "_spc.")
         if os.path.isfile(spec_filepath):
-            self.load_spec_file(spec_filepath)
+            try:
+                self.load_spec_file(spec_filepath)
+            except TextureValidationError as exc:
+                showwarning(title="Invalid specular texture", message=str(exc))
 
         self.refresh_workspace()
 
@@ -356,7 +365,10 @@ class ArmyPainter(tk.Tk):
         # file dialog, truncate the file extension because it is automatically
         # set by the save dialog
         self.og_filename = Path(f.name).name.split(".")[0]
-        self.load_file(f.name)
+        try:
+            self.load_file(f.name)
+        except TextureValidationError as exc:
+            showerror(title="Invalid diffuse texture", message=str(exc))
 
     def open_channel(self, Event=None):
         f = filedialog.askopenfile(
@@ -366,7 +378,10 @@ class ArmyPainter(tk.Tk):
         )
         if f is None:
             return
-        self.load_channel_packed_file(f.name)
+        try:
+            self.load_channel_packed_file(f.name)
+        except TextureValidationError as exc:
+            showerror(title="Invalid team-colour texture", message=str(exc))
 
     def _check_batch_path(self, source: str, dest: str):
         if source == "":
