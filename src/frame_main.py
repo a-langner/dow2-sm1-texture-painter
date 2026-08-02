@@ -729,7 +729,10 @@ class ArmyPainter(tk.Tk):
         self.frame_army_pattern.lb.yview_moveto(fraction=1)
 
     def delete_pattern(self):
-        idx = self.frame_army_pattern.lb.curselection()[0]
+        selection = self.frame_army_pattern.lb.curselection()
+        if not selection:
+            return
+        idx = selection[0]
         pattern_name = self.frame_army_pattern.lb.get(idx)
         src.color_pattern_handler.delete(pattern_name)
         self.frame_army_pattern.load_pattern_list()
