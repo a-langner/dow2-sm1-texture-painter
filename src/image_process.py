@@ -6,6 +6,7 @@ from PIL import (
     ImageEnhance,
     ImageDraw,
 )
+from dataclasses import dataclass
 from src.constant import DEFAULT_IMG_SIZE, ColorOps
 
 
@@ -15,6 +16,18 @@ Image.MAX_IMAGE_PIXELS = MAX_TEXTURE_DIMENSION * MAX_TEXTURE_DIMENSION
 
 class TextureValidationError(ValueError):
     """Raised when a texture cannot safely be used by the workbench."""
+
+
+@dataclass(frozen=True)
+class RenderSettings:
+    colors: tuple
+    brightness: float
+    contrast: float
+    apply_alpha: bool
+    apply_dirt: bool
+    apply_spec: bool
+    color_op: str
+    tem_selected: tuple
 
 
 def _validate_dimensions(img, filepath):
@@ -86,6 +99,39 @@ class ImageWorkbench:
         self.tem_channels = []
         self.img_dirt = None
         self.img_spec = None
+
+    def get_render_settings(self):
+        return RenderSettings(
+            colors=tuple(self.colors),
+            brightness=self.brightness,
+            contrast=self.contrast,
+            apply_alpha=self.apply_alpha,
+            apply_dirt=self.apply_dirt,
+            apply_spec=self.apply_spec,
+            color_op=self.color_op,
+            tem_selected=tuple(self.tem_selected),
+        )
+
+    def apply_render_settings(self, settings):
+        self.colors = list(settings.colors)
+        self.brightness = settings.brightness
+        self.contrast = settings.contrast
+        self.apply_alpha = settings.apply_alpha
+        self.apply_dirt = settings.apply_dirt
+        self.apply_spec = settings.apply_spec
+        self.color_op = settings.color_op
+        self.tem_selected = tuple(settings.tem_selected)
+
+    def render_snapshot(self):
+        """Create a worker-safe view over immutable source images/settings."""
+        snapshot = object.__new__(ImageWorkbench)
+        snapshot.img_og_dif = self.img_og_dif
+        snapshot.img_og_tem = self.img_og_tem
+        snapshot.tem_channels = tuple(self.tem_channels)
+        snapshot.img_dirt = self.img_dirt
+        snapshot.img_spec = self.img_spec
+        snapshot.apply_render_settings(self.get_render_settings())
+        return snapshot
 
     def process_coloring(self):
         """Process image with current workspace setting"""

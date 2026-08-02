@@ -1,4 +1,5 @@
 import os
+from concurrent.futures import ThreadPoolExecutor
 from PIL import (
     ImageTk,
 )
@@ -33,6 +34,7 @@ from importlib import resources
 
 PATTERN_LIST_DEFAULT_WIDTH = 166
 VERSION = "0.1"
+PREVIEW_DEBOUNCE_MS = 120
 
 
 def find_companion_texture(diffuse_filepath, map_suffix):
@@ -55,6 +57,10 @@ def find_companion_texture(diffuse_filepath, map_suffix):
     return None
 
 
+def render_preview(snapshot):
+    return snapshot.refresh_workspace(), snapshot.refresh_team_colour_img()
+
+
 class ArmyPainter(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -71,6 +77,12 @@ class ArmyPainter(tk.Tk):
         self.title(f"Army Painter {VERSION}")
 
         self.img_wbench = ImageWorkbench()
+        self.preview_executor = ThreadPoolExecutor(max_workers=1)
+        self.preview_after_id = None
+        self.preview_generation = 0
+        self.preview_futures = set()
+        self.closing = False
+        self.protocol("WM_DELETE_WINDOW", self.on_exit)
 
         # Frame containing tools to edit the image
         self.frame_img_tools = tk.Frame(
@@ -150,7 +162,7 @@ class ArmyPainter(tk.Tk):
                 label="Close", command=self.close, accelerator="Ctrl+E"
             )
             filemenu.add_separator()
-            filemenu.add_command(label="Exit", command=self.quit)
+            filemenu.add_command(label="Exit", command=self.on_exit)
             menubar.add_cascade(label="File", menu=filemenu)
             self.config(menu=menubar)
 
@@ -226,7 +238,7 @@ class ArmyPainter(tk.Tk):
     def on_slider_update(self, value: float):
         self.img_wbench.brightness = self.frame_sliders.brightness_slider.get()
         self.img_wbench.contrast = self.frame_sliders.contrast_slider.get()
-        self.refresh_workspace()
+        self.schedule_preview_refresh(PREVIEW_DEBOUNCE_MS)
 
     def save(self, Event=None):
         """Save image from current workspace
@@ -255,14 +267,61 @@ class ArmyPainter(tk.Tk):
         self.img_wbench.tem_channels = []
         self.refresh_workspace()
 
-    def refresh_workspace(self):
-        """Refresh the workspace image with current settings"""
+    def sync_render_settings(self):
         self.img_wbench.colors = [
             color["bg"] for color in self.frame_color_chooser.color_boxes
         ]
-        self.img_dif = ImageTk.PhotoImage(self.img_wbench.refresh_workspace())
+        self.img_wbench.brightness = self.frame_sliders.brightness_slider.get()
+        self.img_wbench.contrast = self.frame_sliders.contrast_slider.get()
+        self.img_wbench.tem_selected = self.frame_channel_select.lb.curselection()
+
+    def refresh_workspace(self):
+        """Schedule an immediate background workspace refresh."""
+        self.schedule_preview_refresh(0)
+
+    def schedule_preview_refresh(self, delay_ms=0):
+        if self.closing:
+            return
+        self.sync_render_settings()
+        self.preview_generation += 1
+        if self.preview_after_id is not None:
+            self.after_cancel(self.preview_after_id)
+        generation = self.preview_generation
+        self.preview_after_id = self.after(
+            delay_ms, lambda: self.start_preview_refresh(generation)
+        )
+
+    def start_preview_refresh(self, generation):
+        self.preview_after_id = None
+        if self.closing or generation != self.preview_generation:
+            return
+        for pending in tuple(self.preview_futures):
+            if not pending.running():
+                pending.cancel()
+                self.preview_futures.discard(pending)
+        snapshot = self.img_wbench.render_snapshot()
+        future = self.preview_executor.submit(render_preview, snapshot)
+        self.preview_futures.add(future)
+        self.after(20, self.poll_preview_result, generation, future)
+
+    def poll_preview_result(self, generation, future):
+        if self.closing:
+            return
+        if not future.done():
+            self.after(20, self.poll_preview_result, generation, future)
+            return
+        self.preview_futures.discard(future)
+        if future.cancelled() or generation != self.preview_generation:
+            return
+        try:
+            workspace, team_colour = future.result()
+        except Exception as exc:
+            showerror(title="Preview error", message=str(exc))
+            return
+        self.img_wbench.img_workspace = workspace
+        self.img_dif = ImageTk.PhotoImage(workspace)
         self.label_img_dif.config(image=self.img_dif)
-        self.img_tem = ImageTk.PhotoImage(self.img_wbench.refresh_team_colour_img())
+        self.img_tem = ImageTk.PhotoImage(team_colour)
         self.label_img_tem.config(image=self.img_tem)
         self.refresh_window_size()
 
@@ -292,7 +351,7 @@ class ArmyPainter(tk.Tk):
         # Assuming both image got same size
         new_height = img_dif_size[1] + FRAME_TOOL_HEIGHT
         self.geometry(f"{new_width}x{new_height}")
-        self.update()
+        self.update_idletasks()
 
     def on_listbox_select(self, Event=None):
         if type(Event.widget.master) is FrameChannelList:
@@ -321,12 +380,7 @@ class ArmyPainter(tk.Tk):
         :type Event: [type], optional
         """
         self.img_wbench.tem_selected = self.frame_channel_select.lb.curselection()
-        # TODO: refactor lazy check with is load batch
-        # Did to avoid exception in ImageWorkbench processing
-        if self.img_wbench.apply_alpha:
-            self.refresh_workspace()
-        self.img = ImageTk.PhotoImage(self.img_wbench.refresh_team_colour_img())
-        self.label_img_tem.config(image=self.img)
+        self.refresh_workspace()
 
     def load_file(self, filepath: str):
         """Load diffuse and tem texture and set it as workspace image,
@@ -368,7 +422,6 @@ class ArmyPainter(tk.Tk):
 
     def load_channel_packed_file(self, filepath: str):
         self.img_wbench.load_team_colour_file(filepath)
-        self.img_tem = ImageTk.PhotoImage(self.img_wbench.img_og_tem)
         self.select_channel()
 
     def load_dirt_file(self, filepath: str):
@@ -499,6 +552,18 @@ class ArmyPainter(tk.Tk):
 
     def report_callback_exception(self, exc, val, tb):
         showerror("Error", message=traceback.format_exc())
+
+    def on_exit(self):
+        if self.closing:
+            return
+        self.closing = True
+        if self.preview_after_id is not None:
+            self.after_cancel(self.preview_after_id)
+            self.preview_after_id = None
+        for future in self.preview_futures:
+            future.cancel()
+        self.preview_executor.shutdown(wait=False, cancel_futures=True)
+        self.destroy()
 
 
 def main():
