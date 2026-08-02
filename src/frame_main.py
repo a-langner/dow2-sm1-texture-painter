@@ -35,6 +35,26 @@ PATTERN_LIST_DEFAULT_WIDTH = 166
 VERSION = "0.1"
 
 
+def find_companion_texture(diffuse_filepath, map_suffix):
+    """Find a sibling texture derived from a ``*_dif`` filename.
+
+    Filename matching is case-insensitive for consistent behavior on Windows
+    and case-sensitive filesystems. The directory and extension are preserved.
+    """
+    diffuse_path = Path(diffuse_filepath)
+    if not diffuse_path.stem.casefold().endswith("_dif"):
+        return None
+
+    unit_name = diffuse_path.stem[:-4]
+    expected_name = (
+        f"{unit_name}_{map_suffix}{diffuse_path.suffix}"
+    ).casefold()
+    for candidate in diffuse_path.parent.iterdir():
+        if candidate.is_file() and candidate.name.casefold() == expected_name:
+            return candidate
+    return None
+
+
 class ArmyPainter(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -318,8 +338,8 @@ class ArmyPainter(tk.Tk):
         self.img_wbench.load_diffuse_file(filepath)
 
         # Load associated tem file
-        tem_filepath = filepath.replace("_dif.", "_tem.")
-        if os.path.isfile(tem_filepath) and tem_filepath != filepath:
+        tem_filepath = find_companion_texture(filepath, "tem")
+        if tem_filepath is not None:
             print(tem_filepath)
             try:
                 self.load_channel_packed_file(tem_filepath)
@@ -329,16 +349,16 @@ class ArmyPainter(tk.Tk):
             self.open_channel()
 
         # Load associated dirt file
-        dirt_filepath = filepath.replace("_dif.", "_drt.")
-        if os.path.isfile(dirt_filepath):
+        dirt_filepath = find_companion_texture(filepath, "drt")
+        if dirt_filepath is not None:
             try:
                 self.load_dirt_file(dirt_filepath)
             except TextureValidationError as exc:
                 showwarning(title="Invalid dirt texture", message=str(exc))
 
         # Load associated spec file
-        spec_filepath = filepath.replace("_dif.", "_spc.")
-        if os.path.isfile(spec_filepath):
+        spec_filepath = find_companion_texture(filepath, "spc")
+        if spec_filepath is not None:
             try:
                 self.load_spec_file(spec_filepath)
             except TextureValidationError as exc:
