@@ -184,10 +184,13 @@ class ImageWorkbench:
                 f'{self.img_og_dif.size[0]}x{self.img_og_dif.size[1]}. '
                 "Team-colour and diffuse textures must have identical dimensions."
             )
-        if img.mode != "RGBA":
+        if img.mode == "RGB":
+            empty_alpha = Image.new("L", img.size, 0)
+            img = Image.merge("RGBA", (*img.split(), empty_alpha))
+        elif img.mode != "RGBA":
             raise TextureValidationError(
                 f'Team-colour texture "{filepath}" uses mode {img.mode}. '
-                "An RGBA texture containing four masks is required."
+                "An RGB or RGBA texture is required."
             )
         self.img_og_tem = img
         self.tem_channels = [channel.convert("L") for channel in img.split()]
