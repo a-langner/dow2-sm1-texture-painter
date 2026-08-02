@@ -101,30 +101,44 @@ class ImageWorkbench:
 
             # Get grayscaled original img
             #  TODO: useless variable as it is not altered
+            # Original implementation retained for reference. It applied the
+            # channel when generating the color, as alpha, and as the paste
+            # mask, which compounded the attenuation of soft mask values.
+            #
+            # gray_img = self.img_og_dif.copy()
+            # channel.convert("L")  # No effect unless the return value is used.
+            # new_img = ImageOps.colorize(
+            #     channel, (0, 0, 0), color
+            # ).convert("RGBA")
+            # new_img.putalpha(channel)
+            # if self.color_op == ColorOps.OVERLAY.value:
+            #     new_img = ImageChops.overlay(gray_img, new_img)
+            # elif self.color_op == ColorOps.MULTIPLY.value:
+            #     new_img = ImageChops.multiply(gray_img, new_img)
+            # else:
+            #     new_img = ImageChops.screen(gray_img, new_img)
+            # enhancer_contrast = ImageEnhance.Contrast(new_img)
+            # new_img = enhancer_contrast.enhance(self.contrast / 100)
+            # enhancer_brightness = ImageEnhance.Brightness(new_img)
+            # new_img = enhancer_brightness.enhance(self.brightness / 100)
+            # self.img_workspace.paste(new_img, mask=channel)
+
             gray_img = self.img_og_dif.copy()
-            channel.convert("L")
-
-            # Colorize grayscale image using channel as mask
-            new_img = ImageOps.colorize(channel, (0, 0, 0), color).convert(
-                "RGBA"
-            )
-
-            # Add alpha using channel as mask
-            new_img.putalpha(channel)
+            color_img = Image.new("RGBA", gray_img.size, color)
 
             if self.color_op == ColorOps.OVERLAY.value:
-                new_img = ImageChops.overlay(gray_img, new_img)
+                new_img = ImageChops.overlay(gray_img, color_img)
             elif self.color_op == ColorOps.MULTIPLY.value:
-                new_img = ImageChops.multiply(gray_img, new_img)
+                new_img = ImageChops.multiply(gray_img, color_img)
             else:
-                new_img = ImageChops.screen(gray_img, new_img)
+                new_img = ImageChops.screen(gray_img, color_img)
 
             enhancer_contrast = ImageEnhance.Contrast(new_img)
             new_img = enhancer_contrast.enhance(self.contrast / 100)
             enhancer_brightness = ImageEnhance.Brightness(new_img)
             new_img = enhancer_brightness.enhance(self.brightness / 100)
 
-            # Paste processed image part on the workspace one
+            # Apply the team-colour channel exactly once.
             self.img_workspace.paste(new_img, mask=channel)
 
     def refresh_workspace(self):
