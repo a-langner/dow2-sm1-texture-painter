@@ -9,7 +9,7 @@ def get_tem_filenames(path: Path, src_format: list):
     file_suffix = set(["Primary", "Secondary", "Trim", "Weapon"])
 
     def check_if_tem_exist(files_dict: dict):
-        """Check if the 4 files neccessary to construct packed tem files exists
+        """Check if the 4 files necessary to construct packed tem files exists
 
         :param files_dict: a dict containing unit name prefix as a key
             to access a nested dict containing the file path as a value

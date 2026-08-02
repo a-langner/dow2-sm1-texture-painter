@@ -26,7 +26,7 @@ Dawn of War 2 unit textures are composed of the following files:
 * {unit_name}_dif.dds -> diffuse
 * {unit_name}_tem.dds -> team color mask
 * {unit_name}_drt.dds -> dirt
-* {unit_name}_spec.dds -> specular
+* {unit_name}_spc.dds -> specular
 * {unit_name}_emi.dds -> emissive
 * {unit_name}_ocl.dds -> oclusion
 * {unit_name}_nrm.dds -> normal map
@@ -63,7 +63,7 @@ You can apply dirt & specular texture by clicking on `Edit -> Apply dirt/specula
 those textures must be in the same folder as the diffuse ones and their filenames must
 follow the following pattern.
 * {unit_name}_drt.dds -> dirt
-* {unit_name}_spec.dds -> specular
+* {unit_name}_spc.dds -> specular
 
 You can replace color by transparency with selecting the color mask in the list
 and checking the  `Apply alpha` box.
