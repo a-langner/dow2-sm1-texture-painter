@@ -358,28 +358,30 @@ class ArmyPainter(tk.Tk):
         self.img_wbench.load_specular_file(filepath)
 
     def open_diffuse(self, Event=None):
-        f = filedialog.askopenfile(initialdir=os.curdir, filetypes=OPEN_FILETYPES)
-        if f is None:
+        filepath = filedialog.askopenfilename(
+            initialdir=os.curdir, filetypes=OPEN_FILETYPES
+        )
+        if not filepath:
             return
         # Saving the filename just to set it as default file name on the save
         # file dialog, truncate the file extension because it is automatically
         # set by the save dialog
-        self.og_filename = Path(f.name).name.split(".")[0]
+        self.og_filename = Path(filepath).stem
         try:
-            self.load_file(f.name)
+            self.load_file(filepath)
         except TextureValidationError as exc:
             showerror(title="Invalid diffuse texture", message=str(exc))
 
     def open_channel(self, Event=None):
-        f = filedialog.askopenfile(
+        filepath = filedialog.askopenfilename(
             initialdir=os.curdir,
             filetypes=OPEN_FILETYPES,
             title="Open channel file",
         )
-        if f is None:
+        if not filepath:
             return
         try:
-            self.load_channel_packed_file(f.name)
+            self.load_channel_packed_file(filepath)
         except TextureValidationError as exc:
             showerror(title="Invalid team-colour texture", message=str(exc))
 
