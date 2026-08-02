@@ -69,7 +69,7 @@ class ImageWorkbench:
         self.tem_channels = []
         self.tem_selected = []
         self.colors = []
-        self.brightness = 40
+        self.brightness = 50
         self.contrast = 100
         self.apply_alpha = False
         self.apply_dirt = False
@@ -120,9 +120,9 @@ class ImageWorkbench:
                 new_img = ImageChops.screen(gray_img, new_img)
 
             enhancer_contrast = ImageEnhance.Contrast(new_img)
-            new_img = enhancer_contrast.enhance(self.brightness / 100)
+            new_img = enhancer_contrast.enhance(self.contrast / 100)
             enhancer_brightness = ImageEnhance.Brightness(new_img)
-            new_img = enhancer_brightness.enhance(self.contrast / 100)
+            new_img = enhancer_brightness.enhance(self.brightness / 100)
 
             # Paste processed image part on the workspace one
             self.img_workspace.paste(new_img, mask=channel)
