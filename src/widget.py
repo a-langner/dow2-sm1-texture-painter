@@ -224,17 +224,27 @@ class BatchEditTopLevel(tk.Toplevel):
             *[fmt.upper() for fmt in SAVE_EXT_LIST],
         )
         self.dest_menu.pack(side=tk.LEFT)
-        tk.Button(
+        self.batch_edit_button = tk.Button(
             self.frame_destination_format,
             text="Process Batch Edit",
             command=self._root().batch_edit,
-        ).pack(side=tk.LEFT)
+        )
+        self.batch_edit_button.pack(side=tk.LEFT)
 
-        tk.Button(
+        self.batch_convert_button = tk.Button(
             self.frame_destination_format,
             text="Process Batch Convert",
             command=self._root().batch_convert,
-        ).pack(side=tk.LEFT)
+        )
+        self.batch_convert_button.pack(side=tk.LEFT)
+
+        self.cancel_button = tk.Button(
+            self.frame_destination_format,
+            text="Cancel",
+            command=self._root().cancel_batch,
+            state=tk.DISABLED,
+        )
+        self.cancel_button.pack(side=tk.LEFT)
 
         def _select_folder(folder_path, Event=None):
             folder_path.set(filedialog.askdirectory(initialdir=os.curdir))
@@ -259,12 +269,15 @@ class BatchEditTopLevel(tk.Toplevel):
                 width=60,
                 exportselection=0,
             )
+            entry_frame.entry_path = entry_path
             entry_path.pack(side=tk.LEFT)
-            tk.Button(
+            entry_button = tk.Button(
                 entry_frame,
                 text="...",
                 command=lambda: (_select_folder(entry_frame.entry_value)),
-            ).pack(side=tk.LEFT)
+            )
+            entry_frame.entry_button = entry_button
+            entry_button.pack(side=tk.LEFT)
             return entry_frame
 
         self.frame_batch_src_path = widget_entry_template(
@@ -288,9 +301,25 @@ class BatchEditTopLevel(tk.Toplevel):
         self.progress_bar.pack(side=tk.LEFT)
 
     def update_progress_bar_label(self, current: int):
-        max = self.progress_bar["maximum"]
+        maximum = self.progress_bar["maximum"]
         self.progress_bar["value"] = current
         self.frame_progress_bar.configure(
-            text=f"Completed {current}/{max} file(s)"
+            text=f"Completed {current}/{maximum} file(s)"
         )
-        self.progress_bar.update()
+
+    def set_running(self, running):
+        normal_state = tk.DISABLED if running else tk.NORMAL
+        self.batch_edit_button.configure(state=normal_state)
+        self.batch_convert_button.configure(state=normal_state)
+        self.dest_menu.configure(state=normal_state)
+        for checkbox, _ in self.source_format_list:
+            checkbox.configure(state=normal_state)
+        for entry_frame in (
+            self.frame_batch_src_path,
+            self.frame_batch_dest_path,
+        ):
+            entry_frame.entry_path.configure(state=normal_state)
+            entry_frame.entry_button.configure(state=normal_state)
+        self.cancel_button.configure(
+            state=tk.NORMAL if running else tk.DISABLED
+        )

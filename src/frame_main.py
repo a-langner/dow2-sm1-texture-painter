@@ -1,4 +1,6 @@
 import os
+import queue
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from PIL import (
     ImageTk,
@@ -6,7 +8,7 @@ from PIL import (
 import tkinter as tk
 from tkinter import filedialog
 from tkinter.simpledialog import askstring
-from tkinter.messagebox import showerror, showwarning
+from tkinter.messagebox import showerror, showinfo, showwarning
 import traceback
 from src.widget import (
     FrameColorChooser,
@@ -61,6 +63,86 @@ def render_preview(snapshot):
     return snapshot.refresh_workspace(), snapshot.refresh_team_colour_img()
 
 
+def prepare_batch_workbench(diffuse_path, settings):
+    """Load one texture set without touching Tk or the displayed workbench."""
+    workbench = ImageWorkbench()
+    workbench.load_diffuse_file(diffuse_path)
+    tem_path = find_companion_texture(diffuse_path, "tem")
+    if tem_path is None:
+        raise TextureValidationError(
+            f'No team-colour texture was found for "{diffuse_path.name}".'
+        )
+    workbench.load_team_colour_file(tem_path)
+
+    warnings = []
+    for suffix, label, loader in (
+        ("drt", "Dirt", workbench.load_dirt_file),
+        ("spc", "Specular", workbench.load_specular_file),
+    ):
+        optional_path = find_companion_texture(diffuse_path, suffix)
+        if optional_path is None:
+            continue
+        try:
+            loader(optional_path)
+        except TextureValidationError as exc:
+            warnings.append(f"{label}: {exc}")
+
+    workbench.apply_render_settings(settings)
+    return workbench, warnings
+
+
+def save_processed_image(image, filepath):
+    if filepath.suffix.casefold() in (".jpg", ".jpeg"):
+        image.convert("RGB").save(filepath)
+    else:
+        image.save(filepath)
+
+
+def batch_edit_worker(files, destination, dest_format, settings, cancel, events):
+    errors = []
+    warnings = []
+    for current, diffuse_path in enumerate(files, start=1):
+        if cancel.is_set():
+            break
+        try:
+            workbench, item_warnings = prepare_batch_workbench(
+                diffuse_path, settings
+            )
+            output = workbench.refresh_workspace()
+            output_path = destination / f"{diffuse_path.stem}.{dest_format}"
+            save_processed_image(output, output_path)
+            warnings.extend(
+                f"{diffuse_path.name}: {warning}" for warning in item_warnings
+            )
+        except Exception as exc:
+            errors.append(f"{diffuse_path.name}: {exc}")
+        events.put(("progress", current, len(files)))
+    return errors, warnings, cancel.is_set()
+
+
+def batch_convert_worker(source, destination, dest_format, src_format, cancel, events):
+    errors = []
+    try:
+        files_dict = get_tem_filenames(source, src_format)
+    except Exception as exc:
+        return [str(exc)], [], cancel.is_set()
+
+    events.put(("total", len(files_dict)))
+    for current, (name, textures) in enumerate(files_dict.items(), start=1):
+        if cancel.is_set():
+            break
+        try:
+            result = convert_tem_texture(textures, source)
+            filename = name.replace("default", "tem", 1)
+            save_processed_image(
+                result, destination / f"{filename}.{dest_format}"
+            )
+        except Exception as exc:
+            errors.append(f"{name}: {exc}")
+        events.put(("progress", current, len(files_dict)))
+    return errors, [], cancel.is_set()
+
+
 class ArmyPainter(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -77,10 +159,15 @@ class ArmyPainter(tk.Tk):
         self.title(f"Army Painter {VERSION}")
 
         self.img_wbench = ImageWorkbench()
+        self.frame_batch_tools = None
         self.preview_executor = ThreadPoolExecutor(max_workers=1)
+        self.batch_executor = ThreadPoolExecutor(max_workers=1)
         self.preview_after_id = None
         self.preview_generation = 0
         self.preview_futures = set()
+        self.batch_future = None
+        self.batch_cancel = threading.Event()
+        self.batch_events = queue.Queue()
         self.closing = False
         self.protocol("WM_DELETE_WINDOW", self.on_exit)
 
@@ -225,6 +312,15 @@ class ArmyPainter(tk.Tk):
         self.label_img_tem.pack(side=tk.LEFT, fill=tk.Y)
 
     def open_batch_edit_tools(self, Event=None):
+        if (
+            self.frame_batch_tools is not None
+            and self.frame_batch_tools.winfo_exists()
+        ):
+            self.frame_batch_tools.deiconify()
+            self.frame_batch_tools.lift()
+            self.frame_batch_tools.focus_force()
+            return
+
         # Frame containing the batch operation tools
         self.frame_batch_tools = BatchEditTopLevel(
             self,
@@ -234,6 +330,20 @@ class ArmyPainter(tk.Tk):
             relief=tk.RIDGE,
         )
         self.frame_batch_tools.iconphoto(False, self.icon_img)
+        self.frame_batch_tools.protocol(
+            "WM_DELETE_WINDOW", self.close_batch_edit_tools
+        )
+        if self.batch_future is not None and not self.batch_future.done():
+            self.frame_batch_tools.set_running(True)
+            self.frame_batch_tools.frame_progress_bar.configure(
+                text="Batch running..."
+            )
+
+    def close_batch_edit_tools(self):
+        self.batch_cancel.set()
+        if self.frame_batch_tools is not None:
+            self.frame_batch_tools.destroy()
+            self.frame_batch_tools = None
 
     def on_slider_update(self, value: float):
         self.img_wbench.brightness = self.frame_sliders.brightness_slider.get()
@@ -459,9 +569,9 @@ class ArmyPainter(tk.Tk):
             showerror(title="Invalid team-colour texture", message=str(exc))
 
     def _check_batch_path(self, source: str, dest: str):
-        if source == "":
+        if not source:
             raise OSError("Please select a source directory.")
-        elif dest == "":
+        elif not dest:
             raise OSError("Please select a destination directory.")
         elif not os.path.exists(source):
             raise OSError(f"{source} does not exist.")
@@ -470,60 +580,135 @@ class ArmyPainter(tk.Tk):
 
     def _check_dif_format(self, filename: str, src_format: list):
         name, ext = os.path.splitext(filename)
-        if ext[1:] in src_format and name.endswith("_dif"):
+        if (
+            ext[1:].casefold() in src_format
+            and name.casefold().endswith("_dif")
+        ):
             return True
         return False
 
     def get_batch_edit_input(self):
-        src = Path(self.frame_batch_tools.frame_batch_src_path.entry_value.get())
-        dest = Path(self.frame_batch_tools.frame_batch_dest_path.entry_value.get())
+        if self.frame_batch_tools is None:
+            return None
+        source_value = self.frame_batch_tools.frame_batch_src_path.entry_value.get()
+        dest_value = self.frame_batch_tools.frame_batch_dest_path.entry_value.get()
         dest_format = self.frame_batch_tools.dest_format.get().lower()
         try:
             # Checking if source & dest exist
-            self._check_batch_path(src, dest)
+            self._check_batch_path(source_value, dest_value)
             src_format = self.frame_batch_tools.get_source_format_selected()
+            if not src_format:
+                raise OSError("Please select at least one source format.")
         except OSError as e:
             showerror(title="Path Error", message=str(e))
         else:
-            return (src, dest, dest_format, src_format)
+            return (
+                Path(source_value),
+                Path(dest_value),
+                dest_format,
+                [value.casefold() for value in src_format],
+            )
+
+    def start_batch_job(self, worker, *args):
+        if self.batch_future is not None and not self.batch_future.done():
+            return
+        self.batch_cancel = threading.Event()
+        self.batch_events = queue.Queue()
+        self.frame_batch_tools.set_running(True)
+        self.frame_batch_tools.progress_bar["value"] = 0
+        self.frame_batch_tools.frame_progress_bar.configure(text="Starting...")
+        self.batch_future = self.batch_executor.submit(
+            worker, *args, self.batch_cancel, self.batch_events
+        )
+        self.after(50, self.poll_batch_job)
+
+    def cancel_batch(self):
+        if self.batch_future is not None and not self.batch_future.done():
+            self.batch_cancel.set()
+            if self.frame_batch_tools is not None:
+                self.frame_batch_tools.frame_progress_bar.configure(
+                    text="Cancelling after current file..."
+                )
+
+    def poll_batch_job(self):
+        if self.closing:
+            return
+        while True:
+            try:
+                event = self.batch_events.get_nowait()
+            except queue.Empty:
+                break
+            if self.frame_batch_tools is None:
+                continue
+            if event[0] == "total":
+                self.frame_batch_tools.progress_bar["maximum"] = event[1]
+                self.frame_batch_tools.update_progress_bar_label(0)
+            elif event[0] == "progress":
+                _, current, maximum = event
+                self.frame_batch_tools.progress_bar["maximum"] = maximum
+                self.frame_batch_tools.update_progress_bar_label(current)
+
+        if self.batch_future is None or not self.batch_future.done():
+            self.after(50, self.poll_batch_job)
+            return
+
+        try:
+            errors, warnings, cancelled = self.batch_future.result()
+        except Exception as exc:
+            errors, warnings, cancelled = [str(exc)], [], False
+        self.batch_future = None
+        if self.frame_batch_tools is not None:
+            self.frame_batch_tools.set_running(False)
+            if cancelled:
+                self.frame_batch_tools.frame_progress_bar.configure(
+                    text="Batch cancelled"
+                )
+            elif errors:
+                self.frame_batch_tools.frame_progress_bar.configure(
+                    text="Batch completed with errors"
+                )
+            else:
+                self.frame_batch_tools.frame_progress_bar.configure(
+                    text="Batch completed"
+                )
+            self.frame_batch_tools.lift()
+            self.frame_batch_tools.focus_force()
+
+        messages = []
+        if errors:
+            messages.append("Errors:\n" + "\n".join(errors))
+        if warnings:
+            messages.append("Warnings:\n" + "\n".join(warnings))
+        if messages:
+            showwarning(title="Batch results", message="\n\n".join(messages))
+        elif not cancelled:
+            showinfo(title="Batch complete", message="Batch processing completed.")
 
     def batch_convert(self, Event=None):
-        src, dest, dest_format, src_format = self.get_batch_edit_input()
-        files_dict = get_tem_filenames(src, src_format)
-        self.frame_batch_tools.progress_bar["maximum"] = len(files_dict)
-        self.frame_batch_tools.update_progress_bar_label(0)
-        for idx, k in enumerate(files_dict.keys()):
-            try:
-                result = convert_tem_texture(files_dict.get(k), dest)
-            except ValueError:
-                showwarning(
-                    title="Warning missing textures",
-                    text=f"Ignored {k} as it do not posses 3 or 4 tem textures",
-                )
-                continue
-            filename = k.replace("default", "tem", 1)
-            result.save(dest / (f"{filename}.{dest_format}"), dest_format)
-            self.frame_batch_tools.update_progress_bar_label(idx + 1)
-        self.frame_batch_tools.focus()
+        batch_input = self.get_batch_edit_input()
+        if batch_input is None:
+            return
+        src, dest, dest_format, src_format = batch_input
+        self.start_batch_job(
+            batch_convert_worker, src, dest, dest_format, src_format
+        )
 
     def batch_edit(self, Event=None):
-        src, dest, dest_format, src_format = self.get_batch_edit_input()
-        filenames = [
-            filename
+        batch_input = self.get_batch_edit_input()
+        if batch_input is None:
+            return
+        src, dest, dest_format, src_format = batch_input
+        files = [
+            src / filename
             for filename in os.listdir(src)
             if self._check_dif_format(filename, src_format)
         ]
-
-        self.frame_batch_tools.progress_bar["maximum"] = len(filenames)
-        self.frame_batch_tools.update_progress_bar_label(0)
-        for idx, filename in enumerate(filenames):
-            name, _ = os.path.splitext(filename)
-            self.load_file(f"{src}/{filename}")
-            new_filename = name + f".{dest_format}"
-            self.img_wbench.save(f"{dest}/{new_filename}")
-            self.frame_batch_tools.update_progress_bar_label(idx + 1)
-
-        self.frame_batch_tools.focus()
+        self.sync_render_settings()
+        settings = self.img_wbench.get_render_settings()
+        self.frame_batch_tools.progress_bar["maximum"] = len(files)
+        self.start_batch_job(
+            batch_edit_worker, files, dest, dest_format, settings
+        )
 
     def reset_workspace(self, Event=None):
         self.img_wbench.img_workspace = self.img_wbench.img_og_dif
@@ -557,12 +742,14 @@ class ArmyPainter(tk.Tk):
         if self.closing:
             return
         self.closing = True
+        self.batch_cancel.set()
         if self.preview_after_id is not None:
             self.after_cancel(self.preview_after_id)
             self.preview_after_id = None
         for future in self.preview_futures:
             future.cancel()
         self.preview_executor.shutdown(wait=False, cancel_futures=True)
+        self.batch_executor.shutdown(wait=False, cancel_futures=True)
         self.destroy()
 
 

@@ -11,6 +11,8 @@ from src.constant import DEFAULT_IMG_SIZE, ColorOps
 
 
 MAX_TEXTURE_DIMENSION = 16 * 1024
+# Pillow's default decompression-bomb threshold is lower than a valid 16K
+# texture. Dimension validation below remains the authoritative limit.
 Image.MAX_IMAGE_PIXELS = MAX_TEXTURE_DIMENSION * MAX_TEXTURE_DIMENSION
 
 
@@ -230,6 +232,8 @@ class ImageWorkbench:
         :type filepath: str
         """
         self.img_og_dif = _open_texture(filepath).convert("RGBA")
+        # Companion maps belong to a particular diffuse. Do not accidentally
+        # retain maps from the previously opened texture.
         self.img_og_tem = Image.new("L", self.img_og_dif.size, "gray")
         self.tem_channels = []
         self.img_dirt = None
