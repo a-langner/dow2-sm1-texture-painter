@@ -1,10 +1,11 @@
 import tkinter as tk
 from tkinter.constants import HORIZONTAL
+from tkinter import ttk
 from tkinter.ttk import Progressbar
 import os
 from tkinter import colorchooser, filedialog
 from functools import partial
-from src.color_pattern_handler import army_color_pattern
+from src.color_pattern_handler import army_color_pattern, is_user_pattern
 from src.constant import OPEN_FILETYPES, SAVE_EXT_LIST, ColorOps
 
 
@@ -143,15 +144,85 @@ class FrameColorOps(tk.LabelFrame):
             value.pack(side=tk.LEFT)
 
 
+class PatternTreeview(ttk.Treeview):
+    """Pattern Treeview with metadata-backed temporary Listbox adapters."""
+
+    def __init__(self, master, **kwargs):
+        super().__init__(master, **kwargs)
+        self.pattern_metadata = {}
+        self.item_by_pattern_name = {}
+
+    def clear_patterns(self):
+        children = self.get_children()
+        if children:
+            self.delete(*children)
+        self.pattern_metadata.clear()
+        self.item_by_pattern_name.clear()
+
+    def insert_pattern(self, pattern_name, user_created):
+        item_id = self.insert(
+            "",
+            tk.END,
+            values=(pattern_name, "★" if user_created else ""),
+        )
+        self.pattern_metadata[item_id] = {
+            "name": pattern_name,
+            "is_user": user_created,
+        }
+        self.item_by_pattern_name[pattern_name] = item_id
+        return item_id
+
+    def get_pattern_name(self, item_id):
+        metadata = self.pattern_metadata.get(item_id)
+        return metadata["name"] if metadata is not None else None
+
+    def is_user_item(self, item_id):
+        metadata = self.pattern_metadata.get(item_id)
+        return bool(metadata and metadata["is_user"])
+
+    def get_pattern_item_id(self, pattern_name):
+        return self.item_by_pattern_name.get(pattern_name)
+
+    # Temporary compatibility for frame_main's Listbox callbacks. These use
+    # metadata rather than reading the visible Treeview cell values.
+    def curselection(self):
+        return self.selection()
+
+    def get(self, item_id):
+        return self.get_pattern_name(item_id)
+
+    def selection_set(self, first=None, last=None):
+        item_id = first
+        if first == "end" or last == "end":
+            children = self.get_children()
+            item_id = children[-1] if children else None
+        if item_id is not None:
+            super().selection_set(item_id)
+
+
 class FramePatternList(tk.Frame):
     def __init__(self, master=None, cnf={}, **kw):
         super(FramePatternList, self).__init__(master=master, cnf={}, **kw)
-        self.scrollbar = tk.Scrollbar(self)
+        self.tree_frame = tk.Frame(self)
+        self.tree_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+        self.scrollbar = ttk.Scrollbar(self.tree_frame, orient=tk.VERTICAL)
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.lb = tk.Listbox(
-            self, selectmode=tk.SINGLE, yscrollcommand=self.scrollbar.set
+        self.lb = PatternTreeview(
+            self.tree_frame,
+            columns=("pattern_name", "marker"),
+            show="headings",
+            selectmode="browse",
+            yscrollcommand=self.scrollbar.set,
+        )
+        self.lb.heading("pattern_name", text="Pattern", anchor=tk.W)
+        self.lb.heading("marker", text="", anchor=tk.E)
+        self.lb.column("pattern_name", anchor=tk.W, stretch=True)
+        self.lb.column(
+            "marker", anchor=tk.E, width=28, minwidth=28, stretch=False
         )
         self.scrollbar.config(command=self.lb.yview)
+        self.lb.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         self.load_pattern_list()
         self.save_pattern = tk.Button(
@@ -165,10 +236,24 @@ class FramePatternList(tk.Frame):
         self.delete_pattern.pack(side=tk.TOP, fill=tk.X)
 
     def load_pattern_list(self):
-        self.lb.delete(0, "end")
-        for idx, pattern_name in enumerate(army_color_pattern):
-            self.lb.insert(idx, pattern_name)
-        self.lb.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        self.lb.clear_patterns()
+        for pattern_name in army_color_pattern:
+            self.lb.insert_pattern(
+                pattern_name, user_created=is_user_pattern(pattern_name)
+            )
+
+    def get_selected_item_id(self):
+        selection = self.lb.selection()
+        return selection[0] if selection else None
+
+    def get_selected_pattern_name(self):
+        return self.lb.get_pattern_name(self.get_selected_item_id())
+
+    def is_selected_pattern_user(self):
+        return self.lb.is_user_item(self.get_selected_item_id())
+
+    def get_pattern_item_id(self, pattern_name):
+        return self.lb.get_pattern_item_id(pattern_name)
 
 
 class BatchEditTopLevel(tk.Toplevel):
