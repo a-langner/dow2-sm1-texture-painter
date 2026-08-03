@@ -1,21 +1,16 @@
 import configparser
 from collections import OrderedDict
-from src.constant import DOW2_MATERIALS
 import json
-
-# try:
 from importlib import resources
 
-# except ImportError:
-#   import importlib_resources as resources
+from src.constant import DOW2_MATERIALS
 
-with resources.path("resources", "default_pattern.ini") as path:
-    DEFAULT_PATTERN_PATH = path
-with resources.path("resources", "army_pattern.json") as path:
-    ARMY_PATTERN_PATH = path
+RESOURCE_ROOT = resources.files("src.resources")
+DEFAULT_PATTERN_RESOURCE = RESOURCE_ROOT.joinpath("default_pattern.ini")
+ARMY_PATTERN_PATH = RESOURCE_ROOT.joinpath("army_pattern.json")
 
 config = configparser.ConfigParser()
-config.read(DEFAULT_PATTERN_PATH)
+config.read_string(DEFAULT_PATTERN_RESOURCE.read_text(encoding="utf-8"))
 color_key = [
     "primary_colour_name",
     "secondary_colour_name",
@@ -52,7 +47,7 @@ def dump_default_pattern():
             key: rgb_to_hex(value) for (key, value) in zip(color_key, v)
         }
 
-    with open(ARMY_PATTERN_PATH, "w") as fp:
+    with ARMY_PATTERN_PATH.open("w", encoding="utf-8") as fp:
         json.dump(default_pattern_dict, fp, indent=2, ensure_ascii=False)
 
 
@@ -62,13 +57,13 @@ def save(name: str, colors: list):
         raise ValueError
     pattern_dict = {k: v for (k, v) in zip(color_key, colors)}
     army_color_pattern[name] = pattern_dict
-    with open(ARMY_PATTERN_PATH, "w") as fp:
+    with ARMY_PATTERN_PATH.open("w", encoding="utf-8") as fp:
         json.dump(army_color_pattern, fp, indent=2, ensure_ascii=False)
 
 
 def delete(name: str):
     army_color_pattern.pop(name)
-    with open(ARMY_PATTERN_PATH, "w") as fp:
+    with ARMY_PATTERN_PATH.open("w", encoding="utf-8") as fp:
         json.dump(army_color_pattern, fp, indent=2, ensure_ascii=False)
 
 
@@ -76,5 +71,5 @@ def delete(name: str):
 if not ARMY_PATTERN_PATH.is_file():
     dump_default_pattern()
 
-with open(ARMY_PATTERN_PATH, "r") as fp:
+with ARMY_PATTERN_PATH.open("r", encoding="utf-8") as fp:
     army_color_pattern = json.load(fp, object_pairs_hook=OrderedDict)

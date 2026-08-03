@@ -32,7 +32,7 @@ from src.color_pattern_handler import army_color_pattern
 from src.image_process import ImageWorkbench, TextureValidationError
 from pathlib import Path
 
-from importlib import resources
+from importlib.resources import as_file, files
 
 PATTERN_LIST_DEFAULT_WIDTH = 166
 VERSION = "0.1"
@@ -152,8 +152,9 @@ class ArmyPainter(tk.Tk):
         min_height = DEFAULT_IMG_SIZE + FRAME_TOOL_HEIGHT
         dimension = f"{min_width}x{min_height}"
         self.geometry(dimension)
-        with resources.path("resources", "icon_64x64.png") as icon_path:
-            self.icon_img = tk.PhotoImage(file=icon_path)
+        icon_resource = files("src.resources").joinpath("icon_64x64.png")
+        with as_file(icon_resource) as icon_path:
+            self.icon_img = tk.PhotoImage(file=str(icon_path))
         self.iconphoto(False, self.icon_img)
         self.minsize(min_width, min_height)
         self.title(f"Army Painter {VERSION}")
