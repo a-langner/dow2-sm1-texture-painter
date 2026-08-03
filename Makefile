@@ -30,6 +30,12 @@ build-bin-folder-win: ## build binary folder for windows
 	--add-data "readme.md;." --hidden-import='PIL._tkinter_finder' \
 	$(APP_DIR)/frame_main.py
 
+build-bin-file-win: ## build single-file binary for windows
+	pyinstaller --name $(APP_NAME)-$(APP_VERSION) --onefile --windowed \
+	--noconfirm --add-data "$(APP_DIR)/$(RES_DIR);$(APP_DIR)/$(RES_DIR)" \
+	--icon="$(APP_DIR)/$(RES_DIR)/icon_64x64.ico" \
+	--hidden-import='PIL._tkinter_finder' $(APP_DIR)/frame_main.py
+
 build-bin-folder: ## build binary folder
 	pyinstaller --name $(APP_NAME)-$(APP_VERSION) --windowed --noconfirm \
 	--add-data "$(APP_DIR)/$(RES_DIR):$(APP_DIR)/$(RES_DIR)" \
