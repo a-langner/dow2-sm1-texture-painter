@@ -9,9 +9,13 @@ import src.color_pattern_handler as pattern_handler
 from src.color_pattern_handler import (
     BuiltinPatternDeletionError,
     InvalidPatternError,
+    InvalidUserPatternFileError,
     PatternAlreadyExistsError,
     PatternNameConflictError,
     PatternNotFoundError,
+    UnsupportedUserPatternVersionError,
+    USER_PATTERN_FORMAT,
+    USER_PATTERN_VERSION,
     color_key,
     get_all_patterns,
     load_builtin_patterns,
@@ -22,6 +26,16 @@ from src.color_pattern_handler import (
 def pattern(primary="#111111"):
     return OrderedDict(
         zip(color_key, [primary, "#222222", "#333333", "#444444"])
+    )
+
+
+def user_pattern_document(patterns, version=USER_PATTERN_VERSION):
+    return OrderedDict(
+        [
+            ("format", USER_PATTERN_FORMAT),
+            ("version", version),
+            ("patterns", patterns),
+        ]
     )
 
 
@@ -47,7 +61,9 @@ class ColorPatternLoadingTests(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as temporary_directory:
             pattern_path = Path(temporary_directory) / "user_patterns.json"
-            pattern_path.write_text(json.dumps(expected), encoding="utf-8")
+            pattern_path.write_text(
+                json.dumps(user_pattern_document(expected)), encoding="utf-8"
+            )
 
             patterns = load_user_patterns(pattern_path)
 
@@ -66,8 +82,67 @@ class ColorPatternLoadingTests(unittest.TestCase):
             pattern_path = Path(temporary_directory) / "user_patterns.json"
             pattern_path.write_text("[]", encoding="utf-8")
 
-            with self.assertRaisesRegex(ValueError, "JSON object"):
+            with self.assertRaisesRegex(
+                InvalidUserPatternFileError, "JSON object"
+            ):
                 load_user_patterns(pattern_path)
+
+    def test_loads_legacy_unwrapped_file_without_rewriting_it(self):
+        expected = OrderedDict([("Legacy", pattern())])
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            pattern_path.write_text(json.dumps(expected), encoding="utf-8")
+            contents_before = pattern_path.read_bytes()
+
+            patterns = load_user_patterns(pattern_path)
+
+            self.assertEqual(patterns, expected)
+            self.assertEqual(pattern_path.read_bytes(), contents_before)
+
+    def test_rejects_unsupported_future_version_without_rewriting_file(self):
+        document = user_pattern_document(OrderedDict(), version=2)
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            pattern_path.write_text(json.dumps(document), encoding="utf-8")
+            contents_before = pattern_path.read_bytes()
+
+            with self.assertRaisesRegex(
+                UnsupportedUserPatternVersionError, "version 2"
+            ):
+                load_user_patterns(pattern_path)
+
+            self.assertEqual(pattern_path.read_bytes(), contents_before)
+
+    def test_rejects_invalid_format_and_patterns_object(self):
+        invalid_documents = [
+            {"format": "wrong", "version": 1, "patterns": {}},
+            {
+                "format": USER_PATTERN_FORMAT,
+                "version": 1,
+                "patterns": [],
+            },
+            {
+                "format": USER_PATTERN_FORMAT,
+                "version": "1",
+                "patterns": {},
+            },
+        ]
+
+        for document in invalid_documents:
+            with self.subTest(document=document):
+                with tempfile.TemporaryDirectory() as temporary_directory:
+                    pattern_path = (
+                        Path(temporary_directory) / "user_patterns.json"
+                    )
+                    pattern_path.write_text(
+                        json.dumps(document), encoding="utf-8"
+                    )
+                    contents_before = pattern_path.read_bytes()
+                    with self.assertRaises(InvalidUserPatternFileError):
+                        load_user_patterns(pattern_path)
+                    self.assertEqual(
+                        pattern_path.read_bytes(), contents_before
+                    )
 
 
 class ColorPatternSavingTests(unittest.TestCase):
@@ -103,7 +178,9 @@ class ColorPatternSavingTests(unittest.TestCase):
             mocked_path.assert_called_once_with(create_parent=True)
             self.assertTrue(pattern_path.is_file())
             saved = json.loads(pattern_path.read_text(encoding="utf-8"))
-            self.assertEqual(list(saved), ["New Pattern"])
+            self.assertEqual(saved["format"], USER_PATTERN_FORMAT)
+            self.assertEqual(saved["version"], USER_PATTERN_VERSION)
+            self.assertEqual(list(saved["patterns"]), ["New Pattern"])
             self.assertIn("New Pattern", pattern_handler.user_color_patterns)
 
     def test_saved_pattern_can_be_loaded_from_disk(self):
@@ -114,6 +191,23 @@ class ColorPatternSavingTests(unittest.TestCase):
             reloaded = load_user_patterns(pattern_path)
 
         self.assertEqual(reloaded["Persistent"], pattern())
+
+    def test_next_save_migrates_legacy_file_to_versioned_format(self):
+        legacy = OrderedDict([("Legacy", pattern())])
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            pattern_path.write_text(json.dumps(legacy), encoding="utf-8")
+            pattern_handler.user_color_patterns.update(
+                load_user_patterns(pattern_path)
+            )
+            pattern_handler.army_color_pattern.update(legacy)
+
+            pattern_handler.save("New", self.colors(), pattern_path)
+            saved = json.loads(pattern_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(saved["format"], USER_PATTERN_FORMAT)
+        self.assertEqual(saved["version"], USER_PATTERN_VERSION)
+        self.assertEqual(list(saved["patterns"]), ["Legacy", "New"])
 
     def test_duplicate_user_name_is_rejected(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -248,7 +342,10 @@ class ColorPatternDeletionTests(unittest.TestCase):
 
             self.assertTrue(pattern_path.is_file())
             self.assertEqual(
-                json.loads(pattern_path.read_text(encoding="utf-8")), {}
+                json.loads(pattern_path.read_text(encoding="utf-8"))[
+                    "patterns"
+                ],
+                {},
             )
             self.assertEqual(pattern_handler.user_color_patterns, {})
 

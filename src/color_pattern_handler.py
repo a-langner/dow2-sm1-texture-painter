@@ -11,6 +11,8 @@ from src.user_data import get_user_patterns_path
 
 RESOURCE_ROOT = resources.files("src.resources")
 ARMY_PATTERN_RESOURCE = RESOURCE_ROOT.joinpath("army_pattern.json")
+USER_PATTERN_FORMAT = "sm1-dow2-texture-painter-user-patterns"
+USER_PATTERN_VERSION = 1
 
 color_key = [
     "primary_colour_name",
@@ -46,6 +48,18 @@ class PatternNotFoundError(PatternError):
     """Raised when deletion targets a pattern that does not exist."""
 
 
+class UserPatternFileError(PatternError):
+    """Base class for user-pattern file errors safe to show in the GUI."""
+
+
+class InvalidUserPatternFileError(UserPatternFileError):
+    """Raised when a user-pattern file has invalid JSON or structure."""
+
+
+class UnsupportedUserPatternVersionError(UserPatternFileError):
+    """Raised when a user-pattern file uses an unsupported future version."""
+
+
 def _load_pattern_file(pattern_file):
     with pattern_file.open("r", encoding="utf-8") as fp:
         patterns = json.load(fp, object_pairs_hook=OrderedDict)
@@ -72,7 +86,54 @@ def load_user_patterns(pattern_path=None):
     if not pattern_path.is_file():
         return OrderedDict()
 
-    return _load_pattern_file(pattern_path)
+    try:
+        with pattern_path.open("r", encoding="utf-8") as fp:
+            document = json.load(fp, object_pairs_hook=OrderedDict)
+    except json.JSONDecodeError as exc:
+        raise InvalidUserPatternFileError(
+            f"User-pattern file contains invalid JSON at line {exc.lineno}"
+        ) from exc
+
+    if not isinstance(document, dict):
+        raise InvalidUserPatternFileError(
+            "User-pattern file must contain a JSON object"
+        )
+
+    # Explicit compatibility for files written before the versioned wrapper.
+    if _is_valid_pattern_collection(document):
+        return OrderedDict(document)
+
+    if document.get("format") != USER_PATTERN_FORMAT:
+        raise InvalidUserPatternFileError(
+            "User-pattern file has an invalid or missing format identifier"
+        )
+
+    if "version" not in document:
+        raise InvalidUserPatternFileError(
+            "User-pattern file is missing its format version"
+        )
+    if type(document["version"]) is not int:
+        raise InvalidUserPatternFileError(
+            "User-pattern file version must be an integer"
+        )
+    if document["version"] != USER_PATTERN_VERSION:
+        raise UnsupportedUserPatternVersionError(
+            "Unsupported user-pattern file version "
+            f"{document['version']!r}; supported version is "
+            f"{USER_PATTERN_VERSION}"
+        )
+
+    patterns = document.get("patterns")
+    if not isinstance(patterns, dict):
+        raise InvalidUserPatternFileError(
+            "User-pattern file must contain a patterns object"
+        )
+    if not _is_valid_pattern_collection(patterns):
+        raise InvalidUserPatternFileError(
+            "User-pattern file contains an invalid pattern"
+        )
+
+    return OrderedDict(patterns)
 
 
 def get_all_patterns(builtin_patterns=None, user_patterns=None):
@@ -96,6 +157,24 @@ def get_all_patterns(builtin_patterns=None, user_patterns=None):
 
 def is_user_pattern(name):
     return name in user_color_patterns
+
+
+def _is_valid_pattern_collection(patterns):
+    if not isinstance(patterns, dict):
+        return False
+
+    for name, pattern in patterns.items():
+        if not isinstance(name, str) or not name.strip():
+            return False
+        if not isinstance(pattern, dict) or list(pattern) != color_key:
+            return False
+        if not all(
+            isinstance(color, str) and COLOR_VALUE_PATTERN.fullmatch(color)
+            for color in pattern.values()
+        ):
+            return False
+
+    return True
 
 
 def _validate_new_pattern(name, colors):
@@ -133,6 +212,13 @@ def _validate_new_pattern(name, colors):
 def _write_user_patterns(patterns, pattern_path):
     pattern_path.parent.mkdir(parents=True, exist_ok=True)
     temporary_path = None
+    document = OrderedDict(
+        [
+            ("format", USER_PATTERN_FORMAT),
+            ("version", USER_PATTERN_VERSION),
+            ("patterns", patterns),
+        ]
+    )
 
     try:
         with tempfile.NamedTemporaryFile(
@@ -144,7 +230,7 @@ def _write_user_patterns(patterns, pattern_path):
             delete=False,
         ) as fp:
             temporary_path = Path(fp.name)
-            json.dump(patterns, fp, indent=2, ensure_ascii=False)
+            json.dump(document, fp, indent=2, ensure_ascii=False)
             fp.write("\n")
             fp.flush()
             os.fsync(fp.fileno())
