@@ -13,6 +13,24 @@ COLOR_BOX_SIZE = 90
 COLOR_BTN_HEIGHT = 26
 
 
+def build_pattern_rows(patterns=None):
+    """Build GUI-independent rows while keeping decoration out of names."""
+    if patterns is None:
+        patterns = army_color_pattern
+
+    rows = []
+    for pattern_name in patterns:
+        user_created = is_user_pattern(pattern_name)
+        rows.append(
+            {
+                "name": pattern_name,
+                "is_user": user_created,
+                "marker": "★" if user_created else "",
+            }
+        )
+    return rows
+
+
 class FrameChannelList(tk.LabelFrame):
     def __init__(self, master=None, cnf={}, **kw):
         super(FrameChannelList, self).__init__(master=master, cnf={}, **kw)
@@ -224,9 +242,9 @@ class FramePatternList(tk.Frame):
 
     def load_pattern_list(self):
         self.tree.clear_patterns()
-        for pattern_name in army_color_pattern:
+        for row in build_pattern_rows():
             self.tree.insert_pattern(
-                pattern_name, user_created=is_user_pattern(pattern_name)
+                row["name"], user_created=row["is_user"]
             )
         if hasattr(self, "delete_pattern"):
             self.update_delete_button_state()
