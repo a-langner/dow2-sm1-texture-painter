@@ -193,7 +193,12 @@ class ArmyPainter(tk.Tk):
         self.define_frame_workspace()
         self.frame_army_pattern = FramePatternList(self.frame_img)
         self.frame_army_pattern.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        self.bind("<<ListboxSelect>>", self.on_listbox_select)
+        self.frame_channel_select.lb.bind(
+            "<<ListboxSelect>>", self.select_channel
+        )
+        self.frame_army_pattern.tree.bind(
+            "<<TreeviewSelect>>", self.on_pattern_select
+        )
 
         # Defining menubar
         self.define_menu()
@@ -464,25 +469,23 @@ class ArmyPainter(tk.Tk):
         self.geometry(f"{new_width}x{new_height}")
         self.update_idletasks()
 
-    def on_listbox_select(self, Event=None):
-        if type(Event.widget.master) is FrameChannelList:
-            self.select_channel()
+    def on_pattern_select(self, Event=None):
         # TODO: Refactor following code so with frame color class
-        elif type(Event.widget.master) is FramePatternList:
-            # TODO: This function is triggered upon listbox selection set.
-            # Is this intended? It cause issue with the reset_workspace func
-            # triggering the event when the pattern listbox has no selection
-            if len(self.frame_army_pattern.lb.curselection()) == 0:
-                return
-            idx = self.frame_army_pattern.lb.curselection()[0]
-            army_name = self.frame_army_pattern.lb.get(idx)
-            color_list = list(army_color_pattern.get(army_name).values())
-            for color, color_box in zip(
-                color_list, self.frame_color_chooser.color_boxes
-            ):
-                color_box["bg"] = color
-            self.frame_color_chooser.draw_rgb_value()
-            self.refresh_workspace()
+        pattern_name = self.frame_army_pattern.get_selected_pattern_name()
+        if pattern_name is None:
+            return
+
+        pattern = army_color_pattern.get(pattern_name)
+        if pattern is None:
+            return
+
+        color_list = list(pattern.values())
+        for color, color_box in zip(
+            color_list, self.frame_color_chooser.color_boxes
+        ):
+            color_box["bg"] = color
+        self.frame_color_chooser.draw_rgb_value()
+        self.refresh_workspace()
 
     def select_channel(self, Event=None):
         """Register channel selected from the Channel list listbox

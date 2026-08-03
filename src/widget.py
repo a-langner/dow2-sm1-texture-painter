@@ -183,8 +183,8 @@ class PatternTreeview(ttk.Treeview):
     def get_pattern_item_id(self, pattern_name):
         return self.item_by_pattern_name.get(pattern_name)
 
-    # Temporary compatibility for frame_main's Listbox callbacks. These use
-    # metadata rather than reading the visible Treeview cell values.
+    # Temporary compatibility for the unchanged save/delete callbacks. These
+    # adapters use metadata rather than visible Treeview cell values.
     def curselection(self):
         return self.selection()
 
@@ -208,21 +208,24 @@ class FramePatternList(tk.Frame):
 
         self.scrollbar = ttk.Scrollbar(self.tree_frame, orient=tk.VERTICAL)
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.lb = PatternTreeview(
+        self.tree = PatternTreeview(
             self.tree_frame,
             columns=("pattern_name", "marker"),
             show="headings",
             selectmode="browse",
             yscrollcommand=self.scrollbar.set,
         )
-        self.lb.heading("pattern_name", text="Pattern", anchor=tk.W)
-        self.lb.heading("marker", text="", anchor=tk.E)
-        self.lb.column("pattern_name", anchor=tk.W, stretch=True)
-        self.lb.column(
+        self.tree.heading("pattern_name", text="Pattern", anchor=tk.W)
+        self.tree.heading("marker", text="", anchor=tk.E)
+        self.tree.column("pattern_name", anchor=tk.W, stretch=True)
+        self.tree.column(
             "marker", anchor=tk.E, width=28, minwidth=28, stretch=False
         )
-        self.scrollbar.config(command=self.lb.yview)
-        self.lb.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.scrollbar.config(command=self.tree.yview)
+        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # Temporary alias for save/delete callbacks updated in a later step.
+        self.lb = self.tree
 
         self.load_pattern_list()
         self.save_pattern = tk.Button(
@@ -236,24 +239,24 @@ class FramePatternList(tk.Frame):
         self.delete_pattern.pack(side=tk.TOP, fill=tk.X)
 
     def load_pattern_list(self):
-        self.lb.clear_patterns()
+        self.tree.clear_patterns()
         for pattern_name in army_color_pattern:
-            self.lb.insert_pattern(
+            self.tree.insert_pattern(
                 pattern_name, user_created=is_user_pattern(pattern_name)
             )
 
     def get_selected_item_id(self):
-        selection = self.lb.selection()
+        selection = self.tree.selection()
         return selection[0] if selection else None
 
     def get_selected_pattern_name(self):
-        return self.lb.get_pattern_name(self.get_selected_item_id())
+        return self.tree.get_pattern_name(self.get_selected_item_id())
 
     def is_selected_pattern_user(self):
-        return self.lb.is_user_item(self.get_selected_item_id())
+        return self.tree.is_user_item(self.get_selected_item_id())
 
     def get_pattern_item_id(self, pattern_name):
-        return self.lb.get_pattern_item_id(pattern_name)
+        return self.tree.get_pattern_item_id(pattern_name)
 
 
 class BatchEditTopLevel(tk.Toplevel):
