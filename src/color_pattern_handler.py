@@ -1,10 +1,12 @@
 from collections import OrderedDict
 import json
 from importlib import resources
+import logging
 import os
 from pathlib import Path
 import re
 import tempfile
+from typing import NamedTuple
 
 from src.user_data import get_user_patterns_path
 
@@ -22,6 +24,7 @@ color_key = [
 ]
 
 COLOR_VALUE_PATTERN = re.compile(r"^#[0-9a-fA-F]{6}$")
+LOGGER = logging.getLogger(__name__)
 
 
 class PatternError(ValueError):
@@ -60,6 +63,11 @@ class UnsupportedUserPatternVersionError(UserPatternFileError):
     """Raised when a user-pattern file uses an unsupported future version."""
 
 
+class UserPatternLoadIssue(NamedTuple):
+    path: Path
+    error: Exception
+
+
 def _load_pattern_file(pattern_file):
     with pattern_file.open("r", encoding="utf-8") as fp:
         patterns = json.load(fp, object_pairs_hook=OrderedDict)
@@ -83,7 +91,9 @@ def load_user_patterns(pattern_path=None):
         pattern_path = get_user_patterns_path()
     pattern_path = Path(pattern_path)
 
-    if not pattern_path.is_file():
+    try:
+        pattern_path.stat()
+    except FileNotFoundError:
         return OrderedDict()
 
     try:
@@ -134,6 +144,21 @@ def load_user_patterns(pattern_path=None):
         )
 
     return OrderedDict(patterns)
+
+
+def load_user_patterns_for_startup(pattern_path=None):
+    """Load user patterns without preventing application startup on failure."""
+    if pattern_path is None:
+        pattern_path = get_user_patterns_path()
+    pattern_path = Path(pattern_path).resolve()
+
+    try:
+        return load_user_patterns(pattern_path), None
+    except (UserPatternFileError, OSError) as exc:
+        LOGGER.exception(
+            "Could not load user-pattern file: %s", pattern_path
+        )
+        return OrderedDict(), UserPatternLoadIssue(pattern_path, exc)
 
 
 def get_all_patterns(builtin_patterns=None, user_patterns=None):
@@ -242,11 +267,23 @@ def _write_user_patterns(patterns, pattern_path):
             temporary_path.unlink(missing_ok=True)
 
 
+def _ensure_user_pattern_file_is_writable(pattern_path):
+    if (
+        user_pattern_load_issue is not None
+        and pattern_path.resolve() == user_pattern_load_issue.path
+    ):
+        raise UserPatternFileError(
+            "The user-pattern file was not loaded successfully and cannot "
+            "be safely updated."
+        )
+
+
 def save(name: str, colors: list, pattern_path=None):
     normalized_name, normalized_colors = _validate_new_pattern(name, colors)
     if pattern_path is None:
         pattern_path = get_user_patterns_path(create_parent=True)
     pattern_path = Path(pattern_path)
+    _ensure_user_pattern_file_is_writable(pattern_path)
 
     pattern = OrderedDict(zip(color_key, normalized_colors))
     updated_user_patterns = OrderedDict(user_color_patterns)
@@ -270,6 +307,7 @@ def delete(name: str, pattern_path=None):
     if pattern_path is None:
         pattern_path = get_user_patterns_path(create_parent=True)
     pattern_path = Path(pattern_path)
+    _ensure_user_pattern_file_is_writable(pattern_path)
 
     updated_user_patterns = OrderedDict(user_color_patterns)
     del updated_user_patterns[normalized_name]
@@ -281,7 +319,19 @@ def delete(name: str, pattern_path=None):
 
 
 builtin_color_patterns = load_builtin_patterns()
-user_color_patterns = load_user_patterns()
+user_color_patterns, user_pattern_load_issue = (
+    load_user_patterns_for_startup()
+)
 
-# Compatibility view used by the existing GUI until it adopts the new API.
-army_color_pattern = get_all_patterns()
+try:
+    # Compatibility view used by the existing GUI until it adopts the new API.
+    army_color_pattern = get_all_patterns()
+except PatternNameConflictError as exc:
+    user_pattern_path = Path(get_user_patterns_path()).resolve()
+    LOGGER.exception(
+        "User-pattern file conflicts with built-in patterns: %s",
+        user_pattern_path,
+    )
+    user_pattern_load_issue = UserPatternLoadIssue(user_pattern_path, exc)
+    user_color_patterns = OrderedDict()
+    army_color_pattern = get_all_patterns()

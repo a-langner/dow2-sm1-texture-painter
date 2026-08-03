@@ -1,4 +1,5 @@
 import os
+import logging
 import queue
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -29,10 +30,7 @@ from src.constant import (
 import src.color_pattern_handler
 from src.dow1_converter import get_tem_filenames, convert_tem_texture
 from src.color_pattern_handler import (
-    InvalidPatternError,
-    PatternAlreadyExistsError,
     PatternError,
-    PatternNameConflictError,
     army_color_pattern,
 )
 from src.image_process import ImageWorkbench, TextureValidationError
@@ -43,6 +41,7 @@ from importlib.resources import as_file, files
 PATTERN_LIST_DEFAULT_WIDTH = 166
 VERSION = "0.1"
 PREVIEW_DEBOUNCE_MS = 120
+LOGGER = logging.getLogger(__name__)
 
 
 def find_companion_texture(diffuse_filepath, map_suffix):
@@ -211,6 +210,8 @@ class ArmyPainter(tk.Tk):
 
         # Initialize the default workspace
         self.reset_workspace()
+        self.user_pattern_warning_shown = False
+        self.after_idle(self.show_user_pattern_load_warning)
 
     def define_frame_workspace_tool(self):
         # Setting color boxes frame
@@ -744,12 +745,16 @@ class ArmyPainter(tk.Tk):
         colors = [color["bg"] for color in self.frame_color_chooser.color_boxes]
         try:
             src.color_pattern_handler.save(name=pattern_name, colors=colors)
-        except (
-            InvalidPatternError,
-            PatternAlreadyExistsError,
-            PatternNameConflictError,
-        ) as exc:
+        except PatternError as exc:
             showerror("Cannot Save Pattern", str(exc))
+            return
+        except OSError:
+            LOGGER.exception("Could not save user pattern '%s'", pattern_name)
+            showerror(
+                "Cannot Save Pattern",
+                "The user-pattern file could not be updated.\n\n"
+                "The pattern was not saved.",
+            )
             return
 
         self.frame_army_pattern.load_pattern_list()
@@ -776,8 +781,19 @@ class ArmyPainter(tk.Tk):
         )
         try:
             src.color_pattern_handler.delete(pattern_name)
-        except (PatternError, OSError) as exc:
+        except PatternError as exc:
             showerror("Cannot Delete Pattern", str(exc))
+            return
+        except OSError:
+            LOGGER.exception(
+                "Could not persist deletion of user pattern '%s'",
+                pattern_name,
+            )
+            showerror(
+                "Cannot Delete Pattern",
+                "The user-pattern file could not be updated.\n\n"
+                "The pattern was not deleted.",
+            )
             return
 
         self.frame_army_pattern.load_pattern_list()
@@ -785,6 +801,22 @@ class ArmyPainter(tk.Tk):
             self.frame_army_pattern.select_pattern(neighboring_name)
         else:
             self.frame_army_pattern.update_delete_button_state()
+
+    def show_user_pattern_load_warning(self):
+        if self.user_pattern_warning_shown:
+            return
+
+        issue = src.color_pattern_handler.user_pattern_load_issue
+        if issue is None:
+            return
+
+        self.user_pattern_warning_shown = True
+        showwarning(
+            "User Patterns Not Loaded",
+            "The user-pattern file could not be loaded:\n"
+            f"{issue.path}\n\n"
+            "Built-in patterns are still available. The file was not changed.",
+        )
 
     def report_callback_exception(self, exc, val, tb):
         showerror("Error", message=traceback.format_exc())

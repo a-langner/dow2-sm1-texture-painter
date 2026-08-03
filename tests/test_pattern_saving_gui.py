@@ -113,6 +113,28 @@ class PatternSavingGuiTests(unittest.TestCase):
             colors_before,
         )
 
+    @patch("src.frame_main.LOGGER.exception")
+    @patch("src.frame_main.showerror")
+    @patch(
+        "src.frame_main.src.color_pattern_handler.save",
+        side_effect=PermissionError("access denied"),
+    )
+    @patch("src.frame_main.askstring", return_value="Custom Pattern")
+    def test_persistence_failure_explains_pattern_was_not_saved(
+        self, ask, save, showerror, log_exception
+    ):
+        painter = FakePainter()
+
+        ArmyPainter.save_pattern(painter)
+
+        showerror.assert_called_once_with(
+            "Cannot Save Pattern",
+            "The user-pattern file could not be updated.\n\n"
+            "The pattern was not saved.",
+        )
+        self.assertEqual(painter.frame_army_pattern.load_count, 0)
+        log_exception.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

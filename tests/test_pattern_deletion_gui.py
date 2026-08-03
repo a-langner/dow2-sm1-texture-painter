@@ -109,6 +109,29 @@ class PatternDeletionGuiTests(unittest.TestCase):
         )
         self.assertEqual(painter.frame_army_pattern.load_count, 0)
 
+    @patch("src.frame_main.LOGGER.exception")
+    @patch("src.frame_main.showerror")
+    @patch(
+        "src.frame_main.src.color_pattern_handler.delete",
+        side_effect=PermissionError("access denied"),
+    )
+    @patch("src.frame_main.askyesno", return_value=True)
+    def test_persistence_failure_keeps_pattern_visible(
+        self, askyesno, delete, showerror, log_exception
+    ):
+        painter = FakePainter("Still Visible", True)
+
+        ArmyPainter.delete_pattern(painter)
+
+        showerror.assert_called_once_with(
+            "Cannot Delete Pattern",
+            "The user-pattern file could not be updated.\n\n"
+            "The pattern was not deleted.",
+        )
+        self.assertEqual(painter.frame_army_pattern.load_count, 0)
+        self.assertEqual(painter.frame_army_pattern.selected_names, [])
+        log_exception.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

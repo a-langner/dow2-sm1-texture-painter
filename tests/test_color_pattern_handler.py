@@ -14,12 +14,14 @@ from src.color_pattern_handler import (
     PatternNameConflictError,
     PatternNotFoundError,
     UnsupportedUserPatternVersionError,
+    UserPatternLoadIssue,
     USER_PATTERN_FORMAT,
     USER_PATTERN_VERSION,
     color_key,
     get_all_patterns,
     load_builtin_patterns,
     load_user_patterns,
+    load_user_patterns_for_startup,
 )
 
 
@@ -144,6 +146,54 @@ class ColorPatternLoadingTests(unittest.TestCase):
                         pattern_path.read_bytes(), contents_before
                     )
 
+    def test_startup_survives_malformed_json_without_changing_file(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            pattern_path.write_text('{"broken":', encoding="utf-8")
+            contents_before = pattern_path.read_bytes()
+
+            with self.assertLogs(
+                "src.color_pattern_handler", level="ERROR"
+            ):
+                patterns, issue = load_user_patterns_for_startup(pattern_path)
+
+            self.assertEqual(patterns, OrderedDict())
+            self.assertIsInstance(issue, UserPatternLoadIssue)
+            self.assertIsInstance(issue.error, InvalidUserPatternFileError)
+            self.assertEqual(pattern_path.read_bytes(), contents_before)
+
+    def test_startup_survives_unsupported_version(self):
+        document = user_pattern_document(OrderedDict(), version=2)
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            pattern_path.write_text(json.dumps(document), encoding="utf-8")
+
+            with self.assertLogs(
+                "src.color_pattern_handler", level="ERROR"
+            ):
+                patterns, issue = load_user_patterns_for_startup(pattern_path)
+
+            self.assertEqual(patterns, OrderedDict())
+            self.assertIsInstance(
+                issue.error, UnsupportedUserPatternVersionError
+            )
+
+    def test_startup_survives_permission_error(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            pattern_path.write_text("{}", encoding="utf-8")
+
+            with patch.object(
+                Path, "open", side_effect=PermissionError("access denied")
+            ), self.assertLogs(
+                "src.color_pattern_handler", level="ERROR"
+            ):
+                patterns, issue = load_user_patterns_for_startup(pattern_path)
+
+            self.assertEqual(patterns, OrderedDict())
+            self.assertIsInstance(issue.error, PermissionError)
+            self.assertEqual(issue.path, pattern_path.resolve())
+
 
 class ColorPatternSavingTests(unittest.TestCase):
     def setUp(self):
@@ -266,6 +316,47 @@ class ColorPatternSavingTests(unittest.TestCase):
             self.assertEqual(pattern_handler.army_color_pattern, all_before)
             self.assertFalse(pattern_path.exists())
             self.assertEqual(list(pattern_path.parent.glob("*.tmp")), [])
+
+    def test_write_failure_preserves_previous_valid_file(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            pattern_handler.save("Existing", self.colors(), pattern_path)
+            contents_before = pattern_path.read_bytes()
+
+            with patch(
+                "src.color_pattern_handler.os.replace",
+                side_effect=OSError("simulated failure"),
+            ):
+                with self.assertRaisesRegex(OSError, "simulated failure"):
+                    pattern_handler.save(
+                        "Not Saved", self.colors(), pattern_path
+                    )
+
+            self.assertEqual(pattern_path.read_bytes(), contents_before)
+            self.assertIn("Existing", pattern_handler.user_color_patterns)
+            self.assertNotIn("Not Saved", pattern_handler.user_color_patterns)
+
+    def test_startup_load_issue_blocks_overwriting_affected_file(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            pattern_path.write_text('{"broken":', encoding="utf-8")
+            contents_before = pattern_path.read_bytes()
+            issue = UserPatternLoadIssue(
+                pattern_path.resolve(),
+                InvalidUserPatternFileError("invalid JSON"),
+            )
+
+            with patch.object(
+                pattern_handler, "user_pattern_load_issue", issue
+            ):
+                with self.assertRaisesRegex(
+                    pattern_handler.UserPatternFileError,
+                    "cannot be safely updated",
+                ):
+                    pattern_handler.save("Blocked", self.colors(), pattern_path)
+
+            self.assertEqual(pattern_path.read_bytes(), contents_before)
+            self.assertNotIn("Blocked", pattern_handler.user_color_patterns)
 
     def test_saving_does_not_modify_packaged_patterns(self):
         packaged_before = pattern_handler.ARMY_PATTERN_RESOURCE.read_bytes()
