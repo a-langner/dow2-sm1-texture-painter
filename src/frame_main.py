@@ -31,7 +31,7 @@ import src.color_pattern_handler
 from src.dow1_converter import get_tem_filenames, convert_tem_texture
 from src.color_pattern_handler import (
     PatternError,
-    army_color_pattern,
+    get_all_patterns,
 )
 from src.image_process import ImageWorkbench, TextureValidationError
 from pathlib import Path
@@ -483,7 +483,7 @@ class ArmyPainter(tk.Tk):
         if pattern_name is None:
             return
 
-        pattern = army_color_pattern.get(pattern_name)
+        pattern = get_all_patterns().get(pattern_name)
         if pattern is None:
             return
 
@@ -742,7 +742,9 @@ class ArmyPainter(tk.Tk):
             showerror("Cannot Save Pattern", "Pattern name cannot be empty.")
             return
 
-        colors = [color["bg"] for color in self.frame_color_chooser.color_boxes]
+        colors = [
+            color["bg"] for color in self.frame_color_chooser.color_boxes
+        ]
         try:
             src.color_pattern_handler.save(name=pattern_name, colors=colors)
         except PatternError as exc:

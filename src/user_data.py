@@ -2,7 +2,6 @@ from pathlib import Path
 
 from platformdirs import user_data_path
 
-
 APP_NAME = "SM1-DOW2 Texture Painter"
 USER_PATTERNS_FILENAME = "user_patterns.json"
 

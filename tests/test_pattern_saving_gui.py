@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch
 
+import test_support  # noqa: F401 - installs the user-data path redirect
 from src.color_pattern_handler import (
     InvalidPatternError,
     PatternAlreadyExistsError,
@@ -76,10 +77,14 @@ class PatternSavingGuiTests(unittest.TestCase):
         for error in errors:
             with self.subTest(error=type(error).__name__):
                 painter = FakePainter()
-                with patch("src.frame_main.askstring", return_value="Name"), patch(
+                with patch(
+                    "src.frame_main.askstring", return_value="Name"
+                ), patch(
                     "src.frame_main.src.color_pattern_handler.save",
                     side_effect=error,
-                ), patch("src.frame_main.showerror") as showerror:
+                ), patch(
+                    "src.frame_main.showerror"
+                ) as showerror:
                     ArmyPainter.save_pattern(painter)
 
                 showerror.assert_called_once_with(

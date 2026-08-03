@@ -2,6 +2,7 @@ import unittest
 from collections import OrderedDict
 from unittest.mock import patch
 
+import test_support  # noqa: F401 - installs the user-data path redirect
 from src.frame_main import ArmyPainter
 
 
@@ -54,7 +55,7 @@ class PatternSelectionTests(unittest.TestCase):
         }
         painter = FakePainter("Internal Name")
 
-        with patch("src.frame_main.army_color_pattern", patterns):
+        with patch("src.frame_main.get_all_patterns", return_value=patterns):
             ArmyPainter.on_pattern_select(painter)
 
         self.assertEqual(

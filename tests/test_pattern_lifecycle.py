@@ -4,6 +4,7 @@ from collections import OrderedDict
 from pathlib import Path
 from unittest.mock import patch
 
+import test_support  # noqa: F401 - installs the user-data path redirect
 import src.color_pattern_handler as pattern_handler
 from src.color_pattern_handler import (
     BuiltinPatternDeletionError,
@@ -11,15 +12,12 @@ from src.color_pattern_handler import (
 )
 from src.widget import build_pattern_rows
 
-
 COLORS = ["#112233", "#445566", "#778899", "#aabbcc"]
 
 
 class PatternLifecycleTests(unittest.TestCase):
     def setUp(self):
-        self.original_users = OrderedDict(
-            pattern_handler.user_color_patterns
-        )
+        self.original_users = OrderedDict(pattern_handler.user_color_patterns)
         self.original_all = OrderedDict(pattern_handler.army_color_pattern)
         self.original_load_issue = pattern_handler.user_pattern_load_issue
         pattern_handler.user_color_patterns.clear()

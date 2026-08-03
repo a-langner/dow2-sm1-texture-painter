@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch
 
+import test_support  # noqa: F401 - installs the user-data path redirect
 from src.color_pattern_handler import PatternNotFoundError
 from src.frame_main import ArmyPainter
 
@@ -97,9 +98,7 @@ class PatternDeletionGuiTests(unittest.TestCase):
         side_effect=PatternNotFoundError("Pattern was not found"),
     )
     @patch("src.frame_main.askyesno", return_value=True)
-    def test_expected_delete_error_is_shown(
-        self, askyesno, delete, showerror
-    ):
+    def test_expected_delete_error_is_shown(self, askyesno, delete, showerror):
         painter = FakePainter("Missing", True)
 
         ArmyPainter.delete_pattern(painter)

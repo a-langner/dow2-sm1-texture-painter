@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import test_support  # noqa: F401 - installs the user-data path redirect
 from src.user_data import (
     APP_NAME,
     USER_PATTERNS_FILENAME,
@@ -22,9 +23,7 @@ class UserPatternsPathTests(unittest.TestCase):
         mocked_user_data_path.assert_called_once_with(
             APP_NAME, appauthor=False
         )
-        self.assertEqual(
-            result, expected_directory / USER_PATTERNS_FILENAME
-        )
+        self.assertEqual(result, expected_directory / USER_PATTERNS_FILENAME)
 
     def test_override_does_not_create_parent_by_default(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -32,9 +31,7 @@ class UserPatternsPathTests(unittest.TestCase):
 
             result = get_user_patterns_path(data_directory=data_directory)
 
-            self.assertEqual(
-                result, data_directory / USER_PATTERNS_FILENAME
-            )
+            self.assertEqual(result, data_directory / USER_PATTERNS_FILENAME)
             self.assertFalse(data_directory.exists())
 
     def test_parent_is_created_only_when_requested(self):

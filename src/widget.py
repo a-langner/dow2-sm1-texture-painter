@@ -5,7 +5,7 @@ from tkinter.ttk import Progressbar
 import os
 from tkinter import colorchooser, filedialog
 from functools import partial
-from src.color_pattern_handler import army_color_pattern, is_user_pattern
+from src.color_pattern_handler import get_all_patterns, is_user_pattern
 from src.constant import OPEN_FILETYPES, SAVE_EXT_LIST, ColorOps
 
 
@@ -16,7 +16,7 @@ COLOR_BTN_HEIGHT = 26
 def build_pattern_rows(patterns=None):
     """Build GUI-independent rows while keeping decoration out of names."""
     if patterns is None:
-        patterns = army_color_pattern
+        patterns = get_all_patterns()
 
     rows = []
     for pattern_name in patterns:
@@ -200,6 +200,7 @@ class PatternTreeview(ttk.Treeview):
 
     def get_pattern_item_id(self, pattern_name):
         return self.item_by_pattern_name.get(pattern_name)
+
 
 class FramePatternList(tk.Frame):
     def __init__(self, master=None, cnf={}, **kw):

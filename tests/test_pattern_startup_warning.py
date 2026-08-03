@@ -2,6 +2,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import test_support  # noqa: F401 - installs the user-data path redirect
 from src.color_pattern_handler import (
     InvalidUserPatternFileError,
     UserPatternLoadIssue,

@@ -10,7 +10,6 @@ from typing import NamedTuple
 
 from src.user_data import get_user_patterns_path
 
-
 RESOURCE_ROOT = resources.files("src.resources")
 ARMY_PATTERN_RESOURCE = RESOURCE_ROOT.joinpath("army_pattern.json")
 USER_PATTERN_FORMAT = "sm1-dow2-texture-painter-user-patterns"
@@ -155,14 +154,12 @@ def load_user_patterns_for_startup(pattern_path=None):
     try:
         return load_user_patterns(pattern_path), None
     except (UserPatternFileError, OSError) as exc:
-        LOGGER.exception(
-            "Could not load user-pattern file: %s", pattern_path
-        )
+        LOGGER.exception("Could not load user-pattern file: %s", pattern_path)
         return OrderedDict(), UserPatternLoadIssue(pattern_path, exc)
 
 
 def get_all_patterns(builtin_patterns=None, user_patterns=None):
-    """Return built-in patterns followed by user patterns without collisions."""
+    """Return built-ins followed by users, rejecting name collisions."""
     if builtin_patterns is None:
         builtin_patterns = builtin_color_patterns
     if user_patterns is None:
@@ -302,7 +299,9 @@ def delete(name: str, pattern_path=None):
             f"Built-in pattern '{normalized_name}' cannot be deleted"
         )
     if normalized_name not in user_color_patterns:
-        raise PatternNotFoundError(f"Pattern '{normalized_name}' was not found")
+        raise PatternNotFoundError(
+            f"Pattern '{normalized_name}' was not found"
+        )
 
     if pattern_path is None:
         pattern_path = get_user_patterns_path(create_parent=True)
@@ -319,9 +318,7 @@ def delete(name: str, pattern_path=None):
 
 
 builtin_color_patterns = load_builtin_patterns()
-user_color_patterns, user_pattern_load_issue = (
-    load_user_patterns_for_startup()
-)
+user_color_patterns, user_pattern_load_issue = load_user_patterns_for_startup()
 
 try:
     # Compatibility view used by the existing GUI until it adopts the new API.

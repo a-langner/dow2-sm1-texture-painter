@@ -5,6 +5,7 @@ from collections import OrderedDict
 from pathlib import Path
 from unittest.mock import patch
 
+import test_support  # noqa: F401 - installs the user-data path redirect
 import src.color_pattern_handler as pattern_handler
 from src.color_pattern_handler import (
     BuiltinPatternDeletionError,
@@ -152,9 +153,7 @@ class ColorPatternLoadingTests(unittest.TestCase):
             pattern_path.write_text('{"broken":', encoding="utf-8")
             contents_before = pattern_path.read_bytes()
 
-            with self.assertLogs(
-                "src.color_pattern_handler", level="ERROR"
-            ):
+            with self.assertLogs("src.color_pattern_handler", level="ERROR"):
                 patterns, issue = load_user_patterns_for_startup(pattern_path)
 
             self.assertEqual(patterns, OrderedDict())
@@ -168,9 +167,7 @@ class ColorPatternLoadingTests(unittest.TestCase):
             pattern_path = Path(temporary_directory) / "user_patterns.json"
             pattern_path.write_text(json.dumps(document), encoding="utf-8")
 
-            with self.assertLogs(
-                "src.color_pattern_handler", level="ERROR"
-            ):
+            with self.assertLogs("src.color_pattern_handler", level="ERROR"):
                 patterns, issue = load_user_patterns_for_startup(pattern_path)
 
             self.assertEqual(patterns, OrderedDict())
@@ -185,9 +182,7 @@ class ColorPatternLoadingTests(unittest.TestCase):
 
             with patch.object(
                 Path, "open", side_effect=PermissionError("access denied")
-            ), self.assertLogs(
-                "src.color_pattern_handler", level="ERROR"
-            ):
+            ), self.assertLogs("src.color_pattern_handler", level="ERROR"):
                 patterns, issue = load_user_patterns_for_startup(pattern_path)
 
             self.assertEqual(patterns, OrderedDict())
@@ -197,9 +192,7 @@ class ColorPatternLoadingTests(unittest.TestCase):
 
 class ColorPatternSavingTests(unittest.TestCase):
     def setUp(self):
-        self.original_users = OrderedDict(
-            pattern_handler.user_color_patterns
-        )
+        self.original_users = OrderedDict(pattern_handler.user_color_patterns)
         self.original_all = OrderedDict(pattern_handler.army_color_pattern)
         pattern_handler.user_color_patterns.clear()
         pattern_handler.army_color_pattern.clear()
@@ -272,15 +265,15 @@ class ColorPatternSavingTests(unittest.TestCase):
             with self.assertRaisesRegex(
                 PatternAlreadyExistsError, "already exists"
             ):
-                pattern_handler.save(" Duplicate ", self.colors(), pattern_path)
+                pattern_handler.save(
+                    " Duplicate ", self.colors(), pattern_path
+                )
 
     def test_builtin_name_is_rejected(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             pattern_path = Path(temporary_directory) / "user_patterns.json"
 
-            with self.assertRaisesRegex(
-                PatternNameConflictError, "built-in"
-            ):
+            with self.assertRaisesRegex(PatternNameConflictError, "built-in"):
                 pattern_handler.save(
                     "Blood Ravens", self.colors(), pattern_path
                 )
@@ -358,7 +351,9 @@ class ColorPatternSavingTests(unittest.TestCase):
                     pattern_handler.UserPatternFileError,
                     "cannot be safely updated",
                 ):
-                    pattern_handler.save("Blocked", self.colors(), pattern_path)
+                    pattern_handler.save(
+                        "Blocked", self.colors(), pattern_path
+                    )
 
             self.assertEqual(pattern_path.read_bytes(), contents_before)
             self.assertNotIn("Blocked", pattern_handler.user_color_patterns)
@@ -378,9 +373,7 @@ class ColorPatternSavingTests(unittest.TestCase):
 
 class ColorPatternDeletionTests(unittest.TestCase):
     def setUp(self):
-        self.original_users = OrderedDict(
-            pattern_handler.user_color_patterns
-        )
+        self.original_users = OrderedDict(pattern_handler.user_color_patterns)
         self.original_all = OrderedDict(pattern_handler.army_color_pattern)
         pattern_handler.user_color_patterns.clear()
         pattern_handler.army_color_pattern.clear()
