@@ -38,6 +38,14 @@ class PatternAlreadyExistsError(PatternError):
     """Raised when overwriting an existing user pattern is attempted."""
 
 
+class BuiltinPatternDeletionError(PatternError):
+    """Raised when deletion of a built-in pattern is attempted."""
+
+
+class PatternNotFoundError(PatternError):
+    """Raised when deletion targets a pattern that does not exist."""
+
+
 def _load_pattern_file(pattern_file):
     with pattern_file.open("r", encoding="utf-8") as fp:
         patterns = json.load(fp, object_pairs_hook=OrderedDict)
@@ -164,8 +172,26 @@ def save(name: str, colors: list, pattern_path=None):
     army_color_pattern[normalized_name] = pattern
 
 
-def delete(name: str):
-    raise NotImplementedError("User-pattern deletion is not implemented yet")
+def delete(name: str, pattern_path=None):
+    normalized_name = name.strip() if isinstance(name, str) else name
+    if normalized_name in builtin_color_patterns:
+        raise BuiltinPatternDeletionError(
+            f"Built-in pattern '{normalized_name}' cannot be deleted"
+        )
+    if normalized_name not in user_color_patterns:
+        raise PatternNotFoundError(f"Pattern '{normalized_name}' was not found")
+
+    if pattern_path is None:
+        pattern_path = get_user_patterns_path(create_parent=True)
+    pattern_path = Path(pattern_path)
+
+    updated_user_patterns = OrderedDict(user_color_patterns)
+    del updated_user_patterns[normalized_name]
+
+    _write_user_patterns(updated_user_patterns, pattern_path)
+
+    del user_color_patterns[normalized_name]
+    del army_color_pattern[normalized_name]
 
 
 builtin_color_patterns = load_builtin_patterns()

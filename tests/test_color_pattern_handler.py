@@ -7,9 +7,11 @@ from unittest.mock import patch
 
 import src.color_pattern_handler as pattern_handler
 from src.color_pattern_handler import (
+    BuiltinPatternDeletionError,
     InvalidPatternError,
     PatternAlreadyExistsError,
     PatternNameConflictError,
+    PatternNotFoundError,
     color_key,
     get_all_patterns,
     load_builtin_patterns,
@@ -182,6 +184,103 @@ class ColorPatternSavingTests(unittest.TestCase):
             pattern_handler.ARMY_PATTERN_RESOURCE.read_bytes(),
             packaged_before,
         )
+
+
+class ColorPatternDeletionTests(unittest.TestCase):
+    def setUp(self):
+        self.original_users = OrderedDict(
+            pattern_handler.user_color_patterns
+        )
+        self.original_all = OrderedDict(pattern_handler.army_color_pattern)
+
+    def tearDown(self):
+        pattern_handler.user_color_patterns.clear()
+        pattern_handler.user_color_patterns.update(self.original_users)
+        pattern_handler.army_color_pattern.clear()
+        pattern_handler.army_color_pattern.update(self.original_all)
+
+    def colors(self):
+        return list(pattern().values())
+
+    def test_deletes_user_pattern_and_keeps_other_patterns(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            pattern_handler.save("Delete Me", self.colors(), pattern_path)
+            pattern_handler.save("Keep Me", self.colors(), pattern_path)
+
+            pattern_handler.delete(" Delete Me ", pattern_path)
+
+            saved = load_user_patterns(pattern_path)
+            self.assertEqual(list(saved), ["Keep Me"])
+            self.assertNotIn("Delete Me", pattern_handler.user_color_patterns)
+            self.assertNotIn("Delete Me", pattern_handler.army_color_pattern)
+
+    def test_builtin_pattern_cannot_be_deleted(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+
+            with self.assertRaisesRegex(
+                BuiltinPatternDeletionError, "cannot be deleted"
+            ):
+                pattern_handler.delete("Blood Ravens", pattern_path)
+
+            self.assertFalse(pattern_path.exists())
+            self.assertIn("Blood Ravens", pattern_handler.army_color_pattern)
+
+    def test_unknown_pattern_does_not_change_user_file(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            pattern_handler.save("Known", self.colors(), pattern_path)
+            contents_before = pattern_path.read_bytes()
+
+            with self.assertRaisesRegex(PatternNotFoundError, "not found"):
+                pattern_handler.delete("Unknown", pattern_path)
+
+            self.assertEqual(pattern_path.read_bytes(), contents_before)
+            self.assertIn("Known", pattern_handler.user_color_patterns)
+
+    def test_deleting_last_user_pattern_writes_empty_json_object(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            pattern_handler.save("Last", self.colors(), pattern_path)
+
+            pattern_handler.delete("Last", pattern_path)
+
+            self.assertTrue(pattern_path.is_file())
+            self.assertEqual(
+                json.loads(pattern_path.read_text(encoding="utf-8")), {}
+            )
+            self.assertEqual(pattern_handler.user_color_patterns, {})
+
+    def test_deletion_persists_when_patterns_are_reloaded(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            pattern_handler.save("Removed", self.colors(), pattern_path)
+            pattern_handler.save("Remaining", self.colors(), pattern_path)
+
+            pattern_handler.delete("Removed", pattern_path)
+            reloaded = load_user_patterns(pattern_path)
+
+            self.assertEqual(list(reloaded), ["Remaining"])
+
+    def test_delete_write_failure_does_not_change_memory_or_file(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            pattern_handler.save("Still Here", self.colors(), pattern_path)
+            contents_before = pattern_path.read_bytes()
+            users_before = OrderedDict(pattern_handler.user_color_patterns)
+            all_before = OrderedDict(pattern_handler.army_color_pattern)
+
+            with patch(
+                "src.color_pattern_handler.os.replace",
+                side_effect=OSError("simulated failure"),
+            ):
+                with self.assertRaisesRegex(OSError, "simulated failure"):
+                    pattern_handler.delete("Still Here", pattern_path)
+
+            self.assertEqual(pattern_path.read_bytes(), contents_before)
+            self.assertEqual(pattern_handler.user_color_patterns, users_before)
+            self.assertEqual(pattern_handler.army_color_pattern, all_before)
 
 
 if __name__ == "__main__":
