@@ -41,7 +41,27 @@ from importlib.resources import as_file, files
 PATTERN_LIST_DEFAULT_WIDTH = 166
 VERSION = "0.1"
 PREVIEW_DEBOUNCE_MS = 120
+WINDOW_INITIAL_SCALE = 1.4
+WINDOW_SCREEN_FRACTION = 0.9
 LOGGER = logging.getLogger(__name__)
+
+
+def calculate_initial_window_size(
+    min_width, min_height, screen_width, screen_height
+):
+    """Scale the initial size and keep it within a sensible screen area."""
+    scaled_width = round(min_width * WINDOW_INITIAL_SCALE)
+    scaled_height = round(min_height * WINDOW_INITIAL_SCALE)
+    available_width = max(
+        min_width, round(screen_width * WINDOW_SCREEN_FRACTION)
+    )
+    available_height = max(
+        min_height, round(screen_height * WINDOW_SCREEN_FRACTION)
+    )
+    return (
+        min(scaled_width, available_width),
+        min(scaled_height, available_height),
+    )
 
 
 def find_companion_texture(diffuse_filepath, map_suffix):
@@ -155,8 +175,13 @@ class ArmyPainter(tk.Tk):
         # Setting main window
         min_width = 256 * 2 + PATTERN_LIST_DEFAULT_WIDTH
         min_height = DEFAULT_IMG_SIZE + FRAME_TOOL_HEIGHT
-        dimension = f"{min_width}x{min_height}"
-        self.geometry(dimension)
+        initial_width, initial_height = calculate_initial_window_size(
+            min_width,
+            min_height,
+            self.winfo_screenwidth(),
+            self.winfo_screenheight(),
+        )
+        self.geometry(f"{initial_width}x{initial_height}")
         icon_resource = files("src.resources").joinpath("icon_64x64.png")
         with as_file(icon_resource) as icon_path:
             self.icon_img = tk.PhotoImage(file=str(icon_path))
