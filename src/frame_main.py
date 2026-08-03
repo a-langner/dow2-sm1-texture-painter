@@ -471,7 +471,6 @@ class ArmyPainter(tk.Tk):
         self.label_img_dif.config(image=self.img_dif)
         self.img_tem = ImageTk.PhotoImage(team_colour)
         self.label_img_tem.config(image=self.img_tem)
-        self.refresh_window_size()
 
     def color_operation_update(self):
         color_op = self.frame_color_op_option.var.get()
@@ -489,17 +488,6 @@ class ArmyPainter(tk.Tk):
     def on_spec_toggle(self):
         self.img_wbench.apply_spec = self.apply_spec.get()
         self.refresh_workspace()
-
-    def refresh_window_size(self):
-        """Refresh window size using current images width"""
-        img_dif_size = self.img_wbench.img_workspace.size
-        img_tem_size = self.img_wbench.img_og_tem.size
-        new_width = img_dif_size[0] + img_tem_size[0] + PATTERN_LIST_DEFAULT_WIDTH
-
-        # Assuming both image got same size
-        new_height = img_dif_size[1] + FRAME_TOOL_HEIGHT
-        self.geometry(f"{new_width}x{new_height}")
-        self.update_idletasks()
 
     def on_pattern_select(self, Event=None):
         # TODO: Refactor following code so with frame color class
