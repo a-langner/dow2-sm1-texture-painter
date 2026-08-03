@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter.constants import HORIZONTAL
 from tkinter import ttk
+from tkinter import font as tkfont
 from tkinter.ttk import Progressbar
 import os
 from tkinter import colorchooser, filedialog
@@ -11,6 +12,14 @@ from src.constant import OPEN_FILETYPES, SAVE_EXT_LIST, ColorOps
 
 COLOR_BOX_SIZE = 90
 COLOR_BTN_HEIGHT = 26
+PATTERN_MARKER_COLUMN_WIDTH = 28
+
+
+def calculate_pattern_separator_x(
+    tree_x, tree_width, marker_width, border_width=0
+):
+    """Return the marker-column boundary within the Treeview parent."""
+    return max(tree_x, tree_x + tree_width - marker_width - border_width)
 
 
 def build_pattern_rows(patterns=None):
@@ -205,6 +214,18 @@ class PatternTreeview(ttk.Treeview):
 class FramePatternList(tk.Frame):
     def __init__(self, master=None, cnf={}, **kw):
         super(FramePatternList, self).__init__(master=master, cnf={}, **kw)
+        self.pattern_style = ttk.Style(self)
+        heading_font = self.pattern_style.lookup(
+            "Treeview.Heading", "font"
+        ) or "TkHeadingFont"
+        self.pattern_heading_font = tkfont.Font(
+            root=self, font=heading_font
+        )
+        self.pattern_heading_font.configure(weight=tkfont.BOLD)
+        self.pattern_style.configure(
+            "Pattern.Treeview.Heading", font=self.pattern_heading_font
+        )
+
         self.tree_frame = tk.Frame(self)
         self.tree_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
@@ -215,16 +236,35 @@ class FramePatternList(tk.Frame):
             columns=("pattern_name", "marker"),
             show="headings",
             selectmode="browse",
+            style="Pattern.Treeview",
             yscrollcommand=self.scrollbar.set,
         )
         self.tree.heading("pattern_name", text="Pattern", anchor=tk.W)
         self.tree.heading("marker", text="", anchor=tk.E)
         self.tree.column("pattern_name", anchor=tk.W, stretch=True)
         self.tree.column(
-            "marker", anchor=tk.E, width=28, minwidth=28, stretch=False
+            "marker",
+            anchor=tk.E,
+            width=PATTERN_MARKER_COLUMN_WIDTH,
+            minwidth=PATTERN_MARKER_COLUMN_WIDTH,
+            stretch=False,
         )
         self.scrollbar.config(command=self.tree.yview)
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        self.column_separator = ttk.Separator(
+            self.tree_frame, orient=tk.VERTICAL, takefocus=False
+        )
+        self.tree.bind(
+            "<Configure>", self._position_column_separator, add="+"
+        )
+        self.column_separator.bind(
+            "<Button-1>", self._select_row_through_separator
+        )
+        self.column_separator.bind(
+            "<MouseWheel>", self._scroll_tree_through_separator
+        )
+        self.after_idle(self._position_column_separator)
 
         self.load_pattern_list()
         self.save_pattern = tk.Button(
@@ -240,6 +280,53 @@ class FramePatternList(tk.Frame):
         )
         self.delete_pattern.pack(side=tk.TOP, fill=tk.X)
         self.update_delete_button_state()
+
+    def _tree_border_width(self):
+        border_width = self.pattern_style.lookup(
+            "Pattern.Treeview", "borderwidth", default=0
+        )
+        try:
+            return round(float(border_width))
+        except (TypeError, ValueError):
+            return 0
+
+    def _position_column_separator(self, Event=None):
+        tree_width = self.tree.winfo_width()
+        tree_height = self.tree.winfo_height()
+        if tree_width <= 1 or tree_height <= 1:
+            return
+
+        separator_x = calculate_pattern_separator_x(
+            self.tree.winfo_x(),
+            tree_width,
+            PATTERN_MARKER_COLUMN_WIDTH,
+            self._tree_border_width(),
+        )
+        self.column_separator.place(
+            x=separator_x,
+            y=self.tree.winfo_y(),
+            height=tree_height,
+        )
+        self.column_separator.lift()
+
+    def _select_row_through_separator(self, Event):
+        tree_y = Event.y_root - self.tree.winfo_rooty()
+        item_id = self.tree.identify_row(tree_y)
+        if item_id:
+            self.tree.selection_set(item_id)
+            self.tree.focus(item_id)
+        return "break"
+
+    def _scroll_tree_through_separator(self, Event):
+        tree_x = Event.x_root - self.tree.winfo_rootx()
+        tree_y = Event.y_root - self.tree.winfo_rooty()
+        self.tree.event_generate(
+            "<MouseWheel>",
+            x=tree_x,
+            y=tree_y,
+            delta=Event.delta,
+        )
+        return "break"
 
     def load_pattern_list(self):
         self.tree.clear_patterns()
