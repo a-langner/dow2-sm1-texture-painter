@@ -258,6 +258,16 @@ class FramePatternList(tk.Frame):
     def get_pattern_item_id(self, pattern_name):
         return self.tree.get_pattern_item_id(pattern_name)
 
+    def select_pattern(self, pattern_name):
+        item_id = self.get_pattern_item_id(pattern_name)
+        if item_id is None:
+            return None
+
+        self.tree.selection_set(item_id)
+        self.tree.focus(item_id)
+        self.tree.see(item_id)
+        return item_id
+
 
 class BatchEditTopLevel(tk.Toplevel):
     def __init__(self, master=None, cnf={}, **kw):

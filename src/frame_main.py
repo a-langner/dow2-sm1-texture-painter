@@ -28,7 +28,12 @@ from src.constant import (
 )
 import src.color_pattern_handler
 from src.dow1_converter import get_tem_filenames, convert_tem_texture
-from src.color_pattern_handler import army_color_pattern
+from src.color_pattern_handler import (
+    InvalidPatternError,
+    PatternAlreadyExistsError,
+    PatternNameConflictError,
+    army_color_pattern,
+)
 from src.image_process import ImageWorkbench, TextureValidationError
 from pathlib import Path
 
@@ -726,11 +731,27 @@ class ArmyPainter(tk.Tk):
 
     def save_pattern(self):
         pattern_name = askstring("Pattern Name", "Choose a pattern name")
+        if pattern_name is None:
+            return
+
+        pattern_name = pattern_name.strip()
+        if not pattern_name:
+            showerror("Cannot Save Pattern", "Pattern name cannot be empty.")
+            return
+
         colors = [color["bg"] for color in self.frame_color_chooser.color_boxes]
-        src.color_pattern_handler.save(name=pattern_name, colors=colors)
+        try:
+            src.color_pattern_handler.save(name=pattern_name, colors=colors)
+        except (
+            InvalidPatternError,
+            PatternAlreadyExistsError,
+            PatternNameConflictError,
+        ) as exc:
+            showerror("Cannot Save Pattern", str(exc))
+            return
+
         self.frame_army_pattern.load_pattern_list()
-        self.frame_army_pattern.lb.selection_set(first="end", last="end")
-        self.frame_army_pattern.lb.yview_moveto(fraction=1)
+        self.frame_army_pattern.select_pattern(pattern_name)
 
     def delete_pattern(self):
         selection = self.frame_army_pattern.lb.curselection()
