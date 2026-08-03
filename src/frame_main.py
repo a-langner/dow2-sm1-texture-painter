@@ -715,7 +715,7 @@ class ArmyPainter(tk.Tk):
         self.img_wbench.img_workspace = self.img_wbench.img_og_dif
         for color_box in self.frame_color_chooser.color_boxes:
             color_box["bg"] = "#808080"
-        self.frame_sliders.brightness_slider.set(50)
+        self.frame_sliders.brightness_slider.set(75)
         self.frame_sliders.contrast_slider.set(100)
         self.frame_channel_select.lb.selection_set(first=0, last=3)
         self.select_channel()

@@ -84,7 +84,7 @@ class ImageWorkbench:
         self.tem_channels = []
         self.tem_selected = []
         self.colors = []
-        self.brightness = 50
+        self.brightness = 75
         self.contrast = 100
         self.apply_alpha = False
         self.apply_dirt = False
