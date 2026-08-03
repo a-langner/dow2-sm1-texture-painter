@@ -8,7 +8,7 @@ from PIL import (
 import tkinter as tk
 from tkinter import filedialog
 from tkinter.simpledialog import askstring
-from tkinter.messagebox import showerror, showinfo, showwarning
+from tkinter.messagebox import askyesno, showerror, showinfo, showwarning
 import traceback
 from src.widget import (
     FrameColorChooser,
@@ -31,6 +31,7 @@ from src.dow1_converter import get_tem_filenames, convert_tem_texture
 from src.color_pattern_handler import (
     InvalidPatternError,
     PatternAlreadyExistsError,
+    PatternError,
     PatternNameConflictError,
     army_color_pattern,
 )
@@ -476,6 +477,7 @@ class ArmyPainter(tk.Tk):
 
     def on_pattern_select(self, Event=None):
         # TODO: Refactor following code so with frame color class
+        self.frame_army_pattern.update_delete_button_state()
         pattern_name = self.frame_army_pattern.get_selected_pattern_name()
         if pattern_name is None:
             return
@@ -754,14 +756,35 @@ class ArmyPainter(tk.Tk):
         self.frame_army_pattern.select_pattern(pattern_name)
 
     def delete_pattern(self):
-        selection = self.frame_army_pattern.lb.curselection()
-        if not selection:
+        pattern_name = self.frame_army_pattern.get_selected_pattern_name()
+        if pattern_name is None:
             return
-        idx = selection[0]
-        pattern_name = self.frame_army_pattern.lb.get(idx)
-        src.color_pattern_handler.delete(pattern_name)
+
+        if not self.frame_army_pattern.is_selected_pattern_user():
+            self.frame_army_pattern.update_delete_button_state()
+            return
+
+        confirmed = askyesno(
+            "Delete Pattern",
+            f"Permanently delete the pattern '{pattern_name}'?",
+        )
+        if not confirmed:
+            return
+
+        neighboring_name = (
+            self.frame_army_pattern.get_selected_neighbor_pattern_name()
+        )
+        try:
+            src.color_pattern_handler.delete(pattern_name)
+        except (PatternError, OSError) as exc:
+            showerror("Cannot Delete Pattern", str(exc))
+            return
+
         self.frame_army_pattern.load_pattern_list()
-        self.reset_workspace()
+        if neighboring_name is not None:
+            self.frame_army_pattern.select_pattern(neighboring_name)
+        else:
+            self.frame_army_pattern.update_delete_button_state()
 
     def report_callback_exception(self, exc, val, tb):
         showerror("Error", message=traceback.format_exc())

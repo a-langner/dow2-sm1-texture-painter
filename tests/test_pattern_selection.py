@@ -8,9 +8,13 @@ from src.frame_main import ArmyPainter
 class FakePatternFrame:
     def __init__(self, selected_name):
         self.selected_name = selected_name
+        self.delete_state_update_count = 0
 
     def get_selected_pattern_name(self):
         return self.selected_name
+
+    def update_delete_button_state(self):
+        self.delete_state_update_count += 1
 
 
 class FakeColorChooser:
@@ -59,6 +63,9 @@ class PatternSelectionTests(unittest.TestCase):
         )
         self.assertEqual(painter.frame_color_chooser.draw_count, 1)
         self.assertEqual(painter.refresh_count, 1)
+        self.assertEqual(
+            painter.frame_army_pattern.delete_state_update_count, 1
+        )
 
     def test_empty_selection_is_ignored(self):
         painter = FakePainter(None)
@@ -67,6 +74,9 @@ class PatternSelectionTests(unittest.TestCase):
 
         self.assertEqual(painter.frame_color_chooser.draw_count, 0)
         self.assertEqual(painter.refresh_count, 0)
+        self.assertEqual(
+            painter.frame_army_pattern.delete_state_update_count, 1
+        )
 
 
 if __name__ == "__main__":

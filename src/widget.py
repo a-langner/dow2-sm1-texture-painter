@@ -145,7 +145,7 @@ class FrameColorOps(tk.LabelFrame):
 
 
 class PatternTreeview(ttk.Treeview):
-    """Pattern Treeview with metadata-backed temporary Listbox adapters."""
+    """Treeview that keeps pattern identity separate from visible values."""
 
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
@@ -183,23 +183,6 @@ class PatternTreeview(ttk.Treeview):
     def get_pattern_item_id(self, pattern_name):
         return self.item_by_pattern_name.get(pattern_name)
 
-    # Temporary compatibility for the unchanged save/delete callbacks. These
-    # adapters use metadata rather than visible Treeview cell values.
-    def curselection(self):
-        return self.selection()
-
-    def get(self, item_id):
-        return self.get_pattern_name(item_id)
-
-    def selection_set(self, first=None, last=None):
-        item_id = first
-        if first == "end" or last == "end":
-            children = self.get_children()
-            item_id = children[-1] if children else None
-        if item_id is not None:
-            super().selection_set(item_id)
-
-
 class FramePatternList(tk.Frame):
     def __init__(self, master=None, cnf={}, **kw):
         super(FramePatternList, self).__init__(master=master, cnf={}, **kw)
@@ -224,9 +207,6 @@ class FramePatternList(tk.Frame):
         self.scrollbar.config(command=self.tree.yview)
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        # Temporary alias for save/delete callbacks updated in a later step.
-        self.lb = self.tree
-
         self.load_pattern_list()
         self.save_pattern = tk.Button(
             self, text="Save pattern", command=self._root().save_pattern
@@ -234,9 +214,13 @@ class FramePatternList(tk.Frame):
         self.save_pattern.pack(side=tk.TOP, fill=tk.X)
 
         self.delete_pattern = tk.Button(
-            self, text="Delete pattern", command=self._root().delete_pattern
+            self,
+            text="Delete pattern",
+            command=self._root().delete_pattern,
+            state=tk.DISABLED,
         )
         self.delete_pattern.pack(side=tk.TOP, fill=tk.X)
+        self.update_delete_button_state()
 
     def load_pattern_list(self):
         self.tree.clear_patterns()
@@ -244,6 +228,8 @@ class FramePatternList(tk.Frame):
             self.tree.insert_pattern(
                 pattern_name, user_created=is_user_pattern(pattern_name)
             )
+        if hasattr(self, "delete_pattern"):
+            self.update_delete_button_state()
 
     def get_selected_item_id(self):
         selection = self.tree.selection()
@@ -258,6 +244,26 @@ class FramePatternList(tk.Frame):
     def get_pattern_item_id(self, pattern_name):
         return self.tree.get_pattern_item_id(pattern_name)
 
+    def get_selected_neighbor_pattern_name(self):
+        selected_item = self.get_selected_item_id()
+        if selected_item is None:
+            return None
+
+        items = list(self.tree.get_children())
+        selected_index = items.index(selected_item)
+        if selected_index + 1 < len(items):
+            neighbor_item = items[selected_index + 1]
+        elif selected_index > 0:
+            neighbor_item = items[selected_index - 1]
+        else:
+            return None
+
+        return self.tree.get_pattern_name(neighbor_item)
+
+    def update_delete_button_state(self):
+        state = tk.NORMAL if self.is_selected_pattern_user() else tk.DISABLED
+        self.delete_pattern.config(state=state)
+
     def select_pattern(self, pattern_name):
         item_id = self.get_pattern_item_id(pattern_name)
         if item_id is None:
@@ -266,6 +272,7 @@ class FramePatternList(tk.Frame):
         self.tree.selection_set(item_id)
         self.tree.focus(item_id)
         self.tree.see(item_id)
+        self.update_delete_button_state()
         return item_id
 
 
