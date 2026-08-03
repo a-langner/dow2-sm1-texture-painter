@@ -264,6 +264,12 @@ class FramePatternList(tk.Frame):
         self.column_separator.bind(
             "<MouseWheel>", self._scroll_tree_through_separator
         )
+        self.column_separator.bind(
+            "<Button-4>", self._scroll_tree_up_through_separator
+        )
+        self.column_separator.bind(
+            "<Button-5>", self._scroll_tree_down_through_separator
+        )
         self.after_idle(self._position_column_separator)
 
         self.load_pattern_list()
@@ -326,6 +332,14 @@ class FramePatternList(tk.Frame):
             y=tree_y,
             delta=Event.delta,
         )
+        return "break"
+
+    def _scroll_tree_up_through_separator(self, Event):
+        self.tree.yview_scroll(-1, "units")
+        return "break"
+
+    def _scroll_tree_down_through_separator(self, Event):
+        self.tree.yview_scroll(1, "units")
         return "break"
 
     def load_pattern_list(self):
