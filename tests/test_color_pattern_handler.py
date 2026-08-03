@@ -201,6 +201,11 @@ class ColorPatternSavingTests(unittest.TestCase):
             pattern_handler.user_color_patterns
         )
         self.original_all = OrderedDict(pattern_handler.army_color_pattern)
+        pattern_handler.user_color_patterns.clear()
+        pattern_handler.army_color_pattern.clear()
+        pattern_handler.army_color_pattern.update(
+            pattern_handler.builtin_color_patterns
+        )
 
     def tearDown(self):
         pattern_handler.user_color_patterns.clear()
@@ -377,6 +382,11 @@ class ColorPatternDeletionTests(unittest.TestCase):
             pattern_handler.user_color_patterns
         )
         self.original_all = OrderedDict(pattern_handler.army_color_pattern)
+        pattern_handler.user_color_patterns.clear()
+        pattern_handler.army_color_pattern.clear()
+        pattern_handler.army_color_pattern.update(
+            pattern_handler.builtin_color_patterns
+        )
 
     def tearDown(self):
         pattern_handler.user_color_patterns.clear()

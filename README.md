@@ -59,6 +59,23 @@ select them on the list located bottom right.
 
 You can save your current color pattern by clicking on `Save pattern`.
 
+### Saved color patterns
+
+Built-in patterns are bundled with the application and are read-only. Custom
+patterns are stored persistently outside the executable and are marked with
+`★` in the pattern list.
+
+The custom-pattern file is stored at:
+
+* Windows: `%LOCALAPPDATA%\SM1-DOW2 Texture Painter\user_patterns.json`
+* Linux: `$XDG_DATA_HOME/SM1-DOW2 Texture Painter/user_patterns.json`, or
+  `~/.local/share/SM1-DOW2 Texture Painter/user_patterns.json` by default
+* macOS: `~/Library/Application Support/SM1-DOW2 Texture Painter/user_patterns.json`
+
+Updating or replacing the application executable does not normally remove
+custom patterns because this file is stored separately. Importing or exporting
+individual patterns is planned as a separate feature and is not included yet.
+
 You can apply dirt & specular texture by clicking on `Edit -> Apply dirt/specular`,
 those textures must be in the same folder as the diffuse ones and their filenames must
 follow the following pattern.

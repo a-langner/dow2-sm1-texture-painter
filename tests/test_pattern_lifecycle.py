@@ -22,6 +22,11 @@ class PatternLifecycleTests(unittest.TestCase):
         )
         self.original_all = OrderedDict(pattern_handler.army_color_pattern)
         self.original_load_issue = pattern_handler.user_pattern_load_issue
+        pattern_handler.user_color_patterns.clear()
+        pattern_handler.army_color_pattern.clear()
+        pattern_handler.army_color_pattern.update(
+            pattern_handler.builtin_color_patterns
+        )
         pattern_handler.user_pattern_load_issue = None
 
     def tearDown(self):
