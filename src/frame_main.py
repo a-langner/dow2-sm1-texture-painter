@@ -87,6 +87,10 @@ PREVIEW_DEBOUNCE_MS = 120
 WINDOW_INITIAL_SCALE = 1.4
 WINDOW_SCREEN_FRACTION = 0.9
 WINDOW_CONTENT_PADDING = 16
+PATTERN_SAVE_MENU_LABEL = "Save Current as New Pattern…"
+PATTERN_UPDATE_MENU_LABEL = "Update Selected Pattern"
+PATTERN_RENAME_MENU_LABEL = "Rename Selected Pattern…"
+PATTERN_DELETE_MENU_LABEL = "Delete Selected Pattern"
 PATTERN_IMPORT_MENU_LABEL = "Import Pattern…"
 PATTERN_EXPORT_MENU_LABEL = "Export Selected Pattern…"
 PATTERN_COLLECTION_IMPORT_MENU_LABEL = "Import Pattern Collection…"
@@ -557,6 +561,23 @@ class ArmyPainter(tk.Tk):
 
         def define_patternmenu():
             self.pattern_menu = tk.Menu(menubar, tearoff=0)
+            self.pattern_menu.add_command(
+                label=PATTERN_SAVE_MENU_LABEL,
+                command=self.save_pattern,
+            )
+            self.pattern_menu.add_command(
+                label=PATTERN_UPDATE_MENU_LABEL,
+                command=self.update_selected_pattern,
+            )
+            self.pattern_menu.add_command(
+                label=PATTERN_RENAME_MENU_LABEL,
+                command=self.rename_selected_pattern,
+            )
+            self.pattern_menu.add_command(
+                label=PATTERN_DELETE_MENU_LABEL,
+                command=self.delete_pattern,
+            )
+            self.pattern_menu.add_separator()
             self.pattern_menu.add_command(
                 label=PATTERN_IMPORT_MENU_LABEL,
                 command=self.import_pattern,
@@ -1235,6 +1256,18 @@ class ArmyPainter(tk.Tk):
             selection, modified=self.is_selected_pattern_dirty(selection)
         )
         self.frame_army_pattern.set_pattern_action_states(states)
+        self.pattern_menu.entryconfig(
+            PATTERN_SAVE_MENU_LABEL, state=states.save_new
+        )
+        self.pattern_menu.entryconfig(
+            PATTERN_UPDATE_MENU_LABEL, state=states.update
+        )
+        self.pattern_menu.entryconfig(
+            PATTERN_RENAME_MENU_LABEL, state=states.rename
+        )
+        self.pattern_menu.entryconfig(
+            PATTERN_DELETE_MENU_LABEL, state=states.delete
+        )
         self.pattern_menu.entryconfig(
             PATTERN_EXPORT_MENU_LABEL, state=states.export_selected
         )
