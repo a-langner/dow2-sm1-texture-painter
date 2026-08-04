@@ -137,7 +137,11 @@ class PatternUpdateGuiTests(unittest.TestCase):
     def test_persistence_failure_is_logged_and_reported(
         self, get_colors, confirm, update, showerror, log_exception
     ):
-        painter = FakePainter(PatternSelection("Custom", True))
+        selection = PatternSelection("Custom", True)
+        painter = FakePainter(selection)
+        colors_before = [
+            box["bg"] for box in painter.frame_color_chooser.color_boxes
+        ]
 
         ArmyPainter.update_selected_pattern(painter)
 
@@ -147,7 +151,26 @@ class PatternUpdateGuiTests(unittest.TestCase):
             "The Pattern could not be saved:\nsimulated failure",
             parent=painter,
         )
-        self.assertEqual(painter.state_updates, [])
+        self.assertIs(painter.frame_army_pattern.selection, selection)
+        self.assertEqual(
+            [box["bg"] for box in painter.frame_color_chooser.color_boxes],
+            colors_before,
+        )
+        self.assertEqual(painter.state_updates, [selection])
+
+    @patch(
+        "src.frame_main.src.color_pattern_handler.update_user_pattern",
+        side_effect=RuntimeError("programming bug"),
+    )
+    @patch("src.frame_main.askyesno", return_value=True)
+    @patch("src.frame_main.get_pattern_colors", return_value=STORED_COLORS)
+    def test_unexpected_update_error_is_not_suppressed(
+        self, get_colors, confirm, update
+    ):
+        painter = FakePainter(PatternSelection("Custom", True))
+
+        with self.assertRaisesRegex(RuntimeError, "programming bug"):
+            ArmyPainter.update_selected_pattern(painter)
 
 
 if __name__ == "__main__":

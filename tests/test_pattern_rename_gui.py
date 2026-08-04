@@ -153,6 +153,13 @@ class PatternRenameGuiTests(unittest.TestCase):
                     "Cannot Rename Pattern", str(error), parent=painter
                 )
                 self.assertEqual(painter.frame_army_pattern.load_calls, [])
+                self.assertEqual(
+                    painter.frame_army_pattern.selection,
+                    PatternSelection("Current", True),
+                )
+                self.assertEqual(
+                    painter.state_updates, [PatternSelection("Current", True)]
+                )
 
     @patch("src.frame_main.LOGGER.exception")
     @patch("src.frame_main.showerror")
@@ -164,7 +171,11 @@ class PatternRenameGuiTests(unittest.TestCase):
     def test_persistence_failure_is_logged_without_refreshing(
         self, ask_name, rename, showerror, log_exception
     ):
-        painter = FakePainter(PatternSelection("Old Name", True))
+        selection = PatternSelection("Old Name", True)
+        painter = FakePainter(selection)
+        colors_before = [
+            box["bg"] for box in painter.frame_color_chooser.color_boxes
+        ]
 
         ArmyPainter.rename_selected_pattern(painter)
 
@@ -175,6 +186,23 @@ class PatternRenameGuiTests(unittest.TestCase):
             parent=painter,
         )
         self.assertEqual(painter.frame_army_pattern.load_calls, [])
+        self.assertIs(painter.frame_army_pattern.selection, selection)
+        self.assertEqual(
+            [box["bg"] for box in painter.frame_color_chooser.color_boxes],
+            colors_before,
+        )
+        self.assertEqual(painter.state_updates, [selection])
+
+    @patch(
+        "src.frame_main.src.color_pattern_handler.rename_user_pattern",
+        side_effect=RuntimeError("programming bug"),
+    )
+    @patch("src.frame_main.askstring", return_value="New Name")
+    def test_unexpected_rename_error_is_not_suppressed(self, ask_name, rename):
+        painter = FakePainter(PatternSelection("Old Name", True))
+
+        with self.assertRaisesRegex(RuntimeError, "programming bug"):
+            ArmyPainter.rename_selected_pattern(painter)
 
 
 if __name__ == "__main__":

@@ -123,6 +123,9 @@ class PatternDeletionGuiTests(unittest.TestCase):
             "Cannot Delete Pattern", "Pattern was not found"
         )
         self.assertEqual(painter.frame_army_pattern.load_count, 0)
+        self.assertEqual(
+            painter.frame_army_pattern.delete_state_update_count, 1
+        )
 
     @patch("src.frame_main.LOGGER.exception")
     @patch("src.frame_main.showerror")
@@ -145,6 +148,9 @@ class PatternDeletionGuiTests(unittest.TestCase):
         )
         self.assertEqual(painter.frame_army_pattern.load_count, 0)
         self.assertEqual(painter.frame_army_pattern.selected_names, [])
+        self.assertEqual(
+            painter.frame_army_pattern.delete_state_update_count, 1
+        )
         log_exception.assert_called_once()
 
 

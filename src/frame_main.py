@@ -1140,7 +1140,13 @@ class ArmyPainter(tk.Tk):
             stored_colors = get_pattern_colors(pattern_name)
             colors_match = pattern_colors_equal(current_colors, stored_colors)
         except PatternError as exc:
+            LOGGER.debug(
+                "Could not compare user Pattern '%s' for update",
+                pattern_name,
+                exc_info=True,
+            )
             showerror("Cannot Update Pattern", str(exc), parent=self)
+            self.update_pattern_action_states(selection)
             return
 
         if colors_match:
@@ -1167,9 +1173,14 @@ class ArmyPainter(tk.Tk):
                 f"The Pattern could not be saved:\n{exc}",
                 parent=self,
             )
+            self.update_pattern_action_states(selection)
             return
         except PatternError as exc:
+            LOGGER.debug(
+                "Could not update user Pattern '%s'", pattern_name, exc_info=True
+            )
             showerror("Cannot Update Pattern", str(exc), parent=self)
+            self.update_pattern_action_states(selection)
             return
         except OSError as exc:
             LOGGER.exception("Could not update user Pattern '%s'", pattern_name)
@@ -1178,6 +1189,7 @@ class ArmyPainter(tk.Tk):
                 f"The Pattern could not be saved:\n{exc}",
                 parent=self,
             )
+            self.update_pattern_action_states(selection)
             return
 
         self.update_pattern_action_states(selection)
@@ -1208,7 +1220,14 @@ class ArmyPainter(tk.Tk):
         try:
             new_name = normalize_pattern_name(requested_name)
         except InvalidPatternError as exc:
+            LOGGER.debug(
+                "Invalid replacement name for user Pattern '%s': %s",
+                old_name,
+                exc,
+                exc_info=True,
+            )
             showerror("Cannot Rename Pattern", str(exc), parent=self)
+            self.update_pattern_action_states(selection)
             return
 
         if new_name == old_name:
@@ -1226,9 +1245,14 @@ class ArmyPainter(tk.Tk):
                 f"The Pattern could not be saved:\n{exc}",
                 parent=self,
             )
+            self.update_pattern_action_states(selection)
             return
         except PatternError as exc:
+            LOGGER.debug(
+                "Could not rename user Pattern '%s'", old_name, exc_info=True
+            )
             showerror("Cannot Rename Pattern", str(exc), parent=self)
+            self.update_pattern_action_states(selection)
             return
         except OSError as exc:
             LOGGER.exception("Could not rename user Pattern '%s'", old_name)
@@ -1237,6 +1261,7 @@ class ArmyPainter(tk.Tk):
                 f"The Pattern could not be saved:\n{exc}",
                 parent=self,
             )
+            self.update_pattern_action_states(selection)
             return
 
         self.frame_army_pattern.load_pattern_list(renamed_name)
@@ -1304,7 +1329,11 @@ class ArmyPainter(tk.Tk):
         try:
             src.color_pattern_handler.delete(pattern_name)
         except PatternError as exc:
+            LOGGER.debug(
+                "Could not delete user Pattern '%s'", pattern_name, exc_info=True
+            )
             showerror("Cannot Delete Pattern", str(exc))
+            self.update_pattern_action_states(selection)
             return
         except OSError:
             LOGGER.exception(
@@ -1316,6 +1345,7 @@ class ArmyPainter(tk.Tk):
                 "The user-pattern file could not be updated.\n\n"
                 "The pattern was not deleted.",
             )
+            self.update_pattern_action_states(selection)
             return
 
         self.frame_army_pattern.load_pattern_list(neighboring_name)
