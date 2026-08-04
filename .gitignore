@@ -128,3 +128,6 @@ zeprofile_project/backend_ui/node_modules
 
 # Allow icon file
 !icon_64x64.png
+
+# Input files
+docs/jobs/
