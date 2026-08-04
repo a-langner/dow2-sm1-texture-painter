@@ -302,6 +302,36 @@ def save(name: str, colors: list, pattern_path=None):
     army_color_pattern[normalized_name] = pattern
 
 
+def save_imported_pattern(
+    name: str, colors: list, overwrite=False, pattern_path=None
+):
+    """Persist an imported user pattern, optionally replacing that user name."""
+    normalized_name = normalize_pattern_name(name)
+    normalized_colors = normalize_pattern_colors(colors)
+    if normalized_name in builtin_color_patterns:
+        raise PatternNameConflictError(
+            f"'{normalized_name}' is a built-in pattern name"
+        )
+    if normalized_name in user_color_patterns and not overwrite:
+        raise PatternAlreadyExistsError(
+            f"User pattern '{normalized_name}' already exists"
+        )
+
+    if pattern_path is None:
+        pattern_path = get_user_patterns_path(create_parent=True)
+    pattern_path = Path(pattern_path)
+    _ensure_user_pattern_file_is_writable(pattern_path)
+
+    pattern = OrderedDict(zip(color_key, normalized_colors))
+    updated_user_patterns = OrderedDict(user_color_patterns)
+    updated_user_patterns[normalized_name] = pattern
+    _write_user_patterns(updated_user_patterns, pattern_path)
+
+    user_color_patterns[normalized_name] = pattern
+    army_color_pattern[normalized_name] = pattern
+    return normalized_name
+
+
 def delete(name: str, pattern_path=None):
     normalized_name = name.strip() if isinstance(name, str) else name
     if normalized_name in builtin_color_patterns:

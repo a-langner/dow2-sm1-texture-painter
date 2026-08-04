@@ -2,15 +2,19 @@ import json
 import os
 from pathlib import Path
 import tempfile
+from typing import NamedTuple
 
 from src.color_pattern_handler import (
     ARMY_PATTERN_RESOURCE,
     InvalidPatternError,
+    PatternAlreadyExistsError,
+    PatternNameConflictError,
     PatternNotFoundError,
     color_key,
     get_all_patterns,
     normalize_pattern_colors,
     normalize_pattern_name,
+    save_imported_pattern,
 )
 from src.user_data import get_user_patterns_path
 
@@ -37,6 +41,27 @@ class UnsupportedPatternVersionError(PatternImportError):
 
 class PatternExportError(OSError):
     """Raised when a pattern exchange file cannot be written safely."""
+
+
+class PatternImportReadError(OSError):
+    """Raised when a pattern exchange file cannot be read."""
+
+
+class BuiltinPatternImportConflictError(PatternImportError):
+    """Raised when an import targets a built-in pattern name."""
+
+
+class UserPatternImportConflictError(PatternImportError):
+    """Raised when an import targets an existing user pattern name."""
+
+
+class InvalidPatternImportNameError(PatternImportError):
+    """Raised when an imported pattern's replacement name is invalid."""
+
+
+class ImportedPattern(NamedTuple):
+    name: str
+    colors: dict
 
 
 def create_pattern_exchange_document(name, pattern):
@@ -114,6 +139,45 @@ def parse_imported_pattern_json(json_text):
     except (json.JSONDecodeError, TypeError) as exc:
         raise InvalidPatternJsonError("Pattern file contains invalid JSON") from exc
     return validate_imported_pattern(data)
+
+
+def read_pattern_file(path):
+    """Read and validate one pattern file without resolving name conflicts."""
+    path = Path(path)
+    try:
+        json_text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise PatternImportReadError(
+            f'Could not read pattern file "{path}": {exc}'
+        ) from exc
+    document = parse_imported_pattern_json(json_text)
+    return ImportedPattern(document["name"], document["colors"])
+
+
+def import_pattern(
+    imported_pattern, target_name=None, overwrite=False, pattern_path=None
+):
+    """Persist a validated pattern after applying the requested conflict policy."""
+    if not isinstance(imported_pattern, ImportedPattern):
+        raise InvalidPatternFileError("Imported pattern has not been validated")
+
+    requested_name = imported_pattern.name if target_name is None else target_name
+    try:
+        normalized_name = normalize_pattern_name(requested_name)
+    except InvalidPatternError as exc:
+        raise InvalidPatternImportNameError(str(exc)) from exc
+
+    try:
+        return save_imported_pattern(
+            normalized_name,
+            [imported_pattern.colors[key] for key in color_key],
+            overwrite=overwrite,
+            pattern_path=pattern_path,
+        )
+    except PatternNameConflictError as exc:
+        raise BuiltinPatternImportConflictError(str(exc)) from exc
+    except PatternAlreadyExistsError as exc:
+        raise UserPatternImportConflictError(str(exc)) from exc
 
 
 def export_pattern(name, destination):
