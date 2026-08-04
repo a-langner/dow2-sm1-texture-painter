@@ -82,6 +82,13 @@ class PatternMenuStateTests(unittest.TestCase):
             PatternSelection("Custom", True), modified=True
         )
         self.assertEqual(modified_user.update, "normal")
+        self.assertTrue(modified_user.modified)
+        self.assertTrue(
+            pattern_action_states(
+                PatternSelection("Built-in", False), modified=True
+            ).modified
+        )
+        self.assertFalse(pattern_action_states(None, modified=True).modified)
 
     def test_refresh_selection_uses_internal_name_and_handles_removal(self):
         names = {"Built-in", "Custom"}

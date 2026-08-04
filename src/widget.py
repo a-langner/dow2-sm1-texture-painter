@@ -30,6 +30,7 @@ class PatternActionStates:
     rename: str
     delete: str
     export_selected: str
+    modified: bool
 
 
 def pattern_action_states(selection, modified=False):
@@ -42,6 +43,7 @@ def pattern_action_states(selection, modified=False):
         rename=tk.NORMAL if user_selected else tk.DISABLED,
         delete=tk.NORMAL if user_selected else tk.DISABLED,
         export_selected=tk.NORMAL if has_selection else tk.DISABLED,
+        modified=bool(has_selection and modified),
     )
 
 
@@ -377,6 +379,11 @@ class FramePatternList(tk.Frame):
         self.action_frame.grid_columnconfigure(0, weight=1)
         self.action_frame.grid_columnconfigure(1, weight=1)
 
+        self.modified_label = ttk.Label(
+            self.action_frame,
+            text="",
+            anchor=tk.W,
+        )
         self.save_new_button = tk.Button(
             self.action_frame,
             text="Save New",
@@ -401,10 +408,13 @@ class FramePatternList(tk.Frame):
             state=tk.DISABLED,
         )
 
-        self.save_new_button.grid(row=0, column=0, sticky=tk.EW, padx=2, pady=2)
-        self.update_button.grid(row=0, column=1, sticky=tk.EW, padx=2, pady=2)
-        self.rename_button.grid(row=1, column=0, sticky=tk.EW, padx=2, pady=2)
-        self.delete_button.grid(row=1, column=1, sticky=tk.EW, padx=2, pady=2)
+        self.modified_label.grid(
+            row=0, column=0, columnspan=2, sticky=tk.EW, padx=2, pady=(2, 0)
+        )
+        self.save_new_button.grid(row=1, column=0, sticky=tk.EW, padx=2, pady=2)
+        self.update_button.grid(row=1, column=1, sticky=tk.EW, padx=2, pady=2)
+        self.rename_button.grid(row=2, column=0, sticky=tk.EW, padx=2, pady=2)
+        self.delete_button.grid(row=2, column=1, sticky=tk.EW, padx=2, pady=2)
 
     def _tree_border_width(self):
         border_width = self.pattern_style.lookup(
@@ -611,6 +621,7 @@ class FramePatternList(tk.Frame):
         self.update_button.config(state=states.update)
         self.rename_button.config(state=states.rename)
         self.delete_button.config(state=states.delete)
+        self.modified_label.config(text="Modified" if states.modified else "")
 
     def select_pattern(self, pattern_name):
         item_id = self.get_pattern_item_id(pattern_name)

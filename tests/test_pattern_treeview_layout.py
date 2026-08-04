@@ -7,6 +7,7 @@ from src.widget import (
     FramePatternList,
     calculate_pattern_separator_x,
     find_treeview_body_boundary,
+    pattern_action_states,
 )
 
 
@@ -82,6 +83,9 @@ class FakeButton:
     def grid(self, **kwargs):
         self.grid_options = kwargs
 
+    def config(self, **kwargs):
+        self.options.update(kwargs)
+
 
 class FakePositionTree:
     def __init__(self):
@@ -108,10 +112,11 @@ class FakePositionTree:
 
 
 class PatternTreeviewLayoutTests(unittest.TestCase):
+    @patch("src.widget.ttk.Label", side_effect=FakeButton)
     @patch("src.widget.tk.Button", side_effect=FakeButton)
     @patch("src.widget.tk.Frame", return_value=FakeActionFrame())
     def test_pattern_actions_use_balanced_two_by_two_grid(
-        self, _frame_type, _button_type
+        self, _frame_type, _button_type, _label_type
     ):
         frame = object.__new__(FramePatternList)
         root = type(
@@ -139,6 +144,9 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
             ["Save New", "Update", "Rename", "Delete"],
         )
         self.assertNotIn("state", frame.save_new_button.options)
+        self.assertEqual(frame.modified_label.options["text"], "")
+        self.assertEqual(frame.modified_label.grid_options["row"], 0)
+        self.assertEqual(frame.modified_label.grid_options["columnspan"], 2)
         for button in (
             frame.update_button,
             frame.rename_button,
@@ -146,14 +154,24 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
         ):
             self.assertEqual(button.options["state"], tk.DISABLED)
             self.assertEqual(button.grid_options["sticky"], tk.EW)
-        self.assertEqual(frame.save_new_button.grid_options["row"], 0)
+        self.assertEqual(frame.save_new_button.grid_options["row"], 1)
         self.assertEqual(frame.save_new_button.grid_options["column"], 0)
-        self.assertEqual(frame.update_button.grid_options["row"], 0)
+        self.assertEqual(frame.update_button.grid_options["row"], 1)
         self.assertEqual(frame.update_button.grid_options["column"], 1)
-        self.assertEqual(frame.rename_button.grid_options["row"], 1)
+        self.assertEqual(frame.rename_button.grid_options["row"], 2)
         self.assertEqual(frame.rename_button.grid_options["column"], 0)
-        self.assertEqual(frame.delete_button.grid_options["row"], 1)
+        self.assertEqual(frame.delete_button.grid_options["row"], 2)
         self.assertEqual(frame.delete_button.grid_options["column"], 1)
+
+        frame.set_pattern_action_states(
+            pattern_action_states(
+                type("Selection", (), {"is_user": False})(), modified=True
+            )
+        )
+        self.assertEqual(frame.modified_label.options["text"], "Modified")
+
+        frame.set_pattern_action_states(pattern_action_states(None, modified=True))
+        self.assertEqual(frame.modified_label.options["text"], "")
 
     def test_header_boundary_uses_populated_tree_hit_testing(self):
         tree = FakeRegionTree(boundary=24, body_region="cell")
