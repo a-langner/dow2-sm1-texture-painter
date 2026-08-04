@@ -43,6 +43,7 @@ VERSION = "0.1"
 PREVIEW_DEBOUNCE_MS = 120
 WINDOW_INITIAL_SCALE = 1.4
 WINDOW_SCREEN_FRACTION = 0.9
+WINDOW_CONTENT_PADDING = 16
 LOGGER = logging.getLogger(__name__)
 
 
@@ -62,6 +63,51 @@ def calculate_initial_window_size(
         min(scaled_width, available_width),
         min(scaled_height, available_height),
     )
+
+
+def calculate_diffuse_window_size(
+    texture_width,
+    texture_height,
+    min_width,
+    min_height,
+    screen_width,
+    screen_height,
+):
+    """Size two texture previews and the tools within the screen margin."""
+    content_width = (
+        texture_width * 2 + PATTERN_LIST_DEFAULT_WIDTH + WINDOW_CONTENT_PADDING
+    )
+    content_height = texture_height + FRAME_TOOL_HEIGHT + WINDOW_CONTENT_PADDING
+    available_width = max(
+        min_width, round(screen_width * WINDOW_SCREEN_FRACTION)
+    )
+    available_height = max(
+        min_height, round(screen_height * WINDOW_SCREEN_FRACTION)
+    )
+    return (
+        min(max(content_width, min_width), available_width),
+        min(max(content_height, min_height), available_height),
+    )
+
+
+def clamp_window_position(
+    current_x, current_y, window_width, window_height, screen_width, screen_height
+):
+    """Keep the resized window visible while retaining its position if possible."""
+    return (
+        min(max(current_x, 0), max(screen_width - window_width, 0)),
+        min(max(current_y, 0), max(screen_height - window_height, 0)),
+    )
+
+
+def is_window_maximized(window):
+    """Recognize the maximized state exposed by different Tk window managers."""
+    if window.state() == "zoomed":
+        return True
+    try:
+        return bool(window.attributes("-zoomed"))
+    except tk.TclError:
+        return False
 
 
 def find_companion_texture(diffuse_filepath, map_suffix):
@@ -554,6 +600,33 @@ class ArmyPainter(tk.Tk):
                 showwarning(title="Invalid specular texture", message=str(exc))
 
         self.refresh_workspace()
+        self.resize_for_diffuse(self.img_wbench.img_og_dif.size)
+
+    def resize_for_diffuse(self, texture_size):
+        """Apply one texture-specific resize without disturbing maximized windows."""
+        if is_window_maximized(self):
+            return
+
+        min_width, min_height = self.minsize()
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        target_width, target_height = calculate_diffuse_window_size(
+            texture_size[0],
+            texture_size[1],
+            min_width,
+            min_height,
+            screen_width,
+            screen_height,
+        )
+        target_x, target_y = clamp_window_position(
+            self.winfo_x(),
+            self.winfo_y(),
+            target_width,
+            target_height,
+            screen_width,
+            screen_height,
+        )
+        self.geometry(f"{target_width}x{target_height}+{target_x}+{target_y}")
 
     def load_channel_packed_file(self, filepath: str):
         self.img_wbench.load_team_colour_file(filepath)
