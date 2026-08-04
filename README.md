@@ -57,8 +57,6 @@ with the following format: PNG, JPG, BMP and TGA.
 The application loads the default color pattern from Dawn of War 2, you can
 select them on the list located bottom right.
 
-You can save your current color pattern by clicking on `Save pattern`.
-
 ### Saved color patterns
 
 Built-in patterns are bundled with the application and are read-only. Custom
@@ -74,6 +72,29 @@ The custom-pattern file is stored at:
 
 Updating or replacing the application executable does not normally remove
 custom patterns because this file is stored separately.
+
+### Editing color patterns
+
+The Pattern panel uses a 2×2 button layout: `Save New`, `Update`, `Rename`, and
+`Delete`.
+
+* `Save New` creates a custom Pattern from the colors currently shown, whether
+  a built-in or custom Pattern is selected.
+* `Update` replaces the stored colors of the selected custom Pattern.
+* `Rename` changes only the selected custom Pattern's name.
+* `Delete` permanently removes the selected custom Pattern.
+
+Only custom, user-created Patterns can be updated, renamed, or deleted.
+Built-in Patterns remain read-only. Editing operations are stored persistently
+and remain available after restarting the application.
+
+`Modified` appears when the current colors differ from the selected Pattern's
+stored colors. Color changes are not saved automatically: use `Update` to keep
+them, or `Edit -> Reset to Selected Pattern` to discard them. To create a new
+custom Pattern from any selected Pattern's stored colors, use
+`Edit -> Duplicate Selected Pattern…`.
+
+Pattern import and export behavior is unchanged.
 
 ### Importing and exporting patterns
 
