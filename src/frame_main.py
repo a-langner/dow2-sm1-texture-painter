@@ -41,13 +41,16 @@ from src.color_pattern_handler import (
 )
 from src.image_process import ImageWorkbench, TextureValidationError
 from src.pattern_exchange import (
+    PATTERN_COLLECTION_EXCHANGE_SUFFIX,
     PATTERN_EXCHANGE_SUFFIX,
     BuiltinPatternImportConflictError,
+    EmptyUserPatternCollectionError,
     InvalidImportedPatternColorsError,
     InvalidImportedPatternNameError,
     InvalidPatternFileError,
     InvalidPatternJsonError,
     InvalidPatternImportNameError,
+    InvalidPatternCollectionNameError,
     PatternExportError,
     PatternExportPermissionDeniedError,
     PatternFileNotFoundError,
@@ -56,6 +59,7 @@ from src.pattern_exchange import (
     UnsupportedPatternVersionError,
     UserPatternImportConflictError,
     export_pattern,
+    export_user_pattern_collection,
     import_pattern as persist_imported_pattern,
     read_pattern_file,
 )
@@ -79,6 +83,11 @@ PATTERN_FILETYPES = (
     ("JSON files", "*.json"),
     ("All files", "*.*"),
 )
+PATTERN_COLLECTION_FILETYPES = (
+    ("Pattern Collections", f"*{PATTERN_COLLECTION_EXCHANGE_SUFFIX}"),
+    ("JSON files", "*.json"),
+    ("All files", "*.*"),
+)
 LOGGER = logging.getLogger(__name__)
 
 WINDOWS_RESERVED_FILENAMES = {
@@ -91,18 +100,34 @@ WINDOWS_RESERVED_FILENAMES = {
 }
 
 
-def suggested_pattern_filename(pattern_name):
-    """Return a portable filename while preserving the internal pattern name."""
-    safe_name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", pattern_name)
+def suggested_exchange_filename(name, suffix, fallback_name):
+    """Return a portable exchange filename for the supplied canonical suffix."""
+    safe_name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name)
     safe_name = safe_name.rstrip(" .")
     if not safe_name:
-        safe_name = "pattern"
+        safe_name = fallback_name
     windows_stem = safe_name.split(".", 1)[0].rstrip(" .").upper()
     if windows_stem in WINDOWS_RESERVED_FILENAMES:
         safe_name = f"_{safe_name}"
-    if not safe_name.casefold().endswith(PATTERN_EXCHANGE_SUFFIX):
-        safe_name += PATTERN_EXCHANGE_SUFFIX
+    if not safe_name.casefold().endswith(suffix.casefold()):
+        safe_name += suffix
     return safe_name
+
+
+def suggested_pattern_filename(pattern_name):
+    """Return a portable filename while preserving the internal pattern name."""
+    return suggested_exchange_filename(
+        pattern_name, PATTERN_EXCHANGE_SUFFIX, "pattern"
+    )
+
+
+def suggested_pattern_collection_filename(collection_name):
+    """Return a portable filename for a Pattern Collection."""
+    return suggested_exchange_filename(
+        collection_name,
+        PATTERN_COLLECTION_EXCHANGE_SUFFIX,
+        "pattern-collection",
+    )
 
 
 def resolve_pattern_import_conflicts(
@@ -1047,8 +1072,91 @@ class ArmyPainter(tk.Tk):
         return None
 
     def export_all_user_patterns(self):
-        """Collection export dialog is implemented in a later job."""
-        return None
+        if not src.color_pattern_handler.has_user_patterns():
+            showinfo(
+                "No User Patterns",
+                "There are no user-created Patterns to export.",
+                parent=self,
+            )
+            return
+
+        collection_name = askstring(
+            "Export Pattern Collection",
+            "Collection name:",
+            initialvalue="My Patterns",
+            parent=self,
+        )
+        if collection_name is None:
+            return
+        collection_name = collection_name.strip()
+        if not collection_name:
+            showerror(
+                "Invalid Collection Name",
+                "Collection name cannot be empty.",
+                parent=self,
+            )
+            return
+
+        destination = filedialog.asksaveasfilename(
+            initialdir=self.settings.get_last_pattern_export_directory(),
+            initialfile=suggested_pattern_collection_filename(collection_name),
+            filetypes=PATTERN_COLLECTION_FILETYPES,
+            defaultextension=PATTERN_COLLECTION_EXCHANGE_SUFFIX,
+            title="Export Pattern Collection",
+        )
+        if not destination:
+            return
+
+        try:
+            export_user_pattern_collection(collection_name, destination)
+        except EmptyUserPatternCollectionError:
+            LOGGER.exception("No user-created Patterns remained for collection export")
+            showinfo(
+                "No User Patterns",
+                "There are no user-created Patterns to export.",
+                parent=self,
+            )
+            return
+        except InvalidPatternCollectionNameError as exc:
+            LOGGER.exception("Invalid Pattern Collection name: %s", collection_name)
+            showerror("Invalid Collection Name", str(exc), parent=self)
+            return
+        except PatternExportPermissionDeniedError as exc:
+            LOGGER.exception(
+                "Permission denied exporting Pattern Collection '%s' to %s",
+                collection_name,
+                destination,
+            )
+            showerror(
+                "Permission Denied",
+                f"Permission was denied exporting '{collection_name}' to:\n"
+                f"{destination}",
+                parent=self,
+            )
+            return
+        except PatternExportError as exc:
+            LOGGER.exception(
+                "Could not export Pattern Collection '%s' to %s",
+                collection_name,
+                destination,
+            )
+            showerror(
+                "Cannot Export Pattern Collection",
+                f"Could not export '{collection_name}' to:\n"
+                f"{destination}\n\n{exc}",
+                parent=self,
+            )
+            return
+
+        try:
+            self.settings.set_last_pattern_export_directory(
+                Path(destination).parent
+            )
+        except OSError:
+            LOGGER.exception(
+                "Could not remember Pattern Collection export directory: %s",
+                Path(destination).parent,
+            )
 
     def import_pattern(self):
         source = filedialog.askopenfilename(
