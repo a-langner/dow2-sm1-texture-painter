@@ -11,6 +11,10 @@ SETTINGS_VERSION = 1
 LOGGER = logging.getLogger(__name__)
 
 
+class SettingsFileError(OSError):
+    """Raised when preserving an invalid settings file prevents an update."""
+
+
 class SettingsHandler:
     """Load and persist the small application settings document."""
 
@@ -55,6 +59,11 @@ class SettingsHandler:
         return self.home_directory
 
     def remember_diffuse_file(self, diffuse_file):
+        if self.load_error is not None and self.path.exists():
+            raise SettingsFileError(
+                f"Settings file is invalid and was not overwritten: {self.path}"
+            ) from self.load_error
+
         directory = Path(diffuse_file).resolve().parent
         document = {
             "format": SETTINGS_FORMAT,

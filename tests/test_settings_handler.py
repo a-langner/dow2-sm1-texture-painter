@@ -71,6 +71,11 @@ class SettingsHandlerTests(unittest.TestCase):
             self.assertIsNotNone(handler.load_error)
             self.assertEqual(settings_path.read_text(encoding="utf-8"), original)
 
+            with self.assertRaises(OSError):
+                handler.remember_diffuse_file(root / "unit_dif.png")
+
+            self.assertEqual(settings_path.read_text(encoding="utf-8"), original)
+
     def test_inaccessible_file_is_nonfatal(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
