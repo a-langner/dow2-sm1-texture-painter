@@ -77,8 +77,15 @@ custom patterns because this file is stored separately.
 
 ### Importing and exporting patterns
 
-The `Patterns` menu contains `Import Pattern…` and
-`Export Selected Pattern…`. Both built-in and custom patterns can be exported.
+The `Patterns` menu contains commands for single patterns and Pattern
+Collections:
+
+* `Import Pattern…`
+* `Export Selected Pattern…`
+* `Import Pattern Collection…`
+* `Export All User Patterns…`
+
+For single-pattern exchange, both built-in and custom patterns can be exported.
 Pattern exchange files use the `.pattern.json` suffix and contain versioned
 JSON, for example:
 
@@ -106,7 +113,44 @@ existing custom pattern, the application asks whether to rename the import,
 overwrite the existing pattern, or cancel. Nothing is overwritten without
 confirmation.
 
-Pattern collections are planned separately and are not part of this feature.
+### Pattern Collections
+
+`Export All User Patterns…` saves all custom, user-created patterns in one
+versioned JSON file with the `.pattern-collection.json` suffix. Built-in
+patterns are never included. The Collection name is informational and is not
+added to the names of its patterns.
+
+```json
+{
+  "format": "sm1-dow2-texture-painter-pattern-collection",
+  "version": 1,
+  "name": "My Space Marine Patterns",
+  "patterns": [
+    {
+      "name": "Blood Ravens Veteran",
+      "colors": {
+        "primary_colour_name": "#7f1919",
+        "secondary_colour_name": "#d1b989",
+        "tint_colour_name": "#242424",
+        "extra_colour_name": "#ffffff"
+      }
+    }
+  ]
+}
+```
+
+`Import Pattern Collection…` validates the entire Collection before saving
+anything. If one pattern is invalid, or if names are duplicated within the
+Collection, the whole Collection is rejected. A confirmed import is atomic, so
+it is saved as one operation rather than as a series of partial imports.
+
+Names that conflict with built-in patterns are always skipped because built-in
+patterns cannot be overwritten. For names that conflict with existing custom
+patterns, you can skip or overwrite them; **Skip existing user patterns** is the
+default. Collection import does not automatically rename conflicting patterns.
+
+Single-pattern import and export remain available separately through
+`Import Pattern…` and `Export Selected Pattern…`.
 
 You can apply dirt & specular texture by clicking on `Edit -> Apply dirt/specular`,
 those textures must be in the same folder as the diffuse ones and their filenames must
