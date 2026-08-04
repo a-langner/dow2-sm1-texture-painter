@@ -22,6 +22,24 @@ def calculate_pattern_separator_x(
     return max(tree_x, tree_x + tree_width - marker_width - border_width)
 
 
+def find_treeview_body_boundary(tree):
+    """Find the first body pixel using the active Treeview theme's hit testing."""
+    tree_width = tree.winfo_width()
+    tree_height = tree.winfo_height()
+    if tree_width <= 1 or tree_height <= 1:
+        return None
+
+    sample_x = min(max(tree_width // 3, 1), tree_width - 1)
+    heading_seen = False
+    for sample_y in range(tree_height):
+        region = tree.identify_region(sample_x, sample_y)
+        if region in ("heading", "separator"):
+            heading_seen = True
+        elif heading_seen:
+            return sample_y
+    return None
+
+
 def build_pattern_rows(patterns=None):
     """Build GUI-independent rows while keeping decoration out of names."""
     if patterns is None:
@@ -271,8 +289,17 @@ class FramePatternList(tk.Frame):
         self.column_separator = ttk.Separator(
             self.tree_frame, orient=tk.VERTICAL, takefocus=False
         )
+        self.header_separator = ttk.Separator(
+            self.tree_frame, orient=tk.HORIZONTAL, takefocus=False
+        )
         self.tree.bind(
             "<Configure>", self._position_column_separator, add="+"
+        )
+        self.tree.bind(
+            "<Configure>", self._position_header_separator, add="+"
+        )
+        self.tree.bind(
+            "<<ThemeChanged>>", self._schedule_separator_position, add="+"
         )
         self.column_separator.bind(
             "<Button-1>", self._select_row_through_separator
@@ -286,7 +313,16 @@ class FramePatternList(tk.Frame):
         self.column_separator.bind(
             "<Button-5>", self._scroll_tree_down_through_separator
         )
-        self.after_idle(self._position_column_separator)
+        self.header_separator.bind(
+            "<MouseWheel>", self._scroll_tree_through_separator
+        )
+        self.header_separator.bind(
+            "<Button-4>", self._scroll_tree_up_through_separator
+        )
+        self.header_separator.bind(
+            "<Button-5>", self._scroll_tree_down_through_separator
+        )
+        self._schedule_separator_position()
 
         self.load_pattern_list()
         self.save_pattern = tk.Button(
@@ -363,6 +399,26 @@ class FramePatternList(tk.Frame):
         )
         self.column_separator.lift()
 
+    def _schedule_separator_position(self, Event=None):
+        self.after_idle(self._position_column_separator)
+        self.after_idle(self._position_header_separator)
+
+    def _position_header_separator(self, Event=None):
+        boundary_y = find_treeview_body_boundary(self.tree)
+        if boundary_y is None:
+            return
+
+        separator_height = max(self.header_separator.winfo_reqheight(), 1)
+        separator_y = self.tree.winfo_y() + max(
+            boundary_y - separator_height, 0
+        )
+        self.header_separator.place(
+            x=self.tree.winfo_x(),
+            y=separator_y,
+            width=self.tree.winfo_width(),
+        )
+        self.header_separator.lift()
+
     def _select_row_through_separator(self, Event):
         tree_y = Event.y_root - self.tree.winfo_rooty()
         item_id = self.tree.identify_row(tree_y)
@@ -398,6 +454,8 @@ class FramePatternList(tk.Frame):
             )
         if hasattr(self, "delete_pattern"):
             self.update_delete_button_state()
+        if hasattr(self, "header_separator"):
+            self.after_idle(self._position_header_separator)
 
     def get_selected_item_id(self):
         selection = self.tree.selection()

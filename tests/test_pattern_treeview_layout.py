@@ -1,7 +1,11 @@
 import unittest
 
 import test_support  # noqa: F401 - installs the user-data path redirect
-from src.widget import FramePatternList, calculate_pattern_separator_x
+from src.widget import (
+    FramePatternList,
+    calculate_pattern_separator_x,
+    find_treeview_body_boundary,
+)
 
 
 class FakeTree:
@@ -25,7 +29,32 @@ class FakeEvent:
     y = 5
 
 
+class FakeRegionTree:
+    def __init__(self, boundary, body_region):
+        self.boundary = boundary
+        self.body_region = body_region
+
+    def winfo_width(self):
+        return 300
+
+    def winfo_height(self):
+        return 200
+
+    def identify_region(self, x, y):
+        return "heading" if y < self.boundary else self.body_region
+
+
 class PatternTreeviewLayoutTests(unittest.TestCase):
+    def test_header_boundary_uses_populated_tree_hit_testing(self):
+        tree = FakeRegionTree(boundary=24, body_region="cell")
+
+        self.assertEqual(find_treeview_body_boundary(tree), 24)
+
+    def test_header_boundary_uses_empty_tree_hit_testing(self):
+        tree = FakeRegionTree(boundary=27, body_region="nothing")
+
+        self.assertEqual(find_treeview_body_boundary(tree), 27)
+
     def test_separator_tracks_marker_boundary_when_tree_resizes(self):
         narrow = calculate_pattern_separator_x(0, 200, 28, 1)
         wide = calculate_pattern_separator_x(0, 500, 28, 1)
