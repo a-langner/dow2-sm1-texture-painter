@@ -45,9 +45,6 @@ class FakePatternList:
             return None
         return PatternSelection(self.selected_name, True)
 
-    def update_delete_button_state(self, selection=None):
-        self.delete_state_updates += 1
-
 
 class FakeColorChooser:
     def __init__(self):
@@ -87,8 +84,8 @@ class FakePainter:
     def update_pattern_menu_state(self):
         self.menu_state_updates += 1
 
-    def update_pattern_command_states(self, selection=None):
-        self.frame_army_pattern.update_delete_button_state(selection)
+    def update_pattern_action_states(self, selection=None):
+        self.frame_army_pattern.delete_state_updates += 1
         self.menu_state_updates += 1
 
     def on_pattern_select(self):

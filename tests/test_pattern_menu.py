@@ -11,7 +11,7 @@ from src.frame_main import (
 from src.widget import (
     FramePatternList,
     PatternSelection,
-    pattern_command_states,
+    pattern_action_states,
     pattern_name_to_restore,
 )
 
@@ -30,8 +30,8 @@ class FakePatternList:
             self.selected_name, self.selected_name == "User-created"
         )
 
-    def update_delete_button_state(self, selection=None):
-        self.delete_state = pattern_command_states(selection)[1]
+    def set_pattern_action_states(self, states):
+        self.action_states = states
 
 
 class FakeMenu:
@@ -50,15 +50,34 @@ class FakePainter:
 
 class PatternMenuStateTests(unittest.TestCase):
     def test_command_policy_covers_no_builtin_and_user_selection(self):
-        self.assertEqual(pattern_command_states(None), ("disabled", "disabled"))
+        no_selection = pattern_action_states(None)
         self.assertEqual(
-            pattern_command_states(PatternSelection("Built-in", False)),
-            ("normal", "disabled"),
+            (
+                no_selection.save_new,
+                no_selection.update,
+                no_selection.rename,
+                no_selection.delete,
+                no_selection.export_selected,
+            ),
+            ("normal", "disabled", "disabled", "disabled", "disabled"),
         )
+
+        builtin = pattern_action_states(PatternSelection("Built-in", False))
         self.assertEqual(
-            pattern_command_states(PatternSelection("Custom", True)),
-            ("normal", "normal"),
+            (builtin.update, builtin.rename, builtin.delete, builtin.export_selected),
+            ("disabled", "disabled", "disabled", "normal"),
         )
+
+        user = pattern_action_states(PatternSelection("Custom", True))
+        self.assertEqual(
+            (user.update, user.rename, user.delete, user.export_selected),
+            ("disabled", "normal", "normal", "normal"),
+        )
+
+        modified_user = pattern_action_states(
+            PatternSelection("Custom", True), modified=True
+        )
+        self.assertEqual(modified_user.update, "normal")
 
     def test_refresh_selection_uses_internal_name_and_handles_removal(self):
         names = {"Built-in", "Custom"}
@@ -69,7 +88,7 @@ class PatternMenuStateTests(unittest.TestCase):
     def test_export_is_disabled_without_selection(self):
         painter = FakePainter()
 
-        ArmyPainter.update_pattern_command_states(painter)
+        ArmyPainter.update_pattern_action_states(painter)
 
         self.assertEqual(
             painter.pattern_menu.configurations,
@@ -81,14 +100,14 @@ class PatternMenuStateTests(unittest.TestCase):
                 ),
             ],
         )
-        self.assertEqual(painter.frame_army_pattern.delete_state, "disabled")
+        self.assertEqual(painter.frame_army_pattern.action_states.delete, "disabled")
 
     def test_export_is_enabled_for_any_internal_pattern_name(self):
         for pattern_name in ("Built-in", "User-created"):
             with self.subTest(pattern_name=pattern_name):
                 painter = FakePainter(pattern_name)
 
-                ArmyPainter.update_pattern_command_states(painter)
+                ArmyPainter.update_pattern_action_states(painter)
 
                 self.assertEqual(
                     painter.pattern_menu.configurations[0],
@@ -98,21 +117,22 @@ class PatternMenuStateTests(unittest.TestCase):
                     "normal" if pattern_name == "User-created" else "disabled"
                 )
                 self.assertEqual(
-                    painter.frame_army_pattern.delete_state, expected_delete
+                    painter.frame_army_pattern.action_states.delete,
+                    expected_delete,
                 )
 
     def test_export_returns_to_disabled_when_selection_is_cleared(self):
         painter = FakePainter("Selected")
-        ArmyPainter.update_pattern_command_states(painter)
+        ArmyPainter.update_pattern_action_states(painter)
         painter.frame_army_pattern.selected_name = None
 
-        ArmyPainter.update_pattern_command_states(painter)
+        ArmyPainter.update_pattern_action_states(painter)
 
         self.assertEqual(
             painter.pattern_menu.configurations[-2],
             (PATTERN_EXPORT_MENU_LABEL, {"state": "disabled"}),
         )
-        self.assertEqual(painter.frame_army_pattern.delete_state, "disabled")
+        self.assertEqual(painter.frame_army_pattern.action_states.delete, "disabled")
 
     def test_export_all_state_depends_on_user_patterns_not_selection(self):
         for selected_name in (None, "Built-in"):
@@ -122,7 +142,7 @@ class PatternMenuStateTests(unittest.TestCase):
             ):
                 painter = FakePainter(selected_name)
 
-                ArmyPainter.update_pattern_command_states(painter)
+                ArmyPainter.update_pattern_action_states(painter)
 
                 self.assertEqual(
                     painter.pattern_menu.configurations[-1],
@@ -145,6 +165,7 @@ class PatternMenuStateTests(unittest.TestCase):
             FramePatternList.load_pattern_list(frame)
 
         callback.assert_called_once_with()
+
 
 if __name__ == "__main__":
     unittest.main()

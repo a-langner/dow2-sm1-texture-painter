@@ -22,7 +22,7 @@ from src.widget import (
     PatternImportConflictDialog,
     PatternCollectionImportConfirmationDialog,
     PatternCollectionConflictDialog,
-    pattern_command_states,
+    pattern_action_states,
 )
 from src.constant import (
     DEFAULT_IMG_SIZE,
@@ -457,7 +457,7 @@ class ArmyPainter(tk.Tk):
         self.define_frame_workspace()
         self.frame_army_pattern = FramePatternList(self.frame_img)
         self.frame_army_pattern.state_change_callback = (
-            self.update_pattern_command_states
+            self.update_pattern_action_states
         )
         self.frame_army_pattern.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.frame_channel_select.lb.bind(
@@ -573,7 +573,7 @@ class ArmyPainter(tk.Tk):
                 command=self.export_all_user_patterns,
             )
             menubar.add_cascade(label="Patterns", menu=self.pattern_menu)
-            self.update_pattern_command_states()
+            self.update_pattern_action_states()
 
         def define_toolmenu():
             toolmenu = tk.Menu(menubar, tearoff=0)
@@ -750,7 +750,7 @@ class ArmyPainter(tk.Tk):
     def on_pattern_select(self, Event=None):
         # TODO: Refactor following code so with frame color class
         selection = self.frame_army_pattern.get_selected_pattern()
-        self.update_pattern_command_states(selection)
+        self.update_pattern_action_states(selection)
         if selection is None:
             return
 
@@ -1062,7 +1062,7 @@ class ArmyPainter(tk.Tk):
             return
 
         self.frame_army_pattern.load_pattern_list(pattern_name)
-        self.update_pattern_command_states()
+        self.update_pattern_action_states()
 
     def get_current_pattern_colors(self) -> list[str]:
         """Return current GUI colors in canonical Pattern order."""
@@ -1083,7 +1083,7 @@ class ArmyPainter(tk.Tk):
         pattern_name = selection.name
 
         if not selection.is_user:
-            self.update_pattern_command_states(selection)
+            self.update_pattern_action_states(selection)
             return
 
         confirmed = askyesno(
@@ -1114,15 +1114,15 @@ class ArmyPainter(tk.Tk):
             return
 
         self.frame_army_pattern.load_pattern_list(neighboring_name)
-        self.update_pattern_command_states()
+        self.update_pattern_action_states()
 
-    def update_pattern_command_states(self, selection=None):
+    def update_pattern_action_states(self, selection=None):
         if selection is None:
             selection = self.frame_army_pattern.get_selected_pattern()
-        export_state, _ = pattern_command_states(selection)
-        self.frame_army_pattern.update_delete_button_state(selection)
+        states = pattern_action_states(selection)
+        self.frame_army_pattern.set_pattern_action_states(states)
         self.pattern_menu.entryconfig(
-            PATTERN_EXPORT_MENU_LABEL, state=export_state
+            PATTERN_EXPORT_MENU_LABEL, state=states.export_selected
         )
         export_all_state = (
             tk.NORMAL

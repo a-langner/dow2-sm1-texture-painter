@@ -44,7 +44,7 @@ class FakePainter:
     def update_pattern_menu_state(self):
         pass
 
-    def update_pattern_command_states(self, selection=None):
+    def update_pattern_action_states(self, selection=None):
         pass
 
     def get_current_pattern_colors(self):

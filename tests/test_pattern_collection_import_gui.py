@@ -63,7 +63,7 @@ class FakePainter:
     def _show_pattern_import_error(self, title, error, message=None):
         ArmyPainter._show_pattern_import_error(self, title, error, message)
 
-    def update_pattern_command_states(self, selection=None):
+    def update_pattern_action_states(self, selection=None):
         self.state_updates += 1
 
     def on_pattern_select(self):

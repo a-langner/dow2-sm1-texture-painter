@@ -19,9 +19,6 @@ class FakePatternFrame:
             return None
         return PatternSelection(self.selected_name, False)
 
-    def update_delete_button_state(self):
-        self.delete_state_update_count += 1
-
 
 class FakeColorChooser:
     def __init__(self):
@@ -44,8 +41,8 @@ class FakePainter:
     def update_pattern_menu_state(self):
         pass
 
-    def update_pattern_command_states(self, selection=None):
-        self.frame_army_pattern.update_delete_button_state()
+    def update_pattern_action_states(self, selection=None):
+        self.frame_army_pattern.delete_state_update_count += 1
 
 
 class PatternSelectionTests(unittest.TestCase):

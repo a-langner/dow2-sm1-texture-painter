@@ -23,13 +23,26 @@ class PatternSelection:
     is_user: bool
 
 
-def pattern_command_states(selection):
-    """Return (export, delete) states for an internal pattern selection."""
-    export_state = tk.NORMAL if selection is not None else tk.DISABLED
-    delete_state = (
-        tk.NORMAL if selection is not None and selection.is_user else tk.DISABLED
+@dataclass(frozen=True)
+class PatternActionStates:
+    save_new: str
+    update: str
+    rename: str
+    delete: str
+    export_selected: str
+
+
+def pattern_action_states(selection, modified=False):
+    """Return all selection-based Pattern action states."""
+    has_selection = selection is not None
+    user_selected = has_selection and selection.is_user
+    return PatternActionStates(
+        save_new=tk.NORMAL,
+        update=tk.NORMAL if user_selected and modified else tk.DISABLED,
+        rename=tk.NORMAL if user_selected else tk.DISABLED,
+        delete=tk.NORMAL if user_selected else tk.DISABLED,
+        export_selected=tk.NORMAL if has_selection else tk.DISABLED,
     )
-    return export_state, delete_state
 
 
 def pattern_name_to_restore(preferred_name, current_name, available_names):
@@ -355,7 +368,7 @@ class FramePatternList(tk.Frame):
 
         self.load_pattern_list()
         self._create_action_buttons()
-        self.update_delete_button_state()
+        self.set_pattern_action_states(pattern_action_states(None))
 
     def _create_action_buttons(self):
         self.action_frame = tk.Frame(self)
@@ -546,11 +559,8 @@ class FramePatternList(tk.Frame):
             current_pattern_name,
             {row["name"] for row in rows},
         )
-        restored_item = None
         if pattern_name is not None:
-            restored_item = self.select_pattern(pattern_name)
-        if restored_item is None and hasattr(self, "delete_button"):
-            self.update_delete_button_state()
+            self.select_pattern(pattern_name)
         if hasattr(self, "header_separator"):
             self.after_idle(self._position_header_separator)
         if self.state_change_callback is not None:
@@ -594,11 +604,12 @@ class FramePatternList(tk.Frame):
 
         return self.tree.get_pattern_name(neighbor_item)
 
-    def update_delete_button_state(self, selection=None):
-        if selection is None:
-            selection = self.get_selected_pattern()
-        _, delete_state = pattern_command_states(selection)
-        self.delete_button.config(state=delete_state)
+    def set_pattern_action_states(self, states):
+        """Apply centralized Pattern action policy to this widget's buttons."""
+        self.save_new_button.config(state=states.save_new)
+        self.update_button.config(state=states.update)
+        self.rename_button.config(state=states.rename)
+        self.delete_button.config(state=states.delete)
 
     def select_pattern(self, pattern_name):
         item_id = self.get_pattern_item_id(pattern_name)
@@ -608,7 +619,6 @@ class FramePatternList(tk.Frame):
         self.tree.selection_set(item_id)
         self.tree.focus(item_id)
         self.tree.see(item_id)
-        self.update_delete_button_state(self.get_selected_pattern())
         return item_id
 
 

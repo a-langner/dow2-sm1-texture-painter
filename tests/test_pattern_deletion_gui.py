@@ -38,9 +38,6 @@ class FakePatternFrame:
     def select_pattern(self, pattern_name):
         self.selected_names.append(pattern_name)
 
-    def update_delete_button_state(self, selection=None):
-        self.delete_state_update_count += 1
-
 
 class FakePainter:
     def __init__(self, selected_name, user_created, neighbor="Neighbor"):
@@ -51,8 +48,8 @@ class FakePainter:
     def update_pattern_menu_state(self):
         pass
 
-    def update_pattern_command_states(self, selection=None):
-        self.frame_army_pattern.update_delete_button_state(selection)
+    def update_pattern_action_states(self, selection=None):
+        self.frame_army_pattern.delete_state_update_count += 1
 
 
 class PatternDeletionGuiTests(unittest.TestCase):
