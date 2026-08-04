@@ -95,6 +95,9 @@ class FakePainter:
     def on_pattern_select(self):
         ArmyPainter.on_pattern_select(self)
 
+    def apply_selected_pattern_colors(self, selection=None):
+        return ArmyPainter.apply_selected_pattern_colors(self, selection)
+
     def _show_pattern_import_error(self, title, error, message=None):
         ArmyPainter._show_pattern_import_error(self, title, error, message)
 

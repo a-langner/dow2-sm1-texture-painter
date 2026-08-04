@@ -11,6 +11,7 @@ from src.frame_main import (
     PATTERN_EXPORT_MENU_LABEL,
     PATTERN_IMPORT_MENU_LABEL,
     PATTERN_RENAME_MENU_LABEL,
+    PATTERN_RESET_MENU_LABEL,
     PATTERN_SAVE_MENU_LABEL,
     PATTERN_UPDATE_MENU_LABEL,
     ArmyPainter,
@@ -96,6 +97,7 @@ class PatternMenuStateTests(unittest.TestCase):
                 "on_spec_toggle",
                 "save_pattern",
                 "update_selected_pattern",
+                "reset_to_selected_pattern",
                 "rename_selected_pattern",
                 "duplicate_selected_pattern",
                 "delete_pattern",
@@ -125,6 +127,7 @@ class PatternMenuStateTests(unittest.TestCase):
             [
                 PATTERN_SAVE_MENU_LABEL,
                 PATTERN_UPDATE_MENU_LABEL,
+                PATTERN_RESET_MENU_LABEL,
                 PATTERN_RENAME_MENU_LABEL,
                 PATTERN_DUPLICATE_MENU_LABEL,
                 PATTERN_DELETE_MENU_LABEL,
@@ -147,6 +150,10 @@ class PatternMenuStateTests(unittest.TestCase):
             handlers["update_selected_pattern"],
         )
         self.assertIs(
+            commands[PATTERN_RESET_MENU_LABEL],
+            handlers["reset_to_selected_pattern"],
+        )
+        self.assertIs(
             commands[PATTERN_RENAME_MENU_LABEL],
             handlers["rename_selected_pattern"],
         )
@@ -162,6 +169,7 @@ class PatternMenuStateTests(unittest.TestCase):
             (
                 no_selection.save_new,
                 no_selection.update,
+                no_selection.reset,
                 no_selection.rename,
                 no_selection.duplicate,
                 no_selection.delete,
@@ -174,6 +182,7 @@ class PatternMenuStateTests(unittest.TestCase):
                 "disabled",
                 "disabled",
                 "disabled",
+                "disabled",
             ),
         )
 
@@ -181,12 +190,20 @@ class PatternMenuStateTests(unittest.TestCase):
         self.assertEqual(
             (
                 builtin.update,
+                builtin.reset,
                 builtin.rename,
                 builtin.duplicate,
                 builtin.delete,
                 builtin.export_selected,
             ),
-            ("disabled", "disabled", "normal", "disabled", "normal"),
+            (
+                "disabled",
+                "disabled",
+                "disabled",
+                "normal",
+                "disabled",
+                "normal",
+            ),
         )
 
         user = pattern_action_states(PatternSelection("Custom", True))
@@ -199,6 +216,7 @@ class PatternMenuStateTests(unittest.TestCase):
             PatternSelection("Custom", True), modified=True
         )
         self.assertEqual(modified_user.update, "normal")
+        self.assertEqual(modified_user.reset, "normal")
         self.assertTrue(modified_user.modified)
         self.assertTrue(
             pattern_action_states(
@@ -223,6 +241,7 @@ class PatternMenuStateTests(unittest.TestCase):
             {
                 PATTERN_SAVE_MENU_LABEL: "normal",
                 PATTERN_UPDATE_MENU_LABEL: "disabled",
+                PATTERN_RESET_MENU_LABEL: "disabled",
                 PATTERN_RENAME_MENU_LABEL: "disabled",
                 PATTERN_DUPLICATE_MENU_LABEL: "disabled",
                 PATTERN_DELETE_MENU_LABEL: "disabled",
@@ -269,6 +288,11 @@ class PatternMenuStateTests(unittest.TestCase):
                 self.assertEqual(
                     painter.pattern_menu.states[PATTERN_UPDATE_MENU_LABEL],
                     expected_update,
+                )
+                expected_reset = "normal" if dirty else "disabled"
+                self.assertEqual(
+                    painter.pattern_menu.states[PATTERN_RESET_MENU_LABEL],
+                    expected_reset,
                 )
                 self.assertEqual(
                     painter.pattern_menu.states[PATTERN_RENAME_MENU_LABEL],

@@ -89,6 +89,7 @@ WINDOW_SCREEN_FRACTION = 0.9
 WINDOW_CONTENT_PADDING = 16
 PATTERN_SAVE_MENU_LABEL = "Save Current as New Pattern…"
 PATTERN_UPDATE_MENU_LABEL = "Update Selected Pattern"
+PATTERN_RESET_MENU_LABEL = "Reset to Selected Pattern"
 PATTERN_RENAME_MENU_LABEL = "Rename Selected Pattern…"
 PATTERN_DUPLICATE_MENU_LABEL = "Duplicate Selected Pattern…"
 PATTERN_DELETE_MENU_LABEL = "Delete Selected Pattern"
@@ -584,6 +585,10 @@ class ArmyPainter(tk.Tk):
                 command=self.update_selected_pattern,
             )
             self.pattern_menu.add_command(
+                label=PATTERN_RESET_MENU_LABEL,
+                command=self.reset_to_selected_pattern,
+            )
+            self.pattern_menu.add_command(
                 label=PATTERN_RENAME_MENU_LABEL,
                 command=self.rename_selected_pattern,
             )
@@ -789,17 +794,22 @@ class ArmyPainter(tk.Tk):
         self.refresh_workspace()
 
     def on_pattern_select(self, Event=None):
-        # TODO: Refactor following code so with frame color class
         selection = self.frame_army_pattern.get_selected_pattern()
+        self.apply_selected_pattern_colors(selection)
+
+    def apply_selected_pattern_colors(self, selection=None):
+        """Apply one selected Pattern's stored colors and refresh its preview."""
+        if selection is None:
+            selection = self.frame_army_pattern.get_selected_pattern()
         if selection is None:
             self.update_pattern_action_states(selection)
-            return
+            return False
 
         try:
             color_list = get_pattern_colors(selection.name)
         except PatternNotFoundError:
             self.update_pattern_action_states(selection)
-            return
+            return False
 
         for color, color_box in zip(
             color_list, self.frame_color_chooser.color_boxes
@@ -808,6 +818,7 @@ class ArmyPainter(tk.Tk):
         self.frame_color_chooser.draw_rgb_value()
         self.update_pattern_action_states(selection)
         self.refresh_workspace()
+        return True
 
     def select_channel(self, Event=None):
         """Register channel selected from the Channel list listbox
@@ -1171,6 +1182,10 @@ class ArmyPainter(tk.Tk):
 
         self.update_pattern_action_states(selection)
 
+    def reset_to_selected_pattern(self):
+        """Discard current color changes by applying the selected Pattern."""
+        self.apply_selected_pattern_colors()
+
     def rename_selected_pattern(self):
         """Rename the selected user Pattern while preserving its GUI state."""
         selection = self.frame_army_pattern.get_selected_pattern()
@@ -1318,6 +1333,9 @@ class ArmyPainter(tk.Tk):
         )
         self.pattern_menu.entryconfig(
             PATTERN_UPDATE_MENU_LABEL, state=states.update
+        )
+        self.pattern_menu.entryconfig(
+            PATTERN_RESET_MENU_LABEL, state=states.reset
         )
         self.pattern_menu.entryconfig(
             PATTERN_RENAME_MENU_LABEL, state=states.rename

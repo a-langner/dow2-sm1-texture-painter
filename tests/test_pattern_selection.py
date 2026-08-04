@@ -44,6 +44,9 @@ class FakePainter:
     def update_pattern_action_states(self, selection=None):
         self.frame_army_pattern.delete_state_update_count += 1
 
+    def apply_selected_pattern_colors(self, selection=None):
+        return ArmyPainter.apply_selected_pattern_colors(self, selection)
+
 
 class PatternSelectionTests(unittest.TestCase):
     def test_applies_selected_pattern_colors_and_refreshes(self):
