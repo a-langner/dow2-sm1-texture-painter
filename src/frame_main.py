@@ -35,7 +35,18 @@ from src.color_pattern_handler import (
     get_all_patterns,
 )
 from src.image_process import ImageWorkbench, TextureValidationError
-from src.pattern_exchange import PATTERN_EXCHANGE_SUFFIX, export_pattern
+from src.pattern_exchange import (
+    PATTERN_EXCHANGE_SUFFIX,
+    BuiltinPatternImportConflictError,
+    InvalidPatternFileError,
+    InvalidPatternJsonError,
+    PatternImportReadError,
+    UnsupportedPatternVersionError,
+    UserPatternImportConflictError,
+    export_pattern,
+    import_pattern as persist_imported_pattern,
+    read_pattern_file,
+)
 from src.settings_handler import SettingsHandler
 from pathlib import Path
 
@@ -953,8 +964,62 @@ class ArmyPainter(tk.Tk):
         self.pattern_menu.entryconfig(PATTERN_EXPORT_MENU_LABEL, state=state)
 
     def import_pattern(self):
-        """Pattern import dialog behavior is added in a later job."""
-        return None
+        source = filedialog.askopenfilename(
+            initialdir=self.settings.get_last_pattern_import_directory(),
+            filetypes=PATTERN_FILETYPES,
+            title="Import Pattern",
+        )
+        if not source:
+            return
+
+        try:
+            imported_pattern = read_pattern_file(source)
+        except PatternImportReadError as exc:
+            self._show_pattern_import_error("Unreadable Pattern File", exc)
+            return
+        except InvalidPatternJsonError as exc:
+            self._show_pattern_import_error("Malformed Pattern JSON", exc)
+            return
+        except UnsupportedPatternVersionError as exc:
+            self._show_pattern_import_error("Unsupported Pattern Version", exc)
+            return
+        except InvalidPatternFileError as exc:
+            self._show_pattern_import_error("Invalid Pattern File", exc)
+            return
+
+        try:
+            imported_name = persist_imported_pattern(imported_pattern)
+        except (
+            BuiltinPatternImportConflictError,
+            UserPatternImportConflictError,
+        ) as exc:
+            self._show_pattern_import_error(
+                "Pattern Already Exists",
+                exc,
+                message="A pattern with this name already exists.",
+            )
+            return
+        except (PatternError, OSError) as exc:
+            self._show_pattern_import_error("Cannot Import Pattern", exc)
+            return
+
+        self.frame_army_pattern.load_pattern_list()
+        self.frame_army_pattern.select_pattern(imported_name)
+        self.on_pattern_select()
+
+        try:
+            self.settings.set_last_pattern_import_directory(
+                Path(source).parent
+            )
+        except OSError:
+            LOGGER.exception(
+                "Could not remember pattern import directory: %s",
+                Path(source).parent,
+            )
+
+    def _show_pattern_import_error(self, title, error, message=None):
+        LOGGER.exception("Pattern import failed: %s", error)
+        showerror(title, message or str(error))
 
     def export_selected_pattern(self):
         pattern_name = self.frame_army_pattern.get_selected_pattern_name()
