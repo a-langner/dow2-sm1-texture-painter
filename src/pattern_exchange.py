@@ -84,6 +84,22 @@ class InvalidPatternImportNameError(PatternImportError):
     """Raised when an imported pattern's replacement name is invalid."""
 
 
+class PatternCollectionImportError(PatternImportError):
+    """Base class for invalid imported Pattern Collection data."""
+
+
+class InvalidPatternCollectionError(PatternCollectionImportError):
+    """Raised when a Pattern Collection has invalid content or structure."""
+
+
+class UnsupportedPatternCollectionVersionError(PatternCollectionImportError):
+    """Raised when a Pattern Collection uses an unsupported version."""
+
+
+class DuplicatePatternNameInCollectionError(PatternCollectionImportError):
+    """Raised when normalized names repeat within a Pattern Collection."""
+
+
 class ImportedPattern(NamedTuple):
     name: str
     colors: dict
@@ -117,6 +133,89 @@ def create_pattern_collection_exchange_document(name, patterns):
             for pattern_name, pattern in patterns
         ],
     }
+
+
+def validate_imported_pattern_collection(data):
+    """Validate a collection atomically and return its normalized document."""
+    if not isinstance(data, dict):
+        raise InvalidPatternCollectionError(
+            "Pattern Collection file must contain a JSON object"
+        )
+    if data.get("format") != PATTERN_COLLECTION_EXCHANGE_FORMAT:
+        raise InvalidPatternCollectionError(
+            "Pattern Collection has an invalid or missing format identifier"
+        )
+    if "version" not in data:
+        raise InvalidPatternCollectionError(
+            "Pattern Collection is missing its format version"
+        )
+    if type(data["version"]) is not int:
+        raise InvalidPatternCollectionError(
+            "Pattern Collection version must be an integer"
+        )
+    if data["version"] != PATTERN_COLLECTION_EXCHANGE_VERSION:
+        raise UnsupportedPatternCollectionVersionError(
+            f"Unsupported Pattern Collection version {data['version']!r}; "
+            f"supported version is {PATTERN_COLLECTION_EXCHANGE_VERSION}"
+        )
+    if "name" not in data or not isinstance(data["name"], str):
+        raise InvalidPatternCollectionError("Pattern Collection name must be a string")
+    try:
+        collection_name = normalize_pattern_name(data["name"])
+    except InvalidPatternError as exc:
+        raise InvalidPatternCollectionError(
+            f"Invalid Pattern Collection name: {exc}"
+        ) from exc
+
+    if "patterns" not in data:
+        raise InvalidPatternCollectionError(
+            "Pattern Collection is missing its patterns array"
+        )
+    if not isinstance(data["patterns"], list):
+        raise InvalidPatternCollectionError(
+            "Pattern Collection patterns must be a JSON array"
+        )
+    if not data["patterns"]:
+        raise InvalidPatternCollectionError(
+            "Pattern Collection must contain at least one Pattern"
+        )
+
+    normalized_patterns = []
+    normalized_names = set()
+    for index, entry in enumerate(data["patterns"]):
+        if not isinstance(entry, dict):
+            raise InvalidPatternCollectionError(
+                f"Pattern entry {index} must be a JSON object"
+            )
+        raw_name = entry.get("name")
+        entry_description = f"Pattern entry {index}"
+        if isinstance(raw_name, str):
+            entry_description += f" ({raw_name!r})"
+        try:
+            normalized = validate_imported_pattern(
+                {
+                    "format": PATTERN_EXCHANGE_FORMAT,
+                    "version": PATTERN_EXCHANGE_VERSION,
+                    "name": raw_name,
+                    "colors": entry.get("colors"),
+                }
+            )
+        except PatternImportError as exc:
+            raise InvalidPatternCollectionError(
+                f"{entry_description} is invalid: {exc}"
+            ) from exc
+
+        pattern_name = normalized["name"]
+        if pattern_name in normalized_names:
+            raise DuplicatePatternNameInCollectionError(
+                f"Duplicate Pattern name {pattern_name!r} at entry {index}"
+            )
+        normalized_names.add(pattern_name)
+        normalized_patterns.append((pattern_name, normalized["colors"]))
+
+    return create_pattern_collection_exchange_document(
+        collection_name, normalized_patterns
+    )
 
 
 def has_pattern_exchange_format(document):
