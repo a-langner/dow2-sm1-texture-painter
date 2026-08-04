@@ -1,6 +1,7 @@
 import os
 import logging
 import queue
+import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from PIL import (
@@ -34,6 +35,7 @@ from src.color_pattern_handler import (
     get_all_patterns,
 )
 from src.image_process import ImageWorkbench, TextureValidationError
+from src.pattern_exchange import PATTERN_EXCHANGE_SUFFIX, export_pattern
 from src.settings_handler import SettingsHandler
 from pathlib import Path
 
@@ -47,7 +49,35 @@ WINDOW_SCREEN_FRACTION = 0.9
 WINDOW_CONTENT_PADDING = 16
 PATTERN_IMPORT_MENU_LABEL = "Import Pattern…"
 PATTERN_EXPORT_MENU_LABEL = "Export Selected Pattern…"
+PATTERN_FILETYPES = (
+    ("Pattern files", "*.pattern.json"),
+    ("JSON files", "*.json"),
+    ("All files", "*.*"),
+)
 LOGGER = logging.getLogger(__name__)
+
+WINDOWS_RESERVED_FILENAMES = {
+    "CON",
+    "PRN",
+    "AUX",
+    "NUL",
+    *(f"COM{number}" for number in range(1, 10)),
+    *(f"LPT{number}" for number in range(1, 10)),
+}
+
+
+def suggested_pattern_filename(pattern_name):
+    """Return a portable filename while preserving the internal pattern name."""
+    safe_name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", pattern_name)
+    safe_name = safe_name.rstrip(" .")
+    if not safe_name:
+        safe_name = "pattern"
+    windows_stem = safe_name.split(".", 1)[0].rstrip(" .").upper()
+    if windows_stem in WINDOWS_RESERVED_FILENAMES:
+        safe_name = f"_{safe_name}"
+    if not safe_name.casefold().endswith(PATTERN_EXCHANGE_SUFFIX):
+        safe_name += PATTERN_EXCHANGE_SUFFIX
+    return safe_name
 
 
 def calculate_initial_window_size(
@@ -927,8 +957,43 @@ class ArmyPainter(tk.Tk):
         return None
 
     def export_selected_pattern(self):
-        """Pattern export dialog behavior is added in a later job."""
-        return None
+        pattern_name = self.frame_army_pattern.get_selected_pattern_name()
+        if pattern_name is None:
+            return
+
+        destination = filedialog.asksaveasfilename(
+            initialdir=self.settings.get_last_pattern_export_directory(),
+            initialfile=suggested_pattern_filename(pattern_name),
+            filetypes=PATTERN_FILETYPES,
+            defaultextension=PATTERN_EXCHANGE_SUFFIX,
+            title="Export Pattern",
+        )
+        if not destination:
+            return
+
+        try:
+            export_pattern(pattern_name, destination)
+        except (PatternError, OSError) as exc:
+            LOGGER.exception(
+                "Could not export pattern '%s' to %s",
+                pattern_name,
+                destination,
+            )
+            showerror(
+                "Cannot Export Pattern",
+                f"Could not export '{pattern_name}' to:\n{destination}\n\n{exc}",
+            )
+            return
+
+        try:
+            self.settings.set_last_pattern_export_directory(
+                Path(destination).parent
+            )
+        except OSError:
+            LOGGER.exception(
+                "Could not remember pattern export directory: %s",
+                Path(destination).parent,
+            )
 
     def show_user_pattern_load_warning(self):
         if self.user_pattern_warning_shown:
