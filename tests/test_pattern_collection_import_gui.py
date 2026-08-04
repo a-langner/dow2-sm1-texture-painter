@@ -315,6 +315,46 @@ class PatternCollectionImportGuiTests(unittest.TestCase):
 
         self.assertEqual(painter.frame_army_pattern.load_calls, [])
         self.assertIn("disk failure", showerror.call_args.args[1])
+        self.assertEqual(painter.settings.saved_directories, [Path(".")])
+
+    @patch(
+        "src.frame_main.read_pattern_collection_file",
+        side_effect=RuntimeError("programming bug"),
+    )
+    @patch("src.frame_main.filedialog.askopenfilename", return_value="valid.json")
+    def test_unexpected_collection_read_error_is_not_suppressed(
+        self, open_dialog, read_collection
+    ):
+        with self.assertRaisesRegex(RuntimeError, "programming bug"):
+            ArmyPainter.import_pattern_collection(FakePainter())
+
+    @patch("src.frame_main.showerror")
+    @patch("src.frame_main.PatternCollectionImportConfirmationDialog")
+    @patch(
+        "src.frame_main.import_analyzed_pattern_collection",
+        side_effect=RuntimeError("programming bug"),
+    )
+    @patch("src.frame_main.analyze_pattern_collection_import")
+    @patch("src.frame_main.read_pattern_collection_file")
+    @patch("src.frame_main.filedialog.askopenfilename", return_value="valid.json")
+    def test_unexpected_persistence_error_is_not_suppressed(
+        self,
+        open_dialog,
+        read_collection,
+        analyze,
+        persist,
+        confirmation,
+        showerror,
+    ):
+        collection, analysis = collection_and_analysis()
+        read_collection.return_value = collection
+        analyze.return_value = analysis
+        confirmation.return_value = SimpleNamespace(result=True)
+
+        with self.assertRaisesRegex(RuntimeError, "programming bug"):
+            ArmyPainter.import_pattern_collection(FakePainter())
+
+        showerror.assert_not_called()
 
 
 class PatternCollectionResultSummaryTests(unittest.TestCase):

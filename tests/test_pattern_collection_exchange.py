@@ -17,6 +17,7 @@ from src.pattern_exchange import (
     PATTERN_EXCHANGE_FORMAT,
     PATTERN_EXCHANGE_SUFFIX,
     PATTERN_EXCHANGE_VERSION,
+    create_pattern_exchange_document,
     UnsupportedPatternCollectionVersionError,
     create_pattern_collection_exchange_document,
     read_pattern_collection_file,
@@ -57,6 +58,23 @@ class PatternCollectionExchangeFormatTests(unittest.TestCase):
             source.write_text("{not json", encoding="utf-8")
 
             with self.assertRaises(InvalidPatternJsonError):
+                read_pattern_collection_file(source)
+
+    def test_single_pattern_exchange_file_is_rejected_as_wrong_collection_format(self):
+        single_pattern = create_pattern_exchange_document(
+            "Single",
+            {
+                "primary_colour_name": "#112233",
+                "secondary_colour_name": "#445566",
+                "tint_colour_name": "#778899",
+                "extra_colour_name": "#aabbcc",
+            },
+        )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            source = Path(temporary_directory) / "single.pattern.json"
+            source.write_text(json.dumps(single_pattern), encoding="utf-8")
+
+            with self.assertRaises(InvalidPatternCollectionError):
                 read_pattern_collection_file(source)
 
     def test_constructs_version_one_collection_with_pattern_array(self):
@@ -252,6 +270,23 @@ class PatternCollectionValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(
             InvalidPatternCollectionError,
             "Pattern entry 1 \\('Incomplete'\\).*extra_colour_name",
+        ):
+            validate_imported_pattern_collection(document)
+
+    def test_invalid_middle_entry_returns_no_partial_collection(self):
+        invalid_colors = dict(self.colors)
+        invalid_colors["secondary_colour_name"] = "invalid"
+        document = {
+            **self.valid_document,
+            "patterns": [
+                {"name": "Valid Before", "colors": self.colors},
+                {"name": "Invalid Middle", "colors": invalid_colors},
+                {"name": "Valid After", "colors": self.colors},
+            ],
+        }
+
+        with self.assertRaisesRegex(
+            InvalidPatternCollectionError, "Pattern entry 1.*Invalid Middle"
         ):
             validate_imported_pattern_collection(document)
 

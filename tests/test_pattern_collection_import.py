@@ -11,9 +11,11 @@ from src.pattern_exchange import (
     PATTERN_COLLECTION_EXCHANGE_FORMAT,
     PATTERN_COLLECTION_EXCHANGE_VERSION,
     CollectionImportResult,
+    InvalidPatternJsonError,
     StalePatternCollectionAnalysisError,
     analyze_pattern_collection_import,
     import_analyzed_pattern_collection,
+    read_pattern_collection_file,
     validate_imported_pattern_collection,
 )
 
@@ -98,6 +100,24 @@ class PatternCollectionImportTests(unittest.TestCase):
             self.assertEqual(list(reloaded), ["New B", "New A"])
             self.assertEqual(reloaded["New B"], colors("#112233"))
             self.assertEqual(reloaded["New A"], colors("#abcdef"))
+
+    def test_malformed_collection_does_not_change_existing_user_data(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            user_path = root / "user_patterns.json"
+            source = root / "malformed.pattern-collection.json"
+            self.seed_user("Existing", colors("#112233"), user_path)
+            source.write_text('{"patterns": [', encoding="utf-8")
+            file_before = user_path.read_bytes()
+            users_before = copy_patterns(pattern_handler.user_color_patterns)
+            all_before = copy_patterns(pattern_handler.army_color_pattern)
+
+            with self.assertRaises(InvalidPatternJsonError):
+                read_pattern_collection_file(source)
+
+            self.assertEqual(user_path.read_bytes(), file_before)
+            self.assertEqual(pattern_handler.user_color_patterns, users_before)
+            self.assertEqual(pattern_handler.army_color_pattern, all_before)
 
     def test_user_conflicts_are_skipped_without_overwrite(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -231,6 +251,9 @@ class PatternCollectionImportTests(unittest.TestCase):
             self.assertEqual(pattern_handler.user_color_patterns, users_before)
             self.assertEqual(pattern_handler.army_color_pattern, all_before)
             self.assertNotIn("New", pattern_handler.user_color_patterns)
+            self.assertEqual(
+                list(user_path.parent.glob(f".{user_path.name}.*.tmp")), []
+            )
 
     def test_persistence_reloads_into_fresh_handler_state(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -252,6 +275,28 @@ class PatternCollectionImportTests(unittest.TestCase):
             self.assertEqual(
                 pattern_handler.user_color_patterns["Persistent"], colors("#abcdef")
             )
+
+    def test_unicode_collection_and_pattern_names_round_trip_through_json(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            source = root / "日本語 collection.json"
+            user_path = root / "user_patterns.json"
+            document = {
+                "format": PATTERN_COLLECTION_EXCHANGE_FORMAT,
+                "version": PATTERN_COLLECTION_EXCHANGE_VERSION,
+                "name": "Löwen 日本語",
+                "patterns": [{"name": "Élite 戦士", "colors": colors("#abcdef")}],
+            }
+            source.write_text(
+                json.dumps(document, ensure_ascii=False), encoding="utf-8"
+            )
+            analysis = self.analyze(read_pattern_collection_file(source))
+
+            import_analyzed_pattern_collection(analysis, pattern_path=user_path)
+            reloaded = pattern_handler.load_user_patterns(user_path)
+
+            self.assertEqual(analysis.collection_name, "Löwen 日本語")
+            self.assertEqual(reloaded["Élite 戦士"], colors("#abcdef"))
 
     def test_stale_analysis_cannot_overwrite_a_new_user_conflict(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
