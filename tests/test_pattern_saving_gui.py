@@ -47,6 +47,9 @@ class FakePainter:
     def update_pattern_command_states(self, selection=None):
         pass
 
+    def get_current_pattern_colors(self):
+        return ArmyPainter.get_current_pattern_colors(self)
+
 
 class PatternSavingGuiTests(unittest.TestCase):
     @patch("src.frame_main.showerror")

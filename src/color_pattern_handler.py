@@ -193,6 +193,32 @@ def has_user_patterns():
     return bool(user_color_patterns)
 
 
+def get_pattern_colors(name):
+    """Return stored Pattern colors in the canonical persistence order."""
+    normalized_name = normalize_pattern_name(name)
+    pattern = get_all_patterns().get(normalized_name)
+    if pattern is None:
+        raise PatternNotFoundError(f"Pattern '{normalized_name}' was not found")
+    try:
+        colors = [pattern[key] for key in color_key]
+    except (KeyError, TypeError) as exc:
+        raise InvalidPatternError(
+            f"Pattern '{normalized_name}' does not contain four ordered colors"
+        ) from exc
+    return normalize_pattern_colors(colors)
+
+
+def pattern_colors_equal(first, second):
+    """Compare two valid color sets without hexadecimal case differences."""
+    normalized_first = [
+        color.casefold() for color in normalize_pattern_colors(first)
+    ]
+    normalized_second = [
+        color.casefold() for color in normalize_pattern_colors(second)
+    ]
+    return normalized_first == normalized_second
+
+
 def _is_valid_pattern_collection(patterns):
     if not isinstance(patterns, dict):
         return False

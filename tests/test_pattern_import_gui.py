@@ -215,9 +215,11 @@ class PatternImportGuiTests(unittest.TestCase):
             open_dialog.return_value = str(source)
             read_pattern.return_value = imported
             painter = FakePainter(import_directory)
-            patterns = {"Imported": colors}
 
-            with patch("src.frame_main.get_all_patterns", return_value=patterns):
+            with patch(
+                "src.frame_main.get_pattern_colors",
+                return_value=list(colors.values()),
+            ):
                 ArmyPainter.import_pattern(painter)
 
         read_pattern.assert_called_once_with(str(source))

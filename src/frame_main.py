@@ -38,8 +38,9 @@ from src.color_pattern_handler import (
     InvalidPatternError,
     PatternError,
     PatternNotFoundError,
-    get_all_patterns,
+    get_pattern_colors,
     normalize_pattern_name,
+    normalize_pattern_colors,
 )
 from src.image_process import ImageWorkbench, TextureValidationError
 from src.pattern_exchange import (
@@ -675,9 +676,7 @@ class ArmyPainter(tk.Tk):
         self.refresh_workspace()
 
     def sync_render_settings(self):
-        self.img_wbench.colors = [
-            color["bg"] for color in self.frame_color_chooser.color_boxes
-        ]
+        self.img_wbench.colors = self.get_current_pattern_colors()
         self.img_wbench.brightness = self.frame_sliders.brightness_slider.get()
         self.img_wbench.contrast = self.frame_sliders.contrast_slider.get()
         self.img_wbench.tem_selected = self.frame_channel_select.lb.curselection()
@@ -755,11 +754,11 @@ class ArmyPainter(tk.Tk):
         if selection is None:
             return
 
-        pattern = get_all_patterns().get(selection.name)
-        if pattern is None:
+        try:
+            color_list = get_pattern_colors(selection.name)
+        except PatternNotFoundError:
             return
 
-        color_list = list(pattern.values())
         for color, color_box in zip(
             color_list, self.frame_color_chooser.color_boxes
         ):
@@ -1047,9 +1046,7 @@ class ArmyPainter(tk.Tk):
             showerror("Cannot Save Pattern", "Pattern name cannot be empty.")
             return
 
-        colors = [
-            color["bg"] for color in self.frame_color_chooser.color_boxes
-        ]
+        colors = self.get_current_pattern_colors()
         try:
             src.color_pattern_handler.save(name=pattern_name, colors=colors)
         except PatternError as exc:
@@ -1066,6 +1063,12 @@ class ArmyPainter(tk.Tk):
 
         self.frame_army_pattern.load_pattern_list(pattern_name)
         self.update_pattern_command_states()
+
+    def get_current_pattern_colors(self) -> list[str]:
+        """Return current GUI colors in canonical Pattern order."""
+        return normalize_pattern_colors(
+            color["bg"] for color in self.frame_color_chooser.color_boxes
+        )
 
     def delete_pattern(self):
         selection = self.frame_army_pattern.get_selected_pattern()
