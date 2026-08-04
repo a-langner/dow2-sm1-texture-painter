@@ -21,6 +21,7 @@ from src.widget import (
     FramePatternList,
     PatternImportConflictDialog,
     PatternCollectionImportConfirmationDialog,
+    PatternCollectionConflictDialog,
     pattern_command_states,
 )
 from src.constant import (
@@ -137,6 +138,43 @@ def suggested_pattern_collection_filename(collection_name):
         PATTERN_COLLECTION_EXCHANGE_SUFFIX,
         "pattern-collection",
     )
+
+
+def format_collection_import_result(result):
+    """Build a compact result summary containing only relevant counts."""
+    changed_count = result.imported_count + result.overwritten_count
+    if changed_count == 0:
+        lines = ["No Patterns were imported."]
+    else:
+        lines = ["Collection imported."]
+    summaries = (
+        (result.imported_count, "new pattern", "new patterns", "imported"),
+        (
+            result.overwritten_count,
+            "user pattern",
+            "user patterns",
+            "overwritten",
+        ),
+        (
+            result.skipped_user_conflict_count,
+            "user conflict",
+            "user conflicts",
+            "skipped",
+        ),
+        (
+            result.skipped_builtin_conflict_count,
+            "built-in conflict",
+            "built-in conflicts",
+            "skipped",
+        ),
+    )
+    for count, singular, plural, action in summaries:
+        if count:
+            label = singular if count == 1 else plural
+            lines.append(f"{count} {label} {action}.")
+    if len(lines) == 1:
+        return lines[0]
+    return "\n\n".join((lines[0], "\n".join(lines[1:])))
 
 
 def resolve_pattern_import_conflicts(
@@ -1123,33 +1161,29 @@ class ArmyPainter(tk.Tk):
             )
 
         analysis = analyze_pattern_collection_import(collection)
+        overwrite_user_conflicts = False
         if analysis.user_conflict_count or analysis.builtin_conflict_count:
-            showinfo(
-                "Pattern Collection Conflicts",
-                f"Collection: {analysis.collection_name}\n"
-                f"Total Patterns: {analysis.total_pattern_count}\n"
-                f"New Patterns: {analysis.new_pattern_count}\n"
-                f"User conflicts: {analysis.user_conflict_count}\n"
-                f"Built-in conflicts: {analysis.builtin_conflict_count}\n\n"
-                "Conflict handling will be added in the next update. "
-                "No Patterns were imported.",
-                parent=self,
+            confirmation = PatternCollectionConflictDialog(self, analysis)
+            if not confirmation.result:
+                return
+            overwrite_user_conflicts = confirmation.overwrite_user_conflicts
+        else:
+            confirmation = PatternCollectionImportConfirmationDialog(
+                self,
+                analysis.collection_name,
+                analysis.total_pattern_count,
+                analysis.new_pattern_count,
             )
-            return
-
-        confirmation = PatternCollectionImportConfirmationDialog(
-            self,
-            analysis.collection_name,
-            analysis.total_pattern_count,
-            analysis.new_pattern_count,
-        )
-        if not confirmation.result:
-            return
+            if not confirmation.result:
+                return
 
         selection = self.frame_army_pattern.get_selected_pattern()
         selected_name = selection.name if selection else None
         try:
-            result = import_analyzed_pattern_collection(analysis)
+            result = import_analyzed_pattern_collection(
+                analysis,
+                overwrite_user_conflicts=overwrite_user_conflicts,
+            )
         except (PatternCollectionImportError, PatternError, OSError) as exc:
             LOGGER.exception(
                 "Could not persist Pattern Collection imported from %s", source
@@ -1162,11 +1196,9 @@ class ArmyPainter(tk.Tk):
             return
 
         self.frame_army_pattern.load_pattern_list(selected_name)
-        pattern_label = "pattern" if result.imported_count == 1 else "patterns"
         showinfo(
             "Pattern Collection Imported",
-            "Collection imported successfully.\n\n"
-            f"{result.imported_count} {pattern_label} imported.",
+            format_collection_import_result(result),
             parent=self,
         )
 

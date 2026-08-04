@@ -4,7 +4,11 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
-from src.frame_main import PATTERN_COLLECTION_FILETYPES, ArmyPainter
+from src.frame_main import (
+    PATTERN_COLLECTION_FILETYPES,
+    ArmyPainter,
+    format_collection_import_result,
+)
 from src.pattern_exchange import (
     CollectionImportAnalysis,
     CollectionImportResult,
@@ -121,28 +125,98 @@ class PatternCollectionImportGuiTests(unittest.TestCase):
                 self.assertEqual(painter.settings.saved_directories, [])
                 showerror.reset_mock()
 
-    @patch("src.frame_main.showinfo")
+    @patch("src.frame_main.PatternCollectionConflictDialog")
+    @patch("src.frame_main.import_analyzed_pattern_collection")
     @patch("src.frame_main.analyze_pattern_collection_import")
     @patch("src.frame_main.read_pattern_collection_file")
     @patch(
         "src.frame_main.filedialog.askopenfilename",
         return_value="C:/collections/valid.pattern-collection.json",
     )
-    def test_valid_conflicting_collection_is_remembered_but_not_imported(
-        self, open_dialog, read_collection, analyze, showinfo
+    def test_conflict_dialog_cancel_is_remembered_but_imports_nothing(
+        self, open_dialog, read_collection, analyze, persist, conflict_dialog
     ):
         collection, analysis = collection_and_analysis(conflicts=True)
         read_collection.return_value = collection
         analyze.return_value = analysis
+        conflict_dialog.return_value = SimpleNamespace(
+            result=False, overwrite_user_conflicts=False
+        )
         painter = FakePainter()
 
-        with patch("src.frame_main.import_analyzed_pattern_collection") as persist:
-            ArmyPainter.import_pattern_collection(painter)
+        ArmyPainter.import_pattern_collection(painter)
 
         persist.assert_not_called()
         self.assertEqual(painter.settings.saved_directories, [Path("C:/collections")])
-        self.assertIn("No Patterns were imported", showinfo.call_args.args[1])
         self.assertEqual(painter.frame_army_pattern.load_calls, [])
+
+    @patch("src.frame_main.showinfo")
+    @patch("src.frame_main.PatternCollectionConflictDialog")
+    @patch(
+        "src.frame_main.import_analyzed_pattern_collection",
+        return_value=CollectionImportResult(0, 1, 0, 0),
+    )
+    @patch("src.frame_main.analyze_pattern_collection_import")
+    @patch("src.frame_main.read_pattern_collection_file")
+    @patch("src.frame_main.filedialog.askopenfilename", return_value="valid.json")
+    def test_conflict_strategy_is_passed_to_one_atomic_import(
+        self,
+        open_dialog,
+        read_collection,
+        analyze,
+        persist,
+        conflict_dialog,
+        showinfo,
+    ):
+        collection, analysis = collection_and_analysis(conflicts=True)
+        read_collection.return_value = collection
+        analyze.return_value = analysis
+        conflict_dialog.return_value = SimpleNamespace(
+            result=True, overwrite_user_conflicts=True
+        )
+        painter = FakePainter()
+
+        ArmyPainter.import_pattern_collection(painter)
+
+        conflict_dialog.assert_called_once_with(painter, analysis)
+        persist.assert_called_once_with(analysis, overwrite_user_conflicts=True)
+        self.assertEqual(painter.frame_army_pattern.load_calls, ["Selected"])
+        self.assertIn("1 user pattern overwritten", showinfo.call_args.args[1])
+
+    @patch("src.frame_main.showinfo")
+    @patch("src.frame_main.PatternCollectionConflictDialog")
+    @patch(
+        "src.frame_main.import_analyzed_pattern_collection",
+        return_value=CollectionImportResult(0, 0, 1, 1),
+    )
+    @patch("src.frame_main.analyze_pattern_collection_import")
+    @patch("src.frame_main.read_pattern_collection_file")
+    @patch("src.frame_main.filedialog.askopenfilename", return_value="valid.json")
+    def test_skip_strategy_reports_no_change_and_refreshes_once(
+        self,
+        open_dialog,
+        read_collection,
+        analyze,
+        persist,
+        conflict_dialog,
+        showinfo,
+    ):
+        collection, analysis = collection_and_analysis(conflicts=True)
+        analysis = analysis._replace(
+            builtin_conflicts=(ImportedPattern("Built-in", {}),)
+        )
+        read_collection.return_value = collection
+        analyze.return_value = analysis
+        conflict_dialog.return_value = SimpleNamespace(
+            result=True, overwrite_user_conflicts=False
+        )
+        painter = FakePainter()
+
+        ArmyPainter.import_pattern_collection(painter)
+
+        persist.assert_called_once_with(analysis, overwrite_user_conflicts=False)
+        self.assertEqual(painter.frame_army_pattern.load_calls, ["Selected"])
+        self.assertIn("No Patterns were imported", showinfo.call_args.args[1])
 
     @patch("src.frame_main.PatternCollectionImportConfirmationDialog")
     @patch("src.frame_main.analyze_pattern_collection_import")
@@ -197,11 +271,11 @@ class PatternCollectionImportGuiTests(unittest.TestCase):
 
         ArmyPainter.import_pattern_collection(painter)
 
-        persist.assert_called_once_with(analysis)
+        persist.assert_called_once_with(analysis, overwrite_user_conflicts=False)
         confirmation.assert_called_once_with(painter, "My Collection", 1, 1)
         self.assertEqual(painter.frame_army_pattern.load_calls, ["Selected"])
         self.assertEqual(painter.frame_color_chooser.color_boxes[0]["bg"], "#112233")
-        self.assertIn("1 pattern imported", showinfo.call_args.args[1])
+        self.assertIn("1 new pattern imported", showinfo.call_args.args[1])
 
     @patch("src.frame_main.showerror")
     @patch("src.frame_main.PatternCollectionImportConfirmationDialog")
@@ -232,6 +306,27 @@ class PatternCollectionImportGuiTests(unittest.TestCase):
 
         self.assertEqual(painter.frame_army_pattern.load_calls, [])
         self.assertIn("disk failure", showerror.call_args.args[1])
+
+
+class PatternCollectionResultSummaryTests(unittest.TestCase):
+    def test_summary_includes_only_nonzero_result_lines(self):
+        message = format_collection_import_result(CollectionImportResult(12, 3, 4, 2))
+
+        self.assertEqual(
+            message,
+            "Collection imported.\n\n"
+            "12 new patterns imported.\n"
+            "3 user patterns overwritten.\n"
+            "4 user conflicts skipped.\n"
+            "2 built-in conflicts skipped.",
+        )
+
+    def test_no_change_summary_explains_skipped_conflicts(self):
+        message = format_collection_import_result(CollectionImportResult(0, 0, 2, 1))
+
+        self.assertIn("No Patterns were imported.", message)
+        self.assertIn("2 user conflicts skipped.", message)
+        self.assertIn("1 built-in conflict skipped.", message)
 
 
 if __name__ == "__main__":

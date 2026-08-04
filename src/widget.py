@@ -694,6 +694,89 @@ class PatternCollectionImportConfirmationDialog(tk.Toplevel):
             pass
 
 
+class PatternCollectionConflictDialog(tk.Toplevel):
+    """Modal summary and conflict policy for one Pattern Collection import."""
+
+    def __init__(self, parent, analysis):
+        super().__init__(parent)
+        self.result = False
+        self.overwrite_user_conflicts = False
+        self.strategy = tk.StringVar(value="skip")
+        self.title("Pattern Collection Conflicts")
+        self.transient(parent)
+        self.resizable(False, False)
+
+        ttk.Label(
+            self,
+            text=(
+                f"Collection: {analysis.collection_name}\n"
+                f"Total Patterns: {analysis.total_pattern_count}\n"
+                f"New Patterns: {analysis.new_pattern_count}\n"
+                f"Existing user-Pattern conflicts: {analysis.user_conflict_count}\n"
+                f"Built-in conflicts: {analysis.builtin_conflict_count}"
+            ),
+            justify=tk.LEFT,
+            padding=(16, 16, 16, 8),
+        ).pack(fill=tk.X)
+
+        if analysis.user_conflict_count:
+            strategy_frame = ttk.LabelFrame(
+                self, text="Existing user Patterns", padding=(12, 8)
+            )
+            strategy_frame.pack(fill=tk.X, padx=16, pady=(4, 8))
+            ttk.Radiobutton(
+                strategy_frame,
+                text="Skip existing user patterns",
+                variable=self.strategy,
+                value="skip",
+            ).pack(anchor=tk.W)
+            ttk.Radiobutton(
+                strategy_frame,
+                text="Overwrite existing user patterns",
+                variable=self.strategy,
+                value="overwrite",
+            ).pack(anchor=tk.W)
+
+        if analysis.builtin_conflict_count:
+            ttk.Label(
+                self,
+                text="Built-in Patterns cannot be overwritten and will be skipped.",
+                justify=tk.LEFT,
+                wraplength=420,
+                padding=(16, 0, 16, 8),
+            ).pack(fill=tk.X)
+
+        button_frame = ttk.Frame(self, padding=(12, 8, 12, 12))
+        button_frame.pack(fill=tk.X)
+        import_button = ttk.Button(
+            button_frame, text="Import", command=self._import
+        )
+        import_button.pack(side=tk.LEFT, padx=4)
+        ttk.Button(
+            button_frame, text="Cancel", command=lambda: self._finish(False)
+        ).pack(side=tk.RIGHT, padx=4)
+
+        self.protocol("WM_DELETE_WINDOW", lambda: self._finish(False))
+        self.bind("<Escape>", lambda Event: self._finish(False))
+        self.bind("<Return>", lambda Event: self._import())
+        import_button.focus_set()
+        self.grab_set()
+        self.wait_window()
+
+    def _import(self):
+        self.overwrite_user_conflicts = self.strategy.get() == "overwrite"
+        self._finish(True)
+
+    def _finish(self, result):
+        self.result = result
+        try:
+            if self.winfo_exists():
+                self.grab_release()
+                self.destroy()
+        except tk.TclError:
+            pass
+
+
 class BatchEditTopLevel(tk.Toplevel):
     def __init__(self, master=None, cnf={}, **kw):
         super(BatchEditTopLevel, self).__init__(master=master, cnf={}, **kw)
