@@ -1,11 +1,18 @@
 import json
+import os
+from pathlib import Path
+import tempfile
 
 from src.color_pattern_handler import (
+    ARMY_PATTERN_RESOURCE,
     InvalidPatternError,
+    PatternNotFoundError,
     color_key,
+    get_all_patterns,
     normalize_pattern_colors,
     normalize_pattern_name,
 )
+from src.user_data import get_user_patterns_path
 
 PATTERN_EXCHANGE_FORMAT = "sm1-dow2-texture-painter-pattern"
 PATTERN_EXCHANGE_VERSION = 1
@@ -26,6 +33,10 @@ class InvalidPatternFileError(PatternImportError):
 
 class UnsupportedPatternVersionError(PatternImportError):
     """Raised when a pattern document uses an unsupported version."""
+
+
+class PatternExportError(OSError):
+    """Raised when a pattern exchange file cannot be written safely."""
 
 
 def create_pattern_exchange_document(name, pattern):
@@ -103,3 +114,61 @@ def parse_imported_pattern_json(json_text):
     except (json.JSONDecodeError, TypeError) as exc:
         raise InvalidPatternJsonError("Pattern file contains invalid JSON") from exc
     return validate_imported_pattern(data)
+
+
+def export_pattern(name, destination):
+    """Atomically export one built-in or user pattern to a JSON file."""
+    pattern = get_all_patterns().get(name)
+    if pattern is None:
+        raise PatternNotFoundError(f"Pattern '{name}' does not exist")
+
+    try:
+        destination = Path(destination)
+    except TypeError as exc:
+        raise PatternExportError("Pattern export destination is invalid") from exc
+    protected_destinations = {get_user_patterns_path().resolve()}
+    try:
+        protected_destinations.add(Path(ARMY_PATTERN_RESOURCE).resolve())
+    except TypeError:
+        pass
+    if destination.resolve() in protected_destinations:
+        raise PatternExportError(
+            f'Pattern source file cannot be used as an export destination: "{destination}"'
+        )
+    if destination.exists() and not destination.is_file():
+        raise PatternExportError(
+            f'Pattern export destination is not a file: "{destination}"'
+        )
+    if not destination.parent.is_dir():
+        raise PatternExportError(
+            f'Pattern export directory does not exist: "{destination.parent}"'
+        )
+
+    document = create_pattern_exchange_document(name, pattern)
+    temporary_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=destination.parent,
+            prefix=f".{destination.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as fp:
+            temporary_path = Path(fp.name)
+            json.dump(document, fp, indent=2, ensure_ascii=False)
+            fp.write("\n")
+            fp.flush()
+            os.fsync(fp.fileno())
+        os.replace(temporary_path, destination)
+        temporary_path = None
+    except OSError as exc:
+        raise PatternExportError(
+            f'Could not export pattern to "{destination}": {exc}'
+        ) from exc
+    finally:
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink(missing_ok=True)
+            except OSError:
+                pass
