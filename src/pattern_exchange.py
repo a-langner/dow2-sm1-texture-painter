@@ -13,11 +13,12 @@ from src.color_pattern_handler import (
     PatternNotFoundError,
     color_key,
     get_all_patterns,
+    is_user_pattern,
     normalize_pattern_colors,
     normalize_pattern_name,
     save_imported_pattern,
 )
-from src.user_data import get_user_patterns_path
+from src.user_data import get_settings_path, get_user_patterns_path
 
 PATTERN_EXCHANGE_FORMAT = "sm1-dow2-texture-painter-pattern"
 PATTERN_EXCHANGE_VERSION = 1
@@ -98,6 +99,18 @@ class UnsupportedPatternCollectionVersionError(PatternCollectionImportError):
 
 class DuplicatePatternNameInCollectionError(PatternCollectionImportError):
     """Raised when normalized names repeat within a Pattern Collection."""
+
+
+class PatternCollectionExportError(PatternExportError):
+    """Base class for errors while exporting a Pattern Collection."""
+
+
+class InvalidPatternCollectionNameError(PatternCollectionExportError):
+    """Raised when an exported Pattern Collection name is invalid."""
+
+
+class EmptyUserPatternCollectionError(PatternCollectionExportError):
+    """Raised when there are no user-created Patterns to export."""
 
 
 class ImportedPattern(NamedTuple):
@@ -343,12 +356,43 @@ def export_pattern(name, destination):
     if pattern is None:
         raise PatternNotFoundError(f"Pattern '{name}' does not exist")
 
+    document = create_pattern_exchange_document(name, pattern)
+    _write_exchange_document(document, destination)
+
+
+def export_user_pattern_collection(collection_name, destination):
+    """Atomically export every user-created Pattern in deterministic order."""
+    try:
+        normalized_collection_name = normalize_pattern_name(collection_name)
+    except InvalidPatternError as exc:
+        raise InvalidPatternCollectionNameError(str(exc)) from exc
+
+    user_patterns = [
+        (name, pattern)
+        for name, pattern in get_all_patterns().items()
+        if is_user_pattern(name)
+    ]
+    if not user_patterns:
+        raise EmptyUserPatternCollectionError(
+            "There are no user-created Patterns to export"
+        )
+
+    document = create_pattern_collection_exchange_document(
+        normalized_collection_name, user_patterns
+    )
+    _write_exchange_document(document, destination)
+
+
+def _validate_export_destination(destination):
     try:
         destination = Path(destination)
     except TypeError as exc:
         raise PatternExportError("Pattern export destination is invalid") from exc
     try:
-        protected_destinations = {get_user_patterns_path().resolve()}
+        protected_destinations = {
+            get_user_patterns_path().resolve(),
+            get_settings_path().resolve(),
+        }
         try:
             protected_destinations.add(Path(ARMY_PATTERN_RESOURCE).resolve())
         except TypeError:
@@ -376,8 +420,12 @@ def export_pattern(name, destination):
         raise PatternExportError(
             f'Could not access pattern export destination "{destination}": {exc}'
         ) from exc
+    return destination
 
-    document = create_pattern_exchange_document(name, pattern)
+
+def _write_exchange_document(document, destination):
+    """Write an exchange document atomically without touching its sources."""
+    destination = _validate_export_destination(destination)
     temporary_path = None
     try:
         with tempfile.NamedTemporaryFile(
