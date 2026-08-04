@@ -339,6 +339,47 @@ def save_imported_pattern(
     return normalized_name
 
 
+def replace_user_patterns(patterns, pattern_path=None):
+    """Atomically replace the complete user collection after batch validation."""
+    normalized_patterns = OrderedDict()
+    for name, pattern in patterns.items():
+        normalized_name = normalize_pattern_name(name)
+        if normalized_name in builtin_color_patterns:
+            raise PatternNameConflictError(
+                f"'{normalized_name}' is a built-in pattern name"
+            )
+        if normalized_name in normalized_patterns:
+            raise PatternAlreadyExistsError(
+                f"User pattern '{normalized_name}' already exists"
+            )
+        if not isinstance(pattern, dict):
+            raise InvalidPatternError(
+                f"User pattern '{normalized_name}' must contain four colors"
+            )
+        try:
+            colors = [pattern[key] for key in color_key]
+        except KeyError as exc:
+            raise InvalidPatternError(
+                f"User pattern '{normalized_name}' is missing color {exc.args[0]}"
+            ) from exc
+        normalized_colors = normalize_pattern_colors(colors)
+        normalized_patterns[normalized_name] = OrderedDict(
+            zip(color_key, normalized_colors)
+        )
+
+    if pattern_path is None:
+        pattern_path = get_user_patterns_path(create_parent=True)
+    pattern_path = Path(pattern_path)
+    _ensure_user_pattern_file_is_writable(pattern_path)
+    _write_user_patterns(normalized_patterns, pattern_path)
+
+    user_color_patterns.clear()
+    user_color_patterns.update(normalized_patterns)
+    army_color_pattern.clear()
+    army_color_pattern.update(builtin_color_patterns)
+    army_color_pattern.update(user_color_patterns)
+
+
 def delete(name: str, pattern_path=None):
     normalized_name = name.strip() if isinstance(name, str) else name
     if normalized_name in builtin_color_patterns:

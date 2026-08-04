@@ -3,6 +3,7 @@ import logging
 import os
 from pathlib import Path
 import tempfile
+from collections import OrderedDict
 from typing import NamedTuple
 
 from src.color_pattern_handler import (
@@ -18,6 +19,7 @@ from src.color_pattern_handler import (
     normalize_pattern_colors,
     normalize_pattern_name,
     save_imported_pattern,
+    replace_user_patterns,
     user_color_patterns,
 )
 from src.user_data import get_settings_path, get_user_patterns_path
@@ -113,6 +115,17 @@ class InvalidPatternCollectionNameError(PatternCollectionExportError):
 
 class EmptyUserPatternCollectionError(PatternCollectionExportError):
     """Raised when there are no user-created Patterns to export."""
+
+
+class StalePatternCollectionAnalysisError(PatternCollectionImportError):
+    """Raised when Pattern state changed after collection conflict analysis."""
+
+
+class CollectionImportResult(NamedTuple):
+    imported_count: int
+    overwritten_count: int
+    skipped_user_conflict_count: int
+    skipped_builtin_conflict_count: int
 
 
 class ImportedPattern(NamedTuple):
@@ -293,6 +306,69 @@ def analyze_pattern_collection_import(
         tuple(user_conflicts),
         tuple(builtin_conflicts),
     )
+
+
+def import_analyzed_pattern_collection(
+    analysis, overwrite_user_conflicts=False, pattern_path=None
+):
+    """Apply one analyzed collection through a single atomic user-data write."""
+    if not isinstance(analysis, CollectionImportAnalysis):
+        raise InvalidPatternCollectionError(
+            "Pattern Collection must be analyzed before batch import"
+        )
+    if type(overwrite_user_conflicts) is not bool:
+        raise InvalidPatternCollectionError(
+            "overwrite_user_conflicts must be a boolean"
+        )
+
+    for pattern in analysis.new_patterns:
+        if (
+            pattern.name in builtin_color_patterns
+            or pattern.name in user_color_patterns
+        ):
+            raise StalePatternCollectionAnalysisError(
+                f"Pattern state changed after analysis for {pattern.name!r}"
+            )
+    for pattern in analysis.user_conflicts:
+        if (
+            pattern.name in builtin_color_patterns
+            or pattern.name not in user_color_patterns
+        ):
+            raise StalePatternCollectionAnalysisError(
+                f"Pattern state changed after analysis for {pattern.name!r}"
+            )
+    for pattern in analysis.builtin_conflicts:
+        if pattern.name not in builtin_color_patterns:
+            raise StalePatternCollectionAnalysisError(
+                f"Pattern state changed after analysis for {pattern.name!r}"
+            )
+
+    final_patterns = OrderedDict(user_color_patterns)
+    for pattern in analysis.new_patterns:
+        final_patterns[pattern.name] = OrderedDict(pattern.colors)
+
+    overwritten_count = 0
+    skipped_user_conflict_count = len(analysis.user_conflicts)
+    if overwrite_user_conflicts:
+        for pattern in analysis.user_conflicts:
+            final_patterns[pattern.name] = OrderedDict(pattern.colors)
+        overwritten_count = len(analysis.user_conflicts)
+        skipped_user_conflict_count = 0
+
+    imported_count = len(analysis.new_patterns)
+    result = CollectionImportResult(
+        imported_count,
+        overwritten_count,
+        skipped_user_conflict_count,
+        len(analysis.builtin_conflicts),
+    )
+    if imported_count == 0 and overwritten_count == 0:
+        return result
+    if final_patterns == user_color_patterns:
+        return result
+
+    replace_user_patterns(final_patterns, pattern_path=pattern_path)
+    return result
 
 
 def has_pattern_exchange_format(document):
