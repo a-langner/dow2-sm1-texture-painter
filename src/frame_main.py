@@ -177,6 +177,17 @@ def format_collection_import_result(result):
     return "\n\n".join((lines[0], "\n".join(lines[1:])))
 
 
+def collection_selection_was_overwritten(
+    selected_pattern_name, analysis, overwrite_user_conflicts
+):
+    """Return whether Collection import replaced the selected Pattern data."""
+    if selected_pattern_name is None or not overwrite_user_conflicts:
+        return False
+    return any(
+        pattern.name == selected_pattern_name for pattern in analysis.user_conflicts
+    )
+
+
 def resolve_pattern_import_conflicts(
     imported_pattern,
     persist,
@@ -1196,6 +1207,10 @@ class ArmyPainter(tk.Tk):
             return
 
         self.frame_army_pattern.load_pattern_list(selected_name)
+        if collection_selection_was_overwritten(
+            selected_name, analysis, overwrite_user_conflicts
+        ):
+            self.on_pattern_select()
         showinfo(
             "Pattern Collection Imported",
             format_collection_import_result(result),

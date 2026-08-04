@@ -7,6 +7,7 @@ import test_support  # noqa: F401 - installs the user-data path redirect
 from src.frame_main import (
     PATTERN_COLLECTION_FILETYPES,
     ArmyPainter,
+    collection_selection_was_overwritten,
     format_collection_import_result,
 )
 from src.pattern_exchange import (
@@ -57,12 +58,16 @@ class FakePainter:
         self.settings = FakeSettings(import_directory)
         self.frame_army_pattern = FakePatternList()
         self.state_updates = 0
+        self.selection_apply_count = 0
 
     def _show_pattern_import_error(self, title, error, message=None):
         ArmyPainter._show_pattern_import_error(self, title, error, message)
 
     def update_pattern_command_states(self, selection=None):
         self.state_updates += 1
+
+    def on_pattern_select(self):
+        self.selection_apply_count += 1
 
 
 def collection_and_analysis(conflicts=False):
@@ -175,12 +180,14 @@ class PatternCollectionImportGuiTests(unittest.TestCase):
             result=True, overwrite_user_conflicts=True
         )
         painter = FakePainter()
+        painter.frame_army_pattern.selected_name = "New Pattern"
 
         ArmyPainter.import_pattern_collection(painter)
 
         conflict_dialog.assert_called_once_with(painter, analysis)
         persist.assert_called_once_with(analysis, overwrite_user_conflicts=True)
-        self.assertEqual(painter.frame_army_pattern.load_calls, ["Selected"])
+        self.assertEqual(painter.frame_army_pattern.load_calls, ["New Pattern"])
+        self.assertEqual(painter.selection_apply_count, 1)
         self.assertIn("1 user pattern overwritten", showinfo.call_args.args[1])
 
     @patch("src.frame_main.showinfo")
@@ -211,11 +218,13 @@ class PatternCollectionImportGuiTests(unittest.TestCase):
             result=True, overwrite_user_conflicts=False
         )
         painter = FakePainter()
+        painter.frame_army_pattern.selected_name = "New Pattern"
 
         ArmyPainter.import_pattern_collection(painter)
 
         persist.assert_called_once_with(analysis, overwrite_user_conflicts=False)
-        self.assertEqual(painter.frame_army_pattern.load_calls, ["Selected"])
+        self.assertEqual(painter.frame_army_pattern.load_calls, ["New Pattern"])
+        self.assertEqual(painter.selection_apply_count, 0)
         self.assertIn("No Patterns were imported", showinfo.call_args.args[1])
 
     @patch("src.frame_main.PatternCollectionImportConfirmationDialog")
@@ -327,6 +336,22 @@ class PatternCollectionResultSummaryTests(unittest.TestCase):
         self.assertIn("No Patterns were imported.", message)
         self.assertIn("2 user conflicts skipped.", message)
         self.assertIn("1 built-in conflict skipped.", message)
+
+
+class PatternCollectionSelectionPolicyTests(unittest.TestCase):
+    def test_reapplies_only_an_explicitly_overwritten_selected_user_pattern(self):
+        _, analysis = collection_and_analysis(conflicts=True)
+
+        self.assertTrue(
+            collection_selection_was_overwritten("New Pattern", analysis, True)
+        )
+        self.assertFalse(
+            collection_selection_was_overwritten("New Pattern", analysis, False)
+        )
+        self.assertFalse(
+            collection_selection_was_overwritten("Another Pattern", analysis, True)
+        )
+        self.assertFalse(collection_selection_was_overwritten(None, analysis, True))
 
 
 if __name__ == "__main__":
