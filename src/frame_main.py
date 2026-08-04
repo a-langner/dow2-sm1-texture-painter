@@ -195,6 +195,19 @@ def collection_selection_was_overwritten(
     )
 
 
+def single_import_selection_policy(
+    selected_pattern_name, imported_pattern_name, overwritten
+):
+    """Return (selection to restore, whether to apply imported stored colors)."""
+    if overwritten:
+        selected_was_overwritten = (
+            selected_pattern_name is not None
+            and selected_pattern_name == imported_pattern_name
+        )
+        return selected_pattern_name, selected_was_overwritten
+    return imported_pattern_name, True
+
+
 def resolve_pattern_import_conflicts(
     imported_pattern,
     persist,
@@ -1247,7 +1260,7 @@ class ArmyPainter(tk.Tk):
             return
 
         self.frame_army_pattern.load_pattern_list(neighboring_name)
-        self.update_pattern_action_states()
+        self.on_pattern_select()
 
     def update_pattern_action_states(self, selection=None):
         if selection is None:
@@ -1380,6 +1393,8 @@ class ArmyPainter(tk.Tk):
             selected_name, analysis, overwrite_user_conflicts
         ):
             self.on_pattern_select()
+        else:
+            self.update_pattern_action_states()
         showinfo(
             "Pattern Collection Imported",
             format_collection_import_result(result),
@@ -1541,10 +1556,26 @@ class ArmyPainter(tk.Tk):
             )
             return
 
+        selection = self.frame_army_pattern.get_selected_pattern()
+        selected_name = selection.name if selection else None
+        imported_overwrote_user_pattern = False
+
+        def persist_with_resolution_tracking(
+            pattern, target_name=None, overwrite=False
+        ):
+            nonlocal imported_overwrote_user_pattern
+            persisted_name = persist_imported_pattern(
+                pattern,
+                target_name=target_name,
+                overwrite=overwrite,
+            )
+            imported_overwrote_user_pattern = overwrite
+            return persisted_name
+
         try:
             imported_name = resolve_pattern_import_conflicts(
                 imported_pattern,
-                persist_imported_pattern,
+                persist_with_resolution_tracking,
                 self._choose_pattern_import_conflict,
                 self._request_pattern_import_name,
                 self._report_invalid_pattern_import_name,
@@ -1562,8 +1593,16 @@ class ArmyPainter(tk.Tk):
         if imported_name is None:
             return
 
-        self.frame_army_pattern.load_pattern_list(imported_name)
-        self.on_pattern_select()
+        selection_to_restore, apply_imported_colors = single_import_selection_policy(
+            selected_name,
+            imported_name,
+            imported_overwrote_user_pattern,
+        )
+        self.frame_army_pattern.load_pattern_list(selection_to_restore)
+        if apply_imported_colors:
+            self.on_pattern_select()
+        else:
+            self.update_pattern_action_states()
 
         try:
             self.settings.set_last_pattern_import_directory(

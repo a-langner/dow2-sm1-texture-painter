@@ -44,12 +44,16 @@ class FakePainter:
         self.frame_army_pattern = FakePatternFrame(
             selected_name, user_created, neighbor
         )
+        self.selection_apply_count = 0
 
     def update_pattern_menu_state(self):
         pass
 
     def update_pattern_action_states(self, selection=None):
         self.frame_army_pattern.delete_state_update_count += 1
+
+    def on_pattern_select(self):
+        self.selection_apply_count += 1
 
 
 class PatternDeletionGuiTests(unittest.TestCase):
@@ -102,6 +106,7 @@ class PatternDeletionGuiTests(unittest.TestCase):
         self.assertEqual(
             painter.frame_army_pattern.selected_names, ["Next Pattern"]
         )
+        self.assertEqual(painter.selection_apply_count, 1)
 
     @patch("src.frame_main.showerror")
     @patch(

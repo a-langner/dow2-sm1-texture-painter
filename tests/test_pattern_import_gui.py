@@ -6,7 +6,11 @@ from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.color_pattern_handler import color_key
-from src.frame_main import PATTERN_FILETYPES, ArmyPainter
+from src.frame_main import (
+    PATTERN_FILETYPES,
+    ArmyPainter,
+    single_import_selection_policy,
+)
 from src.pattern_exchange import (
     ImportedPattern,
     InvalidImportedPatternColorsError,
@@ -105,6 +109,20 @@ class FakePainter:
 
 
 class PatternImportGuiTests(unittest.TestCase):
+    def test_single_import_selection_policy_distinguishes_overwrite_target(self):
+        self.assertEqual(
+            single_import_selection_policy("Selected", "Selected", True),
+            ("Selected", True),
+        )
+        self.assertEqual(
+            single_import_selection_policy("Selected", "Other", True),
+            ("Selected", False),
+        )
+        self.assertEqual(
+            single_import_selection_policy("Selected", "New", False),
+            ("New", True),
+        )
+
     @patch("src.frame_main.filedialog.askopenfilename", return_value="")
     @patch("src.frame_main.read_pattern_file")
     def test_cancel_does_nothing(self, read_pattern, open_dialog):
@@ -232,6 +250,74 @@ class PatternImportGuiTests(unittest.TestCase):
         self.assertEqual(painter.frame_army_pattern.delete_state_updates, 1)
         self.assertEqual(painter.menu_state_updates, 1)
         self.assertEqual(painter.settings.saved_directories, [import_directory])
+        showerror.assert_not_called()
+
+    @patch("src.frame_main.showerror")
+    @patch("src.frame_main.persist_imported_pattern")
+    @patch("src.frame_main.read_pattern_file")
+    @patch("src.frame_main.filedialog.askopenfilename")
+    def test_overwriting_selected_pattern_applies_new_stored_colors(
+        self, open_dialog, read_pattern, persist, showerror
+    ):
+        colors = OrderedDict(
+            zip(color_key, ("#112233", "#445566", "#778899", "#aabbcc"))
+        )
+        imported = ImportedPattern("Selected", colors)
+        open_dialog.return_value = "selected.pattern.json"
+        read_pattern.return_value = imported
+        persist.side_effect = [
+            UserPatternImportConflictError("exists"),
+            "Selected",
+        ]
+        painter = FakePainter(Path("imports"))
+        painter.frame_army_pattern.selected_name = "Selected"
+        painter.conflict_decisions = ["overwrite"]
+
+        with patch(
+            "src.frame_main.get_pattern_colors",
+            return_value=list(imported.colors.values()),
+        ):
+            ArmyPainter.import_pattern(painter)
+
+        self.assertEqual(painter.frame_army_pattern.selected_name, "Selected")
+        self.assertEqual(painter.refresh_count, 1)
+        self.assertEqual(
+            [box["bg"] for box in painter.frame_color_chooser.color_boxes],
+            list(imported.colors.values()),
+        )
+        self.assertEqual(painter.frame_army_pattern.delete_state_updates, 1)
+        showerror.assert_not_called()
+
+    @patch("src.frame_main.showerror")
+    @patch("src.frame_main.persist_imported_pattern")
+    @patch("src.frame_main.read_pattern_file")
+    @patch("src.frame_main.filedialog.askopenfilename")
+    def test_overwriting_another_pattern_preserves_selection_and_current_colors(
+        self, open_dialog, read_pattern, persist, showerror
+    ):
+        colors = OrderedDict(
+            zip(color_key, ("#112233", "#445566", "#778899", "#aabbcc"))
+        )
+        imported = ImportedPattern("Other", colors)
+        open_dialog.return_value = "other.pattern.json"
+        read_pattern.return_value = imported
+        persist.side_effect = [UserPatternImportConflictError("exists"), "Other"]
+        painter = FakePainter(Path("imports"))
+        painter.frame_army_pattern.selected_name = "Selected"
+        painter.conflict_decisions = ["overwrite"]
+        colors_before = [
+            box["bg"] for box in painter.frame_color_chooser.color_boxes
+        ]
+
+        ArmyPainter.import_pattern(painter)
+
+        self.assertEqual(painter.frame_army_pattern.selected_name, "Selected")
+        self.assertEqual(
+            [box["bg"] for box in painter.frame_color_chooser.color_boxes],
+            colors_before,
+        )
+        self.assertEqual(painter.refresh_count, 0)
+        self.assertEqual(painter.frame_army_pattern.delete_state_updates, 1)
         showerror.assert_not_called()
 
     @patch("src.frame_main.read_pattern_file", side_effect=RuntimeError("bug"))
