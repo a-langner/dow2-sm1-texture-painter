@@ -11,6 +11,7 @@ from src.frame_main import (
     suggested_pattern_filename,
 )
 from src.pattern_exchange import PatternExportError
+from src.widget import PatternSelection
 
 
 class FakePatternList:
@@ -19,6 +20,11 @@ class FakePatternList:
 
     def get_selected_pattern_name(self):
         return self.selected_name
+
+    def get_selected_pattern(self):
+        if self.selected_name is None:
+            return None
+        return PatternSelection(self.selected_name, False)
 
 
 class FakeSettings:

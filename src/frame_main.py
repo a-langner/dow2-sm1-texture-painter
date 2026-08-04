@@ -20,6 +20,7 @@ from src.widget import (
     BatchEditTopLevel,
     FramePatternList,
     PatternImportConflictDialog,
+    pattern_command_states,
 )
 from src.constant import (
     DEFAULT_IMG_SIZE,
@@ -466,7 +467,7 @@ class ArmyPainter(tk.Tk):
                 command=self.export_selected_pattern,
             )
             menubar.add_cascade(label="Patterns", menu=self.pattern_menu)
-            self.update_pattern_menu_state()
+            self.update_pattern_command_states()
 
         def define_toolmenu():
             toolmenu = tk.Menu(menubar, tearoff=0)
@@ -644,13 +645,12 @@ class ArmyPainter(tk.Tk):
 
     def on_pattern_select(self, Event=None):
         # TODO: Refactor following code so with frame color class
-        self.frame_army_pattern.update_delete_button_state()
-        self.update_pattern_menu_state()
-        pattern_name = self.frame_army_pattern.get_selected_pattern_name()
-        if pattern_name is None:
+        selection = self.frame_army_pattern.get_selected_pattern()
+        self.update_pattern_command_states(selection)
+        if selection is None:
             return
 
-        pattern = get_all_patterns().get(pattern_name)
+        pattern = get_all_patterns().get(selection.name)
         if pattern is None:
             return
 
@@ -959,17 +959,17 @@ class ArmyPainter(tk.Tk):
             )
             return
 
-        self.frame_army_pattern.load_pattern_list()
-        self.frame_army_pattern.select_pattern(pattern_name)
-        self.update_pattern_menu_state()
+        self.frame_army_pattern.load_pattern_list(pattern_name)
+        self.update_pattern_command_states()
 
     def delete_pattern(self):
-        pattern_name = self.frame_army_pattern.get_selected_pattern_name()
-        if pattern_name is None:
+        selection = self.frame_army_pattern.get_selected_pattern()
+        if selection is None:
             return
+        pattern_name = selection.name
 
-        if not self.frame_army_pattern.is_selected_pattern_user():
-            self.frame_army_pattern.update_delete_button_state()
+        if not selection.is_user:
+            self.update_pattern_command_states(selection)
             return
 
         confirmed = askyesno(
@@ -999,17 +999,17 @@ class ArmyPainter(tk.Tk):
             )
             return
 
-        self.frame_army_pattern.load_pattern_list()
-        if neighboring_name is not None:
-            self.frame_army_pattern.select_pattern(neighboring_name)
-        else:
-            self.frame_army_pattern.update_delete_button_state()
-        self.update_pattern_menu_state()
+        self.frame_army_pattern.load_pattern_list(neighboring_name)
+        self.update_pattern_command_states()
 
-    def update_pattern_menu_state(self):
-        pattern_name = self.frame_army_pattern.get_selected_pattern_name()
-        state = tk.NORMAL if pattern_name is not None else tk.DISABLED
-        self.pattern_menu.entryconfig(PATTERN_EXPORT_MENU_LABEL, state=state)
+    def update_pattern_command_states(self, selection=None):
+        if selection is None:
+            selection = self.frame_army_pattern.get_selected_pattern()
+        export_state, _ = pattern_command_states(selection)
+        self.frame_army_pattern.update_delete_button_state(selection)
+        self.pattern_menu.entryconfig(
+            PATTERN_EXPORT_MENU_LABEL, state=export_state
+        )
 
     def import_pattern(self):
         source = filedialog.askopenfilename(
@@ -1049,8 +1049,7 @@ class ArmyPainter(tk.Tk):
         if imported_name is None:
             return
 
-        self.frame_army_pattern.load_pattern_list()
-        self.frame_army_pattern.select_pattern(imported_name)
+        self.frame_army_pattern.load_pattern_list(imported_name)
         self.on_pattern_select()
 
         try:
@@ -1087,9 +1086,10 @@ class ArmyPainter(tk.Tk):
         showerror("Invalid Pattern Name", message, parent=self)
 
     def export_selected_pattern(self):
-        pattern_name = self.frame_army_pattern.get_selected_pattern_name()
-        if pattern_name is None:
+        selection = self.frame_army_pattern.get_selected_pattern()
+        if selection is None:
             return
+        pattern_name = selection.name
 
         destination = filedialog.asksaveasfilename(
             initialdir=self.settings.get_last_pattern_export_directory(),

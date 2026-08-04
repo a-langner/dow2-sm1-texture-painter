@@ -15,6 +15,7 @@ from src.pattern_exchange import (
     UnsupportedPatternVersionError,
     UserPatternImportConflictError,
 )
+from src.widget import PatternSelection
 
 
 class FakePatternList:
@@ -23,8 +24,10 @@ class FakePatternList:
         self.load_count = 0
         self.delete_state_updates = 0
 
-    def load_pattern_list(self):
+    def load_pattern_list(self, preferred_pattern_name=None):
         self.load_count += 1
+        if preferred_pattern_name is not None:
+            self.select_pattern(preferred_pattern_name)
 
     def select_pattern(self, pattern_name):
         self.selected_name = pattern_name
@@ -33,7 +36,12 @@ class FakePatternList:
     def get_selected_pattern_name(self):
         return self.selected_name
 
-    def update_delete_button_state(self):
+    def get_selected_pattern(self):
+        if self.selected_name is None:
+            return None
+        return PatternSelection(self.selected_name, True)
+
+    def update_delete_button_state(self, selection=None):
         self.delete_state_updates += 1
 
 
@@ -73,6 +81,10 @@ class FakePainter:
         self.refresh_count += 1
 
     def update_pattern_menu_state(self):
+        self.menu_state_updates += 1
+
+    def update_pattern_command_states(self, selection=None):
+        self.frame_army_pattern.update_delete_button_state(selection)
         self.menu_state_updates += 1
 
     def on_pattern_select(self):

@@ -15,8 +15,10 @@ class FakePatternFrame:
         self.load_count = 0
         self.selected_names = []
 
-    def load_pattern_list(self):
+    def load_pattern_list(self, preferred_pattern_name=None):
         self.load_count += 1
+        if preferred_pattern_name is not None:
+            self.select_pattern(preferred_pattern_name)
 
     def select_pattern(self, pattern_name):
         self.selected_names.append(pattern_name)
@@ -40,6 +42,9 @@ class FakePainter:
         self.frame_army_pattern = FakePatternFrame()
 
     def update_pattern_menu_state(self):
+        pass
+
+    def update_pattern_command_states(self, selection=None):
         pass
 
 

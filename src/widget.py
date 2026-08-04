@@ -4,6 +4,7 @@ from tkinter import ttk
 from tkinter import font as tkfont
 from tkinter.ttk import Progressbar
 import os
+from dataclasses import dataclass
 from tkinter import colorchooser, filedialog
 from functools import partial
 from src.color_pattern_handler import get_all_patterns, is_user_pattern
@@ -14,6 +15,27 @@ COLOR_BOX_SIZE = 90
 COLOR_BTN_HEIGHT = 26
 PATTERN_MARKER_COLUMN_WIDTH = 28
 HEADER_SEPARATOR_STARTUP_RETRIES = 3
+
+
+@dataclass(frozen=True)
+class PatternSelection:
+    name: str
+    is_user: bool
+
+
+def pattern_command_states(selection):
+    """Return (export, delete) states for an internal pattern selection."""
+    export_state = tk.NORMAL if selection is not None else tk.DISABLED
+    delete_state = (
+        tk.NORMAL if selection is not None and selection.is_user else tk.DISABLED
+    )
+    return export_state, delete_state
+
+
+def pattern_name_to_restore(preferred_name, current_name, available_names):
+    """Choose a refresh selection by internal name, never by row position."""
+    candidate = preferred_name if preferred_name is not None else current_name
+    return candidate if candidate in available_names else None
 
 
 def calculate_pattern_separator_x(
@@ -485,13 +507,24 @@ class FramePatternList(tk.Frame):
         self.tree.yview_scroll(1, "units")
         return "break"
 
-    def load_pattern_list(self):
+    def load_pattern_list(self, preferred_pattern_name=None):
+        selection = self.get_selected_pattern()
+        current_pattern_name = selection.name if selection else None
         self.tree.clear_patterns()
-        for row in build_pattern_rows():
+        rows = build_pattern_rows()
+        for row in rows:
             self.tree.insert_pattern(
                 row["name"], user_created=row["is_user"]
             )
-        if hasattr(self, "delete_pattern"):
+        pattern_name = pattern_name_to_restore(
+            preferred_pattern_name,
+            current_pattern_name,
+            {row["name"] for row in rows},
+        )
+        restored_item = None
+        if pattern_name is not None:
+            restored_item = self.select_pattern(pattern_name)
+        if restored_item is None and hasattr(self, "delete_pattern"):
             self.update_delete_button_state()
         if hasattr(self, "header_separator"):
             self.after_idle(self._position_header_separator)
@@ -501,10 +534,19 @@ class FramePatternList(tk.Frame):
         return selection[0] if selection else None
 
     def get_selected_pattern_name(self):
-        return self.tree.get_pattern_name(self.get_selected_item_id())
+        selection = self.get_selected_pattern()
+        return selection.name if selection else None
 
     def is_selected_pattern_user(self):
-        return self.tree.is_user_item(self.get_selected_item_id())
+        selection = self.get_selected_pattern()
+        return bool(selection and selection.is_user)
+
+    def get_selected_pattern(self):
+        item_id = self.get_selected_item_id()
+        pattern_name = self.tree.get_pattern_name(item_id)
+        if pattern_name is None:
+            return None
+        return PatternSelection(pattern_name, self.tree.is_user_item(item_id))
 
     def get_pattern_item_id(self, pattern_name):
         return self.tree.get_pattern_item_id(pattern_name)
@@ -525,9 +567,11 @@ class FramePatternList(tk.Frame):
 
         return self.tree.get_pattern_name(neighbor_item)
 
-    def update_delete_button_state(self):
-        state = tk.NORMAL if self.is_selected_pattern_user() else tk.DISABLED
-        self.delete_pattern.config(state=state)
+    def update_delete_button_state(self, selection=None):
+        if selection is None:
+            selection = self.get_selected_pattern()
+        _, delete_state = pattern_command_states(selection)
+        self.delete_pattern.config(state=delete_state)
 
     def select_pattern(self, pattern_name):
         item_id = self.get_pattern_item_id(pattern_name)
@@ -537,7 +581,7 @@ class FramePatternList(tk.Frame):
         self.tree.selection_set(item_id)
         self.tree.focus(item_id)
         self.tree.see(item_id)
-        self.update_delete_button_state()
+        self.update_delete_button_state(self.get_selected_pattern())
         return item_id
 
 

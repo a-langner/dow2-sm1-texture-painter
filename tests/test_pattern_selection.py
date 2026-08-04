@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.frame_main import ArmyPainter
+from src.widget import PatternSelection
 
 
 class FakePatternFrame:
@@ -13,6 +14,11 @@ class FakePatternFrame:
 
     def get_selected_pattern_name(self):
         return self.selected_name
+
+    def get_selected_pattern(self):
+        if self.selected_name is None:
+            return None
+        return PatternSelection(self.selected_name, False)
 
     def update_delete_button_state(self):
         self.delete_state_update_count += 1
@@ -38,6 +44,9 @@ class FakePainter:
 
     def update_pattern_menu_state(self):
         pass
+
+    def update_pattern_command_states(self, selection=None):
+        self.frame_army_pattern.update_delete_button_state()
 
 
 class PatternSelectionTests(unittest.TestCase):
