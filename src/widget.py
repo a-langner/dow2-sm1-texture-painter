@@ -255,6 +255,7 @@ class PatternTreeview(ttk.Treeview):
 class FramePatternList(tk.Frame):
     def __init__(self, master=None, cnf={}, **kw):
         super(FramePatternList, self).__init__(master=master, cnf={}, **kw)
+        self.state_change_callback = None
         self.pattern_style = ttk.Style(self)
         heading_font = self.pattern_style.lookup(
             "Treeview.Heading", "font"
@@ -528,6 +529,8 @@ class FramePatternList(tk.Frame):
             self.update_delete_button_state()
         if hasattr(self, "header_separator"):
             self.after_idle(self._position_header_separator)
+        if self.state_change_callback is not None:
+            self.state_change_callback()
 
     def get_selected_item_id(self):
         selection = self.tree.selection()

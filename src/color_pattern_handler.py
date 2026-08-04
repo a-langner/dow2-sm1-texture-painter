@@ -181,6 +181,10 @@ def is_user_pattern(name):
     return name in user_color_patterns
 
 
+def has_user_patterns():
+    return bool(user_color_patterns)
+
+
 def _is_valid_pattern_collection(patterns):
     if not isinstance(patterns, dict):
         return False

@@ -1,11 +1,15 @@
 import unittest
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.frame_main import (
+    PATTERN_COLLECTION_EXPORT_MENU_LABEL,
     PATTERN_EXPORT_MENU_LABEL,
     ArmyPainter,
 )
 from src.widget import (
+    FramePatternList,
     PatternSelection,
     pattern_command_states,
     pattern_name_to_restore,
@@ -69,7 +73,13 @@ class PatternMenuStateTests(unittest.TestCase):
 
         self.assertEqual(
             painter.pattern_menu.configurations,
-            [(PATTERN_EXPORT_MENU_LABEL, {"state": "disabled"})],
+            [
+                (PATTERN_EXPORT_MENU_LABEL, {"state": "disabled"}),
+                (
+                    PATTERN_COLLECTION_EXPORT_MENU_LABEL,
+                    {"state": "disabled"},
+                ),
+            ],
         )
         self.assertEqual(painter.frame_army_pattern.delete_state, "disabled")
 
@@ -81,8 +91,8 @@ class PatternMenuStateTests(unittest.TestCase):
                 ArmyPainter.update_pattern_command_states(painter)
 
                 self.assertEqual(
-                    painter.pattern_menu.configurations,
-                    [(PATTERN_EXPORT_MENU_LABEL, {"state": "normal"})],
+                    painter.pattern_menu.configurations[0],
+                    (PATTERN_EXPORT_MENU_LABEL, {"state": "normal"}),
                 )
                 expected_delete = (
                     "normal" if pattern_name == "User-created" else "disabled"
@@ -99,10 +109,46 @@ class PatternMenuStateTests(unittest.TestCase):
         ArmyPainter.update_pattern_command_states(painter)
 
         self.assertEqual(
-            painter.pattern_menu.configurations[-1],
+            painter.pattern_menu.configurations[-2],
             (PATTERN_EXPORT_MENU_LABEL, {"state": "disabled"}),
         )
         self.assertEqual(painter.frame_army_pattern.delete_state, "disabled")
+
+    def test_export_all_state_depends_on_user_patterns_not_selection(self):
+        for selected_name in (None, "Built-in"):
+            with self.subTest(selected_name=selected_name), patch(
+                "src.frame_main.src.color_pattern_handler.has_user_patterns",
+                return_value=True,
+            ):
+                painter = FakePainter(selected_name)
+
+                ArmyPainter.update_pattern_command_states(painter)
+
+                self.assertEqual(
+                    painter.pattern_menu.configurations[-1],
+                    (
+                        PATTERN_COLLECTION_EXPORT_MENU_LABEL,
+                        {"state": "normal"},
+                    ),
+                )
+
+    def test_pattern_list_refresh_invokes_state_change_callback(self):
+        tree = SimpleNamespace(clear_patterns=Mock(), insert_pattern=Mock())
+        callback = Mock()
+        frame = SimpleNamespace(
+            tree=tree,
+            state_change_callback=callback,
+            get_selected_pattern=Mock(return_value=None),
+        )
+
+        with patch("src.widget.build_pattern_rows", return_value=[]):
+            FramePatternList.load_pattern_list(frame)
+
+        callback.assert_called_once_with()
+
+    def test_collection_command_stubs_are_safe(self):
+        self.assertIsNone(ArmyPainter.import_pattern_collection(object()))
+        self.assertIsNone(ArmyPainter.export_all_user_patterns(object()))
 
 
 if __name__ == "__main__":

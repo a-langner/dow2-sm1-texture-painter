@@ -72,6 +72,8 @@ WINDOW_SCREEN_FRACTION = 0.9
 WINDOW_CONTENT_PADDING = 16
 PATTERN_IMPORT_MENU_LABEL = "Import Pattern…"
 PATTERN_EXPORT_MENU_LABEL = "Export Selected Pattern…"
+PATTERN_COLLECTION_IMPORT_MENU_LABEL = "Import Pattern Collection…"
+PATTERN_COLLECTION_EXPORT_MENU_LABEL = "Export All User Patterns…"
 PATTERN_FILETYPES = (
     ("Pattern files", f"*{PATTERN_EXCHANGE_SUFFIX}"),
     ("JSON files", "*.json"),
@@ -370,6 +372,9 @@ class ArmyPainter(tk.Tk):
         # Defining slave widget
         self.define_frame_workspace()
         self.frame_army_pattern = FramePatternList(self.frame_img)
+        self.frame_army_pattern.state_change_callback = (
+            self.update_pattern_command_states
+        )
         self.frame_army_pattern.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.frame_channel_select.lb.bind(
             "<<ListboxSelect>>", self.select_channel
@@ -473,6 +478,15 @@ class ArmyPainter(tk.Tk):
             self.pattern_menu.add_command(
                 label=PATTERN_EXPORT_MENU_LABEL,
                 command=self.export_selected_pattern,
+            )
+            self.pattern_menu.add_separator()
+            self.pattern_menu.add_command(
+                label=PATTERN_COLLECTION_IMPORT_MENU_LABEL,
+                command=self.import_pattern_collection,
+            )
+            self.pattern_menu.add_command(
+                label=PATTERN_COLLECTION_EXPORT_MENU_LABEL,
+                command=self.export_all_user_patterns,
             )
             menubar.add_cascade(label="Patterns", menu=self.pattern_menu)
             self.update_pattern_command_states()
@@ -1018,6 +1032,23 @@ class ArmyPainter(tk.Tk):
         self.pattern_menu.entryconfig(
             PATTERN_EXPORT_MENU_LABEL, state=export_state
         )
+        export_all_state = (
+            tk.NORMAL
+            if src.color_pattern_handler.has_user_patterns()
+            else tk.DISABLED
+        )
+        self.pattern_menu.entryconfig(
+            PATTERN_COLLECTION_EXPORT_MENU_LABEL,
+            state=export_all_state,
+        )
+
+    def import_pattern_collection(self):
+        """Collection import dialog is implemented in a later job."""
+        return None
+
+    def export_all_user_patterns(self):
+        """Collection export dialog is implemented in a later job."""
+        return None
 
     def import_pattern(self):
         source = filedialog.askopenfilename(
