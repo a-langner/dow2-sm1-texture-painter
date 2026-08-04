@@ -22,6 +22,9 @@ from src.user_data import get_user_patterns_path
 PATTERN_EXCHANGE_FORMAT = "sm1-dow2-texture-painter-pattern"
 PATTERN_EXCHANGE_VERSION = 1
 PATTERN_EXCHANGE_SUFFIX = ".pattern.json"
+PATTERN_COLLECTION_EXCHANGE_FORMAT = "sm1-dow2-texture-painter-pattern-collection"
+PATTERN_COLLECTION_EXCHANGE_VERSION = 1
+PATTERN_COLLECTION_EXCHANGE_SUFFIX = ".pattern-collection.json"
 LOGGER = logging.getLogger(__name__)
 
 
@@ -86,13 +89,33 @@ class ImportedPattern(NamedTuple):
     colors: dict
 
 
+def create_pattern_exchange_entry(name, pattern):
+    """Create the shared name-and-colors structure for one pattern."""
+    return {
+        "name": name,
+        "colors": {key: pattern[key] for key in color_key},
+    }
+
+
 def create_pattern_exchange_document(name, pattern):
     """Create the versioned document for exchanging one color pattern."""
     return {
         "format": PATTERN_EXCHANGE_FORMAT,
         "version": PATTERN_EXCHANGE_VERSION,
+        **create_pattern_exchange_entry(name, pattern),
+    }
+
+
+def create_pattern_collection_exchange_document(name, patterns):
+    """Create a versioned collection document from ordered pattern pairs."""
+    return {
+        "format": PATTERN_COLLECTION_EXCHANGE_FORMAT,
+        "version": PATTERN_COLLECTION_EXCHANGE_VERSION,
         "name": name,
-        "colors": {key: pattern[key] for key in color_key},
+        "patterns": [
+            create_pattern_exchange_entry(pattern_name, pattern)
+            for pattern_name, pattern in patterns
+        ],
     }
 
 
