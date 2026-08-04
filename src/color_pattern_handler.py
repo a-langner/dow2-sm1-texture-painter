@@ -271,7 +271,14 @@ def _write_user_patterns(patterns, pattern_path):
         temporary_path = None
     finally:
         if temporary_path is not None:
-            temporary_path.unlink(missing_ok=True)
+            try:
+                temporary_path.unlink(missing_ok=True)
+            except OSError:
+                LOGGER.warning(
+                    "Could not remove user-pattern temporary file: %s",
+                    temporary_path,
+                    exc_info=True,
+                )
 
 
 def _ensure_user_pattern_file_is_writable(pattern_path):

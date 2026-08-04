@@ -10,7 +10,10 @@ from src.frame_main import (
     ArmyPainter,
     suggested_pattern_filename,
 )
-from src.pattern_exchange import PatternExportError
+from src.pattern_exchange import (
+    PatternExportError,
+    PatternExportPermissionDeniedError,
+)
 from src.widget import PatternSelection
 
 
@@ -134,6 +137,38 @@ class PatternExportGuiTests(unittest.TestCase):
         self.assertIn("C:/exports/failed.pattern.json", message)
         self.assertIn("permission denied", message)
         self.assertEqual(painter.settings.saved_directories, [])
+
+    @patch("src.frame_main.showerror")
+    @patch(
+        "src.frame_main.export_pattern",
+        side_effect=PatternExportPermissionDeniedError("denied"),
+    )
+    @patch(
+        "src.frame_main.filedialog.asksaveasfilename",
+        return_value="C:/exports/failed.pattern.json",
+    )
+    def test_export_permission_failure_has_distinct_message(
+        self, save_dialog, export, showerror
+    ):
+        painter = FakePainter("Internal Name", Path("exports"))
+
+        with self.assertLogs("src.frame_main", level="ERROR"):
+            ArmyPainter.export_selected_pattern(painter)
+
+        self.assertEqual(showerror.call_args.args[0], "Permission Denied")
+        self.assertIn("C:/exports/failed.pattern.json", showerror.call_args.args[1])
+        self.assertEqual(painter.settings.saved_directories, [])
+
+    @patch("src.frame_main.export_pattern", side_effect=RuntimeError("bug"))
+    @patch(
+        "src.frame_main.filedialog.asksaveasfilename",
+        return_value="C:/exports/failed.pattern.json",
+    )
+    def test_unexpected_export_error_is_not_suppressed(self, save_dialog, export):
+        painter = FakePainter("Internal Name", Path("exports"))
+
+        with self.assertRaisesRegex(RuntimeError, "bug"):
+            ArmyPainter.export_selected_pattern(painter)
 
 
 if __name__ == "__main__":

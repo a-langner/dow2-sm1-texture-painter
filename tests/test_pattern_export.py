@@ -16,6 +16,7 @@ from src.pattern_exchange import (
     PATTERN_EXCHANGE_FORMAT,
     PATTERN_EXCHANGE_VERSION,
     PatternExportError,
+    PatternExportPermissionDeniedError,
     export_pattern,
 )
 
@@ -89,6 +90,25 @@ class PatternExportTests(unittest.TestCase):
                     export_pattern(pattern_name, destination)
 
             self.assertEqual(destination.read_text(encoding="utf-8"), original)
+            self.assertEqual(
+                list(destination.parent.glob(f".{destination.name}.*.tmp")), []
+            )
+
+    def test_permission_failure_preserves_destination_and_cleans_temporary_file(self):
+        pattern_name = next(iter(get_all_patterns()))
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            destination = Path(temporary_directory) / "existing.pattern.json"
+            original = b'{"previous": true}\n'
+            destination.write_bytes(original)
+
+            with patch(
+                "src.pattern_exchange.os.replace",
+                side_effect=PermissionError("denied"),
+            ):
+                with self.assertRaises(PatternExportPermissionDeniedError):
+                    export_pattern(pattern_name, destination)
+
+            self.assertEqual(destination.read_bytes(), original)
             self.assertEqual(
                 list(destination.parent.glob(f".{destination.name}.*.tmp")), []
             )

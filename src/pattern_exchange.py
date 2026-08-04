@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from pathlib import Path
 import tempfile
@@ -21,6 +22,7 @@ from src.user_data import get_user_patterns_path
 PATTERN_EXCHANGE_FORMAT = "sm1-dow2-texture-painter-pattern"
 PATTERN_EXCHANGE_VERSION = 1
 PATTERN_EXCHANGE_SUFFIX = ".pattern.json"
+LOGGER = logging.getLogger(__name__)
 
 
 class PatternImportError(ValueError):
@@ -35,6 +37,14 @@ class InvalidPatternFileError(PatternImportError):
     """Raised when valid JSON does not contain a valid pattern document."""
 
 
+class InvalidImportedPatternNameError(InvalidPatternFileError):
+    """Raised when an imported pattern name is missing or invalid."""
+
+
+class InvalidImportedPatternColorsError(InvalidPatternFileError):
+    """Raised when imported pattern colors are missing or invalid."""
+
+
 class UnsupportedPatternVersionError(PatternImportError):
     """Raised when a pattern document uses an unsupported version."""
 
@@ -45,6 +55,18 @@ class PatternExportError(OSError):
 
 class PatternImportReadError(OSError):
     """Raised when a pattern exchange file cannot be read."""
+
+
+class PatternFileNotFoundError(PatternImportReadError):
+    """Raised when a selected pattern file no longer exists."""
+
+
+class PatternPermissionDeniedError(PatternImportReadError):
+    """Raised when a selected pattern file cannot be read due to permissions."""
+
+
+class PatternExportPermissionDeniedError(PatternExportError):
+    """Raised when an export destination cannot be written due to permissions."""
 
 
 class BuiltinPatternImportConflictError(PatternImportError):
@@ -108,24 +130,29 @@ def validate_imported_pattern(data):
             f"supported version is {PATTERN_EXCHANGE_VERSION}"
         )
     if "name" not in data:
-        raise InvalidPatternFileError("Pattern file is missing its name")
+        raise InvalidImportedPatternNameError("Pattern file is missing its name")
     if not isinstance(data["name"], str):
-        raise InvalidPatternFileError("Pattern file name must be a string")
+        raise InvalidImportedPatternNameError("Pattern file name must be a string")
     if "colors" not in data or not isinstance(data["colors"], dict):
-        raise InvalidPatternFileError("Pattern file must contain a colors object")
+        raise InvalidImportedPatternColorsError(
+            "Pattern file must contain a colors object"
+        )
 
     colors = data["colors"]
     missing_keys = [key for key in color_key if key not in colors]
     if missing_keys:
-        raise InvalidPatternFileError(
+        raise InvalidImportedPatternColorsError(
             "Pattern file is missing required colors: " + ", ".join(missing_keys)
         )
 
     try:
         normalized_name = normalize_pattern_name(data["name"])
+    except InvalidPatternError as exc:
+        raise InvalidImportedPatternNameError(str(exc)) from exc
+    try:
         normalized_colors = normalize_pattern_colors([colors[key] for key in color_key])
     except InvalidPatternError as exc:
-        raise InvalidPatternFileError(str(exc)) from exc
+        raise InvalidImportedPatternColorsError(str(exc)) from exc
 
     return create_pattern_exchange_document(
         normalized_name, dict(zip(color_key, normalized_colors))
@@ -146,6 +173,14 @@ def read_pattern_file(path):
     path = Path(path)
     try:
         json_text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise InvalidPatternJsonError("Pattern file is not valid UTF-8 text") from exc
+    except FileNotFoundError as exc:
+        raise PatternFileNotFoundError(f'Pattern file was not found: "{path}"') from exc
+    except PermissionError as exc:
+        raise PatternPermissionDeniedError(
+            f'Permission was denied reading pattern file: "{path}"'
+        ) from exc
     except OSError as exc:
         raise PatternImportReadError(
             f'Could not read pattern file "{path}": {exc}'
@@ -190,23 +225,35 @@ def export_pattern(name, destination):
         destination = Path(destination)
     except TypeError as exc:
         raise PatternExportError("Pattern export destination is invalid") from exc
-    protected_destinations = {get_user_patterns_path().resolve()}
     try:
-        protected_destinations.add(Path(ARMY_PATTERN_RESOURCE).resolve())
-    except TypeError:
-        pass
-    if destination.resolve() in protected_destinations:
+        protected_destinations = {get_user_patterns_path().resolve()}
+        try:
+            protected_destinations.add(Path(ARMY_PATTERN_RESOURCE).resolve())
+        except TypeError:
+            pass
+        if destination.resolve() in protected_destinations:
+            raise PatternExportError(
+                "Pattern source file cannot be used as an export destination: "
+                f'"{destination}"'
+            )
+        if destination.exists() and not destination.is_file():
+            raise PatternExportError(
+                f'Pattern export destination is not a file: "{destination}"'
+            )
+        if not destination.parent.is_dir():
+            raise PatternExportError(
+                f'Pattern export directory does not exist: "{destination.parent}"'
+            )
+    except PermissionError as exc:
+        raise PatternExportPermissionDeniedError(
+            f'Permission was denied accessing export destination "{destination}"'
+        ) from exc
+    except PatternExportError:
+        raise
+    except OSError as exc:
         raise PatternExportError(
-            f'Pattern source file cannot be used as an export destination: "{destination}"'
-        )
-    if destination.exists() and not destination.is_file():
-        raise PatternExportError(
-            f'Pattern export destination is not a file: "{destination}"'
-        )
-    if not destination.parent.is_dir():
-        raise PatternExportError(
-            f'Pattern export directory does not exist: "{destination.parent}"'
-        )
+            f'Could not access pattern export destination "{destination}": {exc}'
+        ) from exc
 
     document = create_pattern_exchange_document(name, pattern)
     temporary_path = None
@@ -226,6 +273,10 @@ def export_pattern(name, destination):
             os.fsync(fp.fileno())
         os.replace(temporary_path, destination)
         temporary_path = None
+    except PermissionError as exc:
+        raise PatternExportPermissionDeniedError(
+            f'Permission was denied exporting pattern to "{destination}"'
+        ) from exc
     except OSError as exc:
         raise PatternExportError(
             f'Could not export pattern to "{destination}": {exc}'
@@ -235,4 +286,8 @@ def export_pattern(name, destination):
             try:
                 temporary_path.unlink(missing_ok=True)
             except OSError:
-                pass
+                LOGGER.warning(
+                    "Could not remove failed Pattern export temporary file: %s",
+                    temporary_path,
+                    exc_info=True,
+                )

@@ -635,8 +635,13 @@ class PatternImportConflictDialog(tk.Toplevel):
 
     def _finish(self, result):
         self.result = result
-        self.grab_release()
-        self.destroy()
+        try:
+            if self.winfo_exists():
+                self.grab_release()
+                self.destroy()
+        except tk.TclError:
+            # The parent may have destroyed this modal while it was open.
+            pass
 
 
 class BatchEditTopLevel(tk.Toplevel):

@@ -9,9 +9,13 @@ from src.color_pattern_handler import color_key
 from src.frame_main import PATTERN_FILETYPES, ArmyPainter
 from src.pattern_exchange import (
     ImportedPattern,
+    InvalidImportedPatternColorsError,
+    InvalidImportedPatternNameError,
     InvalidPatternFileError,
     InvalidPatternJsonError,
     PatternImportReadError,
+    PatternFileNotFoundError,
+    PatternPermissionDeniedError,
     UnsupportedPatternVersionError,
     UserPatternImportConflictError,
 )
@@ -121,9 +125,16 @@ class PatternImportGuiTests(unittest.TestCase):
         self, open_dialog, showerror
     ):
         errors = (
+            (PatternFileNotFoundError("missing"), "Pattern File Not Found"),
+            (PatternPermissionDeniedError("denied"), "Permission Denied"),
             (PatternImportReadError("unreadable"), "Unreadable Pattern File"),
             (InvalidPatternJsonError("malformed"), "Malformed Pattern JSON"),
-            (InvalidPatternFileError("wrong format"), "Invalid Pattern File"),
+            (InvalidPatternFileError("wrong format"), "Wrong Pattern Format"),
+            (InvalidImportedPatternNameError("bad name"), "Invalid Pattern Name"),
+            (
+                InvalidImportedPatternColorsError("bad colors"),
+                "Invalid Pattern Colors",
+            ),
             (
                 UnsupportedPatternVersionError("future version"),
                 "Unsupported Pattern Version",
@@ -180,7 +191,10 @@ class PatternImportGuiTests(unittest.TestCase):
         with self.assertLogs("src.frame_main", level="ERROR"):
             ArmyPainter.import_pattern(painter)
 
-        showerror.assert_called_once_with("Cannot Import Pattern", "disk is read-only")
+        showerror.assert_called_once_with(
+            "Cannot Import Pattern",
+            "The Pattern could not be saved:\ndisk is read-only",
+        )
         self.assertEqual(painter.frame_army_pattern.load_count, 0)
         self.assertEqual(painter.settings.saved_directories, [])
 
@@ -220,6 +234,12 @@ class PatternImportGuiTests(unittest.TestCase):
         self.assertEqual(painter.menu_state_updates, 1)
         self.assertEqual(painter.settings.saved_directories, [import_directory])
         showerror.assert_not_called()
+
+    @patch("src.frame_main.read_pattern_file", side_effect=RuntimeError("bug"))
+    @patch("src.frame_main.filedialog.askopenfilename", return_value="pattern.json")
+    def test_unexpected_import_error_is_not_suppressed(self, open_dialog, read_pattern):
+        with self.assertRaisesRegex(RuntimeError, "bug"):
+            ArmyPainter.import_pattern(FakePainter(Path("imports")))
 
 
 if __name__ == "__main__":

@@ -3,6 +3,8 @@ import unittest
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.color_pattern_handler import color_key
 from src.pattern_exchange import (
+    InvalidImportedPatternColorsError,
+    InvalidImportedPatternNameError,
     InvalidPatternFileError,
     InvalidPatternJsonError,
     PATTERN_EXCHANGE_FORMAT,
@@ -123,7 +125,7 @@ class PatternExchangeValidationTests(unittest.TestCase):
             {**self.valid_document, "name": 123},
         ):
             with self.subTest(document=document):
-                with self.assertRaises(InvalidPatternFileError):
+                with self.assertRaises(InvalidImportedPatternNameError):
                     validate_imported_pattern(document)
 
     def test_missing_or_nonobject_colors_are_rejected(self):
@@ -131,7 +133,7 @@ class PatternExchangeValidationTests(unittest.TestCase):
         missing.pop("colors")
         for document in (missing, {**self.valid_document, "colors": []}):
             with self.subTest(document=document):
-                with self.assertRaises(InvalidPatternFileError):
+                with self.assertRaises(InvalidImportedPatternColorsError):
                     validate_imported_pattern(document)
 
     def test_each_missing_color_key_is_rejected(self):
@@ -139,7 +141,7 @@ class PatternExchangeValidationTests(unittest.TestCase):
             colors = dict(self.valid_document["colors"])
             colors.pop(key)
             with self.subTest(key=key):
-                with self.assertRaises(InvalidPatternFileError):
+                with self.assertRaises(InvalidImportedPatternColorsError):
                     validate_imported_pattern({**self.valid_document, "colors": colors})
 
     def test_none_and_invalid_color_values_are_rejected(self):
@@ -147,7 +149,7 @@ class PatternExchangeValidationTests(unittest.TestCase):
             colors = dict(self.valid_document["colors"])
             colors["primary_colour_name"] = value
             with self.subTest(value=value):
-                with self.assertRaises(InvalidPatternFileError):
+                with self.assertRaises(InvalidImportedPatternColorsError):
                     validate_imported_pattern({**self.valid_document, "colors": colors})
 
     def test_unknown_fields_are_ignored(self):

@@ -14,6 +14,9 @@ from src.pattern_exchange import (
     BuiltinPatternImportConflictError,
     ImportedPattern,
     InvalidPatternImportNameError,
+    InvalidPatternJsonError,
+    PatternFileNotFoundError,
+    PatternPermissionDeniedError,
     UserPatternImportConflictError,
     import_pattern,
     read_pattern_file,
@@ -66,6 +69,27 @@ class PatternImportTests(unittest.TestCase):
             self.assertEqual(result, "Imported")
             self.assertTrue(is_user_pattern("Imported"))
             self.assertEqual(load_user_patterns(user_path)["Imported"], colors())
+
+    def test_read_file_distinguishes_missing_and_permission_failures(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            missing = Path(temporary_directory) / "missing.pattern.json"
+            with self.assertRaises(PatternFileNotFoundError):
+                read_pattern_file(missing)
+
+            with patch.object(Path, "read_text", side_effect=PermissionError("denied")):
+                with self.assertRaises(PatternPermissionDeniedError):
+                    read_pattern_file(missing)
+
+    def test_read_file_rejects_invalid_utf8_without_modifying_it(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            source = Path(temporary_directory) / "invalid.pattern.json"
+            original = b"\xff\xfe\x00"
+            source.write_bytes(original)
+
+            with self.assertRaises(InvalidPatternJsonError):
+                read_pattern_file(source)
+
+            self.assertEqual(source.read_bytes(), original)
 
     def test_import_persists_for_newly_loaded_collection(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -178,6 +202,9 @@ class PatternImportTests(unittest.TestCase):
 
             self.assertEqual(user_path.read_bytes(), previous_file)
             self.assertEqual(pattern_handler.user_color_patterns, previous_memory)
+            self.assertEqual(
+                list(user_path.parent.glob(".user_patterns.json.*.tmp")), []
+            )
 
 
 if __name__ == "__main__":

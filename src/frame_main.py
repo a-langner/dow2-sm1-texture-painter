@@ -35,6 +35,7 @@ from src.dow1_converter import get_tem_filenames, convert_tem_texture
 from src.color_pattern_handler import (
     InvalidPatternError,
     PatternError,
+    PatternNotFoundError,
     get_all_patterns,
     normalize_pattern_name,
 )
@@ -42,9 +43,16 @@ from src.image_process import ImageWorkbench, TextureValidationError
 from src.pattern_exchange import (
     PATTERN_EXCHANGE_SUFFIX,
     BuiltinPatternImportConflictError,
+    InvalidImportedPatternColorsError,
+    InvalidImportedPatternNameError,
     InvalidPatternFileError,
     InvalidPatternJsonError,
+    InvalidPatternImportNameError,
+    PatternExportError,
+    PatternExportPermissionDeniedError,
+    PatternFileNotFoundError,
     PatternImportReadError,
+    PatternPermissionDeniedError,
     UnsupportedPatternVersionError,
     UserPatternImportConflictError,
     export_pattern,
@@ -1022,17 +1030,61 @@ class ArmyPainter(tk.Tk):
 
         try:
             imported_pattern = read_pattern_file(source)
+        except PatternFileNotFoundError as exc:
+            self._show_pattern_import_error(
+                "Pattern File Not Found",
+                exc,
+                f"The Pattern file was not found:\n{source}",
+            )
+            return
+        except PatternPermissionDeniedError as exc:
+            self._show_pattern_import_error(
+                "Permission Denied",
+                exc,
+                f"Permission was denied reading:\n{source}",
+            )
+            return
         except PatternImportReadError as exc:
-            self._show_pattern_import_error("Unreadable Pattern File", exc)
+            self._show_pattern_import_error(
+                "Unreadable Pattern File",
+                exc,
+                f"The Pattern file could not be read:\n{source}",
+            )
             return
         except InvalidPatternJsonError as exc:
-            self._show_pattern_import_error("Malformed Pattern JSON", exc)
+            self._show_pattern_import_error(
+                "Malformed Pattern JSON",
+                exc,
+                f"The file contains malformed JSON:\n{source}",
+            )
             return
         except UnsupportedPatternVersionError as exc:
-            self._show_pattern_import_error("Unsupported Pattern Version", exc)
+            self._show_pattern_import_error(
+                "Unsupported Pattern Version",
+                exc,
+                f"The Pattern version is not supported:\n{source}\n\n{exc}",
+            )
+            return
+        except InvalidImportedPatternNameError as exc:
+            self._show_pattern_import_error(
+                "Invalid Pattern Name",
+                exc,
+                f"The Pattern name is invalid:\n{source}\n\n{exc}",
+            )
+            return
+        except InvalidImportedPatternColorsError as exc:
+            self._show_pattern_import_error(
+                "Invalid Pattern Colors",
+                exc,
+                f"The Pattern colors are invalid:\n{source}\n\n{exc}",
+            )
             return
         except InvalidPatternFileError as exc:
-            self._show_pattern_import_error("Invalid Pattern File", exc)
+            self._show_pattern_import_error(
+                "Wrong Pattern Format",
+                exc,
+                f"The file is not a supported Pattern file:\n{source}\n\n{exc}",
+            )
             return
 
         try:
@@ -1043,8 +1095,15 @@ class ArmyPainter(tk.Tk):
                 self._request_pattern_import_name,
                 self._report_invalid_pattern_import_name,
             )
+        except InvalidPatternImportNameError as exc:
+            self._show_pattern_import_error("Invalid Pattern Name", exc)
+            return
         except (PatternError, OSError) as exc:
-            self._show_pattern_import_error("Cannot Import Pattern", exc)
+            self._show_pattern_import_error(
+                "Cannot Import Pattern",
+                exc,
+                f"The Pattern could not be saved:\n{exc}",
+            )
             return
         if imported_name is None:
             return
@@ -1103,7 +1162,19 @@ class ArmyPainter(tk.Tk):
 
         try:
             export_pattern(pattern_name, destination)
-        except (PatternError, OSError) as exc:
+        except PatternExportPermissionDeniedError as exc:
+            LOGGER.exception(
+                "Could not export pattern '%s' to %s",
+                pattern_name,
+                destination,
+            )
+            showerror(
+                "Permission Denied",
+                f"Permission was denied exporting '{pattern_name}' to:\n"
+                f"{destination}",
+            )
+            return
+        except (PatternNotFoundError, PatternExportError) as exc:
             LOGGER.exception(
                 "Could not export pattern '%s' to %s",
                 pattern_name,
