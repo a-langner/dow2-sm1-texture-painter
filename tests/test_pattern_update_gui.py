@@ -1,4 +1,3 @@
-import tkinter as tk
 import unittest
 from unittest.mock import patch
 
@@ -87,7 +86,7 @@ class PatternUpdateGuiTests(unittest.TestCase):
         confirm.assert_called_once_with(
             "Update Pattern",
             'Update pattern "Custom" with the current colors?',
-            default=tk.NO,
+            default="no",
             parent=painter,
         )
         update.assert_not_called()

@@ -1156,7 +1156,7 @@ class ArmyPainter(tk.Tk):
         confirmed = askyesno(
             "Update Pattern",
             f'Update pattern "{pattern_name}" with the current colors?',
-            default=tk.NO,
+            default="no",
             parent=self,
         )
         if not confirmed:
