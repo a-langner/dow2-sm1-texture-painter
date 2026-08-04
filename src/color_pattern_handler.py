@@ -199,11 +199,15 @@ def _is_valid_pattern_collection(patterns):
     return True
 
 
-def _validate_new_pattern(name, colors):
+def normalize_pattern_name(name):
+    """Validate and trim a pattern name using persistence rules."""
     if name is None or not isinstance(name, str) or not name.strip():
         raise InvalidPatternError("Pattern name must not be empty")
-    normalized_name = name.strip()
+    return name.strip()
 
+
+def normalize_pattern_colors(colors):
+    """Validate four color values using the persistent #RRGGBB format."""
     try:
         normalized_colors = list(colors)
     except TypeError as exc:
@@ -218,6 +222,12 @@ def _validate_new_pattern(name, colors):
         raise InvalidPatternError(
             "Colors must use the #RRGGBB hexadecimal format"
         )
+    return normalized_colors
+
+
+def _validate_new_pattern(name, colors):
+    normalized_name = normalize_pattern_name(name)
+    normalized_colors = normalize_pattern_colors(colors)
 
     if normalized_name in builtin_color_patterns:
         raise PatternNameConflictError(

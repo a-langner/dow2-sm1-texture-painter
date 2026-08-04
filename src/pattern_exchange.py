@@ -1,8 +1,31 @@
-from src.color_pattern_handler import color_key
+import json
+
+from src.color_pattern_handler import (
+    InvalidPatternError,
+    color_key,
+    normalize_pattern_colors,
+    normalize_pattern_name,
+)
 
 PATTERN_EXCHANGE_FORMAT = "sm1-dow2-texture-painter-pattern"
 PATTERN_EXCHANGE_VERSION = 1
 PATTERN_EXCHANGE_SUFFIX = ".pattern.json"
+
+
+class PatternImportError(ValueError):
+    """Base class for errors while reading an exchanged pattern."""
+
+
+class InvalidPatternJsonError(PatternImportError):
+    """Raised when imported text is not valid JSON."""
+
+
+class InvalidPatternFileError(PatternImportError):
+    """Raised when valid JSON does not contain a valid pattern document."""
+
+
+class UnsupportedPatternVersionError(PatternImportError):
+    """Raised when a pattern document uses an unsupported version."""
 
 
 def create_pattern_exchange_document(name, pattern):
@@ -29,3 +52,54 @@ def has_supported_pattern_exchange_version(document):
         and type(document.get("version")) is int
         and document["version"] == PATTERN_EXCHANGE_VERSION
     )
+
+
+def validate_imported_pattern(data):
+    """Validate a parsed exchange document and return its normalized form."""
+    if not isinstance(data, dict):
+        raise InvalidPatternFileError("Pattern file must contain a JSON object")
+    if "format" not in data:
+        raise InvalidPatternFileError("Pattern file is missing its format identifier")
+    if not has_pattern_exchange_format(data):
+        raise InvalidPatternFileError("Pattern file has an invalid format identifier")
+    if "version" not in data:
+        raise InvalidPatternFileError("Pattern file is missing its format version")
+    if type(data["version"]) is not int:
+        raise InvalidPatternFileError("Pattern file version must be an integer")
+    if not has_supported_pattern_exchange_version(data):
+        raise UnsupportedPatternVersionError(
+            f"Unsupported pattern file version {data['version']!r}; "
+            f"supported version is {PATTERN_EXCHANGE_VERSION}"
+        )
+    if "name" not in data:
+        raise InvalidPatternFileError("Pattern file is missing its name")
+    if not isinstance(data["name"], str):
+        raise InvalidPatternFileError("Pattern file name must be a string")
+    if "colors" not in data or not isinstance(data["colors"], dict):
+        raise InvalidPatternFileError("Pattern file must contain a colors object")
+
+    colors = data["colors"]
+    missing_keys = [key for key in color_key if key not in colors]
+    if missing_keys:
+        raise InvalidPatternFileError(
+            "Pattern file is missing required colors: " + ", ".join(missing_keys)
+        )
+
+    try:
+        normalized_name = normalize_pattern_name(data["name"])
+        normalized_colors = normalize_pattern_colors([colors[key] for key in color_key])
+    except InvalidPatternError as exc:
+        raise InvalidPatternFileError(str(exc)) from exc
+
+    return create_pattern_exchange_document(
+        normalized_name, dict(zip(color_key, normalized_colors))
+    )
+
+
+def parse_imported_pattern_json(json_text):
+    """Parse JSON text separately from validating its pattern content."""
+    try:
+        data = json.loads(json_text)
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise InvalidPatternJsonError("Pattern file contains invalid JSON") from exc
+    return validate_imported_pattern(data)
