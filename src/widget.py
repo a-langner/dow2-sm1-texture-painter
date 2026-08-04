@@ -13,6 +13,7 @@ from src.constant import OPEN_FILETYPES, SAVE_EXT_LIST, ColorOps
 COLOR_BOX_SIZE = 90
 COLOR_BTN_HEIGHT = 26
 PATTERN_MARKER_COLUMN_WIDTH = 28
+HEADER_SEPARATOR_STARTUP_RETRIES = 3
 
 
 def calculate_pattern_separator_x(
@@ -292,6 +293,11 @@ class FramePatternList(tk.Frame):
         self.header_separator = ttk.Separator(
             self.tree_frame, orient=tk.HORIZONTAL, takefocus=False
         )
+        self.header_separator_startup_retries = HEADER_SEPARATOR_STARTUP_RETRIES
+        self.header_separator_startup_after_id = None
+        self.header_separator_map_binding_id = self.tree.bind(
+            "<Map>", self._on_tree_mapped, add="+"
+        )
         self.tree.bind(
             "<Configure>", self._position_column_separator, add="+"
         )
@@ -322,7 +328,7 @@ class FramePatternList(tk.Frame):
         self.header_separator.bind(
             "<Button-5>", self._scroll_tree_down_through_separator
         )
-        self._schedule_separator_position()
+        self.after_idle(self._position_column_separator)
 
         self.load_pattern_list()
         self.save_pattern = tk.Button(
@@ -403,10 +409,42 @@ class FramePatternList(tk.Frame):
         self.after_idle(self._position_column_separator)
         self.after_idle(self._position_header_separator)
 
+    def _on_tree_mapped(self, Event=None):
+        self._schedule_initial_header_separator_position()
+
+    def _schedule_initial_header_separator_position(self):
+        if self.header_separator_startup_after_id is not None:
+            return
+        self.header_separator_startup_after_id = self.after_idle(
+            self._position_initial_header_separator
+        )
+
+    def _position_initial_header_separator(self):
+        self.header_separator_startup_after_id = None
+        try:
+            if not self.tree.winfo_exists():
+                return
+            self.tree.update_idletasks()
+        except tk.TclError:
+            return
+
+        if self._position_header_separator():
+            self.header_separator_startup_retries = 0
+            if self.header_separator_map_binding_id is not None:
+                self.tree.unbind(
+                    "<Map>", self.header_separator_map_binding_id
+                )
+                self.header_separator_map_binding_id = None
+            return
+
+        self.header_separator_startup_retries -= 1
+        if self.header_separator_startup_retries > 0:
+            self._schedule_initial_header_separator_position()
+
     def _position_header_separator(self, Event=None):
         boundary_y = find_treeview_body_boundary(self.tree)
         if boundary_y is None:
-            return
+            return False
 
         separator_height = max(self.header_separator.winfo_reqheight(), 1)
         separator_y = self.tree.winfo_y() + max(
@@ -418,6 +456,7 @@ class FramePatternList(tk.Frame):
             width=self.tree.winfo_width(),
         )
         self.header_separator.lift()
+        return True
 
     def _select_row_through_separator(self, Event):
         tree_y = Event.y_root - self.tree.winfo_rooty()

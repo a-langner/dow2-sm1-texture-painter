@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.widget import (
@@ -44,6 +45,45 @@ class FakeRegionTree:
         return "heading" if y < self.boundary else self.body_region
 
 
+class FakeSeparator:
+    def __init__(self):
+        self.placement = None
+        self.lifted = False
+
+    def winfo_reqheight(self):
+        return 2
+
+    def place(self, **kwargs):
+        self.placement = kwargs
+
+    def lift(self):
+        self.lifted = True
+
+
+class FakePositionTree:
+    def __init__(self):
+        self.idle_updates = 0
+        self.unbound = []
+
+    def winfo_x(self):
+        return 6
+
+    def winfo_y(self):
+        return 4
+
+    def winfo_width(self):
+        return 300
+
+    def winfo_exists(self):
+        return True
+
+    def update_idletasks(self):
+        self.idle_updates += 1
+
+    def unbind(self, sequence, binding_id):
+        self.unbound.append((sequence, binding_id))
+
+
 class PatternTreeviewLayoutTests(unittest.TestCase):
     def test_header_boundary_uses_populated_tree_hit_testing(self):
         tree = FakeRegionTree(boundary=24, body_region="cell")
@@ -54,6 +94,67 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
         tree = FakeRegionTree(boundary=27, body_region="nothing")
 
         self.assertEqual(find_treeview_body_boundary(tree), 27)
+
+    @patch("src.widget.find_treeview_body_boundary", return_value=None)
+    def test_header_separator_position_reports_layout_not_ready(self, boundary):
+        frame = object.__new__(FramePatternList)
+        frame.tree = FakePositionTree()
+        frame.header_separator = FakeSeparator()
+
+        self.assertFalse(frame._position_header_separator())
+        self.assertIsNone(frame.header_separator.placement)
+
+    @patch("src.widget.find_treeview_body_boundary", return_value=24)
+    def test_header_separator_position_reports_success(self, boundary):
+        frame = object.__new__(FramePatternList)
+        frame.tree = FakePositionTree()
+        frame.header_separator = FakeSeparator()
+
+        self.assertTrue(frame._position_header_separator())
+        self.assertEqual(
+            frame.header_separator.placement,
+            {"x": 6, "y": 26, "width": 300},
+        )
+        self.assertTrue(frame.header_separator.lifted)
+
+    def test_startup_position_suppresses_duplicates_and_unbinds_after_success(self):
+        frame = object.__new__(FramePatternList)
+        frame.tree = FakePositionTree()
+        frame.header_separator_startup_retries = 3
+        frame.header_separator_startup_after_id = None
+        frame.header_separator_map_binding_id = "map-binding"
+        pending_callbacks = []
+        frame.after_idle = lambda callback: pending_callbacks.append(callback) or "idle"
+        frame._position_header_separator = lambda: True
+
+        frame._schedule_initial_header_separator_position()
+        frame._schedule_initial_header_separator_position()
+
+        self.assertEqual(len(pending_callbacks), 1)
+        pending_callbacks.pop()()
+        self.assertEqual(frame.tree.idle_updates, 1)
+        self.assertEqual(frame.tree.unbound, [("<Map>", "map-binding")])
+        self.assertIsNone(frame.header_separator_map_binding_id)
+
+    def test_startup_position_retries_are_bounded(self):
+        frame = object.__new__(FramePatternList)
+        frame.tree = FakePositionTree()
+        frame.header_separator_startup_retries = 3
+        frame.header_separator_startup_after_id = None
+        frame.header_separator_map_binding_id = "map-binding"
+        pending_callbacks = []
+        frame.after_idle = lambda callback: pending_callbacks.append(callback) or "idle"
+        frame._position_header_separator = lambda: False
+
+        frame._schedule_initial_header_separator_position()
+        attempts = 0
+        while pending_callbacks:
+            attempts += 1
+            pending_callbacks.pop(0)()
+
+        self.assertEqual(attempts, 3)
+        self.assertEqual(frame.header_separator_startup_retries, 0)
+        self.assertIsNone(frame.header_separator_startup_after_id)
 
     def test_separator_tracks_marker_boundary_when_tree_resizes(self):
         narrow = calculate_pattern_separator_x(0, 200, 28, 1)
