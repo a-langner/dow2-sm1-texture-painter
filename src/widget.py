@@ -251,6 +251,22 @@ class FramePatternList(tk.Frame):
         )
         self.scrollbar.config(command=self.tree.yview)
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.header_separator_pressed = False
+        self.tree.bind(
+            "<Button-1>", self._block_header_separator_press, add="+"
+        )
+        self.tree.bind(
+            "<B1-Motion>", self._block_header_separator_drag, add="+"
+        )
+        self.tree.bind(
+            "<ButtonRelease-1>",
+            self._block_header_separator_release,
+            add="+",
+        )
+        self.tree.bind(
+            "<Motion>", self._update_header_separator_cursor, add="+"
+        )
+        self.tree.bind("<Leave>", self._restore_tree_cursor, add="+")
 
         self.column_separator = ttk.Separator(
             self.tree_frame, orient=tk.VERTICAL, takefocus=False
@@ -295,6 +311,38 @@ class FramePatternList(tk.Frame):
             return round(float(border_width))
         except (TypeError, ValueError):
             return 0
+
+    def _is_header_separator(self, Event):
+        return self.tree.identify_region(Event.x, Event.y) == "separator"
+
+    def _block_header_separator_press(self, Event):
+        self.header_separator_pressed = self._is_header_separator(Event)
+        if self.header_separator_pressed:
+            self.tree.configure(cursor="arrow")
+            return "break"
+
+    def _block_header_separator_drag(self, Event):
+        if self.header_separator_pressed or self._is_header_separator(Event):
+            self.tree.configure(cursor="arrow")
+            return "break"
+
+    def _block_header_separator_release(self, Event):
+        block_release = (
+            self.header_separator_pressed or self._is_header_separator(Event)
+        )
+        self.header_separator_pressed = False
+        if block_release:
+            self.tree.configure(cursor="arrow")
+            return "break"
+
+    def _update_header_separator_cursor(self, Event):
+        if self._is_header_separator(Event):
+            self.tree.configure(cursor="arrow")
+            return "break"
+        self._restore_tree_cursor()
+
+    def _restore_tree_cursor(self, Event=None):
+        self.tree.configure(cursor="")
 
     def _position_column_separator(self, Event=None):
         tree_width = self.tree.winfo_width()
