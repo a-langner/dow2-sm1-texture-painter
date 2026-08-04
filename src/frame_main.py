@@ -1130,7 +1130,60 @@ class ArmyPainter(tk.Tk):
         self.update_pattern_action_states(selection)
 
     def rename_selected_pattern(self):
-        """Placeholder for the selected-Pattern rename workflow."""
+        """Rename the selected user Pattern while preserving its GUI state."""
+        selection = self.frame_army_pattern.get_selected_pattern()
+        if selection is None:
+            return
+        if not selection.is_user:
+            self.update_pattern_action_states(selection)
+            return
+
+        old_name = selection.name
+        requested_name = askstring(
+            "Rename Pattern",
+            "Pattern name:",
+            initialvalue=old_name,
+            parent=self,
+        )
+        if requested_name is None:
+            return
+
+        try:
+            new_name = normalize_pattern_name(requested_name)
+        except InvalidPatternError as exc:
+            showerror("Cannot Rename Pattern", str(exc), parent=self)
+            return
+
+        if new_name == old_name:
+            self.update_pattern_action_states(selection)
+            return
+
+        try:
+            renamed_name = src.color_pattern_handler.rename_user_pattern(
+                old_name, new_name
+            )
+        except UserPatternPersistenceError as exc:
+            LOGGER.exception("Could not rename user Pattern '%s'", old_name)
+            showerror(
+                "Cannot Rename Pattern",
+                f"The Pattern could not be saved:\n{exc}",
+                parent=self,
+            )
+            return
+        except PatternError as exc:
+            showerror("Cannot Rename Pattern", str(exc), parent=self)
+            return
+        except OSError as exc:
+            LOGGER.exception("Could not rename user Pattern '%s'", old_name)
+            showerror(
+                "Cannot Rename Pattern",
+                f"The Pattern could not be saved:\n{exc}",
+                parent=self,
+            )
+            return
+
+        self.frame_army_pattern.load_pattern_list(renamed_name)
+        self.update_pattern_action_states()
 
     def delete_pattern(self):
         selection = self.frame_army_pattern.get_selected_pattern()
