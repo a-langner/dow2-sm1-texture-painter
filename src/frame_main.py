@@ -34,6 +34,7 @@ from src.color_pattern_handler import (
     get_all_patterns,
 )
 from src.image_process import ImageWorkbench, TextureValidationError
+from src.settings_handler import SettingsHandler
 from pathlib import Path
 
 from importlib.resources import as_file, files
@@ -236,6 +237,7 @@ class ArmyPainter(tk.Tk):
         self.title(f"Army Painter {VERSION}")
 
         self.img_wbench = ImageWorkbench()
+        self.settings = SettingsHandler()
         self.frame_batch_tools = None
         self.preview_executor = ThreadPoolExecutor(max_workers=1)
         self.batch_executor = ThreadPoolExecutor(max_workers=1)
@@ -640,7 +642,8 @@ class ArmyPainter(tk.Tk):
 
     def open_diffuse(self, Event=None):
         filepath = filedialog.askopenfilename(
-            initialdir=os.curdir, filetypes=OPEN_FILETYPES
+            initialdir=self.settings.get_diffuse_initial_directory(),
+            filetypes=OPEN_FILETYPES,
         )
         if not filepath:
             return
@@ -652,6 +655,11 @@ class ArmyPainter(tk.Tk):
             self.load_file(filepath)
         except TextureValidationError as exc:
             showerror(title="Invalid diffuse texture", message=str(exc))
+            return
+        try:
+            self.settings.remember_diffuse_file(filepath)
+        except OSError:
+            LOGGER.exception("Could not update settings file: %s", self.settings.path)
 
     def open_channel(self, Event=None):
         filepath = filedialog.askopenfilename(

@@ -7,6 +7,8 @@ import test_support  # noqa: F401 - installs the user-data path redirect
 from src.user_data import (
     APP_NAME,
     USER_PATTERNS_FILENAME,
+    SETTINGS_FILENAME,
+    get_settings_path,
     get_user_patterns_path,
 )
 
@@ -44,6 +46,16 @@ class UserPatternsPathTests(unittest.TestCase):
 
             self.assertTrue(data_directory.is_dir())
             self.assertFalse(result.exists())
+
+    def test_settings_path_uses_same_application_data_directory(self):
+        expected_directory = Path("platform-data") / "application"
+
+        with patch(
+            "src.user_data.user_data_path", return_value=expected_directory
+        ):
+            result = get_settings_path()
+
+        self.assertEqual(result, expected_directory / SETTINGS_FILENAME)
 
 
 if __name__ == "__main__":
