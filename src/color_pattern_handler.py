@@ -384,6 +384,56 @@ def update_user_pattern(name: str, colors, pattern_path=None) -> str:
     return normalized_name
 
 
+def rename_user_pattern(old_name: str, new_name: str, pattern_path=None) -> str:
+    """Atomically rename one existing user-created Pattern in place."""
+    normalized_old_name = normalize_pattern_name(old_name)
+    normalized_new_name = normalize_pattern_name(new_name)
+
+    if normalized_old_name in builtin_color_patterns:
+        raise BuiltinPatternModificationError(
+            f"Built-in pattern '{normalized_old_name}' cannot be renamed"
+        )
+    if normalized_old_name not in user_color_patterns:
+        raise PatternNotFoundError(
+            f"Pattern '{normalized_old_name}' was not found"
+        )
+    if normalized_new_name == normalized_old_name:
+        return normalized_new_name
+    if normalized_new_name in builtin_color_patterns:
+        raise PatternNameConflictError(
+            f"'{normalized_new_name}' is a built-in pattern name"
+        )
+    if normalized_new_name in user_color_patterns:
+        raise PatternAlreadyExistsError(
+            f"User pattern '{normalized_new_name}' already exists"
+        )
+
+    renamed_user_patterns = OrderedDict(
+        (
+            normalized_new_name if name == normalized_old_name else name,
+            OrderedDict(pattern),
+        )
+        for name, pattern in user_color_patterns.items()
+    )
+    if pattern_path is None:
+        pattern_path = get_user_patterns_path(create_parent=True)
+    pattern_path = Path(pattern_path)
+    _ensure_user_pattern_file_is_writable(pattern_path)
+    try:
+        _write_user_patterns(renamed_user_patterns, pattern_path)
+    except OSError as exc:
+        raise UserPatternPersistenceError(
+            f"Could not rename user pattern '{normalized_old_name}': {exc}"
+        ) from exc
+
+    user_color_patterns.clear()
+    user_color_patterns.update(renamed_user_patterns)
+    army_color_pattern.clear()
+    army_color_pattern.update(builtin_color_patterns)
+    army_color_pattern.update(user_color_patterns)
+    return normalized_new_name
+
+
 def replace_user_patterns(patterns, pattern_path=None):
     """Atomically replace the complete user collection after batch validation."""
     normalized_patterns = OrderedDict()
