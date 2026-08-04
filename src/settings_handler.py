@@ -9,6 +9,11 @@ from src.user_data import get_settings_path
 SETTINGS_FORMAT = "sm1-dow2-texture-painter-settings"
 SETTINGS_VERSION = 1
 LOGGER = logging.getLogger(__name__)
+DIRECTORY_FIELDS = (
+    "last_diffuse_directory",
+    "last_pattern_import_directory",
+    "last_pattern_export_directory",
+)
 
 
 class SettingsFileError(OSError):
@@ -22,6 +27,8 @@ class SettingsHandler:
         self.path = Path(settings_path or get_settings_path())
         self.home_directory = Path(home_directory or Path.home())
         self.last_diffuse_directory = None
+        self.last_pattern_import_directory = None
+        self.last_pattern_export_directory = None
         self.load_error = None
         self._load()
 
@@ -29,7 +36,9 @@ class SettingsHandler:
         try:
             with self.path.open("r", encoding="utf-8") as fp:
                 document = json.load(fp)
-            self.last_diffuse_directory = self._validate(document)
+            directories = self._validate(document)
+            for field, directory in directories.items():
+                setattr(self, field, directory)
         except FileNotFoundError:
             return
         except (json.JSONDecodeError, OSError, ValueError) as exc:
@@ -47,31 +56,60 @@ class SettingsHandler:
             or document["version"] != SETTINGS_VERSION
         ):
             raise ValueError("Settings file has an unsupported version")
-        directory = document.get("last_diffuse_directory")
-        if directory is not None and not isinstance(directory, str):
-            raise ValueError("Last diffuse directory must be a string")
-        return Path(directory) if directory else None
+        directories = {}
+        for field in DIRECTORY_FIELDS:
+            directory = document.get(field)
+            if directory is not None and not isinstance(directory, str):
+                raise ValueError(f"Settings field {field} must be a string")
+            directories[field] = Path(directory) if directory else None
+        return directories
 
-    def get_diffuse_initial_directory(self):
-        directory = self.last_diffuse_directory
+    def _get_existing_directory(self, field):
+        directory = getattr(self, field)
         if directory is not None and directory.is_dir():
             return directory
         return self.home_directory
 
+    def get_diffuse_initial_directory(self):
+        return self._get_existing_directory("last_diffuse_directory")
+
+    def get_last_pattern_import_directory(self):
+        return self._get_existing_directory("last_pattern_import_directory")
+
+    def get_last_pattern_export_directory(self):
+        return self._get_existing_directory("last_pattern_export_directory")
+
     def remember_diffuse_file(self, diffuse_file):
+        self._set_directory(
+            "last_diffuse_directory", Path(diffuse_file).resolve().parent
+        )
+
+    def set_last_pattern_import_directory(self, directory):
+        self._set_directory("last_pattern_import_directory", directory)
+
+    def set_last_pattern_export_directory(self, directory):
+        self._set_directory("last_pattern_export_directory", directory)
+
+    def _set_directory(self, field, directory):
         if self.load_error is not None and self.path.exists():
             raise SettingsFileError(
                 f"Settings file is invalid and was not overwritten: {self.path}"
             ) from self.load_error
 
-        directory = Path(diffuse_file).resolve().parent
+        directory = Path(directory).resolve()
+        if not directory.is_dir():
+            raise SettingsFileError(f"Settings directory does not exist: {directory}")
+        values = {name: getattr(self, name) for name in DIRECTORY_FIELDS}
+        values[field] = directory
         document = {
             "format": SETTINGS_FORMAT,
             "version": SETTINGS_VERSION,
-            "last_diffuse_directory": str(directory),
         }
+        document.update(
+            {name: str(value) for name, value in values.items() if value is not None}
+        )
         self._write_atomic(document)
-        self.last_diffuse_directory = directory
+        setattr(self, field, directory)
         self.load_error = None
 
     def _write_atomic(self, document):
