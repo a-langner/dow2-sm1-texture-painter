@@ -166,6 +166,7 @@ class FrameColorChooser(tk.Frame):
         if color is not None:
             self.color_boxes[btn_idx]["bg"] = color
             self.draw_rgb_value()
+            self._root().update_pattern_action_states()
             self._root().refresh_workspace()
 
     def draw_rgb_value(self):

@@ -43,9 +43,13 @@ class FakeMenu:
 
 
 class FakePainter:
-    def __init__(self, selected_name=None):
+    def __init__(self, selected_name=None, dirty=False):
         self.frame_army_pattern = FakePatternList(selected_name)
         self.pattern_menu = FakeMenu()
+        self.dirty = dirty
+
+    def is_selected_pattern_dirty(self, selection=None):
+        return self.dirty
 
 
 class PatternMenuStateTests(unittest.TestCase):
@@ -119,6 +123,22 @@ class PatternMenuStateTests(unittest.TestCase):
                 self.assertEqual(
                     painter.frame_army_pattern.action_states.delete,
                     expected_delete,
+                )
+
+    def test_only_dirty_user_selection_enables_update(self):
+        for pattern_name, dirty, expected_update in (
+            ("Built-in", True, "disabled"),
+            ("User-created", False, "disabled"),
+            ("User-created", True, "normal"),
+        ):
+            with self.subTest(pattern_name=pattern_name, dirty=dirty):
+                painter = FakePainter(pattern_name, dirty=dirty)
+
+                ArmyPainter.update_pattern_action_states(painter)
+
+                self.assertEqual(
+                    painter.frame_army_pattern.action_states.update,
+                    expected_update,
                 )
 
     def test_export_returns_to_disabled_when_selection_is_cleared(self):

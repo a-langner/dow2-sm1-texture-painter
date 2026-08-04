@@ -752,13 +752,14 @@ class ArmyPainter(tk.Tk):
     def on_pattern_select(self, Event=None):
         # TODO: Refactor following code so with frame color class
         selection = self.frame_army_pattern.get_selected_pattern()
-        self.update_pattern_action_states(selection)
         if selection is None:
+            self.update_pattern_action_states(selection)
             return
 
         try:
             color_list = get_pattern_colors(selection.name)
         except PatternNotFoundError:
+            self.update_pattern_action_states(selection)
             return
 
         for color, color_box in zip(
@@ -766,6 +767,7 @@ class ArmyPainter(tk.Tk):
         ):
             color_box["bg"] = color
         self.frame_color_chooser.draw_rgb_value()
+        self.update_pattern_action_states(selection)
         self.refresh_workspace()
 
     def select_channel(self, Event=None):
@@ -1036,6 +1038,7 @@ class ArmyPainter(tk.Tk):
         self.frame_sliders.contrast_slider.set(100)
         self.frame_channel_select.lb.selection_set(first=0, last=3)
         self.select_channel()
+        self.update_pattern_action_states()
         self.refresh_workspace()
 
     def save_pattern(self):
@@ -1228,7 +1231,9 @@ class ArmyPainter(tk.Tk):
     def update_pattern_action_states(self, selection=None):
         if selection is None:
             selection = self.frame_army_pattern.get_selected_pattern()
-        states = pattern_action_states(selection)
+        states = pattern_action_states(
+            selection, modified=self.is_selected_pattern_dirty(selection)
+        )
         self.frame_army_pattern.set_pattern_action_states(states)
         self.pattern_menu.entryconfig(
             PATTERN_EXPORT_MENU_LABEL, state=states.export_selected
@@ -1242,6 +1247,19 @@ class ArmyPainter(tk.Tk):
             PATTERN_COLLECTION_EXPORT_MENU_LABEL,
             state=export_all_state,
         )
+
+    def is_selected_pattern_dirty(self, selection=None):
+        """Compare current GUI colors with the selected in-memory Pattern."""
+        if selection is None:
+            selection = self.frame_army_pattern.get_selected_pattern()
+        if selection is None:
+            return False
+        try:
+            current_colors = self.get_current_pattern_colors()
+            stored_colors = get_pattern_colors(selection.name)
+            return not pattern_colors_equal(current_colors, stored_colors)
+        except PatternError:
+            return False
 
     def import_pattern_collection(self):
         source = filedialog.askopenfilename(
