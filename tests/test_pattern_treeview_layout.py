@@ -1,5 +1,6 @@
+import tkinter as tk
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.widget import (
@@ -60,6 +61,28 @@ class FakeSeparator:
         self.lifted = True
 
 
+class FakeActionFrame:
+    def __init__(self):
+        self.pack_options = None
+        self.column_weights = {}
+
+    def pack(self, **kwargs):
+        self.pack_options = kwargs
+
+    def grid_columnconfigure(self, column, weight):
+        self.column_weights[column] = weight
+
+
+class FakeButton:
+    def __init__(self, parent, **kwargs):
+        self.parent = parent
+        self.options = kwargs
+        self.grid_options = None
+
+    def grid(self, **kwargs):
+        self.grid_options = kwargs
+
+
 class FakePositionTree:
     def __init__(self):
         self.idle_updates = 0
@@ -85,6 +108,53 @@ class FakePositionTree:
 
 
 class PatternTreeviewLayoutTests(unittest.TestCase):
+    @patch("src.widget.tk.Button", side_effect=FakeButton)
+    @patch("src.widget.tk.Frame", return_value=FakeActionFrame())
+    def test_pattern_actions_use_balanced_two_by_two_grid(
+        self, _frame_type, _button_type
+    ):
+        frame = object.__new__(FramePatternList)
+        root = type(
+            "Root",
+            (),
+            {
+                "save_pattern": Mock(),
+                "update_selected_pattern": Mock(),
+                "rename_selected_pattern": Mock(),
+                "delete_pattern": Mock(),
+            },
+        )()
+        frame._root = lambda: root
+
+        frame._create_action_buttons()
+
+        self.assertEqual(frame.action_frame.column_weights, {0: 1, 1: 1})
+        self.assertEqual(
+            [
+                frame.save_new_button.options["text"],
+                frame.update_button.options["text"],
+                frame.rename_button.options["text"],
+                frame.delete_button.options["text"],
+            ],
+            ["Save New", "Update", "Rename", "Delete"],
+        )
+        self.assertNotIn("state", frame.save_new_button.options)
+        for button in (
+            frame.update_button,
+            frame.rename_button,
+            frame.delete_button,
+        ):
+            self.assertEqual(button.options["state"], tk.DISABLED)
+            self.assertEqual(button.grid_options["sticky"], tk.EW)
+        self.assertEqual(frame.save_new_button.grid_options["row"], 0)
+        self.assertEqual(frame.save_new_button.grid_options["column"], 0)
+        self.assertEqual(frame.update_button.grid_options["row"], 0)
+        self.assertEqual(frame.update_button.grid_options["column"], 1)
+        self.assertEqual(frame.rename_button.grid_options["row"], 1)
+        self.assertEqual(frame.rename_button.grid_options["column"], 0)
+        self.assertEqual(frame.delete_button.grid_options["row"], 1)
+        self.assertEqual(frame.delete_button.grid_options["column"], 1)
+
     def test_header_boundary_uses_populated_tree_hit_testing(self):
         tree = FakeRegionTree(boundary=24, body_region="cell")
 

@@ -354,19 +354,43 @@ class FramePatternList(tk.Frame):
         self.after_idle(self._position_column_separator)
 
         self.load_pattern_list()
-        self.save_pattern = tk.Button(
-            self, text="Save pattern", command=self._root().save_pattern
-        )
-        self.save_pattern.pack(side=tk.TOP, fill=tk.X)
+        self._create_action_buttons()
+        self.update_delete_button_state()
 
-        self.delete_pattern = tk.Button(
-            self,
-            text="Delete pattern",
+    def _create_action_buttons(self):
+        self.action_frame = tk.Frame(self)
+        self.action_frame.pack(side=tk.TOP, fill=tk.X)
+        self.action_frame.grid_columnconfigure(0, weight=1)
+        self.action_frame.grid_columnconfigure(1, weight=1)
+
+        self.save_new_button = tk.Button(
+            self.action_frame,
+            text="Save New",
+            command=self._root().save_pattern,
+        )
+        self.update_button = tk.Button(
+            self.action_frame,
+            text="Update",
+            command=self._root().update_selected_pattern,
+            state=tk.DISABLED,
+        )
+        self.rename_button = tk.Button(
+            self.action_frame,
+            text="Rename",
+            command=self._root().rename_selected_pattern,
+            state=tk.DISABLED,
+        )
+        self.delete_button = tk.Button(
+            self.action_frame,
+            text="Delete",
             command=self._root().delete_pattern,
             state=tk.DISABLED,
         )
-        self.delete_pattern.pack(side=tk.TOP, fill=tk.X)
-        self.update_delete_button_state()
+
+        self.save_new_button.grid(row=0, column=0, sticky=tk.EW, padx=2, pady=2)
+        self.update_button.grid(row=0, column=1, sticky=tk.EW, padx=2, pady=2)
+        self.rename_button.grid(row=1, column=0, sticky=tk.EW, padx=2, pady=2)
+        self.delete_button.grid(row=1, column=1, sticky=tk.EW, padx=2, pady=2)
 
     def _tree_border_width(self):
         border_width = self.pattern_style.lookup(
@@ -525,7 +549,7 @@ class FramePatternList(tk.Frame):
         restored_item = None
         if pattern_name is not None:
             restored_item = self.select_pattern(pattern_name)
-        if restored_item is None and hasattr(self, "delete_pattern"):
+        if restored_item is None and hasattr(self, "delete_button"):
             self.update_delete_button_state()
         if hasattr(self, "header_separator"):
             self.after_idle(self._position_header_separator)
@@ -574,7 +598,7 @@ class FramePatternList(tk.Frame):
         if selection is None:
             selection = self.get_selected_pattern()
         _, delete_state = pattern_command_states(selection)
-        self.delete_pattern.config(state=delete_state)
+        self.delete_button.config(state=delete_state)
 
     def select_pattern(self, pattern_name):
         item_id = self.get_pattern_item_id(pattern_name)

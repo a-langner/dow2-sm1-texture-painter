@@ -1070,6 +1070,12 @@ class ArmyPainter(tk.Tk):
             color["bg"] for color in self.frame_color_chooser.color_boxes
         )
 
+    def update_selected_pattern(self):
+        """Placeholder for the selected-Pattern update workflow."""
+
+    def rename_selected_pattern(self):
+        """Placeholder for the selected-Pattern rename workflow."""
+
     def delete_pattern(self):
         selection = self.frame_army_pattern.get_selected_pattern()
         if selection is None:
