@@ -45,6 +45,8 @@ PREVIEW_DEBOUNCE_MS = 120
 WINDOW_INITIAL_SCALE = 1.4
 WINDOW_SCREEN_FRACTION = 0.9
 WINDOW_CONTENT_PADDING = 16
+PATTERN_IMPORT_MENU_LABEL = "Import Pattern…"
+PATTERN_EXPORT_MENU_LABEL = "Export Selected Pattern…"
 LOGGER = logging.getLogger(__name__)
 
 
@@ -364,6 +366,19 @@ class ArmyPainter(tk.Tk):
             )
             menubar.add_cascade(label="Edit", menu=editmenu)
 
+        def define_patternmenu():
+            self.pattern_menu = tk.Menu(menubar, tearoff=0)
+            self.pattern_menu.add_command(
+                label=PATTERN_IMPORT_MENU_LABEL,
+                command=self.import_pattern,
+            )
+            self.pattern_menu.add_command(
+                label=PATTERN_EXPORT_MENU_LABEL,
+                command=self.export_selected_pattern,
+            )
+            menubar.add_cascade(label="Patterns", menu=self.pattern_menu)
+            self.update_pattern_menu_state()
+
         def define_toolmenu():
             toolmenu = tk.Menu(menubar, tearoff=0)
             toolmenu.add_command(
@@ -374,6 +389,7 @@ class ArmyPainter(tk.Tk):
 
         define_filemenu()
         define_editmenu()
+        define_patternmenu()
         define_toolmenu()
 
         # Define Menu binding
@@ -540,6 +556,7 @@ class ArmyPainter(tk.Tk):
     def on_pattern_select(self, Event=None):
         # TODO: Refactor following code so with frame color class
         self.frame_army_pattern.update_delete_button_state()
+        self.update_pattern_menu_state()
         pattern_name = self.frame_army_pattern.get_selected_pattern_name()
         if pattern_name is None:
             return
@@ -855,6 +872,7 @@ class ArmyPainter(tk.Tk):
 
         self.frame_army_pattern.load_pattern_list()
         self.frame_army_pattern.select_pattern(pattern_name)
+        self.update_pattern_menu_state()
 
     def delete_pattern(self):
         pattern_name = self.frame_army_pattern.get_selected_pattern_name()
@@ -897,6 +915,20 @@ class ArmyPainter(tk.Tk):
             self.frame_army_pattern.select_pattern(neighboring_name)
         else:
             self.frame_army_pattern.update_delete_button_state()
+        self.update_pattern_menu_state()
+
+    def update_pattern_menu_state(self):
+        pattern_name = self.frame_army_pattern.get_selected_pattern_name()
+        state = tk.NORMAL if pattern_name is not None else tk.DISABLED
+        self.pattern_menu.entryconfig(PATTERN_EXPORT_MENU_LABEL, state=state)
+
+    def import_pattern(self):
+        """Pattern import dialog behavior is added in a later job."""
+        return None
+
+    def export_selected_pattern(self):
+        """Pattern export dialog behavior is added in a later job."""
+        return None
 
     def show_user_pattern_load_warning(self):
         if self.user_pattern_warning_shown:

@@ -40,6 +40,9 @@ class FakePainter:
             selected_name, user_created, neighbor
         )
 
+    def update_pattern_menu_state(self):
+        pass
+
 
 class PatternDeletionGuiTests(unittest.TestCase):
     @patch("src.frame_main.src.color_pattern_handler.delete")

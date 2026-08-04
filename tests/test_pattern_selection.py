@@ -36,6 +36,9 @@ class FakePainter:
     def refresh_workspace(self):
         self.refresh_count += 1
 
+    def update_pattern_menu_state(self):
+        pass
+
 
 class PatternSelectionTests(unittest.TestCase):
     def test_applies_selected_pattern_colors_and_refreshes(self):

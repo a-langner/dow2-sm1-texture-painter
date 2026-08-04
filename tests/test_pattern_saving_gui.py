@@ -39,6 +39,9 @@ class FakePainter:
         )()
         self.frame_army_pattern = FakePatternFrame()
 
+    def update_pattern_menu_state(self):
+        pass
+
 
 class PatternSavingGuiTests(unittest.TestCase):
     @patch("src.frame_main.showerror")
