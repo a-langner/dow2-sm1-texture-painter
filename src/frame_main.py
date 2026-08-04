@@ -38,9 +38,11 @@ from src.color_pattern_handler import (
     InvalidPatternError,
     PatternError,
     PatternNotFoundError,
+    UserPatternPersistenceError,
     get_pattern_colors,
     normalize_pattern_name,
     normalize_pattern_colors,
+    pattern_colors_equal,
 )
 from src.image_process import ImageWorkbench, TextureValidationError
 from src.pattern_exchange import (
@@ -1071,7 +1073,61 @@ class ArmyPainter(tk.Tk):
         )
 
     def update_selected_pattern(self):
-        """Placeholder for the selected-Pattern update workflow."""
+        """Replace the selected user Pattern with the current GUI colors."""
+        selection = self.frame_army_pattern.get_selected_pattern()
+        if selection is None:
+            return
+        if not selection.is_user:
+            self.update_pattern_action_states(selection)
+            return
+
+        pattern_name = selection.name
+        try:
+            current_colors = self.get_current_pattern_colors()
+            stored_colors = get_pattern_colors(pattern_name)
+            colors_match = pattern_colors_equal(current_colors, stored_colors)
+        except PatternError as exc:
+            showerror("Cannot Update Pattern", str(exc), parent=self)
+            return
+
+        if colors_match:
+            self.update_pattern_action_states(selection)
+            return
+
+        confirmed = askyesno(
+            "Update Pattern",
+            f'Update pattern "{pattern_name}" with the current colors?',
+            default=tk.NO,
+            parent=self,
+        )
+        if not confirmed:
+            return
+
+        try:
+            src.color_pattern_handler.update_user_pattern(
+                pattern_name, current_colors
+            )
+        except UserPatternPersistenceError as exc:
+            LOGGER.exception("Could not update user Pattern '%s'", pattern_name)
+            showerror(
+                "Cannot Update Pattern",
+                f"The Pattern could not be saved:\n{exc}",
+                parent=self,
+            )
+            return
+        except PatternError as exc:
+            showerror("Cannot Update Pattern", str(exc), parent=self)
+            return
+        except OSError as exc:
+            LOGGER.exception("Could not update user Pattern '%s'", pattern_name)
+            showerror(
+                "Cannot Update Pattern",
+                f"The Pattern could not be saved:\n{exc}",
+                parent=self,
+            )
+            return
+
+        self.update_pattern_action_states(selection)
 
     def rename_selected_pattern(self):
         """Placeholder for the selected-Pattern rename workflow."""
