@@ -46,8 +46,12 @@ class BuiltinPatternDeletionError(PatternError):
     """Raised when deletion of a built-in pattern is attempted."""
 
 
+class BuiltinPatternModificationError(PatternError):
+    """Raised when modification of a built-in pattern is attempted."""
+
+
 class PatternNotFoundError(PatternError):
-    """Raised when deletion targets a pattern that does not exist."""
+    """Raised when an operation targets a pattern that does not exist."""
 
 
 class UserPatternFileError(PatternError):
@@ -60,6 +64,10 @@ class InvalidUserPatternFileError(UserPatternFileError):
 
 class UnsupportedUserPatternVersionError(UserPatternFileError):
     """Raised when a user-pattern file uses an unsupported future version."""
+
+
+class UserPatternPersistenceError(UserPatternFileError):
+    """Raised when user-pattern data cannot be persisted safely."""
 
 
 class UserPatternLoadIssue(NamedTuple):
@@ -340,6 +348,39 @@ def save_imported_pattern(
 
     user_color_patterns[normalized_name] = pattern
     army_color_pattern[normalized_name] = pattern
+    return normalized_name
+
+
+def update_user_pattern(name: str, colors, pattern_path=None) -> str:
+    """Atomically replace the colors of one existing user-created Pattern."""
+    normalized_name = normalize_pattern_name(name)
+    if normalized_name in builtin_color_patterns:
+        raise BuiltinPatternModificationError(
+            f"Built-in pattern '{normalized_name}' cannot be updated"
+        )
+    if normalized_name not in user_color_patterns:
+        raise PatternNotFoundError(
+            f"Pattern '{normalized_name}' was not found"
+        )
+    normalized_colors = normalize_pattern_colors(colors)
+
+    if pattern_path is None:
+        pattern_path = get_user_patterns_path(create_parent=True)
+    pattern_path = Path(pattern_path)
+    _ensure_user_pattern_file_is_writable(pattern_path)
+
+    updated_pattern = OrderedDict(zip(color_key, normalized_colors))
+    updated_user_patterns = OrderedDict(user_color_patterns)
+    updated_user_patterns[normalized_name] = updated_pattern
+    try:
+        _write_user_patterns(updated_user_patterns, pattern_path)
+    except OSError as exc:
+        raise UserPatternPersistenceError(
+            f"Could not update user pattern '{normalized_name}': {exc}"
+        ) from exc
+
+    user_color_patterns[normalized_name] = updated_pattern
+    army_color_pattern[normalized_name] = updated_pattern
     return normalized_name
 
 
