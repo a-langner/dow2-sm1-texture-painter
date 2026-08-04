@@ -49,6 +49,12 @@ class FakePainter:
 
 
 class PatternFilenameTests(unittest.TestCase):
+    def test_pattern_file_filter_uses_the_canonical_exchange_suffix(self):
+        self.assertEqual(
+            PATTERN_FILETYPES[0],
+            ("Pattern files", f"*{PATTERN_EXCHANGE_SUFFIX}"),
+        )
+
     def test_replaces_invalid_characters_and_removes_trailing_dots_and_spaces(self):
         result = suggested_pattern_filename('Bad<>:"/\\|?* Name. ')
 

@@ -73,7 +73,7 @@ WINDOW_CONTENT_PADDING = 16
 PATTERN_IMPORT_MENU_LABEL = "Import Pattern…"
 PATTERN_EXPORT_MENU_LABEL = "Export Selected Pattern…"
 PATTERN_FILETYPES = (
-    ("Pattern files", "*.pattern.json"),
+    ("Pattern files", f"*{PATTERN_EXCHANGE_SUFFIX}"),
     ("JSON files", "*.json"),
     ("All files", "*.*"),
 )
