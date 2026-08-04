@@ -73,8 +73,40 @@ The custom-pattern file is stored at:
 * macOS: `~/Library/Application Support/SM1-DOW2 Texture Painter/user_patterns.json`
 
 Updating or replacing the application executable does not normally remove
-custom patterns because this file is stored separately. Importing or exporting
-individual patterns is planned as a separate feature and is not included yet.
+custom patterns because this file is stored separately.
+
+### Importing and exporting patterns
+
+The `Patterns` menu contains `Import Pattern…` and
+`Export Selected Pattern…`. Both built-in and custom patterns can be exported.
+Pattern exchange files use the `.pattern.json` suffix and contain versioned
+JSON, for example:
+
+```json
+{
+  "format": "sm1-dow2-texture-painter-pattern",
+  "version": 1,
+  "name": "Example Pattern",
+  "colors": {
+    "primary_colour_name": "#112233",
+    "secondary_colour_name": "#445566",
+    "tint_colour_name": "#778899",
+    "extra_colour_name": "#aabbcc"
+  }
+}
+```
+
+Imported patterns become custom, user-created patterns and receive the `★`
+marker in the pattern list. They are copied into persistent user storage, so
+deleting the original `.pattern.json` file later does not delete the imported
+pattern.
+
+Built-in patterns cannot be overwritten. If an imported name matches an
+existing custom pattern, the application asks whether to rename the import,
+overwrite the existing pattern, or cancel. Nothing is overwritten without
+confirmation.
+
+Pattern collections are planned separately and are not part of this feature.
 
 You can apply dirt & specular texture by clicking on `Edit -> Apply dirt/specular`,
 those textures must be in the same folder as the diffuse ones and their filenames must
