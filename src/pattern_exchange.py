@@ -11,12 +11,14 @@ from src.color_pattern_handler import (
     PatternAlreadyExistsError,
     PatternNameConflictError,
     PatternNotFoundError,
+    builtin_color_patterns,
     color_key,
     get_all_patterns,
     is_user_pattern,
     normalize_pattern_colors,
     normalize_pattern_name,
     save_imported_pattern,
+    user_color_patterns,
 )
 from src.user_data import get_settings_path, get_user_patterns_path
 
@@ -116,6 +118,38 @@ class EmptyUserPatternCollectionError(PatternCollectionExportError):
 class ImportedPattern(NamedTuple):
     name: str
     colors: dict
+
+
+class ImportedPatternCollection(NamedTuple):
+    name: str
+    patterns: tuple
+
+
+class CollectionImportAnalysis(NamedTuple):
+    collection_name: str
+    new_patterns: tuple
+    user_conflicts: tuple
+    builtin_conflicts: tuple
+
+    @property
+    def total_pattern_count(self):
+        return (
+            len(self.new_patterns)
+            + len(self.user_conflicts)
+            + len(self.builtin_conflicts)
+        )
+
+    @property
+    def new_pattern_count(self):
+        return len(self.new_patterns)
+
+    @property
+    def user_conflict_count(self):
+        return len(self.user_conflicts)
+
+    @property
+    def builtin_conflict_count(self):
+        return len(self.builtin_conflicts)
 
 
 def create_pattern_exchange_entry(name, pattern):
@@ -224,10 +258,40 @@ def validate_imported_pattern_collection(data):
                 f"Duplicate Pattern name {pattern_name!r} at entry {index}"
             )
         normalized_names.add(pattern_name)
-        normalized_patterns.append((pattern_name, normalized["colors"]))
+        normalized_patterns.append(ImportedPattern(pattern_name, normalized["colors"]))
 
-    return create_pattern_collection_exchange_document(
-        collection_name, normalized_patterns
+    return ImportedPatternCollection(collection_name, tuple(normalized_patterns))
+
+
+def analyze_pattern_collection_import(
+    collection, builtin_patterns=None, user_patterns=None
+):
+    """Classify a validated collection without selecting a conflict policy."""
+    if not isinstance(collection, ImportedPatternCollection):
+        raise InvalidPatternCollectionError(
+            "Pattern Collection must be validated before conflict analysis"
+        )
+    if builtin_patterns is None:
+        builtin_patterns = builtin_color_patterns
+    if user_patterns is None:
+        user_patterns = user_color_patterns
+
+    new_patterns = []
+    user_conflicts = []
+    builtin_conflicts = []
+    for pattern in collection.patterns:
+        if pattern.name in builtin_patterns:
+            builtin_conflicts.append(pattern)
+        elif pattern.name in user_patterns:
+            user_conflicts.append(pattern)
+        else:
+            new_patterns.append(pattern)
+
+    return CollectionImportAnalysis(
+        collection.name,
+        tuple(new_patterns),
+        tuple(user_conflicts),
+        tuple(builtin_conflicts),
     )
 
 

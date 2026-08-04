@@ -4,6 +4,8 @@ import test_support  # noqa: F401 - installs the user-data path redirect
 from src.color_pattern_handler import color_key
 from src.pattern_exchange import (
     DuplicatePatternNameInCollectionError,
+    ImportedPattern,
+    ImportedPatternCollection,
     InvalidPatternCollectionError,
     PATTERN_COLLECTION_EXCHANGE_FORMAT,
     PATTERN_COLLECTION_EXCHANGE_SUFFIX,
@@ -104,8 +106,13 @@ class PatternCollectionValidationTests(unittest.TestCase):
 
         result = validate_imported_pattern_collection(document)
 
-        self.assertEqual(result, self.valid_document)
-        self.assertIsInstance(result["patterns"], list)
+        self.assertEqual(
+            result,
+            ImportedPatternCollection(
+                "Example Collection",
+                (ImportedPattern("Example Pattern", self.colors),),
+            ),
+        )
 
     def test_invalid_top_level_type_is_rejected(self):
         for value in (None, [], "collection"):
@@ -230,7 +237,7 @@ class PatternCollectionValidationTests(unittest.TestCase):
         }
         result = validate_imported_pattern_collection(case_distinct)
         self.assertEqual(
-            [entry["name"] for entry in result["patterns"]],
+            [entry.name for entry in result.patterns],
             ["Pattern", "pattern"],
         )
 
@@ -250,9 +257,9 @@ class PatternCollectionValidationTests(unittest.TestCase):
 
         result = validate_imported_pattern_collection(document)
 
-        self.assertEqual(result["name"], "Sammlung_日本")
-        self.assertEqual(result["patterns"][0]["name"], "Élite Löwen")
-        self.assertEqual(result["patterns"][0]["colors"], self.colors)
+        self.assertEqual(result.name, "Sammlung_日本")
+        self.assertEqual(result.patterns[0].name, "Élite Löwen")
+        self.assertEqual(result.patterns[0].colors, self.colors)
 
 
 if __name__ == "__main__":
