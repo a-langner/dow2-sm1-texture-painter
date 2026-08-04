@@ -20,6 +20,7 @@ from src.widget import (
     BatchEditTopLevel,
     FramePatternList,
     PatternImportConflictDialog,
+    PatternCollectionImportConfirmationDialog,
     pattern_command_states,
 )
 from src.constant import (
@@ -45,23 +46,31 @@ from src.pattern_exchange import (
     PATTERN_EXCHANGE_SUFFIX,
     BuiltinPatternImportConflictError,
     EmptyUserPatternCollectionError,
+    DuplicatePatternNameInCollectionError,
     InvalidImportedPatternColorsError,
     InvalidImportedPatternNameError,
     InvalidPatternFileError,
     InvalidPatternJsonError,
     InvalidPatternImportNameError,
     InvalidPatternCollectionNameError,
+    InvalidPatternCollectionError,
+    InvalidPatternCollectionFormatError,
     PatternExportError,
     PatternExportPermissionDeniedError,
     PatternFileNotFoundError,
     PatternImportReadError,
+    PatternCollectionImportError,
     PatternPermissionDeniedError,
     UnsupportedPatternVersionError,
+    UnsupportedPatternCollectionVersionError,
     UserPatternImportConflictError,
     export_pattern,
     export_user_pattern_collection,
+    analyze_pattern_collection_import,
+    import_analyzed_pattern_collection,
     import_pattern as persist_imported_pattern,
     read_pattern_file,
+    read_pattern_collection_file,
 )
 from src.settings_handler import SettingsHandler
 from pathlib import Path
@@ -1068,8 +1077,98 @@ class ArmyPainter(tk.Tk):
         )
 
     def import_pattern_collection(self):
-        """Collection import dialog is implemented in a later job."""
-        return None
+        source = filedialog.askopenfilename(
+            initialdir=self.settings.get_last_pattern_import_directory(),
+            filetypes=PATTERN_COLLECTION_FILETYPES,
+            title="Import Pattern Collection",
+        )
+        if not source:
+            return
+
+        try:
+            collection = read_pattern_collection_file(source)
+        except PatternFileNotFoundError as exc:
+            self._show_pattern_import_error("Collection File Not Found", exc)
+            return
+        except PatternPermissionDeniedError as exc:
+            self._show_pattern_import_error("Permission Denied", exc)
+            return
+        except PatternImportReadError as exc:
+            self._show_pattern_import_error("Unreadable Collection File", exc)
+            return
+        except InvalidPatternJsonError as exc:
+            self._show_pattern_import_error("Malformed Collection JSON", exc)
+            return
+        except UnsupportedPatternCollectionVersionError as exc:
+            self._show_pattern_import_error(
+                "Unsupported Collection Version", exc
+            )
+            return
+        except DuplicatePatternNameInCollectionError as exc:
+            self._show_pattern_import_error("Duplicate Pattern Names", exc)
+            return
+        except InvalidPatternCollectionFormatError as exc:
+            self._show_pattern_import_error("Wrong Collection Format", exc)
+            return
+        except InvalidPatternCollectionError as exc:
+            self._show_pattern_import_error("Invalid Pattern Collection", exc)
+            return
+
+        try:
+            self.settings.set_last_pattern_import_directory(Path(source).parent)
+        except OSError:
+            LOGGER.exception(
+                "Could not remember Pattern Collection import directory: %s",
+                Path(source).parent,
+            )
+
+        analysis = analyze_pattern_collection_import(collection)
+        if analysis.user_conflict_count or analysis.builtin_conflict_count:
+            showinfo(
+                "Pattern Collection Conflicts",
+                f"Collection: {analysis.collection_name}\n"
+                f"Total Patterns: {analysis.total_pattern_count}\n"
+                f"New Patterns: {analysis.new_pattern_count}\n"
+                f"User conflicts: {analysis.user_conflict_count}\n"
+                f"Built-in conflicts: {analysis.builtin_conflict_count}\n\n"
+                "Conflict handling will be added in the next update. "
+                "No Patterns were imported.",
+                parent=self,
+            )
+            return
+
+        confirmation = PatternCollectionImportConfirmationDialog(
+            self,
+            analysis.collection_name,
+            analysis.total_pattern_count,
+            analysis.new_pattern_count,
+        )
+        if not confirmation.result:
+            return
+
+        selection = self.frame_army_pattern.get_selected_pattern()
+        selected_name = selection.name if selection else None
+        try:
+            result = import_analyzed_pattern_collection(analysis)
+        except (PatternCollectionImportError, PatternError, OSError) as exc:
+            LOGGER.exception(
+                "Could not persist Pattern Collection imported from %s", source
+            )
+            showerror(
+                "Cannot Import Pattern Collection",
+                f"The Pattern Collection could not be saved:\n{exc}",
+                parent=self,
+            )
+            return
+
+        self.frame_army_pattern.load_pattern_list(selected_name)
+        pattern_label = "pattern" if result.imported_count == 1 else "patterns"
+        showinfo(
+            "Pattern Collection Imported",
+            "Collection imported successfully.\n\n"
+            f"{result.imported_count} {pattern_label} imported.",
+            parent=self,
+        )
 
     def export_all_user_patterns(self):
         if not src.color_pattern_handler.has_user_patterns():

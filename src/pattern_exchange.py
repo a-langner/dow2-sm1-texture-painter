@@ -97,6 +97,10 @@ class InvalidPatternCollectionError(PatternCollectionImportError):
     """Raised when a Pattern Collection has invalid content or structure."""
 
 
+class InvalidPatternCollectionFormatError(InvalidPatternCollectionError):
+    """Raised when JSON does not declare the Pattern Collection format."""
+
+
 class UnsupportedPatternCollectionVersionError(PatternCollectionImportError):
     """Raised when a Pattern Collection uses an unsupported version."""
 
@@ -202,7 +206,7 @@ def validate_imported_pattern_collection(data):
             "Pattern Collection file must contain a JSON object"
         )
     if data.get("format") != PATTERN_COLLECTION_EXCHANGE_FORMAT:
-        raise InvalidPatternCollectionError(
+        raise InvalidPatternCollectionFormatError(
             "Pattern Collection has an invalid or missing format identifier"
         )
     if "version" not in data:
@@ -274,6 +278,41 @@ def validate_imported_pattern_collection(data):
         normalized_patterns.append(ImportedPattern(pattern_name, normalized["colors"]))
 
     return ImportedPatternCollection(collection_name, tuple(normalized_patterns))
+
+
+def parse_imported_pattern_collection_json(json_text):
+    """Parse and validate one Pattern Collection JSON document."""
+    try:
+        data = json.loads(json_text)
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise InvalidPatternJsonError(
+            "Pattern Collection file contains invalid JSON"
+        ) from exc
+    return validate_imported_pattern_collection(data)
+
+
+def read_pattern_collection_file(path):
+    """Read and validate one Pattern Collection without importing it."""
+    path = Path(path)
+    try:
+        json_text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise InvalidPatternJsonError(
+            "Pattern Collection file is not valid UTF-8 text"
+        ) from exc
+    except FileNotFoundError as exc:
+        raise PatternFileNotFoundError(
+            f'Pattern Collection file was not found: "{path}"'
+        ) from exc
+    except PermissionError as exc:
+        raise PatternPermissionDeniedError(
+            f'Permission was denied reading Pattern Collection file: "{path}"'
+        ) from exc
+    except OSError as exc:
+        raise PatternImportReadError(
+            f'Could not read Pattern Collection file "{path}": {exc}'
+        ) from exc
+    return parse_imported_pattern_collection_json(json_text)
 
 
 def analyze_pattern_collection_import(

@@ -1,4 +1,7 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.color_pattern_handler import color_key
@@ -7,6 +10,7 @@ from src.pattern_exchange import (
     ImportedPattern,
     ImportedPatternCollection,
     InvalidPatternCollectionError,
+    InvalidPatternJsonError,
     PATTERN_COLLECTION_EXCHANGE_FORMAT,
     PATTERN_COLLECTION_EXCHANGE_SUFFIX,
     PATTERN_COLLECTION_EXCHANGE_VERSION,
@@ -15,11 +19,46 @@ from src.pattern_exchange import (
     PATTERN_EXCHANGE_VERSION,
     UnsupportedPatternCollectionVersionError,
     create_pattern_collection_exchange_document,
+    read_pattern_collection_file,
     validate_imported_pattern_collection,
 )
 
 
 class PatternCollectionExchangeFormatTests(unittest.TestCase):
+    def test_reads_and_validates_collection_file_as_utf8_json(self):
+        document = create_pattern_collection_exchange_document(
+            "Löwen",
+            [
+                (
+                    "Élite",
+                    {
+                        "primary_colour_name": "#112233",
+                        "secondary_colour_name": "#445566",
+                        "tint_colour_name": "#778899",
+                        "extra_colour_name": "#aabbcc",
+                    },
+                )
+            ],
+        )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            source = Path(temporary_directory) / "collection.json"
+            source.write_text(
+                json.dumps(document, ensure_ascii=False), encoding="utf-8"
+            )
+
+            collection = read_pattern_collection_file(source)
+
+        self.assertEqual(collection.name, "Löwen")
+        self.assertEqual(collection.patterns[0].name, "Élite")
+
+    def test_malformed_collection_json_is_distinct_from_invalid_content(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            source = Path(temporary_directory) / "collection.json"
+            source.write_text("{not json", encoding="utf-8")
+
+            with self.assertRaises(InvalidPatternJsonError):
+                read_pattern_collection_file(source)
+
     def test_constructs_version_one_collection_with_pattern_array(self):
         first_colors = {
             "primary_colour_name": "#7f1919",

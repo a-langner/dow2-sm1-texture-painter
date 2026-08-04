@@ -146,9 +146,5 @@ class PatternMenuStateTests(unittest.TestCase):
 
         callback.assert_called_once_with()
 
-    def test_collection_import_command_stub_is_safe(self):
-        self.assertIsNone(ArmyPainter.import_pattern_collection(object()))
-
-
 if __name__ == "__main__":
     unittest.main()

@@ -647,6 +647,53 @@ class PatternImportConflictDialog(tk.Toplevel):
             pass
 
 
+class PatternCollectionImportConfirmationDialog(tk.Toplevel):
+    """Modal Import/Cancel confirmation for an all-new Pattern Collection."""
+
+    def __init__(self, parent, collection_name, total_count, new_count):
+        super().__init__(parent)
+        self.result = False
+        self.title("Import Pattern Collection")
+        self.transient(parent)
+        self.resizable(False, False)
+        ttk.Label(
+            self,
+            text=(
+                f"Collection: {collection_name}\n"
+                f"Total Patterns: {total_count}\n"
+                f"New Patterns: {new_count}"
+            ),
+            justify=tk.LEFT,
+            padding=(16, 16, 16, 8),
+        ).pack(fill=tk.X)
+
+        button_frame = ttk.Frame(self, padding=(12, 8, 12, 12))
+        button_frame.pack(fill=tk.X)
+        import_button = ttk.Button(
+            button_frame, text="Import", command=lambda: self._finish(True)
+        )
+        import_button.pack(side=tk.LEFT, padx=4)
+        ttk.Button(
+            button_frame, text="Cancel", command=lambda: self._finish(False)
+        ).pack(side=tk.RIGHT, padx=4)
+
+        self.protocol("WM_DELETE_WINDOW", lambda: self._finish(False))
+        self.bind("<Escape>", lambda Event: self._finish(False))
+        self.bind("<Return>", lambda Event: self._finish(True))
+        import_button.focus_set()
+        self.grab_set()
+        self.wait_window()
+
+    def _finish(self, result):
+        self.result = result
+        try:
+            if self.winfo_exists():
+                self.grab_release()
+                self.destroy()
+        except tk.TclError:
+            pass
+
+
 class BatchEditTopLevel(tk.Toplevel):
     def __init__(self, master=None, cnf={}, **kw):
         super(BatchEditTopLevel, self).__init__(master=master, cnf={}, **kw)
