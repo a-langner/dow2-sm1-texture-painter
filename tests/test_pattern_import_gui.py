@@ -65,6 +65,9 @@ class FakePainter:
         self.settings = FakeSettings(initial_directory)
         self.refresh_count = 0
         self.menu_state_updates = 0
+        self.conflict_decisions = ["cancel"]
+        self.replacement_names = []
+        self.invalid_name_messages = []
 
     def refresh_workspace(self):
         self.refresh_count += 1
@@ -77,6 +80,15 @@ class FakePainter:
 
     def _show_pattern_import_error(self, title, error, message=None):
         ArmyPainter._show_pattern_import_error(self, title, error, message)
+
+    def _choose_pattern_import_conflict(self, conflict_type, pattern_name):
+        return self.conflict_decisions.pop(0)
+
+    def _request_pattern_import_name(self, current_name):
+        return self.replacement_names.pop(0)
+
+    def _report_invalid_pattern_import_name(self, message):
+        self.invalid_name_messages.append(message)
 
 
 class PatternImportGuiTests(unittest.TestCase):
@@ -117,7 +129,6 @@ class PatternImportGuiTests(unittest.TestCase):
                 self.assertEqual(painter.settings.saved_directories, [])
                 showerror.reset_mock()
 
-    @patch("src.frame_main.showerror")
     @patch(
         "src.frame_main.persist_imported_pattern",
         side_effect=UserPatternImportConflictError("duplicate"),
@@ -127,18 +138,15 @@ class PatternImportGuiTests(unittest.TestCase):
         "src.frame_main.filedialog.askopenfilename",
         return_value="C:/patterns/duplicate.pattern.json",
     )
-    def test_conflict_uses_temporary_clear_error(
-        self, open_dialog, read_pattern, persist, showerror
+    def test_conflict_cancel_leaves_list_and_settings_unchanged(
+        self, open_dialog, read_pattern, persist
     ):
         read_pattern.return_value = ImportedPattern("Duplicate", {})
         painter = FakePainter(Path("imports"))
 
-        with self.assertLogs("src.frame_main", level="ERROR"):
-            ArmyPainter.import_pattern(painter)
+        ArmyPainter.import_pattern(painter)
 
-        showerror.assert_called_once_with(
-            "Pattern Already Exists", "A pattern with this name already exists."
-        )
+        self.assertEqual(painter.frame_army_pattern.load_count, 0)
         self.assertEqual(painter.settings.saved_directories, [])
 
     @patch("src.frame_main.showerror")
@@ -187,7 +195,7 @@ class PatternImportGuiTests(unittest.TestCase):
                 ArmyPainter.import_pattern(painter)
 
         read_pattern.assert_called_once_with(str(source))
-        persist.assert_called_once_with(imported)
+        persist.assert_called_once_with(imported, target_name=None, overwrite=False)
         self.assertEqual(painter.frame_army_pattern.load_count, 1)
         self.assertEqual(painter.frame_army_pattern.selected_name, "Imported")
         self.assertEqual(

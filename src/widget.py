@@ -541,6 +541,60 @@ class FramePatternList(tk.Frame):
         return item_id
 
 
+class PatternImportConflictDialog(tk.Toplevel):
+    """Small modal dialog for explicit imported-pattern conflict choices."""
+
+    def __init__(self, parent, pattern_name, user_conflict):
+        super().__init__(parent)
+        self.result = "cancel"
+        self.title("Pattern Name Conflict")
+        self.transient(parent)
+        self.resizable(False, False)
+        conflict_source = "user-created" if user_conflict else "built-in"
+        ttk.Label(
+            self,
+            text=(
+                f"A {conflict_source} pattern named '{pattern_name}' already "
+                "exists."
+            ),
+            justify=tk.LEFT,
+            wraplength=360,
+            padding=(16, 16, 16, 8),
+        ).pack(fill=tk.X)
+
+        button_frame = ttk.Frame(self, padding=(12, 8, 12, 12))
+        button_frame.pack(fill=tk.X)
+        rename_button = ttk.Button(
+            button_frame,
+            text="Rename",
+            command=lambda: self._finish("rename"),
+        )
+        rename_button.pack(side=tk.LEFT, padx=4)
+        if user_conflict:
+            ttk.Button(
+                button_frame,
+                text="Overwrite",
+                command=lambda: self._finish("overwrite"),
+            ).pack(side=tk.LEFT, padx=4)
+        ttk.Button(
+            button_frame,
+            text="Cancel",
+            command=lambda: self._finish("cancel"),
+        ).pack(side=tk.RIGHT, padx=4)
+
+        self.protocol("WM_DELETE_WINDOW", lambda: self._finish("cancel"))
+        self.bind("<Escape>", lambda Event: self._finish("cancel"))
+        self.bind("<Return>", lambda Event: self._finish("rename"))
+        rename_button.focus_set()
+        self.grab_set()
+        self.wait_window()
+
+    def _finish(self, result):
+        self.result = result
+        self.grab_release()
+        self.destroy()
+
+
 class BatchEditTopLevel(tk.Toplevel):
     def __init__(self, master=None, cnf={}, **kw):
         super(BatchEditTopLevel, self).__init__(master=master, cnf={}, **kw)

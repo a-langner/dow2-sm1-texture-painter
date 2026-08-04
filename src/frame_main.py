@@ -19,6 +19,7 @@ from src.widget import (
     FrameSlider,
     BatchEditTopLevel,
     FramePatternList,
+    PatternImportConflictDialog,
 )
 from src.constant import (
     DEFAULT_IMG_SIZE,
@@ -31,8 +32,10 @@ from src.constant import (
 import src.color_pattern_handler
 from src.dow1_converter import get_tem_filenames, convert_tem_texture
 from src.color_pattern_handler import (
+    InvalidPatternError,
     PatternError,
     get_all_patterns,
+    normalize_pattern_name,
 )
 from src.image_process import ImageWorkbench, TextureValidationError
 from src.pattern_exchange import (
@@ -89,6 +92,51 @@ def suggested_pattern_filename(pattern_name):
     if not safe_name.casefold().endswith(PATTERN_EXCHANGE_SUFFIX):
         safe_name += PATTERN_EXCHANGE_SUFFIX
     return safe_name
+
+
+def resolve_pattern_import_conflicts(
+    imported_pattern,
+    persist,
+    choose_conflict,
+    request_rename,
+    report_invalid_name,
+):
+    """Resolve import conflicts iteratively without coupling policy to Tk."""
+    target_name = None
+    overwrite = False
+    while True:
+        try:
+            return persist(
+                imported_pattern,
+                target_name=target_name,
+                overwrite=overwrite,
+            )
+        except BuiltinPatternImportConflictError:
+            conflict_type = "builtin"
+        except UserPatternImportConflictError:
+            conflict_type = "user"
+
+        effective_name = target_name or imported_pattern.name
+        decision = choose_conflict(conflict_type, effective_name)
+        if decision == "cancel":
+            return None
+        if decision == "overwrite" and conflict_type == "user":
+            overwrite = True
+            continue
+        if decision != "rename":
+            return None
+
+        while True:
+            replacement_name = request_rename(effective_name)
+            if replacement_name is None:
+                return None
+            try:
+                target_name = normalize_pattern_name(replacement_name)
+            except InvalidPatternError as exc:
+                report_invalid_name(str(exc))
+                continue
+            overwrite = False
+            break
 
 
 def calculate_initial_window_size(
@@ -988,19 +1036,17 @@ class ArmyPainter(tk.Tk):
             return
 
         try:
-            imported_name = persist_imported_pattern(imported_pattern)
-        except (
-            BuiltinPatternImportConflictError,
-            UserPatternImportConflictError,
-        ) as exc:
-            self._show_pattern_import_error(
-                "Pattern Already Exists",
-                exc,
-                message="A pattern with this name already exists.",
+            imported_name = resolve_pattern_import_conflicts(
+                imported_pattern,
+                persist_imported_pattern,
+                self._choose_pattern_import_conflict,
+                self._request_pattern_import_name,
+                self._report_invalid_pattern_import_name,
             )
-            return
         except (PatternError, OSError) as exc:
             self._show_pattern_import_error("Cannot Import Pattern", exc)
+            return
+        if imported_name is None:
             return
 
         self.frame_army_pattern.load_pattern_list()
@@ -1020,6 +1066,25 @@ class ArmyPainter(tk.Tk):
     def _show_pattern_import_error(self, title, error, message=None):
         LOGGER.exception("Pattern import failed: %s", error)
         showerror(title, message or str(error))
+
+    def _choose_pattern_import_conflict(self, conflict_type, pattern_name):
+        dialog = PatternImportConflictDialog(
+            self,
+            pattern_name,
+            user_conflict=conflict_type == "user",
+        )
+        return dialog.result
+
+    def _request_pattern_import_name(self, current_name):
+        return askstring(
+            "Rename Imported Pattern",
+            "Choose a replacement pattern name:",
+            initialvalue=current_name,
+            parent=self,
+        )
+
+    def _report_invalid_pattern_import_name(self, message):
+        showerror("Invalid Pattern Name", message, parent=self)
 
     def export_selected_pattern(self):
         pattern_name = self.frame_army_pattern.get_selected_pattern_name()
