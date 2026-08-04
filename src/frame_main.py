@@ -90,6 +90,7 @@ WINDOW_CONTENT_PADDING = 16
 PATTERN_SAVE_MENU_LABEL = "Save Current as New Pattern…"
 PATTERN_UPDATE_MENU_LABEL = "Update Selected Pattern"
 PATTERN_RENAME_MENU_LABEL = "Rename Selected Pattern…"
+PATTERN_DUPLICATE_MENU_LABEL = "Duplicate Selected Pattern…"
 PATTERN_DELETE_MENU_LABEL = "Delete Selected Pattern"
 PATTERN_IMPORT_MENU_LABEL = "Import Pattern…"
 PATTERN_EXPORT_MENU_LABEL = "Export Selected Pattern…"
@@ -585,6 +586,10 @@ class ArmyPainter(tk.Tk):
             self.pattern_menu.add_command(
                 label=PATTERN_RENAME_MENU_LABEL,
                 command=self.rename_selected_pattern,
+            )
+            self.pattern_menu.add_command(
+                label=PATTERN_DUPLICATE_MENU_LABEL,
+                command=self.duplicate_selected_pattern,
             )
             self.pattern_menu.add_command(
                 label=PATTERN_DELETE_MENU_LABEL,
@@ -1222,6 +1227,45 @@ class ArmyPainter(tk.Tk):
         self.frame_army_pattern.load_pattern_list(renamed_name)
         self.update_pattern_action_states()
 
+    def duplicate_selected_pattern(self):
+        """Save the selected Pattern's stored colors under a new user name."""
+        selection = self.frame_army_pattern.get_selected_pattern()
+        if selection is None:
+            return
+
+        try:
+            stored_colors = get_pattern_colors(selection.name)
+        except PatternError as exc:
+            showerror("Cannot Duplicate Pattern", str(exc), parent=self)
+            return
+
+        requested_name = askstring(
+            "Duplicate Pattern",
+            "Pattern name:",
+            initialvalue=f"{selection.name} Copy",
+            parent=self,
+        )
+        if requested_name is None:
+            return
+
+        try:
+            duplicate_name = normalize_pattern_name(requested_name)
+            src.color_pattern_handler.save(duplicate_name, stored_colors)
+        except PatternError as exc:
+            showerror("Cannot Duplicate Pattern", str(exc), parent=self)
+            return
+        except OSError as exc:
+            LOGGER.exception("Could not duplicate Pattern '%s'", selection.name)
+            showerror(
+                "Cannot Duplicate Pattern",
+                f"The Pattern could not be saved:\n{exc}",
+                parent=self,
+            )
+            return
+
+        self.frame_army_pattern.load_pattern_list(duplicate_name)
+        self.on_pattern_select()
+
     def delete_pattern(self):
         selection = self.frame_army_pattern.get_selected_pattern()
         if selection is None:
@@ -1277,6 +1321,9 @@ class ArmyPainter(tk.Tk):
         )
         self.pattern_menu.entryconfig(
             PATTERN_RENAME_MENU_LABEL, state=states.rename
+        )
+        self.pattern_menu.entryconfig(
+            PATTERN_DUPLICATE_MENU_LABEL, state=states.duplicate
         )
         self.pattern_menu.entryconfig(
             PATTERN_DELETE_MENU_LABEL, state=states.delete

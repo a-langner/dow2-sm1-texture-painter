@@ -28,6 +28,7 @@ class PatternActionStates:
     save_new: str
     update: str
     rename: str
+    duplicate: str
     delete: str
     export_selected: str
     modified: bool
@@ -41,6 +42,7 @@ def pattern_action_states(selection, modified=False):
         save_new=tk.NORMAL,
         update=tk.NORMAL if user_selected and modified else tk.DISABLED,
         rename=tk.NORMAL if user_selected else tk.DISABLED,
+        duplicate=tk.NORMAL if has_selection else tk.DISABLED,
         delete=tk.NORMAL if user_selected else tk.DISABLED,
         export_selected=tk.NORMAL if has_selection else tk.DISABLED,
         modified=bool(has_selection and modified),
