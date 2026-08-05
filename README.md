@@ -260,8 +260,27 @@ When using the repository's `.venv`, you can run:
 .\.venv\Scripts\python.exe -m unittest discover -s tests
 ```
 
-Run the following command to generate an EXE/binary file with pyinstaller:
+### Building the application
 
-`make build-bin-folder` for an executable and its required library files
-in the same folder
-`make build-bin-file` for an one file executable
+The checked-in `texture-painter.spec` is the authoritative PyInstaller
+configuration. It includes the bundled, read-only resources under
+`src/resources`; user Patterns, settings, and logs remain outside the bundle.
+
+On Windows PowerShell, build the default one-folder application with:
+
+```powershell
+.\.venv\Scripts\python.exe -m PyInstaller --clean --noconfirm texture-painter.spec
+```
+
+For a single-file executable:
+
+```powershell
+$env:TEXTURE_PAINTER_ONEFILE = "1"
+.\.venv\Scripts\python.exe -m PyInstaller --clean --noconfirm texture-painter.spec
+Remove-Item Env:TEXTURE_PAINTER_ONEFILE
+```
+
+On Linux or macOS, use `make build` for a one-folder bundle or
+`make build-onefile` for a single-file executable. Build output is written to
+`dist/`, with temporary files under `build/`. Use `make build-clean` to remove
+both output directories.

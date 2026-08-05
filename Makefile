@@ -1,4 +1,4 @@
-.PHONY: clean clean-build clean-pyc clean-venv lint black test venv setup-dev run-dev help
+.PHONY: clean clean-build clean-pyc clean-venv lint black test venv setup-dev run-dev build build-onefile build-clean help
 
 SHELL := /bin/sh
 .DEFAULT_GOAL := help
@@ -10,6 +10,7 @@ APP_NAME := dow2-texture-painter
 PYTHON ?= python
 VENV_DIR ?= .venv
 VENV_PYTHON := $(VENV_DIR)/bin/python
+BUILD_SPEC := texture-painter.spec
 
 test: ## run the complete unittest suite
 	$(PYTHON) -m unittest discover -s tests
@@ -26,34 +27,13 @@ setup-dev: venv ## install runtime, development, and editable project dependenci
 run-dev: ## launch the application from an already prepared environment
 	$(VENV_PYTHON) -m src.frame_main
 
-# On windows, use ";" separator instead of ":" for the --add-data args
-# --icon option isn't working alongisde --name option
-build-bin-folder-win: ## build binary folder for windows
-	pyinstaller --name $(APP_NAME)-$(APP_VERSION) --windowed --noconfirm  \
-	--add-data "$(APP_DIR)/$(RES_DIR);$(APP_DIR)/$(RES_DIR)" \
-	--icon="$(APP_DIR)/$(RES_DIR)/icon_64x64.ico" \
-	--add-data "readme.md;." --hidden-import='PIL._tkinter_finder' \
-	$(APP_DIR)/frame_main.py
+build: ## build the one-folder application bundle
+	$(VENV_PYTHON) -m PyInstaller --clean --noconfirm $(BUILD_SPEC)
 
-build-bin-file-win: ## build single-file binary for windows
-	pyinstaller --name $(APP_NAME)-$(APP_VERSION) --onefile --windowed \
-	--noconfirm --add-data "$(APP_DIR)/$(RES_DIR);$(APP_DIR)/$(RES_DIR)" \
-	--icon="$(APP_DIR)/$(RES_DIR)/icon_64x64.ico" \
-	--hidden-import='PIL._tkinter_finder' $(APP_DIR)/frame_main.py
+build-onefile: ## build the single-file application executable
+	TEXTURE_PAINTER_ONEFILE=1 $(VENV_PYTHON) -m PyInstaller --clean --noconfirm $(BUILD_SPEC)
 
-build-bin-folder: ## build binary folder
-	pyinstaller --name $(APP_NAME)-$(APP_VERSION) --windowed --noconfirm \
-	--add-data "$(APP_DIR)/$(RES_DIR):$(APP_DIR)/$(RES_DIR)" \
-	--icon="$(APP_DIR)/$(RES_DIR)/icon_64x64.ico" \
-	--hidden-import='PIL._tkinter_finder' $(APP_DIR)/frame_main.py
-
-build-bin-file: ## build binary
-	pyinstaller --name $(APP_NAME)-$(APP_VERSION) --onefile --windowed \
-	--noconfirm --add-data "$(APP_DIR)/$(RES_DIR):$(APP_DIR)/$(RES_DIR)" \
-	--hidden-import='PIL._tkinter_finder' $(APP_DIR)/frame_main.py
-
-# build-spec:
-# 	docker run -v "$(pwd):/src/" cdrx/pyinstaller-linux "pyinstaller --onefile --windowed --noconfirm --add-data '$(APP_DIR)/data:data' --hidden-import='PIL._tkinter_finder' src/frame_main.py"
+build-clean: clean-build ## remove all PyInstaller output
 
 clean: clean-build clean-pyc ## remove all build, test, coverage and Python artifacts
 
