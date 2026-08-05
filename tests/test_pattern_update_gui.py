@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
+from fake_dialog_gateway import make_dialog_gateway
 from src.color_pattern_handler import (
     PatternNotFoundError,
     UserPatternPersistenceError,
@@ -23,6 +24,7 @@ class FakePatternList:
 
 class FakePainter:
     def __init__(self, selection, colors=UPDATED_COLORS):
+        self.dialogs = make_dialog_gateway(self)
         self.frame_army_pattern = FakePatternList(selection)
         self.frame_color_chooser = type(
             "ColorChooser",
@@ -40,7 +42,7 @@ class FakePainter:
 
 class PatternUpdateGuiTests(unittest.TestCase):
     @patch("src.frame_main.src.color_pattern_handler.update_user_pattern")
-    @patch("src.frame_main.askyesno")
+    @patch("src.dialog_gateway.messagebox.askyesno")
     def test_no_selection_does_nothing(self, confirm, update):
         painter = FakePainter(None)
 
@@ -50,7 +52,7 @@ class PatternUpdateGuiTests(unittest.TestCase):
         update.assert_not_called()
 
     @patch("src.frame_main.src.color_pattern_handler.update_user_pattern")
-    @patch("src.frame_main.askyesno")
+    @patch("src.dialog_gateway.messagebox.askyesno")
     def test_builtin_selection_is_not_updated(self, confirm, update):
         selection = PatternSelection("Built-in", False)
         painter = FakePainter(selection)
@@ -62,7 +64,7 @@ class PatternUpdateGuiTests(unittest.TestCase):
         self.assertEqual(painter.state_updates, [selection])
 
     @patch("src.frame_main.src.color_pattern_handler.update_user_pattern")
-    @patch("src.frame_main.askyesno")
+    @patch("src.dialog_gateway.messagebox.askyesno")
     @patch("src.frame_main.get_pattern_colors", return_value=STORED_COLORS)
     def test_unchanged_colors_do_not_prompt_or_write(self, get_colors, confirm, update):
         selection = PatternSelection("Custom", True)
@@ -76,7 +78,7 @@ class PatternUpdateGuiTests(unittest.TestCase):
         self.assertEqual(painter.state_updates, [selection])
 
     @patch("src.frame_main.src.color_pattern_handler.update_user_pattern")
-    @patch("src.frame_main.askyesno", return_value=False)
+    @patch("src.dialog_gateway.messagebox.askyesno", return_value=False)
     @patch("src.frame_main.get_pattern_colors", return_value=STORED_COLORS)
     def test_cancelled_confirmation_does_not_write(self, get_colors, confirm, update):
         painter = FakePainter(PatternSelection("Custom", True))
@@ -93,7 +95,7 @@ class PatternUpdateGuiTests(unittest.TestCase):
         self.assertEqual(painter.state_updates, [])
 
     @patch("src.frame_main.src.color_pattern_handler.update_user_pattern")
-    @patch("src.frame_main.askyesno", return_value=True)
+    @patch("src.dialog_gateway.messagebox.askyesno", return_value=True)
     @patch("src.frame_main.get_pattern_colors", return_value=STORED_COLORS)
     def test_confirmed_update_preserves_selection_and_current_gui_state(
         self, get_colors, confirm, update
@@ -111,7 +113,7 @@ class PatternUpdateGuiTests(unittest.TestCase):
         )
         self.assertEqual(painter.state_updates, [selection])
 
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch(
         "src.frame_main.get_pattern_colors",
         side_effect=PatternNotFoundError("Pattern was not found"),
@@ -126,12 +128,12 @@ class PatternUpdateGuiTests(unittest.TestCase):
         )
 
     @patch("src.frame_main.LOGGER.exception")
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch(
         "src.frame_main.src.color_pattern_handler.update_user_pattern",
         side_effect=UserPatternPersistenceError("simulated failure"),
     )
-    @patch("src.frame_main.askyesno", return_value=True)
+    @patch("src.dialog_gateway.messagebox.askyesno", return_value=True)
     @patch("src.frame_main.get_pattern_colors", return_value=STORED_COLORS)
     def test_persistence_failure_is_logged_and_reported(
         self, get_colors, confirm, update, showerror, log_exception
@@ -161,7 +163,7 @@ class PatternUpdateGuiTests(unittest.TestCase):
         "src.frame_main.src.color_pattern_handler.update_user_pattern",
         side_effect=RuntimeError("programming bug"),
     )
-    @patch("src.frame_main.askyesno", return_value=True)
+    @patch("src.dialog_gateway.messagebox.askyesno", return_value=True)
     @patch("src.frame_main.get_pattern_colors", return_value=STORED_COLORS)
     def test_unexpected_update_error_is_not_suppressed(
         self, get_colors, confirm, update

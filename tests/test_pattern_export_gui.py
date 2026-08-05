@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
+from fake_dialog_gateway import make_dialog_gateway
 from src.frame_main import (
     PATTERN_EXCHANGE_SUFFIX,
     PATTERN_FILETYPES,
@@ -44,6 +45,7 @@ class FakeSettings:
 
 class FakePainter:
     def __init__(self, selected_name, initial_directory):
+        self.dialogs = make_dialog_gateway(self)
         self.frame_army_pattern = FakePatternList(selected_name)
         self.settings = FakeSettings(initial_directory)
 
@@ -76,7 +78,7 @@ class PatternFilenameTests(unittest.TestCase):
 
 
 class PatternExportGuiTests(unittest.TestCase):
-    @patch("src.frame_main.filedialog.asksaveasfilename")
+    @patch("src.dialog_gateway.filedialog.asksaveasfilename")
     @patch("src.frame_main.export_pattern")
     def test_no_selection_does_nothing(self, export, save_dialog):
         painter = FakePainter(None, Path("home"))
@@ -86,7 +88,7 @@ class PatternExportGuiTests(unittest.TestCase):
         save_dialog.assert_not_called()
         export.assert_not_called()
 
-    @patch("src.frame_main.filedialog.asksaveasfilename", return_value="")
+    @patch("src.dialog_gateway.filedialog.asksaveasfilename", return_value="")
     @patch("src.frame_main.export_pattern")
     def test_cancel_does_not_export_or_update_settings(self, export, save_dialog):
         painter = FakePainter("Selected", Path("exports"))
@@ -102,7 +104,7 @@ class PatternExportGuiTests(unittest.TestCase):
         )
 
     @patch("src.frame_main.export_pattern")
-    @patch("src.frame_main.filedialog.asksaveasfilename")
+    @patch("src.dialog_gateway.filedialog.asksaveasfilename")
     def test_success_exports_internal_name_then_remembers_directory(
         self, save_dialog, export
     ):
@@ -114,20 +116,20 @@ class PatternExportGuiTests(unittest.TestCase):
 
             ArmyPainter.export_selected_pattern(painter)
 
-        export.assert_called_once_with("Internal Name", str(destination))
+        export.assert_called_once_with("Internal Name", destination)
         self.assertEqual(painter.settings.saved_directories, [export_directory])
         self.assertEqual(
             save_dialog.call_args.kwargs["initialfile"],
             "Internal Name.pattern.json",
         )
 
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch(
         "src.frame_main.export_pattern",
         side_effect=PatternExportError("permission denied"),
     )
     @patch(
-        "src.frame_main.filedialog.asksaveasfilename",
+        "src.dialog_gateway.filedialog.asksaveasfilename",
         return_value="C:/exports/failed.pattern.json",
     )
     def test_export_failure_shows_concise_error_and_does_not_update_settings(
@@ -140,17 +142,17 @@ class PatternExportGuiTests(unittest.TestCase):
 
         message = showerror.call_args.args[1]
         self.assertIn("Internal Name", message)
-        self.assertIn("C:/exports/failed.pattern.json", message)
+        self.assertIn(str(Path("C:/exports/failed.pattern.json")), message)
         self.assertIn("permission denied", message)
         self.assertEqual(painter.settings.saved_directories, [])
 
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch(
         "src.frame_main.export_pattern",
         side_effect=PatternExportPermissionDeniedError("denied"),
     )
     @patch(
-        "src.frame_main.filedialog.asksaveasfilename",
+        "src.dialog_gateway.filedialog.asksaveasfilename",
         return_value="C:/exports/failed.pattern.json",
     )
     def test_export_permission_failure_has_distinct_message(
@@ -162,12 +164,15 @@ class PatternExportGuiTests(unittest.TestCase):
             ArmyPainter.export_selected_pattern(painter)
 
         self.assertEqual(showerror.call_args.args[0], "Permission Denied")
-        self.assertIn("C:/exports/failed.pattern.json", showerror.call_args.args[1])
+        self.assertIn(
+            str(Path("C:/exports/failed.pattern.json")),
+            showerror.call_args.args[1],
+        )
         self.assertEqual(painter.settings.saved_directories, [])
 
     @patch("src.frame_main.export_pattern", side_effect=RuntimeError("bug"))
     @patch(
-        "src.frame_main.filedialog.asksaveasfilename",
+        "src.dialog_gateway.filedialog.asksaveasfilename",
         return_value="C:/exports/failed.pattern.json",
     )
     def test_unexpected_export_error_is_not_suppressed(self, save_dialog, export):

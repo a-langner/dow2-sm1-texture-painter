@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
+from fake_dialog_gateway import make_dialog_gateway
 from src.color_pattern_handler import PatternNotFoundError
 from src.frame_main import ArmyPainter
 from src.widget import PatternSelection
@@ -41,6 +42,7 @@ class FakePatternFrame:
 
 class FakePainter:
     def __init__(self, selected_name, user_created, neighbor="Neighbor"):
+        self.dialogs = make_dialog_gateway(self)
         self.frame_army_pattern = FakePatternFrame(
             selected_name, user_created, neighbor
         )
@@ -58,7 +60,7 @@ class FakePainter:
 
 class PatternDeletionGuiTests(unittest.TestCase):
     @patch("src.frame_main.src.color_pattern_handler.delete")
-    @patch("src.frame_main.askyesno")
+    @patch("src.dialog_gateway.messagebox.askyesno")
     def test_no_selection_does_nothing(self, askyesno, delete):
         painter = FakePainter(None, False)
 
@@ -68,7 +70,7 @@ class PatternDeletionGuiTests(unittest.TestCase):
         delete.assert_not_called()
 
     @patch("src.frame_main.src.color_pattern_handler.delete")
-    @patch("src.frame_main.askyesno")
+    @patch("src.dialog_gateway.messagebox.askyesno")
     def test_builtin_selection_cannot_be_deleted(self, askyesno, delete):
         painter = FakePainter("Blood Ravens", False)
 
@@ -81,7 +83,7 @@ class PatternDeletionGuiTests(unittest.TestCase):
         )
 
     @patch("src.frame_main.src.color_pattern_handler.delete")
-    @patch("src.frame_main.askyesno", return_value=False)
+    @patch("src.dialog_gateway.messagebox.askyesno", return_value=False)
     def test_cancelled_confirmation_keeps_pattern(self, askyesno, delete):
         painter = FakePainter("Custom", True)
 
@@ -90,9 +92,9 @@ class PatternDeletionGuiTests(unittest.TestCase):
         delete.assert_not_called()
         self.assertEqual(painter.frame_army_pattern.load_count, 0)
 
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch("src.frame_main.src.color_pattern_handler.delete")
-    @patch("src.frame_main.askyesno", return_value=True)
+    @patch("src.dialog_gateway.messagebox.askyesno", return_value=True)
     def test_success_reloads_and_selects_neighbor(
         self, askyesno, delete, showerror
     ):
@@ -108,19 +110,19 @@ class PatternDeletionGuiTests(unittest.TestCase):
         )
         self.assertEqual(painter.selection_apply_count, 1)
 
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch(
         "src.frame_main.src.color_pattern_handler.delete",
         side_effect=PatternNotFoundError("Pattern was not found"),
     )
-    @patch("src.frame_main.askyesno", return_value=True)
+    @patch("src.dialog_gateway.messagebox.askyesno", return_value=True)
     def test_expected_delete_error_is_shown(self, askyesno, delete, showerror):
         painter = FakePainter("Missing", True)
 
         ArmyPainter.delete_pattern(painter)
 
         showerror.assert_called_once_with(
-            "Cannot Delete Pattern", "Pattern was not found"
+            "Cannot Delete Pattern", "Pattern was not found", parent=painter
         )
         self.assertEqual(painter.frame_army_pattern.load_count, 0)
         self.assertEqual(
@@ -128,12 +130,12 @@ class PatternDeletionGuiTests(unittest.TestCase):
         )
 
     @patch("src.frame_main.LOGGER.exception")
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch(
         "src.frame_main.src.color_pattern_handler.delete",
         side_effect=PermissionError("access denied"),
     )
-    @patch("src.frame_main.askyesno", return_value=True)
+    @patch("src.dialog_gateway.messagebox.askyesno", return_value=True)
     def test_persistence_failure_keeps_pattern_visible(
         self, askyesno, delete, showerror, log_exception
     ):
@@ -145,6 +147,7 @@ class PatternDeletionGuiTests(unittest.TestCase):
             "Cannot Delete Pattern",
             "The user-pattern file could not be updated.\n\n"
             "The pattern was not deleted.",
+            parent=painter,
         )
         self.assertEqual(painter.frame_army_pattern.load_count, 0)
         self.assertEqual(painter.frame_army_pattern.selected_names, [])

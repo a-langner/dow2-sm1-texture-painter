@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
+from fake_dialog_gateway import make_dialog_gateway
 from src.frame_main import (
     PATTERN_COLLECTION_FILETYPES,
     ArmyPainter,
@@ -55,6 +56,7 @@ class FakePatternList:
 
 class FakePainter:
     def __init__(self, import_directory=Path("imports")):
+        self.dialogs = make_dialog_gateway(self)
         self.settings = FakeSettings(import_directory)
         self.frame_army_pattern = FakePatternList()
         self.state_updates = 0
@@ -84,7 +86,7 @@ def collection_and_analysis(conflicts=False):
 
 class PatternCollectionImportGuiTests(unittest.TestCase):
     @patch("src.frame_main.read_pattern_collection_file")
-    @patch("src.frame_main.filedialog.askopenfilename", return_value="")
+    @patch("src.dialog_gateway.filedialog.askopenfilename", return_value="")
     def test_cancel_does_nothing(self, open_dialog, read_collection):
         painter = FakePainter(Path("remembered"))
 
@@ -96,8 +98,8 @@ class PatternCollectionImportGuiTests(unittest.TestCase):
             open_dialog.call_args.kwargs["filetypes"], PATTERN_COLLECTION_FILETYPES
         )
 
-    @patch("src.frame_main.showerror")
-    @patch("src.frame_main.filedialog.askopenfilename", return_value="bad.json")
+    @patch("src.dialog_gateway.messagebox.showerror")
+    @patch("src.dialog_gateway.filedialog.askopenfilename", return_value="bad.json")
     def test_invalid_files_have_distinct_errors_and_do_not_update_setting(
         self, open_dialog, showerror
     ):
@@ -135,7 +137,7 @@ class PatternCollectionImportGuiTests(unittest.TestCase):
     @patch("src.frame_main.analyze_pattern_collection_import")
     @patch("src.frame_main.read_pattern_collection_file")
     @patch(
-        "src.frame_main.filedialog.askopenfilename",
+        "src.dialog_gateway.filedialog.askopenfilename",
         return_value="C:/collections/valid.pattern-collection.json",
     )
     def test_conflict_dialog_cancel_is_remembered_but_imports_nothing(
@@ -155,7 +157,7 @@ class PatternCollectionImportGuiTests(unittest.TestCase):
         self.assertEqual(painter.settings.saved_directories, [Path("C:/collections")])
         self.assertEqual(painter.frame_army_pattern.load_calls, [])
 
-    @patch("src.frame_main.showinfo")
+    @patch("src.dialog_gateway.messagebox.showinfo")
     @patch("src.frame_main.PatternCollectionConflictDialog")
     @patch(
         "src.frame_main.import_analyzed_pattern_collection",
@@ -163,7 +165,7 @@ class PatternCollectionImportGuiTests(unittest.TestCase):
     )
     @patch("src.frame_main.analyze_pattern_collection_import")
     @patch("src.frame_main.read_pattern_collection_file")
-    @patch("src.frame_main.filedialog.askopenfilename", return_value="valid.json")
+    @patch("src.dialog_gateway.filedialog.askopenfilename", return_value="valid.json")
     def test_conflict_strategy_is_passed_to_one_atomic_import(
         self,
         open_dialog,
@@ -190,7 +192,7 @@ class PatternCollectionImportGuiTests(unittest.TestCase):
         self.assertEqual(painter.selection_apply_count, 1)
         self.assertIn("1 user pattern overwritten", showinfo.call_args.args[1])
 
-    @patch("src.frame_main.showinfo")
+    @patch("src.dialog_gateway.messagebox.showinfo")
     @patch("src.frame_main.PatternCollectionConflictDialog")
     @patch(
         "src.frame_main.import_analyzed_pattern_collection",
@@ -198,7 +200,7 @@ class PatternCollectionImportGuiTests(unittest.TestCase):
     )
     @patch("src.frame_main.analyze_pattern_collection_import")
     @patch("src.frame_main.read_pattern_collection_file")
-    @patch("src.frame_main.filedialog.askopenfilename", return_value="valid.json")
+    @patch("src.dialog_gateway.filedialog.askopenfilename", return_value="valid.json")
     def test_skip_strategy_reports_no_change_and_refreshes_once(
         self,
         open_dialog,
@@ -231,7 +233,7 @@ class PatternCollectionImportGuiTests(unittest.TestCase):
     @patch("src.frame_main.analyze_pattern_collection_import")
     @patch("src.frame_main.read_pattern_collection_file")
     @patch(
-        "src.frame_main.filedialog.askopenfilename",
+        "src.dialog_gateway.filedialog.askopenfilename",
         return_value="C:/collections/valid.pattern-collection.json",
     )
     def test_confirmation_cancel_preserves_state_after_remembering_valid_file(
@@ -250,7 +252,7 @@ class PatternCollectionImportGuiTests(unittest.TestCase):
         self.assertEqual(painter.settings.saved_directories, [Path("C:/collections")])
         self.assertEqual(painter.frame_army_pattern.load_calls, [])
 
-    @patch("src.frame_main.showinfo")
+    @patch("src.dialog_gateway.messagebox.showinfo")
     @patch("src.frame_main.PatternCollectionImportConfirmationDialog")
     @patch(
         "src.frame_main.import_analyzed_pattern_collection",
@@ -259,7 +261,7 @@ class PatternCollectionImportGuiTests(unittest.TestCase):
     @patch("src.frame_main.analyze_pattern_collection_import")
     @patch("src.frame_main.read_pattern_collection_file")
     @patch(
-        "src.frame_main.filedialog.askopenfilename",
+        "src.dialog_gateway.filedialog.askopenfilename",
         return_value="C:/collections/valid.pattern-collection.json",
     )
     def test_all_new_collection_imports_once_and_preserves_selection_and_colors(
@@ -286,7 +288,7 @@ class PatternCollectionImportGuiTests(unittest.TestCase):
         self.assertEqual(painter.frame_color_chooser.color_boxes[0]["bg"], "#112233")
         self.assertIn("1 new pattern imported", showinfo.call_args.args[1])
 
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch("src.frame_main.PatternCollectionImportConfirmationDialog")
     @patch(
         "src.frame_main.import_analyzed_pattern_collection",
@@ -294,7 +296,7 @@ class PatternCollectionImportGuiTests(unittest.TestCase):
     )
     @patch("src.frame_main.analyze_pattern_collection_import")
     @patch("src.frame_main.read_pattern_collection_file")
-    @patch("src.frame_main.filedialog.askopenfilename", return_value="valid.json")
+    @patch("src.dialog_gateway.filedialog.askopenfilename", return_value="valid.json")
     def test_persistence_failure_does_not_refresh(
         self,
         open_dialog,
@@ -321,14 +323,14 @@ class PatternCollectionImportGuiTests(unittest.TestCase):
         "src.frame_main.read_pattern_collection_file",
         side_effect=RuntimeError("programming bug"),
     )
-    @patch("src.frame_main.filedialog.askopenfilename", return_value="valid.json")
+    @patch("src.dialog_gateway.filedialog.askopenfilename", return_value="valid.json")
     def test_unexpected_collection_read_error_is_not_suppressed(
         self, open_dialog, read_collection
     ):
         with self.assertRaisesRegex(RuntimeError, "programming bug"):
             ArmyPainter.import_pattern_collection(FakePainter())
 
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch("src.frame_main.PatternCollectionImportConfirmationDialog")
     @patch(
         "src.frame_main.import_analyzed_pattern_collection",
@@ -336,7 +338,7 @@ class PatternCollectionImportGuiTests(unittest.TestCase):
     )
     @patch("src.frame_main.analyze_pattern_collection_import")
     @patch("src.frame_main.read_pattern_collection_file")
-    @patch("src.frame_main.filedialog.askopenfilename", return_value="valid.json")
+    @patch("src.dialog_gateway.filedialog.askopenfilename", return_value="valid.json")
     def test_unexpected_persistence_error_is_not_suppressed(
         self,
         open_dialog,

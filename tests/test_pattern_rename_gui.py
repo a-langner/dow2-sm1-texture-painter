@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
+from fake_dialog_gateway import make_dialog_gateway
 from src.color_pattern_handler import (
     PatternAlreadyExistsError,
     PatternNameConflictError,
@@ -28,6 +29,7 @@ class FakePatternList:
 
 class FakePainter:
     def __init__(self, selection):
+        self.dialogs = make_dialog_gateway(self)
         self.frame_army_pattern = FakePatternList(selection)
         self.frame_color_chooser = type(
             "ColorChooser",
@@ -42,7 +44,7 @@ class FakePainter:
 
 class PatternRenameGuiTests(unittest.TestCase):
     @patch("src.frame_main.src.color_pattern_handler.rename_user_pattern")
-    @patch("src.frame_main.askstring")
+    @patch("src.dialog_gateway.simpledialog.askstring")
     def test_no_selection_does_nothing(self, ask_name, rename):
         painter = FakePainter(None)
 
@@ -52,7 +54,7 @@ class PatternRenameGuiTests(unittest.TestCase):
         rename.assert_not_called()
 
     @patch("src.frame_main.src.color_pattern_handler.rename_user_pattern")
-    @patch("src.frame_main.askstring")
+    @patch("src.dialog_gateway.simpledialog.askstring")
     def test_builtin_selection_is_not_renamed(self, ask_name, rename):
         selection = PatternSelection("Built-in", False)
         painter = FakePainter(selection)
@@ -64,7 +66,7 @@ class PatternRenameGuiTests(unittest.TestCase):
         self.assertEqual(painter.state_updates, [selection])
 
     @patch("src.frame_main.src.color_pattern_handler.rename_user_pattern")
-    @patch("src.frame_main.askstring", return_value=None)
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value=None)
     def test_dialog_is_prefilled_and_cancel_does_nothing(self, ask_name, rename):
         painter = FakePainter(PatternSelection("Current Name", True))
 
@@ -79,9 +81,9 @@ class PatternRenameGuiTests(unittest.TestCase):
         rename.assert_not_called()
         self.assertEqual(painter.frame_army_pattern.load_calls, [])
 
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch("src.frame_main.src.color_pattern_handler.rename_user_pattern")
-    @patch("src.frame_main.askstring", return_value="   ")
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value="   ")
     def test_empty_name_is_rejected(self, ask_name, rename, showerror):
         painter = FakePainter(PatternSelection("Current", True))
 
@@ -95,7 +97,7 @@ class PatternRenameGuiTests(unittest.TestCase):
         )
 
     @patch("src.frame_main.src.color_pattern_handler.rename_user_pattern")
-    @patch("src.frame_main.askstring", return_value="  Same Name  ")
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value="  Same Name  ")
     def test_same_normalized_name_closes_without_writing(self, ask_name, rename):
         selection = PatternSelection("Same Name", True)
         painter = FakePainter(selection)
@@ -110,7 +112,7 @@ class PatternRenameGuiTests(unittest.TestCase):
         "src.frame_main.src.color_pattern_handler.rename_user_pattern",
         return_value="New Name",
     )
-    @patch("src.frame_main.askstring", return_value="  New Name  ")
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value="  New Name  ")
     def test_success_refreshes_once_and_selects_normalized_internal_name(
         self, ask_name, rename
     ):
@@ -138,12 +140,12 @@ class PatternRenameGuiTests(unittest.TestCase):
         )
         for error in errors:
             with self.subTest(error=type(error).__name__), patch(
-                "src.frame_main.askstring", return_value="Replacement"
+                "src.dialog_gateway.simpledialog.askstring", return_value="Replacement"
             ), patch(
                 "src.frame_main.src.color_pattern_handler.rename_user_pattern",
                 side_effect=error,
             ), patch(
-                "src.frame_main.showerror"
+                "src.dialog_gateway.messagebox.showerror"
             ) as showerror:
                 painter = FakePainter(PatternSelection("Current", True))
 
@@ -162,12 +164,12 @@ class PatternRenameGuiTests(unittest.TestCase):
                 )
 
     @patch("src.frame_main.LOGGER.exception")
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch(
         "src.frame_main.src.color_pattern_handler.rename_user_pattern",
         side_effect=UserPatternPersistenceError("simulated failure"),
     )
-    @patch("src.frame_main.askstring", return_value="New Name")
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value="New Name")
     def test_persistence_failure_is_logged_without_refreshing(
         self, ask_name, rename, showerror, log_exception
     ):
@@ -197,7 +199,7 @@ class PatternRenameGuiTests(unittest.TestCase):
         "src.frame_main.src.color_pattern_handler.rename_user_pattern",
         side_effect=RuntimeError("programming bug"),
     )
-    @patch("src.frame_main.askstring", return_value="New Name")
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value="New Name")
     def test_unexpected_rename_error_is_not_suppressed(self, ask_name, rename):
         painter = FakePainter(PatternSelection("Old Name", True))
 

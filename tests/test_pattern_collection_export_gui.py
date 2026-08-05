@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
+from fake_dialog_gateway import make_dialog_gateway
 from src.frame_main import (
     PATTERN_COLLECTION_EXCHANGE_SUFFIX,
     PATTERN_COLLECTION_FILETYPES,
@@ -27,6 +28,7 @@ class FakeSettings:
 
 class FakePainter:
     def __init__(self, export_directory=Path("exports")):
+        self.dialogs = make_dialog_gateway(self)
         self.settings = FakeSettings(export_directory)
 
 
@@ -48,9 +50,9 @@ class PatternCollectionFilenameTests(unittest.TestCase):
 
 class PatternCollectionExportGuiTests(unittest.TestCase):
     @patch("src.frame_main.export_user_pattern_collection")
-    @patch("src.frame_main.filedialog.asksaveasfilename")
-    @patch("src.frame_main.askstring")
-    @patch("src.frame_main.showinfo")
+    @patch("src.dialog_gateway.filedialog.asksaveasfilename")
+    @patch("src.dialog_gateway.simpledialog.askstring")
+    @patch("src.dialog_gateway.messagebox.showinfo")
     @patch(
         "src.frame_main.src.color_pattern_handler.has_user_patterns",
         return_value=False,
@@ -68,8 +70,8 @@ class PatternCollectionExportGuiTests(unittest.TestCase):
         export.assert_not_called()
         self.assertEqual(painter.settings.saved_directories, [])
 
-    @patch("src.frame_main.filedialog.asksaveasfilename")
-    @patch("src.frame_main.askstring", return_value=None)
+    @patch("src.dialog_gateway.filedialog.asksaveasfilename")
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value=None)
     @patch(
         "src.frame_main.src.color_pattern_handler.has_user_patterns",
         return_value=True,
@@ -82,9 +84,9 @@ class PatternCollectionExportGuiTests(unittest.TestCase):
         save_dialog.assert_not_called()
         self.assertEqual(painter.settings.saved_directories, [])
 
-    @patch("src.frame_main.showerror")
-    @patch("src.frame_main.filedialog.asksaveasfilename")
-    @patch("src.frame_main.askstring", return_value="   ")
+    @patch("src.dialog_gateway.messagebox.showerror")
+    @patch("src.dialog_gateway.filedialog.asksaveasfilename")
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value="   ")
     @patch(
         "src.frame_main.src.color_pattern_handler.has_user_patterns",
         return_value=True,
@@ -101,8 +103,8 @@ class PatternCollectionExportGuiTests(unittest.TestCase):
         self.assertEqual(painter.settings.saved_directories, [])
 
     @patch("src.frame_main.export_user_pattern_collection")
-    @patch("src.frame_main.filedialog.asksaveasfilename", return_value="")
-    @patch("src.frame_main.askstring", return_value="My Collection")
+    @patch("src.dialog_gateway.filedialog.asksaveasfilename", return_value="")
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value="My Collection")
     @patch(
         "src.frame_main.src.color_pattern_handler.has_user_patterns",
         return_value=True,
@@ -124,8 +126,8 @@ class PatternCollectionExportGuiTests(unittest.TestCase):
         )
 
     @patch("src.frame_main.export_user_pattern_collection")
-    @patch("src.frame_main.filedialog.asksaveasfilename")
-    @patch("src.frame_main.askstring", return_value="  Élite Collection  ")
+    @patch("src.dialog_gateway.filedialog.asksaveasfilename")
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value="  Élite Collection  ")
     @patch(
         "src.frame_main.src.color_pattern_handler.has_user_patterns",
         return_value=True,
@@ -141,23 +143,23 @@ class PatternCollectionExportGuiTests(unittest.TestCase):
 
             ArmyPainter.export_all_user_patterns(painter)
 
-        export.assert_called_once_with("Élite Collection", str(destination))
+        export.assert_called_once_with("Élite Collection", destination)
         self.assertEqual(painter.settings.saved_directories, [export_directory])
         self.assertEqual(
             save_dialog.call_args.kwargs["initialfile"],
             "Élite Collection.pattern-collection.json",
         )
 
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch(
         "src.frame_main.export_user_pattern_collection",
         side_effect=PatternExportError("disk failure"),
     )
     @patch(
-        "src.frame_main.filedialog.asksaveasfilename",
+        "src.dialog_gateway.filedialog.asksaveasfilename",
         return_value="C:/exports/failed.pattern-collection.json",
     )
-    @patch("src.frame_main.askstring", return_value="My Collection")
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value="My Collection")
     @patch(
         "src.frame_main.src.color_pattern_handler.has_user_patterns",
         return_value=True,
@@ -172,7 +174,9 @@ class PatternCollectionExportGuiTests(unittest.TestCase):
 
         message = showerror.call_args.args[1]
         self.assertIn("My Collection", message)
-        self.assertIn("C:/exports/failed.pattern-collection.json", message)
+        self.assertIn(
+            str(Path("C:/exports/failed.pattern-collection.json")), message
+        )
         self.assertIn("disk failure", message)
         self.assertEqual(painter.settings.saved_directories, [])
 
@@ -181,10 +185,10 @@ class PatternCollectionExportGuiTests(unittest.TestCase):
         side_effect=RuntimeError("bug"),
     )
     @patch(
-        "src.frame_main.filedialog.asksaveasfilename",
+        "src.dialog_gateway.filedialog.asksaveasfilename",
         return_value="C:/exports/failed.pattern-collection.json",
     )
-    @patch("src.frame_main.askstring", return_value="My Collection")
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value="My Collection")
     @patch(
         "src.frame_main.src.color_pattern_handler.has_user_patterns",
         return_value=True,

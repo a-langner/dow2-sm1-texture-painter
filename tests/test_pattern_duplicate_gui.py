@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
+from fake_dialog_gateway import make_dialog_gateway
 from src.color_pattern_handler import (
     PatternAlreadyExistsError,
     PatternNameConflictError,
@@ -37,6 +38,7 @@ class FakeColorChooser:
 
 class FakePainter:
     def __init__(self, selection):
+        self.dialogs = make_dialog_gateway(self)
         self.frame_army_pattern = FakePatternList(selection)
         self.frame_color_chooser = FakeColorChooser()
         self.state_updates = []
@@ -57,7 +59,7 @@ class FakePainter:
 
 class PatternDuplicateGuiTests(unittest.TestCase):
     @patch("src.frame_main.src.color_pattern_handler.save")
-    @patch("src.frame_main.askstring")
+    @patch("src.dialog_gateway.simpledialog.askstring")
     @patch("src.frame_main.get_pattern_colors")
     def test_no_selection_does_nothing(self, get_colors, ask_name, save):
         painter = FakePainter(None)
@@ -69,7 +71,7 @@ class PatternDuplicateGuiTests(unittest.TestCase):
         save.assert_not_called()
 
     @patch("src.frame_main.src.color_pattern_handler.save")
-    @patch("src.frame_main.askstring", return_value=None)
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value=None)
     @patch("src.frame_main.get_pattern_colors", return_value=STORED_COLORS)
     def test_dialog_suggests_copy_name_and_cancel_does_not_save(
         self, get_colors, ask_name, save
@@ -87,7 +89,7 @@ class PatternDuplicateGuiTests(unittest.TestCase):
         save.assert_not_called()
 
     @patch("src.frame_main.src.color_pattern_handler.save")
-    @patch("src.frame_main.askstring", return_value="  Duplicate  ")
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value="  Duplicate  ")
     @patch("src.frame_main.get_pattern_colors", return_value=STORED_COLORS)
     def test_success_uses_stored_not_dirty_colors_and_applies_duplicate(
         self, get_colors, ask_name, save
@@ -118,10 +120,10 @@ class PatternDuplicateGuiTests(unittest.TestCase):
         for error in errors:
             with self.subTest(error=type(error).__name__), patch(
                 "src.frame_main.get_pattern_colors", return_value=STORED_COLORS
-            ), patch("src.frame_main.askstring", return_value="Duplicate"), patch(
+            ), patch("src.dialog_gateway.simpledialog.askstring", return_value="Duplicate"), patch(
                 "src.frame_main.src.color_pattern_handler.save", side_effect=error
             ), patch(
-                "src.frame_main.showerror"
+                "src.dialog_gateway.messagebox.showerror"
             ) as showerror:
                 painter = FakePainter(PatternSelection("Original", True))
 
@@ -133,12 +135,12 @@ class PatternDuplicateGuiTests(unittest.TestCase):
                 self.assertEqual(painter.frame_army_pattern.load_calls, [])
 
     @patch("src.frame_main.LOGGER.exception")
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch(
         "src.frame_main.src.color_pattern_handler.save",
         side_effect=OSError("simulated failure"),
     )
-    @patch("src.frame_main.askstring", return_value="Duplicate")
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value="Duplicate")
     @patch("src.frame_main.get_pattern_colors", return_value=STORED_COLORS)
     def test_persistence_failure_is_logged_without_refreshing(
         self, get_colors, ask_name, save, showerror, log_exception

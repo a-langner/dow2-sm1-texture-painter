@@ -10,9 +10,7 @@ from PIL import (
     ImageTk,
 )
 import tkinter as tk
-from tkinter import filedialog
-from tkinter.simpledialog import askstring
-from tkinter.messagebox import askyesno, showerror, showinfo, showwarning
+from tkinter.messagebox import showerror
 from src.widget import (
     FrameColorChooser,
     FrameChannelList,
@@ -39,6 +37,7 @@ from src.dow1_converter import (
     get_tem_filenames,
     team_color_output_path,
 )
+from src.dialog_gateway import DialogGateway
 from src.color_pattern_handler import (
     InvalidPatternError,
     PatternError,
@@ -486,6 +485,7 @@ class ArmyPainter(tk.Tk):
         super().__init__()
         self.application_log_path = application_log_path
         self.texture_naming_profile = DEFAULT_TEXTURE_NAMING
+        self.dialogs = DialogGateway(self)
 
         # Setting main window
         min_width = 256 * 2 + PATTERN_LIST_DEFAULT_WIDTH
@@ -796,17 +796,17 @@ class ArmyPainter(tk.Tk):
         :param Event: widget triggered event, defaults to None
         :type Event: [type], optional
         """
-        filename = filedialog.asksaveasfilename(
-            initialdir=os.curdir,
+        filename = self.dialogs.choose_save_file(
+            initial_directory=Path(os.curdir),
             filetypes=SAVE_FILETYPES,
-            defaultextension=SAVE_FILETYPES[0],
-            initialfile=self.og_filename,
+            default_extension=SAVE_FILETYPES[0],
+            initial_filename=self.og_filename,
         )
         if filename:
             try:
                 self.img_wbench.save(filename)
             except KeyError:
-                tk.messagebox.showerror(
+                self.dialogs.show_error(
                     title="Wrong File Extension",
                     message="Error: wrong extension,"
                     + 'choose an extension from the "Save as type" list',
@@ -864,7 +864,7 @@ class ArmyPainter(tk.Tk):
         try:
             workspace, team_colour = future.result()
         except Exception as exc:
-            showerror(title="Preview error", message=str(exc))
+            self.dialogs.show_error(title="Preview error", message=str(exc))
             return
         self.img_wbench.img_workspace = workspace
         self.img_dif = ImageTk.PhotoImage(workspace)
@@ -944,7 +944,9 @@ class ArmyPainter(tk.Tk):
             try:
                 self.load_channel_packed_file(tem_filepath)
             except TextureValidationError as exc:
-                showerror(title="Invalid team-colour texture", message=str(exc))
+                self.dialogs.show_error(
+                    title="Invalid team-colour texture", message=str(exc)
+                )
         else:
             self.open_channel()
 
@@ -958,7 +960,9 @@ class ArmyPainter(tk.Tk):
             try:
                 self.load_dirt_file(dirt_filepath)
             except TextureValidationError as exc:
-                showwarning(title="Invalid dirt texture", message=str(exc))
+                self.dialogs.show_warning(
+                    title="Invalid dirt texture", message=str(exc)
+                )
 
         # Load associated spec file
         spec_filepath = find_companion_texture(
@@ -970,7 +974,9 @@ class ArmyPainter(tk.Tk):
             try:
                 self.load_spec_file(spec_filepath)
             except TextureValidationError as exc:
-                showwarning(title="Invalid specular texture", message=str(exc))
+                self.dialogs.show_warning(
+                    title="Invalid specular texture", message=str(exc)
+                )
 
         self.refresh_workspace()
         self.resize_for_diffuse(self.img_wbench.img_og_dif.size)
@@ -1012,8 +1018,8 @@ class ArmyPainter(tk.Tk):
         self.img_wbench.load_specular_file(filepath)
 
     def open_diffuse(self, Event=None):
-        filepath = filedialog.askopenfilename(
-            initialdir=self.settings.get_diffuse_initial_directory(),
+        filepath = self.dialogs.choose_open_file(
+            initial_directory=self.settings.get_diffuse_initial_directory(),
             filetypes=OPEN_FILETYPES,
         )
         if not filepath:
@@ -1025,7 +1031,9 @@ class ArmyPainter(tk.Tk):
         try:
             self.load_file(filepath)
         except TextureValidationError as exc:
-            showerror(title="Invalid diffuse texture", message=str(exc))
+            self.dialogs.show_error(
+                title="Invalid diffuse texture", message=str(exc)
+            )
             return
         try:
             self.settings.remember_diffuse_file(filepath)
@@ -1033,8 +1041,8 @@ class ArmyPainter(tk.Tk):
             LOGGER.exception("Could not update settings file: %s", self.settings.path)
 
     def open_channel(self, Event=None):
-        filepath = filedialog.askopenfilename(
-            initialdir=os.curdir,
+        filepath = self.dialogs.choose_open_file(
+            initial_directory=Path(os.curdir),
             filetypes=OPEN_FILETYPES,
             title="Open channel file",
         )
@@ -1043,7 +1051,9 @@ class ArmyPainter(tk.Tk):
         try:
             self.load_channel_packed_file(filepath)
         except TextureValidationError as exc:
-            showerror(title="Invalid team-colour texture", message=str(exc))
+            self.dialogs.show_error(
+                title="Invalid team-colour texture", message=str(exc)
+            )
 
     def _check_batch_path(self, source: str, dest: str):
         if not source:
@@ -1079,7 +1089,7 @@ class ArmyPainter(tk.Tk):
             if not src_format:
                 raise OSError("Please select at least one source format.")
         except OSError as e:
-            showerror(title="Path Error", message=str(e))
+            self.dialogs.show_error(title="Path Error", message=str(e))
         else:
             return (
                 Path(source_value),
@@ -1159,9 +1169,13 @@ class ArmyPainter(tk.Tk):
         if warnings:
             messages.append("Warnings:\n" + "\n".join(warnings))
         if messages:
-            showwarning(title="Batch results", message="\n\n".join(messages))
+            self.dialogs.show_warning(
+                title="Batch results", message="\n\n".join(messages)
+            )
         elif not cancelled:
-            showinfo(title="Batch complete", message="Batch processing completed.")
+            self.dialogs.show_info(
+                title="Batch complete", message="Batch processing completed."
+            )
 
     def batch_convert(self, Event=None):
         batch_input = self.get_batch_edit_input()
@@ -1211,26 +1225,30 @@ class ArmyPainter(tk.Tk):
         self.refresh_workspace()
 
     def save_pattern(self):
-        pattern_name = askstring("Pattern Name", "Choose a pattern name")
+        pattern_name = self.dialogs.ask_text(
+            title="Pattern Name", prompt="Choose a pattern name"
+        )
         if pattern_name is None:
             return
 
         pattern_name = pattern_name.strip()
         if not pattern_name:
-            showerror("Cannot Save Pattern", "Pattern name cannot be empty.")
+            self.dialogs.show_error(
+                title="Cannot Save Pattern", message="Pattern name cannot be empty."
+            )
             return
 
         colors = self.get_current_pattern_colors()
         try:
             src.color_pattern_handler.save(name=pattern_name, colors=colors)
         except PatternError as exc:
-            showerror("Cannot Save Pattern", str(exc))
+            self.dialogs.show_error(title="Cannot Save Pattern", message=str(exc))
             return
         except OSError:
             LOGGER.exception("Could not save user pattern '%s'", pattern_name)
-            showerror(
-                "Cannot Save Pattern",
-                "The user-pattern file could not be updated.\n\n"
+            self.dialogs.show_error(
+                title="Cannot Save Pattern",
+                message="The user-pattern file could not be updated.\n\n"
                 "The pattern was not saved.",
             )
             return
@@ -1264,7 +1282,9 @@ class ArmyPainter(tk.Tk):
                 pattern_name,
                 exc_info=True,
             )
-            showerror("Cannot Update Pattern", str(exc), parent=self)
+            self.dialogs.show_error(
+                title="Cannot Update Pattern", message=str(exc)
+            )
             self.update_pattern_action_states(selection)
             return
 
@@ -1272,11 +1292,10 @@ class ArmyPainter(tk.Tk):
             self.update_pattern_action_states(selection)
             return
 
-        confirmed = askyesno(
-            "Update Pattern",
-            f'Update pattern "{pattern_name}" with the current colors?',
+        confirmed = self.dialogs.confirm(
+            title="Update Pattern",
+            message=f'Update pattern "{pattern_name}" with the current colors?',
             default="no",
-            parent=self,
         )
         if not confirmed:
             return
@@ -1287,10 +1306,9 @@ class ArmyPainter(tk.Tk):
             )
         except UserPatternPersistenceError as exc:
             LOGGER.exception("Could not update user Pattern '%s'", pattern_name)
-            showerror(
-                "Cannot Update Pattern",
-                f"The Pattern could not be saved:\n{exc}",
-                parent=self,
+            self.dialogs.show_error(
+                title="Cannot Update Pattern",
+                message=f"The Pattern could not be saved:\n{exc}",
             )
             self.update_pattern_action_states(selection)
             return
@@ -1298,15 +1316,16 @@ class ArmyPainter(tk.Tk):
             LOGGER.debug(
                 "Could not update user Pattern '%s'", pattern_name, exc_info=True
             )
-            showerror("Cannot Update Pattern", str(exc), parent=self)
+            self.dialogs.show_error(
+                title="Cannot Update Pattern", message=str(exc)
+            )
             self.update_pattern_action_states(selection)
             return
         except OSError as exc:
             LOGGER.exception("Could not update user Pattern '%s'", pattern_name)
-            showerror(
-                "Cannot Update Pattern",
-                f"The Pattern could not be saved:\n{exc}",
-                parent=self,
+            self.dialogs.show_error(
+                title="Cannot Update Pattern",
+                message=f"The Pattern could not be saved:\n{exc}",
             )
             self.update_pattern_action_states(selection)
             return
@@ -1327,11 +1346,10 @@ class ArmyPainter(tk.Tk):
             return
 
         old_name = selection.name
-        requested_name = askstring(
-            "Rename Pattern",
-            "Pattern name:",
-            initialvalue=old_name,
-            parent=self,
+        requested_name = self.dialogs.ask_text(
+            title="Rename Pattern",
+            prompt="Pattern name:",
+            initial_value=old_name,
         )
         if requested_name is None:
             return
@@ -1345,7 +1363,9 @@ class ArmyPainter(tk.Tk):
                 exc,
                 exc_info=True,
             )
-            showerror("Cannot Rename Pattern", str(exc), parent=self)
+            self.dialogs.show_error(
+                title="Cannot Rename Pattern", message=str(exc)
+            )
             self.update_pattern_action_states(selection)
             return
 
@@ -1359,10 +1379,9 @@ class ArmyPainter(tk.Tk):
             )
         except UserPatternPersistenceError as exc:
             LOGGER.exception("Could not rename user Pattern '%s'", old_name)
-            showerror(
-                "Cannot Rename Pattern",
-                f"The Pattern could not be saved:\n{exc}",
-                parent=self,
+            self.dialogs.show_error(
+                title="Cannot Rename Pattern",
+                message=f"The Pattern could not be saved:\n{exc}",
             )
             self.update_pattern_action_states(selection)
             return
@@ -1370,15 +1389,16 @@ class ArmyPainter(tk.Tk):
             LOGGER.debug(
                 "Could not rename user Pattern '%s'", old_name, exc_info=True
             )
-            showerror("Cannot Rename Pattern", str(exc), parent=self)
+            self.dialogs.show_error(
+                title="Cannot Rename Pattern", message=str(exc)
+            )
             self.update_pattern_action_states(selection)
             return
         except OSError as exc:
             LOGGER.exception("Could not rename user Pattern '%s'", old_name)
-            showerror(
-                "Cannot Rename Pattern",
-                f"The Pattern could not be saved:\n{exc}",
-                parent=self,
+            self.dialogs.show_error(
+                title="Cannot Rename Pattern",
+                message=f"The Pattern could not be saved:\n{exc}",
             )
             self.update_pattern_action_states(selection)
             return
@@ -1395,14 +1415,15 @@ class ArmyPainter(tk.Tk):
         try:
             stored_colors = get_pattern_colors(selection.name)
         except PatternError as exc:
-            showerror("Cannot Duplicate Pattern", str(exc), parent=self)
+            self.dialogs.show_error(
+                title="Cannot Duplicate Pattern", message=str(exc)
+            )
             return
 
-        requested_name = askstring(
-            "Duplicate Pattern",
-            "Pattern name:",
-            initialvalue=f"{selection.name} Copy",
-            parent=self,
+        requested_name = self.dialogs.ask_text(
+            title="Duplicate Pattern",
+            prompt="Pattern name:",
+            initial_value=f"{selection.name} Copy",
         )
         if requested_name is None:
             return
@@ -1411,14 +1432,15 @@ class ArmyPainter(tk.Tk):
             duplicate_name = normalize_pattern_name(requested_name)
             src.color_pattern_handler.save(duplicate_name, stored_colors)
         except PatternError as exc:
-            showerror("Cannot Duplicate Pattern", str(exc), parent=self)
+            self.dialogs.show_error(
+                title="Cannot Duplicate Pattern", message=str(exc)
+            )
             return
         except OSError as exc:
             LOGGER.exception("Could not duplicate Pattern '%s'", selection.name)
-            showerror(
-                "Cannot Duplicate Pattern",
-                f"The Pattern could not be saved:\n{exc}",
-                parent=self,
+            self.dialogs.show_error(
+                title="Cannot Duplicate Pattern",
+                message=f"The Pattern could not be saved:\n{exc}",
             )
             return
 
@@ -1435,9 +1457,9 @@ class ArmyPainter(tk.Tk):
             self.update_pattern_action_states(selection)
             return
 
-        confirmed = askyesno(
-            "Delete Pattern",
-            f"Permanently delete the pattern '{pattern_name}'?",
+        confirmed = self.dialogs.confirm(
+            title="Delete Pattern",
+            message=f"Permanently delete the pattern '{pattern_name}'?",
         )
         if not confirmed:
             return
@@ -1451,7 +1473,9 @@ class ArmyPainter(tk.Tk):
             LOGGER.debug(
                 "Could not delete user Pattern '%s'", pattern_name, exc_info=True
             )
-            showerror("Cannot Delete Pattern", str(exc))
+            self.dialogs.show_error(
+                title="Cannot Delete Pattern", message=str(exc)
+            )
             self.update_pattern_action_states(selection)
             return
         except OSError:
@@ -1459,9 +1483,9 @@ class ArmyPainter(tk.Tk):
                 "Could not persist deletion of user pattern '%s'",
                 pattern_name,
             )
-            showerror(
-                "Cannot Delete Pattern",
-                "The user-pattern file could not be updated.\n\n"
+            self.dialogs.show_error(
+                title="Cannot Delete Pattern",
+                message="The user-pattern file could not be updated.\n\n"
                 "The pattern was not deleted.",
             )
             self.update_pattern_action_states(selection)
@@ -1522,8 +1546,8 @@ class ArmyPainter(tk.Tk):
             return False
 
     def import_pattern_collection(self):
-        source = filedialog.askopenfilename(
-            initialdir=self.settings.get_last_pattern_import_directory(),
+        source = self.dialogs.choose_open_file(
+            initial_directory=self.settings.get_last_pattern_import_directory(),
             filetypes=PATTERN_COLLECTION_FILETYPES,
             title="Import Pattern Collection",
         )
@@ -1595,10 +1619,9 @@ class ArmyPainter(tk.Tk):
             LOGGER.exception(
                 "Could not persist Pattern Collection imported from %s", source
             )
-            showerror(
-                "Cannot Import Pattern Collection",
-                f"The Pattern Collection could not be saved:\n{exc}",
-                parent=self,
+            self.dialogs.show_error(
+                title="Cannot Import Pattern Collection",
+                message=f"The Pattern Collection could not be saved:\n{exc}",
             )
             return
 
@@ -1609,43 +1632,39 @@ class ArmyPainter(tk.Tk):
             self.on_pattern_select()
         else:
             self.update_pattern_action_states()
-        showinfo(
-            "Pattern Collection Imported",
-            format_collection_import_result(result),
-            parent=self,
+        self.dialogs.show_info(
+            title="Pattern Collection Imported",
+            message=format_collection_import_result(result),
         )
 
     def export_all_user_patterns(self):
         if not src.color_pattern_handler.has_user_patterns():
-            showinfo(
-                "No User Patterns",
-                "There are no user-created Patterns to export.",
-                parent=self,
+            self.dialogs.show_info(
+                title="No User Patterns",
+                message="There are no user-created Patterns to export.",
             )
             return
 
-        collection_name = askstring(
-            "Export Pattern Collection",
-            "Collection name:",
-            initialvalue="My Patterns",
-            parent=self,
+        collection_name = self.dialogs.ask_text(
+            title="Export Pattern Collection",
+            prompt="Collection name:",
+            initial_value="My Patterns",
         )
         if collection_name is None:
             return
         collection_name = collection_name.strip()
         if not collection_name:
-            showerror(
-                "Invalid Collection Name",
-                "Collection name cannot be empty.",
-                parent=self,
+            self.dialogs.show_error(
+                title="Invalid Collection Name",
+                message="Collection name cannot be empty.",
             )
             return
 
-        destination = filedialog.asksaveasfilename(
-            initialdir=self.settings.get_last_pattern_export_directory(),
-            initialfile=suggested_pattern_collection_filename(collection_name),
+        destination = self.dialogs.choose_save_file(
+            initial_directory=self.settings.get_last_pattern_export_directory(),
+            initial_filename=suggested_pattern_collection_filename(collection_name),
             filetypes=PATTERN_COLLECTION_FILETYPES,
-            defaultextension=PATTERN_COLLECTION_EXCHANGE_SUFFIX,
+            default_extension=PATTERN_COLLECTION_EXCHANGE_SUFFIX,
             title="Export Pattern Collection",
         )
         if not destination:
@@ -1655,15 +1674,16 @@ class ArmyPainter(tk.Tk):
             export_user_pattern_collection(collection_name, destination)
         except EmptyUserPatternCollectionError:
             LOGGER.exception("No user-created Patterns remained for collection export")
-            showinfo(
-                "No User Patterns",
-                "There are no user-created Patterns to export.",
-                parent=self,
+            self.dialogs.show_info(
+                title="No User Patterns",
+                message="There are no user-created Patterns to export.",
             )
             return
         except InvalidPatternCollectionNameError as exc:
             LOGGER.exception("Invalid Pattern Collection name: %s", collection_name)
-            showerror("Invalid Collection Name", str(exc), parent=self)
+            self.dialogs.show_error(
+                title="Invalid Collection Name", message=str(exc)
+            )
             return
         except PatternExportPermissionDeniedError as exc:
             LOGGER.exception(
@@ -1671,11 +1691,10 @@ class ArmyPainter(tk.Tk):
                 collection_name,
                 destination,
             )
-            showerror(
-                "Permission Denied",
-                f"Permission was denied exporting '{collection_name}' to:\n"
+            self.dialogs.show_error(
+                title="Permission Denied",
+                message=f"Permission was denied exporting '{collection_name}' to:\n"
                 f"{destination}",
-                parent=self,
             )
             return
         except PatternExportError as exc:
@@ -1684,11 +1703,10 @@ class ArmyPainter(tk.Tk):
                 collection_name,
                 destination,
             )
-            showerror(
-                "Cannot Export Pattern Collection",
-                f"Could not export '{collection_name}' to:\n"
+            self.dialogs.show_error(
+                title="Cannot Export Pattern Collection",
+                message=f"Could not export '{collection_name}' to:\n"
                 f"{destination}\n\n{exc}",
-                parent=self,
             )
             return
 
@@ -1703,8 +1721,8 @@ class ArmyPainter(tk.Tk):
             )
 
     def import_pattern(self):
-        source = filedialog.askopenfilename(
-            initialdir=self.settings.get_last_pattern_import_directory(),
+        source = self.dialogs.choose_open_file(
+            initial_directory=self.settings.get_last_pattern_import_directory(),
             filetypes=PATTERN_FILETYPES,
             title="Import Pattern",
         )
@@ -1830,7 +1848,7 @@ class ArmyPainter(tk.Tk):
 
     def _show_pattern_import_error(self, title, error, message=None):
         LOGGER.exception("Pattern import failed: %s", error)
-        showerror(title, message or str(error))
+        self.dialogs.show_error(title=title, message=message or str(error))
 
     def _choose_pattern_import_conflict(self, conflict_type, pattern_name):
         dialog = PatternImportConflictDialog(
@@ -1841,15 +1859,14 @@ class ArmyPainter(tk.Tk):
         return dialog.result
 
     def _request_pattern_import_name(self, current_name):
-        return askstring(
-            "Rename Imported Pattern",
-            "Choose a replacement pattern name:",
-            initialvalue=current_name,
-            parent=self,
+        return self.dialogs.ask_text(
+            title="Rename Imported Pattern",
+            prompt="Choose a replacement pattern name:",
+            initial_value=current_name,
         )
 
     def _report_invalid_pattern_import_name(self, message):
-        showerror("Invalid Pattern Name", message, parent=self)
+        self.dialogs.show_error(title="Invalid Pattern Name", message=message)
 
     def export_selected_pattern(self):
         selection = self.frame_army_pattern.get_selected_pattern()
@@ -1857,11 +1874,11 @@ class ArmyPainter(tk.Tk):
             return
         pattern_name = selection.name
 
-        destination = filedialog.asksaveasfilename(
-            initialdir=self.settings.get_last_pattern_export_directory(),
-            initialfile=suggested_pattern_filename(pattern_name),
+        destination = self.dialogs.choose_save_file(
+            initial_directory=self.settings.get_last_pattern_export_directory(),
+            initial_filename=suggested_pattern_filename(pattern_name),
             filetypes=PATTERN_FILETYPES,
-            defaultextension=PATTERN_EXCHANGE_SUFFIX,
+            default_extension=PATTERN_EXCHANGE_SUFFIX,
             title="Export Pattern",
         )
         if not destination:
@@ -1875,9 +1892,9 @@ class ArmyPainter(tk.Tk):
                 pattern_name,
                 destination,
             )
-            showerror(
-                "Permission Denied",
-                f"Permission was denied exporting '{pattern_name}' to:\n"
+            self.dialogs.show_error(
+                title="Permission Denied",
+                message=f"Permission was denied exporting '{pattern_name}' to:\n"
                 f"{destination}",
             )
             return
@@ -1887,9 +1904,9 @@ class ArmyPainter(tk.Tk):
                 pattern_name,
                 destination,
             )
-            showerror(
-                "Cannot Export Pattern",
-                f"Could not export '{pattern_name}' to:\n{destination}\n\n{exc}",
+            self.dialogs.show_error(
+                title="Cannot Export Pattern",
+                message=f"Could not export '{pattern_name}' to:\n{destination}\n\n{exc}",
             )
             return
 
@@ -1912,9 +1929,9 @@ class ArmyPainter(tk.Tk):
             return
 
         self.user_pattern_warning_shown = True
-        showwarning(
-            "User Patterns Not Loaded",
-            "The user-pattern file could not be loaded:\n"
+        self.dialogs.show_warning(
+            title="User Patterns Not Loaded",
+            message="The user-pattern file could not be loaded:\n"
             f"{issue.path}\n\n"
             "Built-in patterns are still available. The file was not changed.",
         )
@@ -1922,10 +1939,9 @@ class ArmyPainter(tk.Tk):
     def open_log_folder(self):
         """Open the directory containing the persistent application log."""
         if self.application_log_path is None:
-            showinfo(
-                "Application Log Unavailable",
-                "A persistent application log is not available.",
-                parent=self,
+            self.dialogs.show_info(
+                title="Application Log Unavailable",
+                message="A persistent application log is not available.",
             )
             return
 
@@ -1935,11 +1951,10 @@ class ArmyPainter(tk.Tk):
             open_directory_in_file_manager(log_directory)
         except OSError as exc:
             LOGGER.exception("Could not open application log directory: %s", log_directory)
-            showerror(
-                "Cannot Open Log Folder",
-                f"The application log folder could not be opened:\n"
+            self.dialogs.show_error(
+                title="Cannot Open Log Folder",
+                message=f"The application log folder could not be opened:\n"
                 f"{log_directory}\n\n{exc}",
-                parent=self,
             )
 
     def report_callback_exception(self, exc, val, tb):

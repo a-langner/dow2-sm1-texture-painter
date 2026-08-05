@@ -1,8 +1,9 @@
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
+from fake_dialog_gateway import FakeDialogGateway
+from src.constant import OPEN_FILETYPES
 from src.frame_main import ArmyPainter
 from src.image_process import TextureValidationError
 
@@ -23,6 +24,7 @@ class FakeSettings:
 class FakePainter:
     def __init__(self, load_error=None):
         self.settings = FakeSettings()
+        self.dialogs = FakeDialogGateway()
         self.load_error = load_error
         self.loaded = []
 
@@ -33,41 +35,44 @@ class FakePainter:
 
 
 class DiffuseDirectoryGuiTests(unittest.TestCase):
-    @patch("src.frame_main.filedialog.askopenfilename", return_value="")
-    def test_cancellation_does_not_update_setting(self, askopenfilename):
+    def test_cancellation_does_not_update_setting(self):
         painter = FakePainter()
 
         ArmyPainter.open_diffuse(painter)
 
         self.assertEqual(painter.loaded, [])
         self.assertEqual(painter.settings.remembered, [])
-        self.assertEqual(askopenfilename.call_args.kwargs["initialdir"], Path("home"))
+        self.assertEqual(
+            painter.dialogs.calls,
+            [
+                (
+                    "choose_open_file",
+                    {
+                        "initial_directory": Path("home"),
+                        "filetypes": OPEN_FILETYPES,
+                    },
+                )
+            ],
+        )
 
-    @patch("src.frame_main.showerror")
-    @patch(
-        "src.frame_main.filedialog.askopenfilename",
-        return_value="C:/invalid/unit_dif.png",
-    )
-    def test_validation_failure_does_not_update_setting(
-        self, askopenfilename, showerror
-    ):
+    def test_validation_failure_does_not_update_setting(self):
         painter = FakePainter(TextureValidationError("invalid"))
+        painter.dialogs.open_file_result = Path("C:/invalid/unit_dif.png")
 
         ArmyPainter.open_diffuse(painter)
 
         self.assertEqual(painter.settings.remembered, [])
-        showerror.assert_called_once()
+        self.assertEqual(painter.dialogs.calls[-1][0], "show_error")
 
-    @patch(
-        "src.frame_main.filedialog.askopenfilename",
-        return_value="C:/textures/unit_dif.png",
-    )
-    def test_successful_load_updates_setting(self, askopenfilename):
+    def test_successful_load_updates_setting(self):
         painter = FakePainter()
+        painter.dialogs.open_file_result = Path("C:/textures/unit_dif.png")
 
         ArmyPainter.open_diffuse(painter)
 
-        self.assertEqual(painter.settings.remembered, ["C:/textures/unit_dif.png"])
+        self.assertEqual(
+            painter.settings.remembered, [Path("C:/textures/unit_dif.png")]
+        )
 
 
 if __name__ == "__main__":

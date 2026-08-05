@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
+from fake_dialog_gateway import make_dialog_gateway
 from src.color_pattern_handler import (
     InvalidPatternError,
     PatternAlreadyExistsError,
@@ -27,6 +28,7 @@ class FakePatternFrame:
 
 class FakePainter:
     def __init__(self):
+        self.dialogs = make_dialog_gateway(self)
         self.frame_color_chooser = type(
             "ColorChooser",
             (),
@@ -52,9 +54,9 @@ class FakePainter:
 
 
 class PatternSavingGuiTests(unittest.TestCase):
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch("src.frame_main.src.color_pattern_handler.save")
-    @patch("src.frame_main.askstring", return_value=None)
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value=None)
     def test_cancel_does_nothing(self, ask, save, showerror):
         painter = FakePainter()
 
@@ -64,9 +66,9 @@ class PatternSavingGuiTests(unittest.TestCase):
         showerror.assert_not_called()
         self.assertEqual(painter.frame_army_pattern.load_count, 0)
 
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch("src.frame_main.src.color_pattern_handler.save")
-    @patch("src.frame_main.askstring", return_value="   ")
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value="   ")
     def test_empty_name_shows_error(self, ask, save, showerror):
         painter = FakePainter()
 
@@ -74,7 +76,7 @@ class PatternSavingGuiTests(unittest.TestCase):
 
         save.assert_not_called()
         showerror.assert_called_once_with(
-            "Cannot Save Pattern", "Pattern name cannot be empty."
+            "Cannot Save Pattern", "Pattern name cannot be empty.", parent=painter
         )
         self.assertEqual(painter.frame_army_pattern.load_count, 0)
 
@@ -87,25 +89,25 @@ class PatternSavingGuiTests(unittest.TestCase):
 
         for error in errors:
             with self.subTest(error=type(error).__name__):
-                painter = FakePainter()
                 with patch(
-                    "src.frame_main.askstring", return_value="Name"
+                    "src.dialog_gateway.simpledialog.askstring", return_value="Name"
                 ), patch(
                     "src.frame_main.src.color_pattern_handler.save",
                     side_effect=error,
                 ), patch(
-                    "src.frame_main.showerror"
+                    "src.dialog_gateway.messagebox.showerror"
                 ) as showerror:
+                    painter = FakePainter()
                     ArmyPainter.save_pattern(painter)
 
-                showerror.assert_called_once_with(
-                    "Cannot Save Pattern", str(error)
+                    showerror.assert_called_once_with(
+                        "Cannot Save Pattern", str(error), parent=painter
                 )
                 self.assertEqual(painter.frame_army_pattern.load_count, 0)
 
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch("src.frame_main.src.color_pattern_handler.save")
-    @patch("src.frame_main.askstring", return_value="  Custom Pattern  ")
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value="  Custom Pattern  ")
     def test_success_reloads_and_selects_internal_name(
         self, ask, save, showerror
     ):
@@ -130,12 +132,12 @@ class PatternSavingGuiTests(unittest.TestCase):
         )
 
     @patch("src.frame_main.LOGGER.exception")
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch(
         "src.frame_main.src.color_pattern_handler.save",
         side_effect=PermissionError("access denied"),
     )
-    @patch("src.frame_main.askstring", return_value="Custom Pattern")
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value="Custom Pattern")
     def test_persistence_failure_explains_pattern_was_not_saved(
         self, ask, save, showerror, log_exception
     ):
@@ -147,6 +149,7 @@ class PatternSavingGuiTests(unittest.TestCase):
             "Cannot Save Pattern",
             "The user-pattern file could not be updated.\n\n"
             "The pattern was not saved.",
+            parent=painter,
         )
         self.assertEqual(painter.frame_army_pattern.load_count, 0)
         log_exception.assert_called_once()

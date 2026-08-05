@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
+from fake_dialog_gateway import make_dialog_gateway
 from src.frame_main import ArmyPainter
 from src.platform_tools import open_directory_in_file_manager
 
@@ -70,12 +71,13 @@ class OpenLogFolderGuiTests(unittest.TestCase):
             open_directory.assert_called_once_with(log_path.parent)
             self.assertEqual(painter.window_geometry, "900x700+20+20")
 
-    @patch("src.frame_main.showinfo")
+    @patch("src.dialog_gateway.messagebox.showinfo")
     @patch("src.frame_main.open_directory_in_file_manager")
     def test_unavailable_log_shows_information_without_launching(
         self, open_directory, showinfo
     ):
         painter = SimpleNamespace(application_log_path=None)
+        painter.dialogs = make_dialog_gateway(painter)
 
         ArmyPainter.open_log_folder(painter)
 
@@ -86,7 +88,7 @@ class OpenLogFolderGuiTests(unittest.TestCase):
             parent=painter,
         )
 
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch("src.frame_main.LOGGER.exception")
     @patch(
         "src.frame_main.open_directory_in_file_manager",
@@ -98,6 +100,7 @@ class OpenLogFolderGuiTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             log_path = Path(temporary_directory) / "logs" / "application.log"
             painter = SimpleNamespace(application_log_path=log_path)
+            painter.dialogs = make_dialog_gateway(painter)
 
             ArmyPainter.open_log_folder(painter)
 

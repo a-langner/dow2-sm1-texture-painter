@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
+from fake_dialog_gateway import make_dialog_gateway
 from src.color_pattern_handler import color_key
 from src.frame_main import (
     PATTERN_FILETYPES,
@@ -73,6 +74,7 @@ class FakeSettings:
 
 class FakePainter:
     def __init__(self, initial_directory):
+        self.dialogs = make_dialog_gateway(self)
         self.frame_army_pattern = FakePatternList()
         self.frame_color_chooser = FakeColorChooser()
         self.settings = FakeSettings(initial_directory)
@@ -126,7 +128,7 @@ class PatternImportGuiTests(unittest.TestCase):
             ("New", True),
         )
 
-    @patch("src.frame_main.filedialog.askopenfilename", return_value="")
+    @patch("src.dialog_gateway.filedialog.askopenfilename", return_value="")
     @patch("src.frame_main.read_pattern_file")
     def test_cancel_does_nothing(self, read_pattern, open_dialog):
         painter = FakePainter(Path("imports"))
@@ -137,8 +139,8 @@ class PatternImportGuiTests(unittest.TestCase):
         self.assertEqual(painter.settings.saved_directories, [])
         self.assertEqual(open_dialog.call_args.kwargs["filetypes"], PATTERN_FILETYPES)
 
-    @patch("src.frame_main.showerror")
-    @patch("src.frame_main.filedialog.askopenfilename", return_value="bad.json")
+    @patch("src.dialog_gateway.messagebox.showerror")
+    @patch("src.dialog_gateway.filedialog.askopenfilename", return_value="bad.json")
     def test_invalid_files_show_specific_errors_without_remembering_directory(
         self, open_dialog, showerror
     ):
@@ -176,7 +178,7 @@ class PatternImportGuiTests(unittest.TestCase):
     )
     @patch("src.frame_main.read_pattern_file")
     @patch(
-        "src.frame_main.filedialog.askopenfilename",
+        "src.dialog_gateway.filedialog.askopenfilename",
         return_value="C:/patterns/duplicate.pattern.json",
     )
     def test_conflict_cancel_leaves_list_and_settings_unchanged(
@@ -190,14 +192,14 @@ class PatternImportGuiTests(unittest.TestCase):
         self.assertEqual(painter.frame_army_pattern.load_count, 0)
         self.assertEqual(painter.settings.saved_directories, [])
 
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch(
         "src.frame_main.persist_imported_pattern",
         side_effect=OSError("disk is read-only"),
     )
     @patch("src.frame_main.read_pattern_file")
     @patch(
-        "src.frame_main.filedialog.askopenfilename",
+        "src.dialog_gateway.filedialog.askopenfilename",
         return_value="C:/patterns/import.pattern.json",
     )
     def test_persistence_failure_is_reported_without_refresh_or_setting_update(
@@ -212,14 +214,15 @@ class PatternImportGuiTests(unittest.TestCase):
         showerror.assert_called_once_with(
             "Cannot Import Pattern",
             "The Pattern could not be saved:\ndisk is read-only",
+            parent=painter,
         )
         self.assertEqual(painter.frame_army_pattern.load_count, 0)
         self.assertEqual(painter.settings.saved_directories, [])
 
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch("src.frame_main.persist_imported_pattern", return_value="Imported")
     @patch("src.frame_main.read_pattern_file")
-    @patch("src.frame_main.filedialog.askopenfilename")
+    @patch("src.dialog_gateway.filedialog.askopenfilename")
     def test_success_imports_selects_applies_and_remembers_directory(
         self, open_dialog, read_pattern, persist, showerror
     ):
@@ -240,7 +243,7 @@ class PatternImportGuiTests(unittest.TestCase):
             ):
                 ArmyPainter.import_pattern(painter)
 
-        read_pattern.assert_called_once_with(str(source))
+        read_pattern.assert_called_once_with(source)
         persist.assert_called_once_with(imported, target_name=None, overwrite=False)
         self.assertEqual(painter.frame_army_pattern.load_count, 1)
         self.assertEqual(painter.frame_army_pattern.selected_name, "Imported")
@@ -255,10 +258,10 @@ class PatternImportGuiTests(unittest.TestCase):
         self.assertEqual(painter.settings.saved_directories, [import_directory])
         showerror.assert_not_called()
 
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch("src.frame_main.persist_imported_pattern")
     @patch("src.frame_main.read_pattern_file")
-    @patch("src.frame_main.filedialog.askopenfilename")
+    @patch("src.dialog_gateway.filedialog.askopenfilename")
     def test_overwriting_selected_pattern_applies_new_stored_colors(
         self, open_dialog, read_pattern, persist, showerror
     ):
@@ -291,10 +294,10 @@ class PatternImportGuiTests(unittest.TestCase):
         self.assertEqual(painter.frame_army_pattern.delete_state_updates, 1)
         showerror.assert_not_called()
 
-    @patch("src.frame_main.showerror")
+    @patch("src.dialog_gateway.messagebox.showerror")
     @patch("src.frame_main.persist_imported_pattern")
     @patch("src.frame_main.read_pattern_file")
-    @patch("src.frame_main.filedialog.askopenfilename")
+    @patch("src.dialog_gateway.filedialog.askopenfilename")
     def test_overwriting_another_pattern_preserves_selection_and_current_colors(
         self, open_dialog, read_pattern, persist, showerror
     ):
@@ -324,7 +327,7 @@ class PatternImportGuiTests(unittest.TestCase):
         showerror.assert_not_called()
 
     @patch("src.frame_main.read_pattern_file", side_effect=RuntimeError("bug"))
-    @patch("src.frame_main.filedialog.askopenfilename", return_value="pattern.json")
+    @patch("src.dialog_gateway.filedialog.askopenfilename", return_value="pattern.json")
     def test_unexpected_import_error_is_not_suppressed(self, open_dialog, read_pattern):
         with self.assertRaisesRegex(RuntimeError, "bug"):
             ArmyPainter.import_pattern(FakePainter(Path("imports")))

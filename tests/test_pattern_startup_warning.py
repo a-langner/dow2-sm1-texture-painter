@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
+from fake_dialog_gateway import make_dialog_gateway
 from src.color_pattern_handler import (
     InvalidUserPatternFileError,
     UserPatternLoadIssue,
@@ -12,11 +13,12 @@ from src.frame_main import ArmyPainter
 
 class FakePainter:
     def __init__(self):
+        self.dialogs = make_dialog_gateway(self)
         self.user_pattern_warning_shown = False
 
 
 class PatternStartupWarningTests(unittest.TestCase):
-    @patch("src.frame_main.showwarning")
+    @patch("src.dialog_gateway.messagebox.showwarning")
     def test_warning_is_concise_contains_path_and_is_shown_once(
         self, showwarning
     ):
@@ -42,7 +44,7 @@ class PatternStartupWarningTests(unittest.TestCase):
         self.assertNotIn("Traceback", message)
         self.assertNotIn("detailed parser error", message)
 
-    @patch("src.frame_main.showwarning")
+    @patch("src.dialog_gateway.messagebox.showwarning")
     def test_no_warning_without_startup_issue(self, showwarning):
         painter = FakePainter()
 
