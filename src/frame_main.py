@@ -23,6 +23,14 @@ from src.widget import (
     PatternCollectionConflictDialog,
     pattern_action_states,
 )
+from src.batch_processing_service import (
+    BatchProcessingRequest,
+    BatchProcessingResult,
+    BatchProcessingService,
+    is_batch_diffuse,
+    prepare_batch_workbench,  # noqa: F401 - compatibility export
+    save_processed_image,
+)
 from src.constant import (
     DEFAULT_IMG_SIZE,
     COLOR_BOX_SIZE,
@@ -93,11 +101,10 @@ from src.settings_handler import SettingsHandler
 from src.texture_naming import (
     DEFAULT_TEXTURE_NAMING,
     TextureKind,
-    is_texture_kind,
 )
 from src.texture_loading_service import (
     TextureLoadingService,
-    find_companion_texture,
+    find_companion_texture,  # noqa: F401 - compatibility export
 )
 from pathlib import Path
 
@@ -249,75 +256,6 @@ def is_window_maximized(window):
         return False
 
 
-def prepare_batch_workbench(
-    diffuse_path,
-    settings,
-    profile=DEFAULT_TEXTURE_NAMING,
-):
-    """Load one texture set without touching Tk or the displayed workbench."""
-    workbench = ImageWorkbench()
-    workbench.load_diffuse_file(diffuse_path)
-    tem_path = find_companion_texture(diffuse_path, TextureKind.TEAM_COLOR, profile)
-    if tem_path is None:
-        raise TextureValidationError(
-            f'No team-colour texture was found for "{diffuse_path.name}".'
-        )
-    workbench.load_team_colour_file(tem_path)
-
-    warnings = []
-    for texture_kind, label, loader in (
-        (TextureKind.DIRT, "Dirt", workbench.load_dirt_file),
-        (TextureKind.SPECULAR, "Specular", workbench.load_specular_file),
-    ):
-        optional_path = find_companion_texture(diffuse_path, texture_kind, profile)
-        if optional_path is None:
-            continue
-        try:
-            loader(optional_path)
-        except TextureValidationError as exc:
-            warnings.append(f"{label}: {exc}")
-
-    workbench.apply_render_settings(settings)
-    return workbench, warnings
-
-
-def save_processed_image(image, filepath):
-    if filepath.suffix.casefold() in (".jpg", ".jpeg"):
-        image.convert("RGB").save(filepath)
-    else:
-        image.save(filepath)
-
-
-def batch_edit_worker(
-    files,
-    destination,
-    dest_format,
-    settings,
-    profile,
-    cancel,
-    events,
-):
-    errors = []
-    warnings = []
-    for current, diffuse_path in enumerate(files, start=1):
-        if cancel.is_set():
-            break
-        try:
-            workbench, item_warnings = prepare_batch_workbench(
-                diffuse_path, settings, profile
-            )
-            output = workbench.refresh_workspace()
-            output_path = destination / f"{diffuse_path.stem}.{dest_format}"
-            save_processed_image(output, output_path)
-            warnings.extend(
-                f"{diffuse_path.name}: {warning}" for warning in item_warnings
-            )
-        except Exception as exc:
-            errors.append(f"{diffuse_path.name}: {exc}")
-        events.put(("progress", current, len(files)))
-    return errors, warnings, cancel.is_set()
-
-
 def batch_convert_worker(
     source,
     destination,
@@ -394,6 +332,7 @@ class ArmyPainter(tk.Tk):
             debounce_ms=PREVIEW_DEBOUNCE_MS,
         )
         self.batch_executor = ThreadPoolExecutor(max_workers=1)
+        self.batch_processing = BatchProcessingService()
         self.batch_future = None
         self.batch_cancel = threading.Event()
         self.batch_events = queue.Queue()
@@ -885,12 +824,7 @@ class ArmyPainter(tk.Tk):
             raise OSError(f"{dest} does not exist.")
 
     def _check_diffuse_format(self, filename: str, src_format: list):
-        texture_path = Path(filename)
-        return texture_path.suffix[1:].casefold() in src_format and is_texture_kind(
-            texture_path,
-            TextureKind.DIFFUSE,
-            self.texture_naming_profile,
-        )
+        return is_batch_diffuse(Path(filename), src_format, self.texture_naming_profile)
 
     def get_batch_edit_input(self):
         if self.frame_batch_tools is None:
@@ -958,8 +892,15 @@ class ArmyPainter(tk.Tk):
             return
 
         try:
-            errors, warnings, cancelled = self.batch_future.result()
+            worker_result = self.batch_future.result()
+            if isinstance(worker_result, BatchProcessingResult):
+                errors = list(worker_result.errors)
+                warnings = list(worker_result.warnings)
+                cancelled = worker_result.cancelled
+            else:
+                errors, warnings, cancelled = worker_result
         except Exception as exc:
+            LOGGER.exception("Batch worker failed unexpectedly")
             errors, warnings, cancelled = [str(exc)], [], False
         self.batch_future = None
         if self.frame_batch_tools is not None:
@@ -1012,21 +953,20 @@ class ArmyPainter(tk.Tk):
         if batch_input is None:
             return
         src, dest, dest_format, src_format = batch_input
-        files = [
-            src / filename
-            for filename in os.listdir(src)
-            if self._check_diffuse_format(filename, src_format)
-        ]
         self.sync_render_settings()
         settings = self.img_wbench.get_render_settings()
-        self.frame_batch_tools.progress_bar["maximum"] = len(files)
+        request = BatchProcessingRequest(
+            source_directory=src,
+            destination_directory=dest,
+            source_formats=tuple(src_format),
+            destination_format=dest_format,
+            settings=settings,
+            naming_profile=self.texture_naming_profile,
+            overwrite_existing=True,
+        )
         self.start_batch_job(
-            batch_edit_worker,
-            files,
-            dest,
-            dest_format,
-            settings,
-            self.texture_naming_profile,
+            self.batch_processing.process_to_queue,
+            request,
         )
 
     def reset_workspace(self, Event=None):

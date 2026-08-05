@@ -54,9 +54,7 @@ class BatchTextureNamingTests(unittest.TestCase):
         destination = Path("output")
 
         self.assertEqual(
-            team_color_output_path(
-                "marine.v2_default", destination, "DDS"
-            ),
+            team_color_output_path("marine.v2_default", destination, "DDS"),
             destination / "marine.v2_tem.DDS",
         )
 
@@ -72,9 +70,7 @@ class BatchTextureNamingTests(unittest.TestCase):
         profile = self._custom_profile()
 
         self.assertEqual(
-            team_color_output_path(
-                "marine_default", Path("output"), "tga", profile
-            ),
+            team_color_output_path("marine_default", Path("output"), "tga", profile),
             Path("output") / "marine_mask.tga",
         )
 
@@ -90,8 +86,8 @@ class BatchTextureNamingTests(unittest.TestCase):
         self.assertTrue(is_texture_kind(output, TextureKind.TEAM_COLOR))
         self.assertEqual(output, Path("units") / "marine_tem.dds")
 
-    @patch("src.frame_main.ImageWorkbench")
-    @patch("src.frame_main.find_companion_texture")
+    @patch("src.batch_processing_service.ImageWorkbench")
+    @patch("src.batch_processing_service.find_companion_texture")
     def test_batch_companion_discovery_receives_injected_profile(
         self, find_companion, workbench_type
     ):
@@ -107,10 +103,7 @@ class BatchTextureNamingTests(unittest.TestCase):
             [TextureKind.TEAM_COLOR, TextureKind.DIRT, TextureKind.SPECULAR],
         )
         self.assertTrue(
-            all(
-                call.args[2] is profile
-                for call in find_companion.call_args_list
-            )
+            all(call.args[2] is profile for call in find_companion.call_args_list)
         )
         workbench.load_team_colour_file.assert_called_once_with(team_color_path)
 
