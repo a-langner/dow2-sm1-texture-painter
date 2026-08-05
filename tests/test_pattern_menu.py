@@ -106,6 +106,7 @@ class PatternMenuStateTests(unittest.TestCase):
                 "import_pattern_collection",
                 "export_all_user_patterns",
                 "open_batch_edit_tools",
+                "open_log_folder",
                 "batch_edit",
             )
         }
@@ -117,6 +118,28 @@ class PatternMenuStateTests(unittest.TestCase):
         )
 
         ArmyPainter.define_menu(painter)
+
+        menubar = painter.config.call_args.kwargs["menu"]
+        cascades = {
+            options["label"]: options["menu"]
+            for item_type, options in menubar.items
+            if item_type == "cascade"
+        }
+        self.assertEqual(
+            list(cascades), ["File", "Edit", "Patterns", "Tools", "Help"]
+        )
+        self.assertEqual(
+            cascades["Help"].items,
+            [
+                (
+                    "command",
+                    {
+                        "label": "Open Log Folder",
+                        "command": handlers["open_log_folder"],
+                    },
+                )
+            ],
+        )
 
         labels = [
             item[1].get("label") if item[0] == "command" else None

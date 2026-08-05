@@ -78,6 +78,7 @@ from src.pattern_exchange import (
     read_pattern_file,
     read_pattern_collection_file,
 )
+from src.platform_tools import open_directory_in_file_manager
 from src.settings_handler import SettingsHandler
 from pathlib import Path
 
@@ -633,10 +634,19 @@ class ArmyPainter(tk.Tk):
             )
             menubar.add_cascade(label="Tools", menu=toolmenu)
 
+        def define_helpmenu():
+            helpmenu = tk.Menu(menubar, tearoff=0)
+            helpmenu.add_command(
+                label="Open Log Folder",
+                command=self.open_log_folder,
+            )
+            menubar.add_cascade(label="Help", menu=helpmenu)
+
         define_filemenu()
         define_editmenu()
         define_patternmenu()
         define_toolmenu()
+        define_helpmenu()
 
         # Define Menu binding
         self.bind("<Control-o>", self.open_diffuse)
@@ -1803,6 +1813,29 @@ class ArmyPainter(tk.Tk):
             f"{issue.path}\n\n"
             "Built-in patterns are still available. The file was not changed.",
         )
+
+    def open_log_folder(self):
+        """Open the directory containing the persistent application log."""
+        if self.application_log_path is None:
+            showinfo(
+                "Application Log Unavailable",
+                "A persistent application log is not available.",
+                parent=self,
+            )
+            return
+
+        log_directory = Path(self.application_log_path).parent
+        try:
+            log_directory.mkdir(parents=True, exist_ok=True)
+            open_directory_in_file_manager(log_directory)
+        except OSError as exc:
+            LOGGER.exception("Could not open application log directory: %s", log_directory)
+            showerror(
+                "Cannot Open Log Folder",
+                f"The application log folder could not be opened:\n"
+                f"{log_directory}\n\n{exc}",
+                parent=self,
+            )
 
     def report_callback_exception(self, exc, val, tb):
         exception_info = (exc, val, tb)
