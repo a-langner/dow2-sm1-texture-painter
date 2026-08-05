@@ -38,8 +38,8 @@ from src.dow1_converter import (
 from src.dialog_gateway import DialogGateway
 from src.file_selection_service import (
     FileSelectionService,
-    PATTERN_COLLECTION_FILETYPES,
-    PATTERN_FILETYPES,
+    PATTERN_COLLECTION_FILETYPES,  # noqa: F401 - compatibility export
+    PATTERN_FILETYPES,  # noqa: F401 - compatibility export
 )
 from src.color_pattern_handler import (
     InvalidPatternError,
@@ -47,7 +47,6 @@ from src.color_pattern_handler import (
     PatternNotFoundError,
     UserPatternPersistenceError,
     get_pattern_colors,
-    normalize_pattern_name,
     normalize_pattern_colors,
     pattern_colors_equal,
 )
@@ -56,7 +55,6 @@ from src.logging_setup import configure_application_logging
 from src.pattern_exchange import (
     PATTERN_COLLECTION_EXCHANGE_SUFFIX,
     PATTERN_EXCHANGE_SUFFIX,
-    BuiltinPatternImportConflictError,
     EmptyUserPatternCollectionError,
     DuplicatePatternNameInCollectionError,
     InvalidImportedPatternColorsError,
@@ -75,7 +73,6 @@ from src.pattern_exchange import (
     PatternPermissionDeniedError,
     UnsupportedPatternVersionError,
     UnsupportedPatternCollectionVersionError,
-    UserPatternImportConflictError,
     export_pattern,
     export_user_pattern_collection,
     analyze_pattern_collection_import,
@@ -85,6 +82,12 @@ from src.pattern_exchange import (
     read_pattern_collection_file,
 )
 from src.platform_tools import open_directory_in_file_manager
+from src.pattern_controller import (
+    PatternController,
+    collection_selection_was_overwritten,  # noqa: F401 - compatibility export
+    resolve_pattern_import_conflicts,  # noqa: F401 - compatibility export
+    single_import_selection_policy,  # noqa: F401 - compatibility export
+)
 from src.preview_controller import PreviewController, PreviewResult
 from src.settings_handler import SettingsHandler
 from src.texture_naming import (
@@ -144,9 +147,7 @@ def suggested_exchange_filename(name, suffix, fallback_name):
 
 def suggested_pattern_filename(pattern_name):
     """Return a portable filename while preserving the internal pattern name."""
-    return suggested_exchange_filename(
-        pattern_name, PATTERN_EXCHANGE_SUFFIX, "pattern"
-    )
+    return suggested_exchange_filename(pattern_name, PATTERN_EXCHANGE_SUFFIX, "pattern")
 
 
 def suggested_pattern_collection_filename(collection_name):
@@ -195,87 +196,12 @@ def format_collection_import_result(result):
     return "\n\n".join((lines[0], "\n".join(lines[1:])))
 
 
-def collection_selection_was_overwritten(
-    selected_pattern_name, analysis, overwrite_user_conflicts
-):
-    """Return whether Collection import replaced the selected Pattern data."""
-    if selected_pattern_name is None or not overwrite_user_conflicts:
-        return False
-    return any(
-        pattern.name == selected_pattern_name for pattern in analysis.user_conflicts
-    )
-
-
-def single_import_selection_policy(
-    selected_pattern_name, imported_pattern_name, overwritten
-):
-    """Return (selection to restore, whether to apply imported stored colors)."""
-    if overwritten:
-        selected_was_overwritten = (
-            selected_pattern_name is not None
-            and selected_pattern_name == imported_pattern_name
-        )
-        return selected_pattern_name, selected_was_overwritten
-    return imported_pattern_name, True
-
-
-def resolve_pattern_import_conflicts(
-    imported_pattern,
-    persist,
-    choose_conflict,
-    request_rename,
-    report_invalid_name,
-):
-    """Resolve import conflicts iteratively without coupling policy to Tk."""
-    target_name = None
-    overwrite = False
-    while True:
-        try:
-            return persist(
-                imported_pattern,
-                target_name=target_name,
-                overwrite=overwrite,
-            )
-        except BuiltinPatternImportConflictError:
-            conflict_type = "builtin"
-        except UserPatternImportConflictError:
-            conflict_type = "user"
-
-        effective_name = target_name or imported_pattern.name
-        decision = choose_conflict(conflict_type, effective_name)
-        if decision == "cancel":
-            return None
-        if decision == "overwrite" and conflict_type == "user":
-            overwrite = True
-            continue
-        if decision != "rename":
-            return None
-
-        while True:
-            replacement_name = request_rename(effective_name)
-            if replacement_name is None:
-                return None
-            try:
-                target_name = normalize_pattern_name(replacement_name)
-            except InvalidPatternError as exc:
-                report_invalid_name(str(exc))
-                continue
-            overwrite = False
-            break
-
-
-def calculate_initial_window_size(
-    min_width, min_height, screen_width, screen_height
-):
+def calculate_initial_window_size(min_width, min_height, screen_width, screen_height):
     """Scale the initial size and keep it within a sensible screen area."""
     scaled_width = round(min_width * WINDOW_INITIAL_SCALE)
     scaled_height = round(min_height * WINDOW_INITIAL_SCALE)
-    available_width = max(
-        min_width, round(screen_width * WINDOW_SCREEN_FRACTION)
-    )
-    available_height = max(
-        min_height, round(screen_height * WINDOW_SCREEN_FRACTION)
-    )
+    available_width = max(min_width, round(screen_width * WINDOW_SCREEN_FRACTION))
+    available_height = max(min_height, round(screen_height * WINDOW_SCREEN_FRACTION))
     return (
         min(scaled_width, available_width),
         min(scaled_height, available_height),
@@ -295,12 +221,8 @@ def calculate_diffuse_window_size(
         texture_width * 2 + PATTERN_LIST_DEFAULT_WIDTH + WINDOW_CONTENT_PADDING
     )
     content_height = texture_height + FRAME_TOOL_HEIGHT + WINDOW_CONTENT_PADDING
-    available_width = max(
-        min_width, round(screen_width * WINDOW_SCREEN_FRACTION)
-    )
-    available_height = max(
-        min_height, round(screen_height * WINDOW_SCREEN_FRACTION)
-    )
+    available_width = max(min_width, round(screen_width * WINDOW_SCREEN_FRACTION))
+    available_height = max(min_height, round(screen_height * WINDOW_SCREEN_FRACTION))
     return (
         min(max(content_width, min_width), available_width),
         min(max(content_height, min_height), available_height),
@@ -335,9 +257,7 @@ def prepare_batch_workbench(
     """Load one texture set without touching Tk or the displayed workbench."""
     workbench = ImageWorkbench()
     workbench.load_diffuse_file(diffuse_path)
-    tem_path = find_companion_texture(
-        diffuse_path, TextureKind.TEAM_COLOR, profile
-    )
+    tem_path = find_companion_texture(diffuse_path, TextureKind.TEAM_COLOR, profile)
     if tem_path is None:
         raise TextureValidationError(
             f'No team-colour texture was found for "{diffuse_path.name}".'
@@ -349,9 +269,7 @@ def prepare_batch_workbench(
         (TextureKind.DIRT, "Dirt", workbench.load_dirt_file),
         (TextureKind.SPECULAR, "Specular", workbench.load_specular_file),
     ):
-        optional_path = find_companion_texture(
-            diffuse_path, texture_kind, profile
-        )
+        optional_path = find_companion_texture(diffuse_path, texture_kind, profile)
         if optional_path is None:
             continue
         try:
@@ -425,9 +343,7 @@ def batch_convert_worker(
                 name, destination, dest_format, profile
             )
             if output_path is None:
-                raise ValueError(
-                    f"Cannot create a team-color filename from '{name}'."
-                )
+                raise ValueError(f"Cannot create a team-color filename from '{name}'.")
             save_processed_image(result, output_path)
         except Exception as exc:
             errors.append(f"{name}: {exc}")
@@ -462,6 +378,7 @@ class ArmyPainter(tk.Tk):
         self.img_wbench = ImageWorkbench()
         self.settings = SettingsHandler()
         self.file_selection = FileSelectionService(self.settings, self.dialogs)
+        self.pattern_controller = self._create_pattern_controller()
         self.texture_loading = TextureLoadingService(
             self.img_wbench, self.texture_naming_profile
         )
@@ -513,9 +430,7 @@ class ArmyPainter(tk.Tk):
             on_state_changed=self.update_pattern_action_states,
         )
         self.frame_army_pattern.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        self.frame_channel_select.lb.bind(
-            "<<ListboxSelect>>", self.select_channel
-        )
+        self.frame_channel_select.lb.bind("<<ListboxSelect>>", self.select_channel)
         # Defining menubar
         self.define_menu()
         self.activate_pattern_panel_callbacks()
@@ -524,6 +439,36 @@ class ArmyPainter(tk.Tk):
         self.reset_workspace()
         self.user_pattern_warning_shown = False
         self.after_idle(self.show_user_pattern_load_warning)
+
+    def _create_pattern_controller(self):
+        """Compose Pattern workflows from the existing persistence APIs."""
+        return PatternController(
+            file_selection=getattr(self, "file_selection", None),
+            store=src.color_pattern_handler,
+            get_colors=lambda name: get_pattern_colors(name),
+            read_single=lambda path: read_pattern_file(path),
+            persist_single_import=lambda pattern, **options: (
+                persist_imported_pattern(pattern, **options)
+            ),
+            export_single=lambda name, path: export_pattern(name, path),
+            read_collection=lambda path: read_pattern_collection_file(path),
+            analyze_collection=lambda collection: (
+                analyze_pattern_collection_import(collection)
+            ),
+            persist_collection=lambda analysis, **options: (
+                import_analyzed_pattern_collection(analysis, **options)
+            ),
+            export_collection=lambda name, path: (
+                export_user_pattern_collection(name, path)
+            ),
+        )
+
+    def _pattern_workflows(self):
+        """Return the composed controller, with a narrow test-double fallback."""
+        controller = getattr(self, "pattern_controller", None)
+        if controller is not None:
+            return controller
+        return ArmyPainter._create_pattern_controller(self)
 
     def activate_pattern_panel_callbacks(self):
         """Activate Pattern callbacks only after assignment and menu creation."""
@@ -710,10 +655,7 @@ class ArmyPainter(tk.Tk):
         self.label_img_tem.pack(side=tk.LEFT, fill=tk.Y)
 
     def open_batch_edit_tools(self, Event=None):
-        if (
-            self.frame_batch_tools is not None
-            and self.frame_batch_tools.winfo_exists()
-        ):
+        if self.frame_batch_tools is not None and self.frame_batch_tools.winfo_exists():
             self.frame_batch_tools.deiconify()
             self.frame_batch_tools.lift()
             self.frame_batch_tools.focus_force()
@@ -731,14 +673,10 @@ class ArmyPainter(tk.Tk):
             relief=tk.RIDGE,
         )
         self.frame_batch_tools.iconphoto(False, self.icon_img)
-        self.frame_batch_tools.protocol(
-            "WM_DELETE_WINDOW", self.close_batch_edit_tools
-        )
+        self.frame_batch_tools.protocol("WM_DELETE_WINDOW", self.close_batch_edit_tools)
         if self.batch_future is not None and not self.batch_future.done():
             self.frame_batch_tools.set_running(True)
-            self.frame_batch_tools.frame_progress_bar.configure(
-                text="Batch running..."
-            )
+            self.frame_batch_tools.frame_progress_bar.configure(text="Batch running...")
 
     def close_batch_edit_tools(self):
         self.batch_cancel.set()
@@ -762,9 +700,7 @@ class ArmyPainter(tk.Tk):
         :param Event: widget triggered event, defaults to None
         :type Event: [type], optional
         """
-        filename = self.file_selection.choose_image_save_destination(
-            self.og_filename
-        )
+        filename = self.file_selection.choose_image_save_destination(self.og_filename)
         if filename:
             try:
                 self.img_wbench.save(filename)
@@ -832,19 +768,21 @@ class ArmyPainter(tk.Tk):
             return False
 
         try:
-            color_list = get_pattern_colors(selection.name)
+            color_list = ArmyPainter._pattern_workflows(self).get_colors(selection.name)
         except PatternNotFoundError:
             self.update_pattern_action_states(selection)
             return False
 
-        for color, color_box in zip(
-            color_list, self.frame_color_chooser.color_boxes
-        ):
+        ArmyPainter._apply_pattern_colors(self, color_list, selection)
+        return True
+
+    def _apply_pattern_colors(self, color_list, selection=None):
+        """Apply controller-provided colors while retaining GUI ownership."""
+        for color, color_box in zip(color_list, self.frame_color_chooser.color_boxes):
             color_box["bg"] = color
         self.frame_color_chooser.draw_rgb_value()
         self.update_pattern_action_states(selection)
         self.refresh_workspace()
-        return True
 
     def select_channel(self, Event=None):
         """Register channel selected from the Channel list listbox
@@ -917,9 +855,7 @@ class ArmyPainter(tk.Tk):
         try:
             self.load_file(filepath)
         except TextureValidationError as exc:
-            self.dialogs.show_error(
-                title="Invalid diffuse texture", message=str(exc)
-            )
+            self.dialogs.show_error(title="Invalid diffuse texture", message=str(exc))
             return
         try:
             self.file_selection.remember_successful_diffuse(filepath)
@@ -950,13 +886,10 @@ class ArmyPainter(tk.Tk):
 
     def _check_diffuse_format(self, filename: str, src_format: list):
         texture_path = Path(filename)
-        return (
-            texture_path.suffix[1:].casefold() in src_format
-            and is_texture_kind(
-                texture_path,
-                TextureKind.DIFFUSE,
-                self.texture_naming_profile,
-            )
+        return texture_path.suffix[1:].casefold() in src_format and is_texture_kind(
+            texture_path,
+            TextureKind.DIFFUSE,
+            self.texture_naming_profile,
         )
 
     def get_batch_edit_input(self):
@@ -1121,9 +1054,10 @@ class ArmyPainter(tk.Tk):
             )
             return
 
-        colors = self.get_current_pattern_colors()
         try:
-            src.color_pattern_handler.save(name=pattern_name, colors=colors)
+            result = ArmyPainter._pattern_workflows(self).save_new_pattern(
+                pattern_name, self.get_current_pattern_colors()
+            )
         except PatternError as exc:
             self.dialogs.show_error(title="Cannot Save Pattern", message=str(exc))
             return
@@ -1136,7 +1070,7 @@ class ArmyPainter(tk.Tk):
             )
             return
 
-        self.frame_army_pattern.load_pattern_list(pattern_name)
+        self.frame_army_pattern.load_pattern_list(result.selected_name)
         self.update_pattern_action_states()
 
     def get_current_pattern_colors(self) -> list[str]:
@@ -1157,17 +1091,16 @@ class ArmyPainter(tk.Tk):
         pattern_name = selection.name
         try:
             current_colors = self.get_current_pattern_colors()
-            stored_colors = get_pattern_colors(pattern_name)
-            colors_match = pattern_colors_equal(current_colors, stored_colors)
+            colors_match = not ArmyPainter._pattern_workflows(self).pattern_is_modified(
+                pattern_name, current_colors
+            )
         except PatternError as exc:
             LOGGER.debug(
                 "Could not compare user Pattern '%s' for update",
                 pattern_name,
                 exc_info=True,
             )
-            self.dialogs.show_error(
-                title="Cannot Update Pattern", message=str(exc)
-            )
+            self.dialogs.show_error(title="Cannot Update Pattern", message=str(exc))
             self.update_pattern_action_states(selection)
             return
 
@@ -1184,7 +1117,7 @@ class ArmyPainter(tk.Tk):
             return
 
         try:
-            src.color_pattern_handler.update_user_pattern(
+            ArmyPainter._pattern_workflows(self).update_pattern(
                 pattern_name, current_colors
             )
         except UserPatternPersistenceError as exc:
@@ -1199,9 +1132,7 @@ class ArmyPainter(tk.Tk):
             LOGGER.debug(
                 "Could not update user Pattern '%s'", pattern_name, exc_info=True
             )
-            self.dialogs.show_error(
-                title="Cannot Update Pattern", message=str(exc)
-            )
+            self.dialogs.show_error(title="Cannot Update Pattern", message=str(exc))
             self.update_pattern_action_states(selection)
             return
         except OSError as exc:
@@ -1217,7 +1148,16 @@ class ArmyPainter(tk.Tk):
 
     def reset_to_selected_pattern(self):
         """Discard current color changes by applying the selected Pattern."""
-        self.apply_selected_pattern_colors()
+        selection = self.frame_army_pattern.get_selected_pattern()
+        if selection is None:
+            self.update_pattern_action_states(selection)
+            return
+        try:
+            result = ArmyPainter._pattern_workflows(self).reset_pattern(selection.name)
+        except PatternNotFoundError:
+            self.update_pattern_action_states(selection)
+            return
+        ArmyPainter._apply_pattern_colors(self, result.colors_to_apply, selection)
 
     def rename_selected_pattern(self):
         """Rename the selected user Pattern while preserving its GUI state."""
@@ -1238,7 +1178,9 @@ class ArmyPainter(tk.Tk):
             return
 
         try:
-            new_name = normalize_pattern_name(requested_name)
+            result = ArmyPainter._pattern_workflows(self).rename_pattern(
+                old_name, requested_name
+            )
         except InvalidPatternError as exc:
             LOGGER.debug(
                 "Invalid replacement name for user Pattern '%s': %s",
@@ -1246,20 +1188,9 @@ class ArmyPainter(tk.Tk):
                 exc,
                 exc_info=True,
             )
-            self.dialogs.show_error(
-                title="Cannot Rename Pattern", message=str(exc)
-            )
+            self.dialogs.show_error(title="Cannot Rename Pattern", message=str(exc))
             self.update_pattern_action_states(selection)
             return
-
-        if new_name == old_name:
-            self.update_pattern_action_states(selection)
-            return
-
-        try:
-            renamed_name = src.color_pattern_handler.rename_user_pattern(
-                old_name, new_name
-            )
         except UserPatternPersistenceError as exc:
             LOGGER.exception("Could not rename user Pattern '%s'", old_name)
             self.dialogs.show_error(
@@ -1269,12 +1200,8 @@ class ArmyPainter(tk.Tk):
             self.update_pattern_action_states(selection)
             return
         except PatternError as exc:
-            LOGGER.debug(
-                "Could not rename user Pattern '%s'", old_name, exc_info=True
-            )
-            self.dialogs.show_error(
-                title="Cannot Rename Pattern", message=str(exc)
-            )
+            LOGGER.debug("Could not rename user Pattern '%s'", old_name, exc_info=True)
+            self.dialogs.show_error(title="Cannot Rename Pattern", message=str(exc))
             self.update_pattern_action_states(selection)
             return
         except OSError as exc:
@@ -1286,7 +1213,11 @@ class ArmyPainter(tk.Tk):
             self.update_pattern_action_states(selection)
             return
 
-        self.frame_army_pattern.load_pattern_list(renamed_name)
+        if not result.changed:
+            self.update_pattern_action_states(selection)
+            return
+
+        self.frame_army_pattern.load_pattern_list(result.selected_name)
         self.update_pattern_action_states()
 
     def duplicate_selected_pattern(self):
@@ -1296,11 +1227,9 @@ class ArmyPainter(tk.Tk):
             return
 
         try:
-            stored_colors = get_pattern_colors(selection.name)
+            ArmyPainter._pattern_workflows(self).get_colors(selection.name)
         except PatternError as exc:
-            self.dialogs.show_error(
-                title="Cannot Duplicate Pattern", message=str(exc)
-            )
+            self.dialogs.show_error(title="Cannot Duplicate Pattern", message=str(exc))
             return
 
         requested_name = self.dialogs.ask_text(
@@ -1312,12 +1241,11 @@ class ArmyPainter(tk.Tk):
             return
 
         try:
-            duplicate_name = normalize_pattern_name(requested_name)
-            src.color_pattern_handler.save(duplicate_name, stored_colors)
-        except PatternError as exc:
-            self.dialogs.show_error(
-                title="Cannot Duplicate Pattern", message=str(exc)
+            result = ArmyPainter._pattern_workflows(self).duplicate_pattern(
+                selection.name, requested_name
             )
+        except PatternError as exc:
+            self.dialogs.show_error(title="Cannot Duplicate Pattern", message=str(exc))
             return
         except OSError as exc:
             LOGGER.exception("Could not duplicate Pattern '%s'", selection.name)
@@ -1327,7 +1255,7 @@ class ArmyPainter(tk.Tk):
             )
             return
 
-        self.frame_army_pattern.load_pattern_list(duplicate_name)
+        self.frame_army_pattern.load_pattern_list(result.selected_name)
         self.on_pattern_select()
 
     def delete_pattern(self):
@@ -1347,18 +1275,16 @@ class ArmyPainter(tk.Tk):
         if not confirmed:
             return
 
-        neighboring_name = (
-            self.frame_army_pattern.get_selected_neighbor_pattern_name()
-        )
+        neighboring_name = self.frame_army_pattern.get_selected_neighbor_pattern_name()
         try:
-            src.color_pattern_handler.delete(pattern_name)
+            result = ArmyPainter._pattern_workflows(self).delete_pattern(
+                pattern_name, neighboring_name
+            )
         except PatternError as exc:
             LOGGER.debug(
                 "Could not delete user Pattern '%s'", pattern_name, exc_info=True
             )
-            self.dialogs.show_error(
-                title="Cannot Delete Pattern", message=str(exc)
-            )
+            self.dialogs.show_error(title="Cannot Delete Pattern", message=str(exc))
             self.update_pattern_action_states(selection)
             return
         except OSError:
@@ -1374,7 +1300,7 @@ class ArmyPainter(tk.Tk):
             self.update_pattern_action_states(selection)
             return
 
-        self.frame_army_pattern.load_pattern_list(neighboring_name)
+        self.frame_army_pattern.load_pattern_list(result.selected_name)
         self.on_pattern_select()
 
     def update_pattern_action_states(self, selection=None):
@@ -1384,31 +1310,19 @@ class ArmyPainter(tk.Tk):
             selection, modified=self.is_selected_pattern_dirty(selection)
         )
         self.frame_army_pattern.set_pattern_action_states(states)
-        self.pattern_menu.entryconfig(
-            PATTERN_SAVE_MENU_LABEL, state=states.save_new
-        )
-        self.pattern_menu.entryconfig(
-            PATTERN_UPDATE_MENU_LABEL, state=states.update
-        )
-        self.pattern_menu.entryconfig(
-            PATTERN_RESET_MENU_LABEL, state=states.reset
-        )
-        self.pattern_menu.entryconfig(
-            PATTERN_RENAME_MENU_LABEL, state=states.rename
-        )
+        self.pattern_menu.entryconfig(PATTERN_SAVE_MENU_LABEL, state=states.save_new)
+        self.pattern_menu.entryconfig(PATTERN_UPDATE_MENU_LABEL, state=states.update)
+        self.pattern_menu.entryconfig(PATTERN_RESET_MENU_LABEL, state=states.reset)
+        self.pattern_menu.entryconfig(PATTERN_RENAME_MENU_LABEL, state=states.rename)
         self.pattern_menu.entryconfig(
             PATTERN_DUPLICATE_MENU_LABEL, state=states.duplicate
         )
-        self.pattern_menu.entryconfig(
-            PATTERN_DELETE_MENU_LABEL, state=states.delete
-        )
+        self.pattern_menu.entryconfig(PATTERN_DELETE_MENU_LABEL, state=states.delete)
         self.pattern_menu.entryconfig(
             PATTERN_EXPORT_MENU_LABEL, state=states.export_selected
         )
         export_all_state = (
-            tk.NORMAL
-            if src.color_pattern_handler.has_user_patterns()
-            else tk.DISABLED
+            tk.NORMAL if src.color_pattern_handler.has_user_patterns() else tk.DISABLED
         )
         self.pattern_menu.entryconfig(
             PATTERN_COLLECTION_EXPORT_MENU_LABEL,
@@ -1434,7 +1348,9 @@ class ArmyPainter(tk.Tk):
             return
 
         try:
-            collection = read_pattern_collection_file(source)
+            preparation = ArmyPainter._pattern_workflows(
+                self
+            ).prepare_collection_import(source)
         except PatternFileNotFoundError as exc:
             self._show_pattern_import_error("Collection File Not Found", exc)
             return
@@ -1448,9 +1364,7 @@ class ArmyPainter(tk.Tk):
             self._show_pattern_import_error("Malformed Collection JSON", exc)
             return
         except UnsupportedPatternCollectionVersionError as exc:
-            self._show_pattern_import_error(
-                "Unsupported Collection Version", exc
-            )
+            self._show_pattern_import_error("Unsupported Collection Version", exc)
             return
         except DuplicatePatternNameInCollectionError as exc:
             self._show_pattern_import_error("Duplicate Pattern Names", exc)
@@ -1462,15 +1376,7 @@ class ArmyPainter(tk.Tk):
             self._show_pattern_import_error("Invalid Pattern Collection", exc)
             return
 
-        try:
-            self.file_selection.remember_successful_pattern_import(source)
-        except OSError:
-            LOGGER.exception(
-                "Could not remember Pattern Collection import directory: %s",
-                Path(source).parent,
-            )
-
-        analysis = analyze_pattern_collection_import(collection)
+        analysis = preparation.analysis
         overwrite_user_conflicts = False
         if analysis.user_conflict_count or analysis.builtin_conflict_count:
             confirmation = PatternCollectionConflictDialog(self, analysis)
@@ -1490,8 +1396,9 @@ class ArmyPainter(tk.Tk):
         selection = self.frame_army_pattern.get_selected_pattern()
         selected_name = selection.name if selection else None
         try:
-            result = import_analyzed_pattern_collection(
-                analysis,
+            operation, result = ArmyPainter._pattern_workflows(self).import_collection(
+                preparation,
+                selected_name=selected_name,
                 overwrite_user_conflicts=overwrite_user_conflicts,
             )
         except (PatternCollectionImportError, PatternError, OSError) as exc:
@@ -1504,10 +1411,11 @@ class ArmyPainter(tk.Tk):
             )
             return
 
-        self.frame_army_pattern.load_pattern_list(selected_name)
-        if collection_selection_was_overwritten(
-            selected_name, analysis, overwrite_user_conflicts
-        ):
+        self.frame_army_pattern.load_pattern_list(operation.selected_name)
+        if operation.colors_to_apply is not None:
+            restored = self.frame_army_pattern.get_selected_pattern()
+            ArmyPainter._apply_pattern_colors(self, operation.colors_to_apply, restored)
+        elif operation.selected_data_changed:
             self.on_pattern_select()
         else:
             self.update_pattern_action_states()
@@ -1546,7 +1454,9 @@ class ArmyPainter(tk.Tk):
             return
 
         try:
-            export_user_pattern_collection(collection_name, destination)
+            ArmyPainter._pattern_workflows(self).export_user_collection(
+                collection_name, destination
+            )
         except EmptyUserPatternCollectionError:
             LOGGER.exception("No user-created Patterns remained for collection export")
             self.dialogs.show_info(
@@ -1556,9 +1466,7 @@ class ArmyPainter(tk.Tk):
             return
         except InvalidPatternCollectionNameError as exc:
             LOGGER.exception("Invalid Pattern Collection name: %s", collection_name)
-            self.dialogs.show_error(
-                title="Invalid Collection Name", message=str(exc)
-            )
+            self.dialogs.show_error(title="Invalid Collection Name", message=str(exc))
             return
         except PatternExportPermissionDeniedError as exc:
             LOGGER.exception(
@@ -1585,21 +1493,15 @@ class ArmyPainter(tk.Tk):
             )
             return
 
-        try:
-            self.file_selection.remember_successful_pattern_export(destination)
-        except OSError:
-            LOGGER.exception(
-                "Could not remember Pattern Collection export directory: %s",
-                Path(destination).parent,
-            )
-
     def import_pattern(self):
         source = self.file_selection.choose_pattern_import_file()
         if not source:
             return
 
         try:
-            imported_pattern = read_pattern_file(source)
+            preparation = ArmyPainter._pattern_workflows(self).prepare_single_import(
+                source
+            )
         except PatternFileNotFoundError as exc:
             self._show_pattern_import_error(
                 "Pattern File Not Found",
@@ -1657,37 +1559,16 @@ class ArmyPainter(tk.Tk):
             )
             return
 
-        try:
-            self.file_selection.remember_successful_pattern_import(source)
-        except OSError:
-            LOGGER.exception(
-                "Could not remember pattern import directory: %s",
-                Path(source).parent,
-            )
-
         selection = self.frame_army_pattern.get_selected_pattern()
         selected_name = selection.name if selection else None
-        imported_overwrote_user_pattern = False
-
-        def persist_with_resolution_tracking(
-            pattern, target_name=None, overwrite=False
-        ):
-            nonlocal imported_overwrote_user_pattern
-            persisted_name = persist_imported_pattern(
-                pattern,
-                target_name=target_name,
-                overwrite=overwrite,
-            )
-            imported_overwrote_user_pattern = overwrite
-            return persisted_name
 
         try:
-            imported_name = resolve_pattern_import_conflicts(
-                imported_pattern,
-                persist_with_resolution_tracking,
-                self._choose_pattern_import_conflict,
-                self._request_pattern_import_name,
-                self._report_invalid_pattern_import_name,
+            operation = ArmyPainter._pattern_workflows(self).import_single(
+                preparation,
+                selected_name=selected_name,
+                choose_conflict=self._choose_pattern_import_conflict,
+                request_rename=self._request_pattern_import_name,
+                report_invalid_name=self._report_invalid_pattern_import_name,
             )
         except InvalidPatternImportNameError as exc:
             self._show_pattern_import_error("Invalid Pattern Name", exc)
@@ -1699,17 +1580,13 @@ class ArmyPainter(tk.Tk):
                 f"The Pattern could not be saved:\n{exc}",
             )
             return
-        if imported_name is None:
+        if not operation.changed:
             return
 
-        selection_to_restore, apply_imported_colors = single_import_selection_policy(
-            selected_name,
-            imported_name,
-            imported_overwrote_user_pattern,
-        )
-        self.frame_army_pattern.load_pattern_list(selection_to_restore)
-        if apply_imported_colors:
-            self.on_pattern_select()
+        self.frame_army_pattern.load_pattern_list(operation.selected_name)
+        if operation.colors_to_apply is not None:
+            restored = self.frame_army_pattern.get_selected_pattern()
+            ArmyPainter._apply_pattern_colors(self, operation.colors_to_apply, restored)
         else:
             self.update_pattern_action_states()
 
@@ -1748,7 +1625,9 @@ class ArmyPainter(tk.Tk):
             return
 
         try:
-            export_pattern(pattern_name, destination)
+            ArmyPainter._pattern_workflows(self).export_selected(
+                pattern_name, destination
+            )
         except PatternExportPermissionDeniedError as exc:
             LOGGER.exception(
                 "Could not export pattern '%s' to %s",
@@ -1772,14 +1651,6 @@ class ArmyPainter(tk.Tk):
                 message=f"Could not export '{pattern_name}' to:\n{destination}\n\n{exc}",
             )
             return
-
-        try:
-            self.file_selection.remember_successful_pattern_export(destination)
-        except OSError:
-            LOGGER.exception(
-                "Could not remember pattern export directory: %s",
-                Path(destination).parent,
-            )
 
     def show_user_pattern_load_warning(self):
         if self.user_pattern_warning_shown:
@@ -1811,7 +1682,9 @@ class ArmyPainter(tk.Tk):
             log_directory.mkdir(parents=True, exist_ok=True)
             open_directory_in_file_manager(log_directory)
         except OSError as exc:
-            LOGGER.exception("Could not open application log directory: %s", log_directory)
+            LOGGER.exception(
+                "Could not open application log directory: %s", log_directory
+            )
             self.dialogs.show_error(
                 title="Cannot Open Log Folder",
                 message=f"The application log folder could not be opened:\n"
