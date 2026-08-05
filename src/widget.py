@@ -17,6 +17,12 @@ COLOR_BTN_HEIGHT = 26
 PATTERN_MARKER_COLUMN_WIDTH = 28
 HEADER_SEPARATOR_STARTUP_RETRIES = 3
 
+ActionCallback = Callable[[], None]
+BooleanChangedCallback = Callable[[bool], None]
+ColorChangedCallback = Callable[[int, str], None]
+LevelsChangedCallback = Callable[[float, float], None]
+StringChangedCallback = Callable[[str], None]
+
 
 @dataclass(frozen=True)
 class PatternSelection:
@@ -102,16 +108,18 @@ def build_pattern_rows(patterns=None):
 
 
 class FrameChannelList(tk.LabelFrame):
+    """RGBA channel controls that report the selected alpha state."""
+
     def __init__(
         self,
         master=None,
         cnf={},
         *,
-        on_apply_alpha_changed: Callable[[bool], None],
+        on_alpha_changed: BooleanChangedCallback,
         **kw,
     ):
         super(FrameChannelList, self).__init__(master=master, cnf={}, **kw)
-        self._on_apply_alpha_changed = on_apply_alpha_changed
+        self._on_alpha_changed = on_alpha_changed
 
         # Channel List Box
         self.lb = tk.Listbox(self, selectmode=tk.MULTIPLE, height=4, width=9)
@@ -135,16 +143,18 @@ class FrameChannelList(tk.LabelFrame):
         self.add_alpha.pack(side=tk.TOP, fill=tk.X)
 
     def _notify_apply_alpha_changed(self):
-        self._on_apply_alpha_changed(bool(self.apply_alpha.get()))
+        self._on_alpha_changed(bool(self.apply_alpha.get()))
 
 
 class FrameColorChooser(tk.Frame):
+    """Four color slots that report the changed slot index and hex value."""
+
     def __init__(
         self,
         master=None,
         cnf={},
         *,
-        on_color_changed: Callable[[int, str], None],
+        on_color_changed: ColorChangedCallback,
         **kw,
     ):
         super(FrameColorChooser, self).__init__(master=master, cnf={}, **kw)
@@ -207,16 +217,18 @@ class FrameColorChooser(tk.Frame):
 
 
 class FrameSlider(tk.Frame):
+    """Brightness and contrast controls that report both current levels."""
+
     def __init__(
         self,
         master=None,
         cnf={},
         *,
-        on_value_changed: Callable[[str], None],
+        on_levels_changed: LevelsChangedCallback,
         **kw,
     ):
         super(FrameSlider, self).__init__(master=master, cnf={}, **kw)
-        self._on_value_changed = on_value_changed
+        self._on_levels_changed = on_levels_changed
 
         # Brightness slider
         self.brightness_slider = tk.Scale(
@@ -226,7 +238,7 @@ class FrameSlider(tk.Frame):
             from_=0.0,
             to=150.0,
             orient=tk.HORIZONTAL,
-            command=self._on_value_changed,
+            command=self._notify_levels_changed,
         )
         self.brightness_slider.pack(side=tk.TOP, fill=tk.X)
 
@@ -238,18 +250,26 @@ class FrameSlider(tk.Frame):
             from_=0.0,
             to=200.0,
             orient=tk.HORIZONTAL,
-            command=self._on_value_changed,
+            command=self._notify_levels_changed,
         )
         self.contrast_slider.pack(side=tk.TOP, fill=tk.X)
 
+    def _notify_levels_changed(self, value=None):
+        self._on_levels_changed(
+            float(self.brightness_slider.get()),
+            float(self.contrast_slider.get()),
+        )
+
 
 class FrameColorOps(tk.LabelFrame):
+    """Color-operation controls that report the selected operation name."""
+
     def __init__(
         self,
         master=None,
         cnf={},
         *,
-        on_operation_changed: Callable[[str], None],
+        on_operation_changed: StringChangedCallback,
         **kw,
     ):
         super(FrameColorOps, self).__init__(master=master, cnf={}, **kw)
@@ -311,17 +331,23 @@ class PatternTreeview(ttk.Treeview):
 
 
 class FramePatternList(tk.Frame):
+    """Pattern display that forwards user intent through explicit callbacks.
+
+    Selection and state callbacks are optional. They remain disabled until
+    ``enable_external_callbacks`` is called after controller assignment.
+    """
+
     def __init__(
         self,
         master=None,
         cnf={},
         *,
-        on_save_new: Callable[[], None],
-        on_update: Callable[[], None],
-        on_rename: Callable[[], None],
-        on_delete: Callable[[], None],
-        on_selection_changed: Optional[Callable[[], None]] = None,
-        on_state_changed: Optional[Callable[[], None]] = None,
+        on_save_new: ActionCallback,
+        on_update: ActionCallback,
+        on_rename: ActionCallback,
+        on_delete: ActionCallback,
+        on_selection_changed: Optional[ActionCallback] = None,
+        on_state_changed: Optional[ActionCallback] = None,
         **kw,
     ):
         super(FramePatternList, self).__init__(master=master, cnf={}, **kw)
@@ -904,14 +930,16 @@ class PatternCollectionConflictDialog(tk.Toplevel):
 
 
 class BatchEditTopLevel(tk.Toplevel):
+    """Batch controls that forward edit, convert, and cancel intent."""
+
     def __init__(
         self,
         master=None,
         cnf={},
         *,
-        on_batch_edit: Callable[[], None],
-        on_batch_convert: Callable[[], None],
-        on_cancel: Callable[[], None],
+        on_batch_edit: ActionCallback,
+        on_batch_convert: ActionCallback,
+        on_cancel: ActionCallback,
         **kw,
     ):
         super(BatchEditTopLevel, self).__init__(master=master, cnf={}, **kw)

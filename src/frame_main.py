@@ -530,7 +530,7 @@ class ArmyPainter(tk.Tk):
         # Setting channel list frame
         self.frame_channel_select = FrameChannelList(
             self.frame_img_tools,
-            on_apply_alpha_changed=self.on_apply_alpha_toggle,
+            on_alpha_changed=self.on_apply_alpha_toggle,
             text="RGBA Channel",
             relief=tk.RIDGE,
             bd=2,
@@ -540,7 +540,7 @@ class ArmyPainter(tk.Tk):
         # Setting sliders
         self.frame_sliders = FrameSlider(
             self.frame_img_tools,
-            on_value_changed=self.on_slider_update,
+            on_levels_changed=self.on_slider_update,
             relief=tk.RIDGE,
             bd=2,
         )
@@ -724,9 +724,9 @@ class ArmyPainter(tk.Tk):
             self.frame_batch_tools.destroy()
             self.frame_batch_tools = None
 
-    def on_slider_update(self, value: str):
-        self.img_wbench.brightness = self.frame_sliders.brightness_slider.get()
-        self.img_wbench.contrast = self.frame_sliders.contrast_slider.get()
+    def on_slider_update(self, brightness: float, contrast: float):
+        self.img_wbench.brightness = brightness
+        self.img_wbench.contrast = contrast
         self.schedule_preview_refresh(PREVIEW_DEBOUNCE_MS)
 
     def on_color_changed(self, slot_index: int, color: str):

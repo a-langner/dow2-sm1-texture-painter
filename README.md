@@ -238,6 +238,12 @@ On Unix-like systems, `make setup-dev` performs the environment creation and
 installation without requiring activation. Afterward, `make run-dev` starts the
 application through that environment.
 
+### Widget callback rule
+
+Widgets receive behavior through explicit `on_...` callbacks and must not reach
+upward to the application root to invoke controller methods. Callbacks should
+carry domain values, such as color or slider values, rather than Tk widgets.
+
 ### Running tests
 
 The project uses Python's built-in `unittest` runner. On Unix-like systems,
