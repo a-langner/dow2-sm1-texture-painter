@@ -40,3 +40,62 @@ jobs:
 
       - name: Run complete test suite
         run: python -m unittest discover -s tests
+
+  windows-tests:
+    name: Windows tests and packaging smoke test
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install runtime dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Install development dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Install project in editable mode
+        run: python -m pip install -e .
+
+      - name: Run complete test suite
+        run: python -m unittest discover -s tests
+
+      - name: Build Windows application
+        run: python -m PyInstaller --clean --noconfirm texture-painter.spec
+
+      - name: Verify Windows application bundle
+        shell: pwsh
+        run: |
+          $bundle = Join-Path $PWD "dist\dow2-texture-painter-0.1"
+          $executable = Join-Path $bundle "dow2-texture-painter-0.1.exe"
+          if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
+            throw "Expected executable was not created: $executable"
+          }
+
+          $resourceDirectory = Join-Path $bundle "_internal\src\resources"
+          $requiredResources = @(
+            "army_pattern.json",
+            "default_pattern.ini",
+            "icon_64x64.ico",
+            "icon_64x64.png"
+          )
+          foreach ($resource in $requiredResources) {
+            $resourcePath = Join-Path $resourceDirectory $resource
+            if (-not (Test-Path -LiteralPath $resourcePath -PathType Leaf)) {
+              throw "Required bundled resource is missing: $resourcePath"
+            }
+          }

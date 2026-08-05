@@ -260,6 +260,10 @@ When using the repository's `.venv`, you can run:
 .\.venv\Scripts\python.exe -m unittest discover -s tests
 ```
 
+GitHub Actions runs the complete test suite on both Linux and Windows. The
+Windows job also performs a PyInstaller packaging smoke test that verifies the
+executable and bundled resources; it does not automate the graphical interface.
+
 ### Building the application
 
 The checked-in `texture-painter.spec` is the authoritative PyInstaller
