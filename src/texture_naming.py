@@ -93,3 +93,56 @@ def replace_texture_suffix(
     if not base_stem:
         return None
     return texture_path.with_name(f"{base_stem}{target_suffix}{texture_path.suffix}")
+
+
+def texture_kind_for(
+    path: Path,
+    profile: TextureNamingProfile = DEFAULT_TEXTURE_NAMING,
+) -> Optional[TextureKind]:
+    """Return the texture kind encoded at the end of ``path``'s stem."""
+    texture_path = Path(path)
+    for texture_kind in TextureKind:
+        suffix = profile.suffix_for(texture_kind)
+        if texture_path.stem.casefold().endswith(suffix.casefold()):
+            if texture_path.stem[: -len(suffix)]:
+                return texture_kind
+    return None
+
+
+def is_texture_kind(
+    path: Path,
+    texture_kind: TextureKind,
+    profile: TextureNamingProfile = DEFAULT_TEXTURE_NAMING,
+) -> bool:
+    """Return whether ``path`` has the profile suffix for ``texture_kind``."""
+    profile.suffix_for(texture_kind)
+    return texture_kind_for(path, profile) is texture_kind
+
+
+def with_texture_kind(
+    path: Path,
+    target_kind: TextureKind,
+    profile: TextureNamingProfile = DEFAULT_TEXTURE_NAMING,
+) -> Optional[Path]:
+    """Return ``path`` with exactly one suffix for ``target_kind``.
+
+    An existing recognized texture suffix is replaced. Otherwise the target
+    suffix is appended to a nonempty stem. The extension is preserved.
+    """
+    texture_path = Path(path)
+    current_kind = texture_kind_for(texture_path, profile)
+    if current_kind is not None:
+        if current_kind is target_kind:
+            return texture_path
+        return replace_texture_suffix(
+            texture_path,
+            current_kind,
+            target_kind,
+            profile,
+        )
+    if not texture_path.stem:
+        return None
+    target_suffix = profile.suffix_for(target_kind)
+    return texture_path.with_name(
+        f"{texture_path.stem}{target_suffix}{texture_path.suffix}"
+    )

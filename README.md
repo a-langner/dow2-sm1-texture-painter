@@ -244,6 +244,14 @@ Widgets receive behavior through explicit `on_...` callbacks and must not reach
 upward to the application root to invoke controller methods. Callbacks should
 carry domain values, such as color or slider values, rather than Tk widgets.
 
+### Texture naming profiles
+
+Texture roles and the current DoW2/SM1 filename suffixes are defined in
+`src/texture_naming.py`. GUI and batch workflows must use its typed texture
+kinds and naming profile instead of embedding suffix strings. The application
+currently uses one profile, while the architecture allows future profiles to
+be passed into the same workflows.
+
 ### Running tests
 
 The project uses Python's built-in `unittest` runner. On Unix-like systems,

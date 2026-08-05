@@ -1,8 +1,42 @@
 from PIL import (
     Image,
 )
-import tkinter as tk
 from pathlib import Path
+from typing import Optional
+
+from src.texture_naming import (
+    DEFAULT_TEXTURE_NAMING,
+    TextureKind,
+    TextureNamingProfile,
+    with_texture_kind,
+)
+
+
+DOW1_DEFAULT_GROUP_TAG = "default"
+
+
+def team_color_output_path(
+    group_name: str,
+    destination: Path,
+    extension: str,
+    profile: TextureNamingProfile = DEFAULT_TEXTURE_NAMING,
+) -> Optional[Path]:
+    """Build a packed team-color output path for one DoW1 source group.
+
+    A terminal ``default`` group tag is a DoW1 input convention and is removed
+    before the active profile's team-color suffix is applied.
+    """
+    name_parts = group_name.rsplit("_", 1)
+    if (
+        len(name_parts) == 2
+        and name_parts[1].casefold() == DOW1_DEFAULT_GROUP_TAG.casefold()
+    ):
+        group_name = name_parts[0]
+    extension = extension.lstrip(".")
+    if not group_name or not extension:
+        return None
+    output_candidate = Path(destination) / f"{group_name}.{extension}"
+    return with_texture_kind(output_candidate, TextureKind.TEAM_COLOR, profile)
 
 
 def get_tem_filenames(path: Path, src_format: list):
@@ -110,12 +144,19 @@ def convert_tem_texture(tem_textures: dict, path: Path):
     return Image.merge(mode=mode, bands=bands)
 
 
-def exec_convert(path: Path, src_format: list, dest_format: str):
+def exec_convert(
+    path: Path,
+    src_format: list,
+    dest_format: str,
+    profile: TextureNamingProfile = DEFAULT_TEXTURE_NAMING,
+):
     files_dict = get_tem_filenames(path, src_format)
     for k in files_dict.keys():
         result = convert_tem_texture(files_dict.get(k), path)
-        filename = k.replace("default", "tem", 1)
-        result.save(path / (f"{filename}.{dest_format}"), dest_format)
+        output_path = team_color_output_path(k, path, dest_format, profile)
+        if output_path is None:
+            raise ValueError(f"Cannot create a team-color filename from '{k}'.")
+        result.save(output_path, dest_format)
 
 
 def local_test():

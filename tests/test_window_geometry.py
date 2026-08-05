@@ -13,6 +13,7 @@ from src.frame_main import (
     ArmyPainter,
 )
 from src.image_process import TextureValidationError
+from src.texture_naming import DEFAULT_TEXTURE_NAMING
 
 
 class FakeMaximizedPainter:
@@ -36,6 +37,7 @@ class SuccessfulWorkbench:
 class FakeLoadingPainter:
     def __init__(self, workbench=None):
         self.img_wbench = workbench or FailingWorkbench()
+        self.texture_naming_profile = DEFAULT_TEXTURE_NAMING
         self.resize_calls = []
         self.refresh_calls = 0
 

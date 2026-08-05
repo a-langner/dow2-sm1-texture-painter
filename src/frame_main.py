@@ -34,7 +34,11 @@ from src.constant import (
     OPEN_FILETYPES,
 )
 import src.color_pattern_handler
-from src.dow1_converter import get_tem_filenames, convert_tem_texture
+from src.dow1_converter import (
+    convert_tem_texture,
+    get_tem_filenames,
+    team_color_output_path,
+)
 from src.color_pattern_handler import (
     InvalidPatternError,
     PatternError,
@@ -84,6 +88,7 @@ from src.texture_naming import (
     DEFAULT_TEXTURE_NAMING,
     TextureKind,
     TextureNamingProfile,
+    is_texture_kind,
     replace_texture_suffix,
 )
 from pathlib import Path
@@ -333,7 +338,7 @@ def find_companion_texture(
     target_kind: TextureKind,
     profile: TextureNamingProfile = DEFAULT_TEXTURE_NAMING,
 ) -> Optional[Path]:
-    """Find a sibling texture derived from a ``*_dif`` filename.
+    """Find a sibling texture derived from a profile-recognized diffuse name.
 
     Filename matching is case-insensitive for consistent behavior on Windows
     and case-sensitive filesystems. The directory and extension are preserved.
@@ -368,11 +373,17 @@ def render_preview(snapshot):
     return snapshot.refresh_workspace(), snapshot.refresh_team_colour_img()
 
 
-def prepare_batch_workbench(diffuse_path, settings):
+def prepare_batch_workbench(
+    diffuse_path,
+    settings,
+    profile=DEFAULT_TEXTURE_NAMING,
+):
     """Load one texture set without touching Tk or the displayed workbench."""
     workbench = ImageWorkbench()
     workbench.load_diffuse_file(diffuse_path)
-    tem_path = find_companion_texture(diffuse_path, TextureKind.TEAM_COLOR)
+    tem_path = find_companion_texture(
+        diffuse_path, TextureKind.TEAM_COLOR, profile
+    )
     if tem_path is None:
         raise TextureValidationError(
             f'No team-colour texture was found for "{diffuse_path.name}".'
@@ -384,7 +395,9 @@ def prepare_batch_workbench(diffuse_path, settings):
         (TextureKind.DIRT, "Dirt", workbench.load_dirt_file),
         (TextureKind.SPECULAR, "Specular", workbench.load_specular_file),
     ):
-        optional_path = find_companion_texture(diffuse_path, texture_kind)
+        optional_path = find_companion_texture(
+            diffuse_path, texture_kind, profile
+        )
         if optional_path is None:
             continue
         try:
@@ -403,7 +416,15 @@ def save_processed_image(image, filepath):
         image.save(filepath)
 
 
-def batch_edit_worker(files, destination, dest_format, settings, cancel, events):
+def batch_edit_worker(
+    files,
+    destination,
+    dest_format,
+    settings,
+    profile,
+    cancel,
+    events,
+):
     errors = []
     warnings = []
     for current, diffuse_path in enumerate(files, start=1):
@@ -411,7 +432,7 @@ def batch_edit_worker(files, destination, dest_format, settings, cancel, events)
             break
         try:
             workbench, item_warnings = prepare_batch_workbench(
-                diffuse_path, settings
+                diffuse_path, settings, profile
             )
             output = workbench.refresh_workspace()
             output_path = destination / f"{diffuse_path.stem}.{dest_format}"
@@ -425,7 +446,15 @@ def batch_edit_worker(files, destination, dest_format, settings, cancel, events)
     return errors, warnings, cancel.is_set()
 
 
-def batch_convert_worker(source, destination, dest_format, src_format, cancel, events):
+def batch_convert_worker(
+    source,
+    destination,
+    dest_format,
+    src_format,
+    profile,
+    cancel,
+    events,
+):
     errors = []
     try:
         files_dict = get_tem_filenames(source, src_format)
@@ -438,10 +467,14 @@ def batch_convert_worker(source, destination, dest_format, src_format, cancel, e
             break
         try:
             result = convert_tem_texture(textures, source)
-            filename = name.replace("default", "tem", 1)
-            save_processed_image(
-                result, destination / f"{filename}.{dest_format}"
+            output_path = team_color_output_path(
+                name, destination, dest_format, profile
             )
+            if output_path is None:
+                raise ValueError(
+                    f"Cannot create a team-color filename from '{name}'."
+                )
+            save_processed_image(result, output_path)
         except Exception as exc:
             errors.append(f"{name}: {exc}")
         events.put(("progress", current, len(files_dict)))
@@ -452,6 +485,7 @@ class ArmyPainter(tk.Tk):
     def __init__(self, application_log_path=None):
         super().__init__()
         self.application_log_path = application_log_path
+        self.texture_naming_profile = DEFAULT_TEXTURE_NAMING
 
         # Setting main window
         min_width = 256 * 2 + PATTERN_LIST_DEFAULT_WIDTH
@@ -891,7 +925,7 @@ class ArmyPainter(tk.Tk):
         self.refresh_workspace()
 
     def load_file(self, filepath: str):
-        """Load diffuse and tem texture and set it as workspace image,
+        """Load diffuse and team-color textures and set the workspace image,
         both texture have to be located in the same directory
 
         :param filepath: path to file
@@ -899,8 +933,12 @@ class ArmyPainter(tk.Tk):
         """
         self.img_wbench.load_diffuse_file(filepath)
 
-        # Load associated tem file
-        tem_filepath = find_companion_texture(filepath, TextureKind.TEAM_COLOR)
+        # Load associated team-color file
+        tem_filepath = find_companion_texture(
+            filepath,
+            TextureKind.TEAM_COLOR,
+            self.texture_naming_profile,
+        )
         if tem_filepath is not None:
             LOGGER.debug("Loading team-colour companion: %s", tem_filepath)
             try:
@@ -911,7 +949,11 @@ class ArmyPainter(tk.Tk):
             self.open_channel()
 
         # Load associated dirt file
-        dirt_filepath = find_companion_texture(filepath, TextureKind.DIRT)
+        dirt_filepath = find_companion_texture(
+            filepath,
+            TextureKind.DIRT,
+            self.texture_naming_profile,
+        )
         if dirt_filepath is not None:
             try:
                 self.load_dirt_file(dirt_filepath)
@@ -919,7 +961,11 @@ class ArmyPainter(tk.Tk):
                 showwarning(title="Invalid dirt texture", message=str(exc))
 
         # Load associated spec file
-        spec_filepath = find_companion_texture(filepath, TextureKind.SPECULAR)
+        spec_filepath = find_companion_texture(
+            filepath,
+            TextureKind.SPECULAR,
+            self.texture_naming_profile,
+        )
         if spec_filepath is not None:
             try:
                 self.load_spec_file(spec_filepath)
@@ -1009,14 +1055,16 @@ class ArmyPainter(tk.Tk):
         elif not os.path.exists(dest):
             raise OSError(f"{dest} does not exist.")
 
-    def _check_dif_format(self, filename: str, src_format: list):
-        name, ext = os.path.splitext(filename)
-        if (
-            ext[1:].casefold() in src_format
-            and name.casefold().endswith("_dif")
-        ):
-            return True
-        return False
+    def _check_diffuse_format(self, filename: str, src_format: list):
+        texture_path = Path(filename)
+        return (
+            texture_path.suffix[1:].casefold() in src_format
+            and is_texture_kind(
+                texture_path,
+                TextureKind.DIFFUSE,
+                self.texture_naming_profile,
+            )
+        )
 
     def get_batch_edit_input(self):
         if self.frame_batch_tools is None:
@@ -1121,7 +1169,12 @@ class ArmyPainter(tk.Tk):
             return
         src, dest, dest_format, src_format = batch_input
         self.start_batch_job(
-            batch_convert_worker, src, dest, dest_format, src_format
+            batch_convert_worker,
+            src,
+            dest,
+            dest_format,
+            src_format,
+            self.texture_naming_profile,
         )
 
     def batch_edit(self, Event=None):
@@ -1132,13 +1185,18 @@ class ArmyPainter(tk.Tk):
         files = [
             src / filename
             for filename in os.listdir(src)
-            if self._check_dif_format(filename, src_format)
+            if self._check_diffuse_format(filename, src_format)
         ]
         self.sync_render_settings()
         settings = self.img_wbench.get_render_settings()
         self.frame_batch_tools.progress_bar["maximum"] = len(files)
         self.start_batch_job(
-            batch_edit_worker, files, dest, dest_format, settings
+            batch_edit_worker,
+            files,
+            dest,
+            dest_format,
+            settings,
+            self.texture_naming_profile,
         )
 
     def reset_workspace(self, Event=None):
