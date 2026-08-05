@@ -1,7 +1,9 @@
 import os
 import logging
+import platform
 import queue
 import re
+import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from PIL import (
@@ -45,6 +47,7 @@ from src.color_pattern_handler import (
     pattern_colors_equal,
 )
 from src.image_process import ImageWorkbench, TextureValidationError
+from src.logging_setup import configure_application_logging
 from src.pattern_exchange import (
     PATTERN_COLLECTION_EXCHANGE_SUFFIX,
     PATTERN_EXCHANGE_SUFFIX,
@@ -423,8 +426,9 @@ def batch_convert_worker(source, destination, dest_format, src_format, cancel, e
 
 
 class ArmyPainter(tk.Tk):
-    def __init__(self):
+    def __init__(self, application_log_path=None):
         super().__init__()
+        self.application_log_path = application_log_path
 
         # Setting main window
         min_width = 256 * 2 + PATTERN_LIST_DEFAULT_WIDTH
@@ -1818,9 +1822,33 @@ class ArmyPainter(tk.Tk):
         self.destroy()
 
 
+def appears_to_run_from_pyinstaller_bundle():
+    """Return whether the interpreter exposes PyInstaller's frozen marker."""
+    return bool(getattr(sys, "frozen", False))
+
+
+def log_application_startup(log_path):
+    """Record non-sensitive runtime details useful for diagnostics."""
+    LOGGER.info("Application startup")
+    LOGGER.info("Application version: %s", VERSION)
+    LOGGER.info("Python version: %s", sys.version.replace("\n", " "))
+    LOGGER.info("Operating system/platform: %s", platform.platform())
+    LOGGER.info(
+        "Running from a PyInstaller bundle: %s",
+        appears_to_run_from_pyinstaller_bundle(),
+    )
+    LOGGER.info(
+        "Application log path: %s",
+        log_path if log_path is not None else "unavailable; using stderr fallback",
+    )
+
+
 def main():
-    army_painter = ArmyPainter()
+    application_log_path = configure_application_logging()
+    log_application_startup(application_log_path)
+    army_painter = ArmyPainter(application_log_path=application_log_path)
     army_painter.mainloop()
+    LOGGER.info("Clean application shutdown")
 
 
 if __name__ == "__main__":
