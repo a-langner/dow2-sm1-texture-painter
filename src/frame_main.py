@@ -80,7 +80,14 @@ from src.pattern_exchange import (
 )
 from src.platform_tools import open_directory_in_file_manager
 from src.settings_handler import SettingsHandler
+from src.texture_naming import (
+    DEFAULT_TEXTURE_NAMING,
+    TextureKind,
+    TextureNamingProfile,
+    replace_texture_suffix,
+)
 from pathlib import Path
+from typing import Optional
 
 from importlib.resources import as_file, files
 
@@ -321,23 +328,39 @@ def is_window_maximized(window):
         return False
 
 
-def find_companion_texture(diffuse_filepath, map_suffix):
+def find_companion_texture(
+    diffuse_filepath: Path,
+    target_kind: TextureKind,
+    profile: TextureNamingProfile = DEFAULT_TEXTURE_NAMING,
+) -> Optional[Path]:
     """Find a sibling texture derived from a ``*_dif`` filename.
 
     Filename matching is case-insensitive for consistent behavior on Windows
     and case-sensitive filesystems. The directory and extension are preserved.
+    If case-only duplicate filenames exist, the directory's first match wins.
     """
     diffuse_path = Path(diffuse_filepath)
-    if not diffuse_path.stem.casefold().endswith("_dif"):
+    if target_kind is TextureKind.DIFFUSE:
+        raise ValueError("A companion texture kind cannot be diffuse.")
+    expected_path = replace_texture_suffix(
+        diffuse_path,
+        TextureKind.DIFFUSE,
+        target_kind,
+        profile,
+    )
+    if expected_path is None:
+        LOGGER.debug(
+            "Texture name does not match profile '%s': %s",
+            profile.name,
+            diffuse_path,
+        )
         return None
 
-    unit_name = diffuse_path.stem[:-4]
-    expected_name = (
-        f"{unit_name}_{map_suffix}{diffuse_path.suffix}"
-    ).casefold()
+    expected_name = expected_path.name.casefold()
     for candidate in diffuse_path.parent.iterdir():
         if candidate.is_file() and candidate.name.casefold() == expected_name:
             return candidate
+    LOGGER.debug("Companion texture is absent: %s", expected_path)
     return None
 
 
@@ -349,7 +372,7 @@ def prepare_batch_workbench(diffuse_path, settings):
     """Load one texture set without touching Tk or the displayed workbench."""
     workbench = ImageWorkbench()
     workbench.load_diffuse_file(diffuse_path)
-    tem_path = find_companion_texture(diffuse_path, "tem")
+    tem_path = find_companion_texture(diffuse_path, TextureKind.TEAM_COLOR)
     if tem_path is None:
         raise TextureValidationError(
             f'No team-colour texture was found for "{diffuse_path.name}".'
@@ -357,11 +380,11 @@ def prepare_batch_workbench(diffuse_path, settings):
     workbench.load_team_colour_file(tem_path)
 
     warnings = []
-    for suffix, label, loader in (
-        ("drt", "Dirt", workbench.load_dirt_file),
-        ("spc", "Specular", workbench.load_specular_file),
+    for texture_kind, label, loader in (
+        (TextureKind.DIRT, "Dirt", workbench.load_dirt_file),
+        (TextureKind.SPECULAR, "Specular", workbench.load_specular_file),
     ):
-        optional_path = find_companion_texture(diffuse_path, suffix)
+        optional_path = find_companion_texture(diffuse_path, texture_kind)
         if optional_path is None:
             continue
         try:
@@ -877,9 +900,9 @@ class ArmyPainter(tk.Tk):
         self.img_wbench.load_diffuse_file(filepath)
 
         # Load associated tem file
-        tem_filepath = find_companion_texture(filepath, "tem")
+        tem_filepath = find_companion_texture(filepath, TextureKind.TEAM_COLOR)
         if tem_filepath is not None:
-            print(tem_filepath)
+            LOGGER.debug("Loading team-colour companion: %s", tem_filepath)
             try:
                 self.load_channel_packed_file(tem_filepath)
             except TextureValidationError as exc:
@@ -888,7 +911,7 @@ class ArmyPainter(tk.Tk):
             self.open_channel()
 
         # Load associated dirt file
-        dirt_filepath = find_companion_texture(filepath, "drt")
+        dirt_filepath = find_companion_texture(filepath, TextureKind.DIRT)
         if dirt_filepath is not None:
             try:
                 self.load_dirt_file(dirt_filepath)
@@ -896,7 +919,7 @@ class ArmyPainter(tk.Tk):
                 showwarning(title="Invalid dirt texture", message=str(exc))
 
         # Load associated spec file
-        spec_filepath = find_companion_texture(filepath, "spc")
+        spec_filepath = find_companion_texture(filepath, TextureKind.SPECULAR)
         if spec_filepath is not None:
             try:
                 self.load_spec_file(spec_filepath)
