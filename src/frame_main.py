@@ -28,8 +28,6 @@ from src.constant import (
     COLOR_BOX_SIZE,
     COLOR_BTN_HEIGHT,
     FRAME_TOOL_HEIGHT,
-    SAVE_FILETYPES,
-    OPEN_FILETYPES,
 )
 import src.color_pattern_handler
 from src.dow1_converter import (
@@ -38,6 +36,11 @@ from src.dow1_converter import (
     team_color_output_path,
 )
 from src.dialog_gateway import DialogGateway
+from src.file_selection_service import (
+    FileSelectionService,
+    PATTERN_COLLECTION_FILETYPES,
+    PATTERN_FILETYPES,
+)
 from src.color_pattern_handler import (
     InvalidPatternError,
     PatternError,
@@ -111,16 +114,6 @@ PATTERN_IMPORT_MENU_LABEL = "Import Pattern…"
 PATTERN_EXPORT_MENU_LABEL = "Export Selected Pattern…"
 PATTERN_COLLECTION_IMPORT_MENU_LABEL = "Import Pattern Collection…"
 PATTERN_COLLECTION_EXPORT_MENU_LABEL = "Export All User Patterns…"
-PATTERN_FILETYPES = (
-    ("Pattern files", f"*{PATTERN_EXCHANGE_SUFFIX}"),
-    ("JSON files", "*.json"),
-    ("All files", "*.*"),
-)
-PATTERN_COLLECTION_FILETYPES = (
-    ("Pattern Collections", f"*{PATTERN_COLLECTION_EXCHANGE_SUFFIX}"),
-    ("JSON files", "*.json"),
-    ("All files", "*.*"),
-)
 LOGGER = logging.getLogger(__name__)
 
 WINDOWS_RESERVED_FILENAMES = {
@@ -506,6 +499,7 @@ class ArmyPainter(tk.Tk):
 
         self.img_wbench = ImageWorkbench()
         self.settings = SettingsHandler()
+        self.file_selection = FileSelectionService(self.settings, self.dialogs)
         self.frame_batch_tools = None
         self.preview_executor = ThreadPoolExecutor(max_workers=1)
         self.batch_executor = ThreadPoolExecutor(max_workers=1)
@@ -796,11 +790,8 @@ class ArmyPainter(tk.Tk):
         :param Event: widget triggered event, defaults to None
         :type Event: [type], optional
         """
-        filename = self.dialogs.choose_save_file(
-            initial_directory=Path(os.curdir),
-            filetypes=SAVE_FILETYPES,
-            default_extension=SAVE_FILETYPES[0],
-            initial_filename=self.og_filename,
+        filename = self.file_selection.choose_image_save_destination(
+            self.og_filename
         )
         if filename:
             try:
@@ -1018,10 +1009,7 @@ class ArmyPainter(tk.Tk):
         self.img_wbench.load_specular_file(filepath)
 
     def open_diffuse(self, Event=None):
-        filepath = self.dialogs.choose_open_file(
-            initial_directory=self.settings.get_diffuse_initial_directory(),
-            filetypes=OPEN_FILETYPES,
-        )
+        filepath = self.file_selection.choose_diffuse_file()
         if not filepath:
             return
         # Saving the filename just to set it as default file name on the save
@@ -1036,16 +1024,12 @@ class ArmyPainter(tk.Tk):
             )
             return
         try:
-            self.settings.remember_diffuse_file(filepath)
+            self.file_selection.remember_successful_diffuse(filepath)
         except OSError:
             LOGGER.exception("Could not update settings file: %s", self.settings.path)
 
     def open_channel(self, Event=None):
-        filepath = self.dialogs.choose_open_file(
-            initial_directory=Path(os.curdir),
-            filetypes=OPEN_FILETYPES,
-            title="Open channel file",
-        )
+        filepath = self.file_selection.choose_channel_file()
         if not filepath:
             return
         try:
@@ -1546,11 +1530,7 @@ class ArmyPainter(tk.Tk):
             return False
 
     def import_pattern_collection(self):
-        source = self.dialogs.choose_open_file(
-            initial_directory=self.settings.get_last_pattern_import_directory(),
-            filetypes=PATTERN_COLLECTION_FILETYPES,
-            title="Import Pattern Collection",
-        )
+        source = self.file_selection.choose_pattern_collection_import_file()
         if not source:
             return
 
@@ -1584,7 +1564,7 @@ class ArmyPainter(tk.Tk):
             return
 
         try:
-            self.settings.set_last_pattern_import_directory(Path(source).parent)
+            self.file_selection.remember_successful_pattern_import(source)
         except OSError:
             LOGGER.exception(
                 "Could not remember Pattern Collection import directory: %s",
@@ -1660,12 +1640,8 @@ class ArmyPainter(tk.Tk):
             )
             return
 
-        destination = self.dialogs.choose_save_file(
-            initial_directory=self.settings.get_last_pattern_export_directory(),
-            initial_filename=suggested_pattern_collection_filename(collection_name),
-            filetypes=PATTERN_COLLECTION_FILETYPES,
-            default_extension=PATTERN_COLLECTION_EXCHANGE_SUFFIX,
-            title="Export Pattern Collection",
+        destination = self.file_selection.choose_pattern_collection_export_destination(
+            suggested_pattern_collection_filename(collection_name)
         )
         if not destination:
             return
@@ -1711,9 +1687,7 @@ class ArmyPainter(tk.Tk):
             return
 
         try:
-            self.settings.set_last_pattern_export_directory(
-                Path(destination).parent
-            )
+            self.file_selection.remember_successful_pattern_export(destination)
         except OSError:
             LOGGER.exception(
                 "Could not remember Pattern Collection export directory: %s",
@@ -1721,11 +1695,7 @@ class ArmyPainter(tk.Tk):
             )
 
     def import_pattern(self):
-        source = self.dialogs.choose_open_file(
-            initial_directory=self.settings.get_last_pattern_import_directory(),
-            filetypes=PATTERN_FILETYPES,
-            title="Import Pattern",
-        )
+        source = self.file_selection.choose_pattern_import_file()
         if not source:
             return
 
@@ -1788,6 +1758,14 @@ class ArmyPainter(tk.Tk):
             )
             return
 
+        try:
+            self.file_selection.remember_successful_pattern_import(source)
+        except OSError:
+            LOGGER.exception(
+                "Could not remember pattern import directory: %s",
+                Path(source).parent,
+            )
+
         selection = self.frame_army_pattern.get_selected_pattern()
         selected_name = selection.name if selection else None
         imported_overwrote_user_pattern = False
@@ -1836,16 +1814,6 @@ class ArmyPainter(tk.Tk):
         else:
             self.update_pattern_action_states()
 
-        try:
-            self.settings.set_last_pattern_import_directory(
-                Path(source).parent
-            )
-        except OSError:
-            LOGGER.exception(
-                "Could not remember pattern import directory: %s",
-                Path(source).parent,
-            )
-
     def _show_pattern_import_error(self, title, error, message=None):
         LOGGER.exception("Pattern import failed: %s", error)
         self.dialogs.show_error(title=title, message=message or str(error))
@@ -1874,12 +1842,8 @@ class ArmyPainter(tk.Tk):
             return
         pattern_name = selection.name
 
-        destination = self.dialogs.choose_save_file(
-            initial_directory=self.settings.get_last_pattern_export_directory(),
-            initial_filename=suggested_pattern_filename(pattern_name),
-            filetypes=PATTERN_FILETYPES,
-            default_extension=PATTERN_EXCHANGE_SUFFIX,
-            title="Export Pattern",
+        destination = self.file_selection.choose_pattern_export_destination(
+            suggested_pattern_filename(pattern_name)
         )
         if not destination:
             return
@@ -1911,9 +1875,7 @@ class ArmyPainter(tk.Tk):
             return
 
         try:
-            self.settings.set_last_pattern_export_directory(
-                Path(destination).parent
-            )
+            self.file_selection.remember_successful_pattern_export(destination)
         except OSError:
             LOGGER.exception(
                 "Could not remember pattern export directory: %s",

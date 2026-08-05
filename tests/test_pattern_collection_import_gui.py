@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
-from fake_dialog_gateway import make_dialog_gateway
+from fake_dialog_gateway import make_dialog_gateway, make_file_selection_service
 from src.frame_main import (
     PATTERN_COLLECTION_FILETYPES,
     ArmyPainter,
@@ -58,6 +58,7 @@ class FakePainter:
     def __init__(self, import_directory=Path("imports")):
         self.dialogs = make_dialog_gateway(self)
         self.settings = FakeSettings(import_directory)
+        self.file_selection = make_file_selection_service(self)
         self.frame_army_pattern = FakePatternList()
         self.state_updates = 0
         self.selection_apply_count = 0

@@ -2,7 +2,7 @@ import unittest
 from pathlib import Path
 
 import test_support  # noqa: F401 - installs the user-data path redirect
-from fake_dialog_gateway import FakeDialogGateway
+from fake_dialog_gateway import FakeDialogGateway, make_file_selection_service
 from src.constant import OPEN_FILETYPES
 from src.frame_main import ArmyPainter
 from src.image_process import TextureValidationError
@@ -27,6 +27,7 @@ class FakePainter:
         self.dialogs = FakeDialogGateway()
         self.load_error = load_error
         self.loaded = []
+        self.file_selection = make_file_selection_service(self)
 
     def load_file(self, filepath):
         self.loaded.append(filepath)

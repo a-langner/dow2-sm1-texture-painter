@@ -1,6 +1,7 @@
 """Reusable dialog fake for GUI-orchestration tests."""
 
 from src.dialog_gateway import DialogGateway
+from src.file_selection_service import FileSelectionService
 
 
 class FakeDialogGateway:
@@ -40,3 +41,25 @@ class FakeDialogGateway:
 def make_dialog_gateway(parent):
     """Build the real gateway with its Tk calls patched by the current test."""
     return DialogGateway(parent)
+
+
+def make_file_selection_service(painter):
+    """Build file-selection coordination for a lightweight painter double."""
+    settings = painter.settings
+    home_directory = next(
+        (
+            value
+            for value in (
+                getattr(settings, "initial_directory", None),
+                getattr(settings, "import_directory", None),
+                getattr(settings, "export_directory", None),
+            )
+            if value is not None
+        ),
+        None,
+    )
+    return FileSelectionService(
+        settings,
+        painter.dialogs,
+        home_directory=home_directory,
+    )

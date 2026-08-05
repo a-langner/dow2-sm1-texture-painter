@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
-from fake_dialog_gateway import make_dialog_gateway
+from fake_dialog_gateway import make_dialog_gateway, make_file_selection_service
 from src.color_pattern_handler import color_key
 from src.frame_main import (
     PATTERN_FILETYPES,
@@ -78,6 +78,7 @@ class FakePainter:
         self.frame_army_pattern = FakePatternList()
         self.frame_color_chooser = FakeColorChooser()
         self.settings = FakeSettings(initial_directory)
+        self.file_selection = make_file_selection_service(self)
         self.refresh_count = 0
         self.menu_state_updates = 0
         self.conflict_decisions = ["cancel"]
@@ -181,7 +182,7 @@ class PatternImportGuiTests(unittest.TestCase):
         "src.dialog_gateway.filedialog.askopenfilename",
         return_value="C:/patterns/duplicate.pattern.json",
     )
-    def test_conflict_cancel_leaves_list_and_settings_unchanged(
+    def test_conflict_cancel_remembers_valid_file_without_changing_patterns(
         self, open_dialog, read_pattern, persist
     ):
         read_pattern.return_value = ImportedPattern("Duplicate", {})
@@ -190,7 +191,9 @@ class PatternImportGuiTests(unittest.TestCase):
         ArmyPainter.import_pattern(painter)
 
         self.assertEqual(painter.frame_army_pattern.load_count, 0)
-        self.assertEqual(painter.settings.saved_directories, [])
+        self.assertEqual(
+            painter.settings.saved_directories, [Path("C:/patterns")]
+        )
 
     @patch("src.dialog_gateway.messagebox.showerror")
     @patch(
@@ -202,7 +205,7 @@ class PatternImportGuiTests(unittest.TestCase):
         "src.dialog_gateway.filedialog.askopenfilename",
         return_value="C:/patterns/import.pattern.json",
     )
-    def test_persistence_failure_is_reported_without_refresh_or_setting_update(
+    def test_persistence_failure_is_reported_after_valid_file_is_remembered(
         self, open_dialog, read_pattern, persist, showerror
     ):
         read_pattern.return_value = ImportedPattern("Imported", {})
@@ -217,7 +220,9 @@ class PatternImportGuiTests(unittest.TestCase):
             parent=painter,
         )
         self.assertEqual(painter.frame_army_pattern.load_count, 0)
-        self.assertEqual(painter.settings.saved_directories, [])
+        self.assertEqual(
+            painter.settings.saved_directories, [Path("C:/patterns")]
+        )
 
     @patch("src.dialog_gateway.messagebox.showerror")
     @patch("src.frame_main.persist_imported_pattern", return_value="Imported")

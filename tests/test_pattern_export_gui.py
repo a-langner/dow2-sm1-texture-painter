@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
-from fake_dialog_gateway import make_dialog_gateway
+from fake_dialog_gateway import make_dialog_gateway, make_file_selection_service
 from src.frame_main import (
     PATTERN_EXCHANGE_SUFFIX,
     PATTERN_FILETYPES,
@@ -48,6 +48,7 @@ class FakePainter:
         self.dialogs = make_dialog_gateway(self)
         self.frame_army_pattern = FakePatternList(selected_name)
         self.settings = FakeSettings(initial_directory)
+        self.file_selection = make_file_selection_service(self)
 
 
 class PatternFilenameTests(unittest.TestCase):
