@@ -217,6 +217,28 @@ Run `python setup.py install` to build the entry point (command used to start th
 
 Run `texture-painter` to start the GUI app
 
+### Running tests
+
+The project uses Python's built-in `unittest` runner. On Unix-like systems,
+run the complete suite with:
+
+```text
+make test
+```
+
+GNU Make is not normally installed with Windows. Run the equivalent command
+directly in PowerShell instead:
+
+```powershell
+py -m unittest discover -s tests
+```
+
+When using the repository's `.venv`, you can run:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests
+```
+
 Run the following command to generate an EXE/binary file with pyinstaller:
 
 `make build-bin-folder` for an executable and its required library files

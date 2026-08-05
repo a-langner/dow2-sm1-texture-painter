@@ -7,9 +7,10 @@ APP_DIR = src
 RES_DIR = resources
 APP_VERSION := 0.1
 APP_NAME := dow2-texture-painter
+PYTHON ?= python
 
-test:
-	. venv/bin/activate
+test: ## run the complete unittest suite
+	$(PYTHON) -m unittest discover -s tests
 
 venv:
 	python3 -m venv venv && source venv/bin/activate
