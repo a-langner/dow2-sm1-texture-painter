@@ -496,11 +496,17 @@ class ArmyPainter(tk.Tk):
         )
         # Defining menubar
         self.define_menu()
+        self.activate_pattern_panel_callbacks()
 
         # Initialize the default workspace
         self.reset_workspace()
         self.user_pattern_warning_shown = False
         self.after_idle(self.show_user_pattern_load_warning)
+
+    def activate_pattern_panel_callbacks(self):
+        """Activate Pattern callbacks only after assignment and menu creation."""
+        self.frame_army_pattern.enable_external_callbacks()
+        self.update_pattern_action_states()
 
     def define_frame_workspace_tool(self):
         # Setting color boxes frame

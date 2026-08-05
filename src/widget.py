@@ -331,6 +331,7 @@ class FramePatternList(tk.Frame):
         self._on_delete = on_delete
         self._on_selection_changed = on_selection_changed
         self._on_state_changed = on_state_changed
+        self._external_callbacks_enabled = False
         self.pattern_style = ttk.Style(self)
         heading_font = self.pattern_style.lookup(
             "Treeview.Heading", "font"
@@ -384,9 +385,6 @@ class FramePatternList(tk.Frame):
             "<Motion>", self._update_header_separator_cursor, add="+"
         )
         self.tree.bind("<Leave>", self._restore_tree_cursor, add="+")
-        self.tree.bind(
-            "<<TreeviewSelect>>", self._notify_selection_changed, add="+"
-        )
 
         self.column_separator = ttk.Separator(
             self.tree_frame, orient=tk.VERTICAL, takefocus=False
@@ -431,9 +429,18 @@ class FramePatternList(tk.Frame):
         )
         self.after_idle(self._position_column_separator)
 
-        self.load_pattern_list()
+        self.load_pattern_list(notify_state=False)
         self._create_action_buttons()
         self.set_pattern_action_states(pattern_action_states(None))
+
+    def enable_external_callbacks(self):
+        """Enable controller notifications after widget assignment completes."""
+        if self._external_callbacks_enabled:
+            return
+        self.tree.bind(
+            "<<TreeviewSelect>>", self._notify_selection_changed, add="+"
+        )
+        self._external_callbacks_enabled = True
 
     def _create_action_buttons(self):
         self.action_frame = tk.Frame(self)
@@ -479,7 +486,10 @@ class FramePatternList(tk.Frame):
         self.delete_button.grid(row=2, column=1, sticky=tk.EW, padx=2, pady=2)
 
     def _notify_selection_changed(self, Event=None):
-        if self._on_selection_changed is not None:
+        if (
+            self._external_callbacks_enabled
+            and self._on_selection_changed is not None
+        ):
             self._on_selection_changed()
 
     def _tree_border_width(self):
@@ -622,7 +632,7 @@ class FramePatternList(tk.Frame):
         self.tree.yview_scroll(1, "units")
         return "break"
 
-    def load_pattern_list(self, preferred_pattern_name=None):
+    def load_pattern_list(self, preferred_pattern_name=None, notify_state=True):
         selection = self.get_selected_pattern()
         current_pattern_name = selection.name if selection else None
         self.tree.clear_patterns()
@@ -640,7 +650,11 @@ class FramePatternList(tk.Frame):
             self.select_pattern(pattern_name)
         if hasattr(self, "header_separator"):
             self.after_idle(self._position_header_separator)
-        if self._on_state_changed is not None:
+        if (
+            notify_state
+            and self._external_callbacks_enabled
+            and self._on_state_changed is not None
+        ):
             self._on_state_changed()
 
     def get_selected_item_id(self):

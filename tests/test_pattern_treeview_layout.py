@@ -1,6 +1,7 @@
 import tkinter as tk
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
@@ -179,6 +180,7 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
     def test_selection_change_invokes_supplied_callback_without_event(self):
         frame = object.__new__(FramePatternList)
         frame._on_selection_changed = Mock()
+        frame._external_callbacks_enabled = True
 
         frame._notify_selection_changed(object())
 
@@ -187,8 +189,31 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
     def test_selection_change_callback_is_safely_optional(self):
         frame = object.__new__(FramePatternList)
         frame._on_selection_changed = None
+        frame._external_callbacks_enabled = True
 
         frame._notify_selection_changed(object())
+
+    def test_selection_change_is_suppressed_during_construction(self):
+        frame = object.__new__(FramePatternList)
+        frame._on_selection_changed = Mock()
+        frame._external_callbacks_enabled = False
+
+        frame._notify_selection_changed(object())
+
+        frame._on_selection_changed.assert_not_called()
+
+    def test_enabling_callbacks_binds_selection_once(self):
+        frame = object.__new__(FramePatternList)
+        frame.tree = SimpleNamespace(bind=Mock(return_value="binding"))
+        frame._external_callbacks_enabled = False
+
+        frame.enable_external_callbacks()
+        frame.enable_external_callbacks()
+
+        frame.tree.bind.assert_called_once_with(
+            "<<TreeviewSelect>>", frame._notify_selection_changed, add="+"
+        )
+        self.assertTrue(frame._external_callbacks_enabled)
 
     def test_pattern_list_has_no_implicit_root_lookup(self):
         widget_source = (

@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -366,6 +367,7 @@ class PatternMenuStateTests(unittest.TestCase):
         frame = SimpleNamespace(
             tree=tree,
             _on_state_changed=callback,
+            _external_callbacks_enabled=True,
             get_selected_pattern=Mock(return_value=None),
         )
 
@@ -373,6 +375,45 @@ class PatternMenuStateTests(unittest.TestCase):
             FramePatternList.load_pattern_list(frame)
 
         callback.assert_called_once_with()
+
+    def test_initial_pattern_population_does_not_notify_controller(self):
+        tree = SimpleNamespace(clear_patterns=Mock(), insert_pattern=Mock())
+        callback = Mock()
+        frame = SimpleNamespace(
+            tree=tree,
+            _on_state_changed=callback,
+            _external_callbacks_enabled=False,
+            get_selected_pattern=Mock(return_value=None),
+        )
+
+        with patch("src.widget.build_pattern_rows", return_value=[]):
+            FramePatternList.load_pattern_list(frame, notify_state=False)
+
+        callback.assert_not_called()
+
+    def test_pattern_callbacks_activate_and_synchronize_after_assignment(self):
+        panel = SimpleNamespace(enable_external_callbacks=Mock())
+        painter = SimpleNamespace(frame_army_pattern=panel)
+
+        def assert_panel_is_assigned():
+            self.assertIs(painter.frame_army_pattern, panel)
+
+        panel.enable_external_callbacks.side_effect = assert_panel_is_assigned
+        painter.update_pattern_action_states = Mock(
+            side_effect=assert_panel_is_assigned
+        )
+
+        ArmyPainter.activate_pattern_panel_callbacks(painter)
+
+        panel.enable_external_callbacks.assert_called_once_with()
+        painter.update_pattern_action_states.assert_called_once_with()
+
+    def test_startup_fix_does_not_use_frame_attribute_hasattr_workaround(self):
+        source = (
+            Path(__file__).resolve().parents[1] / "src" / "frame_main.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn('hasattr(self, "frame_army_pattern")', source)
 
 
 if __name__ == "__main__":
