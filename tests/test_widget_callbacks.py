@@ -3,7 +3,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
-from src.frame_main import ArmyPainter, PREVIEW_DEBOUNCE_MS
+from src.frame_main import ArmyPainter
 from src.widget import (
     BatchEditTopLevel,
     FrameChannelList,
@@ -118,7 +118,8 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
             (),
             {
                 "img_wbench": type("Workbench", (), {})(),
-                "schedule_preview_refresh": Mock(),
+                "sync_render_settings": Mock(),
+                "preview_controller": Mock(),
             },
         )()
 
@@ -126,9 +127,8 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
 
         self.assertEqual(painter.img_wbench.brightness, 75.0)
         self.assertEqual(painter.img_wbench.contrast, 100.0)
-        painter.schedule_preview_refresh.assert_called_once_with(
-            PREVIEW_DEBOUNCE_MS
-        )
+        painter.sync_render_settings.assert_called_once_with()
+        painter.preview_controller.request_preview.assert_called_once_with()
 
     def test_widget_module_has_no_implicit_controller_lookup(self):
         source = (

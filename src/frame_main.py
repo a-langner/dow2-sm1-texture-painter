@@ -85,6 +85,7 @@ from src.pattern_exchange import (
     read_pattern_collection_file,
 )
 from src.platform_tools import open_directory_in_file_manager
+from src.preview_controller import PreviewController, PreviewResult
 from src.settings_handler import SettingsHandler
 from src.texture_naming import (
     DEFAULT_TEXTURE_NAMING,
@@ -326,10 +327,6 @@ def is_window_maximized(window):
         return False
 
 
-def render_preview(snapshot):
-    return snapshot.refresh_workspace(), snapshot.refresh_team_colour_img()
-
-
 def prepare_batch_workbench(
     diffuse_path,
     settings,
@@ -470,10 +467,16 @@ class ArmyPainter(tk.Tk):
         )
         self.frame_batch_tools = None
         self.preview_executor = ThreadPoolExecutor(max_workers=1)
+        self.preview_controller = PreviewController(
+            workbench=self.img_wbench,
+            executor=self.preview_executor,
+            schedule_after=self.after,
+            cancel_scheduled=self.after_cancel,
+            on_preview_ready=self.apply_preview_result,
+            on_preview_error=self.show_preview_error,
+            debounce_ms=PREVIEW_DEBOUNCE_MS,
+        )
         self.batch_executor = ThreadPoolExecutor(max_workers=1)
-        self.preview_after_id = None
-        self.preview_generation = 0
-        self.preview_futures = set()
         self.batch_future = None
         self.batch_cancel = threading.Event()
         self.batch_events = queue.Queue()
@@ -746,7 +749,8 @@ class ArmyPainter(tk.Tk):
     def on_slider_update(self, brightness: float, contrast: float):
         self.img_wbench.brightness = brightness
         self.img_wbench.contrast = contrast
-        self.schedule_preview_refresh(PREVIEW_DEBOUNCE_MS)
+        self.sync_render_settings()
+        self.preview_controller.request_preview()
 
     def on_color_changed(self, slot_index: int, color: str):
         self.update_pattern_action_states()
@@ -784,52 +788,20 @@ class ArmyPainter(tk.Tk):
 
     def refresh_workspace(self):
         """Schedule an immediate background workspace refresh."""
-        self.schedule_preview_refresh(0)
-
-    def schedule_preview_refresh(self, delay_ms=0):
-        if self.closing:
-            return
         self.sync_render_settings()
-        self.preview_generation += 1
-        if self.preview_after_id is not None:
-            self.after_cancel(self.preview_after_id)
-        generation = self.preview_generation
-        self.preview_after_id = self.after(
-            delay_ms, lambda: self.start_preview_refresh(generation)
-        )
+        self.preview_controller.request_preview_immediately()
 
-    def start_preview_refresh(self, generation):
-        self.preview_after_id = None
-        if self.closing or generation != self.preview_generation:
-            return
-        for pending in tuple(self.preview_futures):
-            if not pending.running():
-                pending.cancel()
-                self.preview_futures.discard(pending)
-        snapshot = self.img_wbench.render_snapshot()
-        future = self.preview_executor.submit(render_preview, snapshot)
-        self.preview_futures.add(future)
-        self.after(20, self.poll_preview_result, generation, future)
-
-    def poll_preview_result(self, generation, future):
-        if self.closing:
-            return
-        if not future.done():
-            self.after(20, self.poll_preview_result, generation, future)
-            return
-        self.preview_futures.discard(future)
-        if future.cancelled() or generation != self.preview_generation:
-            return
-        try:
-            workspace, team_colour = future.result()
-        except Exception as exc:
-            self.dialogs.show_error(title="Preview error", message=str(exc))
-            return
-        self.img_wbench.img_workspace = workspace
-        self.img_dif = ImageTk.PhotoImage(workspace)
+    def apply_preview_result(self, result: PreviewResult):
+        """Apply a completed preview on Tk's event thread."""
+        self.img_wbench.img_workspace = result.workspace
+        self.img_dif = ImageTk.PhotoImage(result.workspace)
         self.label_img_dif.config(image=self.img_dif)
-        self.img_tem = ImageTk.PhotoImage(team_colour)
+        self.img_tem = ImageTk.PhotoImage(result.team_colour)
         self.label_img_tem.config(image=self.img_tem)
+
+    def show_preview_error(self, error):
+        """Present an expected background-render failure at the GUI boundary."""
+        self.dialogs.show_error(title="Preview error", message=str(error))
 
     def color_operation_update(self, color_op: str):
         self.img_wbench.color_op = color_op
@@ -886,6 +858,7 @@ class ArmyPainter(tk.Tk):
     def load_file(self, filepath: str):
         """Load one diffuse set, then perform its GUI-only follow-up actions."""
         result = self.texture_loading.load_diffuse_and_companions(filepath)
+        self.preview_controller.invalidate()
 
         if result.team_color_error is not None:
             self.dialogs.show_error(
@@ -1885,11 +1858,7 @@ class ArmyPainter(tk.Tk):
             return
         self.closing = True
         self.batch_cancel.set()
-        if self.preview_after_id is not None:
-            self.after_cancel(self.preview_after_id)
-            self.preview_after_id = None
-        for future in self.preview_futures:
-            future.cancel()
+        self.preview_controller.shutdown()
         self.preview_executor.shutdown(wait=False, cancel_futures=True)
         self.batch_executor.shutdown(wait=False, cancel_futures=True)
         self.destroy()

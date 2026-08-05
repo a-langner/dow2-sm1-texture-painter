@@ -1,5 +1,6 @@
 import unittest
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.frame_main import (
@@ -46,6 +47,7 @@ class FakeLoadingPainter:
         self.texture_naming_profile = DEFAULT_TEXTURE_NAMING
         self.resize_calls = []
         self.refresh_calls = 0
+        self.preview_controller = Mock()
 
     def open_channel(self):
         pass
@@ -146,6 +148,7 @@ class DiffuseWindowGeometryTests(unittest.TestCase):
 
         self.assertEqual(painter.refresh_calls, 1)
         self.assertEqual(painter.resize_calls, [(512, 256)])
+        painter.preview_controller.invalidate.assert_called_once_with()
 
 
 if __name__ == "__main__":
