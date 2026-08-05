@@ -207,15 +207,36 @@ Dawn of War 1 Trim 2 & Eye coloring aren't handled yet.
 
 ## Developing
 
-From the root directory:
+Create a virtual environment and install the runtime requirements, development
+requirements, and project in editable mode.
 
-Run `make venv` to generate the virtual env
+On Windows PowerShell, from the repository root:
 
-Run `source venv/bin/activate` to activate virtual env (on linux)
+```powershell
+py -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
+python -m pip install -e .
+python -m src.frame_main
+```
 
-Run `python setup.py install` to build the entry point (command used to start the app)
+On Linux or macOS:
 
-Run `texture-painter` to start the GUI app
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
+python -m pip install -e .
+python -m src.frame_main
+```
+
+On Unix-like systems, `make setup-dev` performs the environment creation and
+installation without requiring activation. Afterward, `make run-dev` starts the
+application through that environment.
 
 ### Running tests
 

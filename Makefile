@@ -1,6 +1,6 @@
-.PHONY: clean clean-build clean-pyc lint test setup help
+.PHONY: clean clean-build clean-pyc clean-venv lint black test venv setup-dev run-dev help
 
-SHELL := /bin/zsh
+SHELL := /bin/sh
 .DEFAULT_GOAL := help
 
 APP_DIR = src
@@ -8,19 +8,23 @@ RES_DIR = resources
 APP_VERSION := 0.1
 APP_NAME := dow2-texture-painter
 PYTHON ?= python
+VENV_DIR ?= .venv
+VENV_PYTHON := $(VENV_DIR)/bin/python
 
 test: ## run the complete unittest suite
 	$(PYTHON) -m unittest discover -s tests
 
-venv:
-	python3 -m venv venv && source venv/bin/activate
-	venv/bin/pip install --upgrade pip wheel
-	venv/bin/pip install --upgrade -r requirements.txt
-	venv/bin/pip install -e .
+venv: ## create the development virtual environment
+	$(PYTHON) -m venv $(VENV_DIR)
 
-run-dev: ## launch main frame
-	python setup.py install
-	python src/frame_main.py
+setup-dev: venv ## install runtime, development, and editable project dependencies
+	$(VENV_PYTHON) -m pip install --upgrade pip
+	$(VENV_PYTHON) -m pip install -r requirements.txt
+	$(VENV_PYTHON) -m pip install -r requirements-dev.txt
+	$(VENV_PYTHON) -m pip install -e .
+
+run-dev: ## launch the application from an already prepared environment
+	$(VENV_PYTHON) -m src.frame_main
 
 # On windows, use ";" separator instead of ":" for the --add-data args
 # --icon option isn't working alongisde --name option
@@ -54,7 +58,7 @@ build-bin-file: ## build binary
 clean: clean-build clean-pyc ## remove all build, test, coverage and Python artifacts
 
 clean-venv:
-	rm -rf venv
+	rm -rf $(VENV_DIR)
 
 clean-build: ## remove build artifacts
 	rm -fr build/
