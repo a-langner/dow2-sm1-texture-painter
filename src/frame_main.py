@@ -13,7 +13,6 @@ import tkinter as tk
 from tkinter import filedialog
 from tkinter.simpledialog import askstring
 from tkinter.messagebox import askyesno, showerror, showinfo, showwarning
-import traceback
 from src.widget import (
     FrameColorChooser,
     FrameChannelList,
@@ -459,6 +458,7 @@ class ArmyPainter(tk.Tk):
         self.batch_cancel = threading.Event()
         self.batch_events = queue.Queue()
         self.closing = False
+        self._handling_callback_exception = False
         self.protocol("WM_DELETE_WINDOW", self.on_exit)
 
         # Frame containing tools to edit the image
@@ -1805,7 +1805,39 @@ class ArmyPainter(tk.Tk):
         )
 
     def report_callback_exception(self, exc, val, tb):
-        showerror("Error", message=traceback.format_exc())
+        exception_info = (exc, val, tb)
+        if getattr(self, "_handling_callback_exception", False):
+            LOGGER.error(
+                "Additional unhandled Tk callback exception while reporting an error",
+                exc_info=exception_info,
+            )
+            return
+
+        self._handling_callback_exception = True
+        try:
+            LOGGER.error(
+                "Unhandled Tk callback exception",
+                exc_info=exception_info,
+            )
+            message = (
+                "An unexpected error occurred.\n\n"
+                "The operation could not be completed.\n\n"
+            )
+            if self.application_log_path is not None:
+                message += (
+                    "Technical details were written to:\n\n"
+                    f"{self.application_log_path}"
+                )
+            else:
+                message += (
+                    "Technical details could not be written to the application log."
+                )
+            try:
+                showerror("Unexpected Error", message=message, parent=self)
+            except Exception:
+                LOGGER.exception("Could not display the unexpected-error dialog")
+        finally:
+            self._handling_callback_exception = False
 
     def on_exit(self):
         if self.closing:
