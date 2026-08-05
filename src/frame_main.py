@@ -506,6 +506,7 @@ class ArmyPainter(tk.Tk):
         # Setting color boxes frame
         self.frame_color_chooser = FrameColorChooser(
             self.frame_img_tools,
+            on_color_changed=self.on_color_changed,
             width=COLOR_BOX_SIZE * 4 + 12,
             height=COLOR_BOX_SIZE + COLOR_BTN_HEIGHT,
             bd=0,
@@ -515,18 +516,28 @@ class ArmyPainter(tk.Tk):
 
         self.frame_color_op_option = FrameColorOps(
             self.frame_img_tools,
+            on_operation_changed=self.color_operation_update,
             text="Color Operation",
         )
         self.frame_color_op_option.pack(side=tk.TOP, fill=tk.X)
 
         # Setting channel list frame
         self.frame_channel_select = FrameChannelList(
-            self.frame_img_tools, text="RGBA Channel", relief=tk.RIDGE, bd=2
+            self.frame_img_tools,
+            on_apply_alpha_changed=self.on_apply_alpha_toggle,
+            text="RGBA Channel",
+            relief=tk.RIDGE,
+            bd=2,
         )
         self.frame_channel_select.pack(side=tk.LEFT, fill=tk.Y)
 
         # Setting sliders
-        self.frame_sliders = FrameSlider(self.frame_img_tools, relief=tk.RIDGE, bd=2)
+        self.frame_sliders = FrameSlider(
+            self.frame_img_tools,
+            on_value_changed=self.on_slider_update,
+            relief=tk.RIDGE,
+            bd=2,
+        )
         self.frame_sliders.pack(side=tk.LEFT, fill=tk.Y)
 
     def define_menu(self):
@@ -683,6 +694,9 @@ class ArmyPainter(tk.Tk):
         # Frame containing the batch operation tools
         self.frame_batch_tools = BatchEditTopLevel(
             self,
+            on_batch_edit=self.batch_edit,
+            on_batch_convert=self.batch_convert,
+            on_cancel=self.cancel_batch,
             width=DEFAULT_IMG_SIZE * 2,
             height=COLOR_BOX_SIZE + COLOR_BTN_HEIGHT,
             bd=2,
@@ -704,10 +718,14 @@ class ArmyPainter(tk.Tk):
             self.frame_batch_tools.destroy()
             self.frame_batch_tools = None
 
-    def on_slider_update(self, value: float):
+    def on_slider_update(self, value: str):
         self.img_wbench.brightness = self.frame_sliders.brightness_slider.get()
         self.img_wbench.contrast = self.frame_sliders.contrast_slider.get()
         self.schedule_preview_refresh(PREVIEW_DEBOUNCE_MS)
+
+    def on_color_changed(self, slot_index: int, color: str):
+        self.update_pattern_action_states()
+        self.refresh_workspace()
 
     def save(self, Event=None):
         """Save image from current workspace
@@ -791,13 +809,12 @@ class ArmyPainter(tk.Tk):
         self.img_tem = ImageTk.PhotoImage(team_colour)
         self.label_img_tem.config(image=self.img_tem)
 
-    def color_operation_update(self):
-        color_op = self.frame_color_op_option.var.get()
+    def color_operation_update(self, color_op: str):
         self.img_wbench.color_op = color_op
         self.refresh_workspace()
 
-    def on_apply_alpha_toggle(self):
-        self.img_wbench.apply_alpha = self.frame_channel_select.apply_alpha.get()
+    def on_apply_alpha_toggle(self, apply_alpha: bool):
+        self.img_wbench.apply_alpha = apply_alpha
         self.refresh_workspace()
 
     def on_dirt_toggle(self):

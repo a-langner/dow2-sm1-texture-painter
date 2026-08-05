@@ -102,8 +102,16 @@ def build_pattern_rows(patterns=None):
 
 
 class FrameChannelList(tk.LabelFrame):
-    def __init__(self, master=None, cnf={}, **kw):
+    def __init__(
+        self,
+        master=None,
+        cnf={},
+        *,
+        on_apply_alpha_changed: Callable[[bool], None],
+        **kw,
+    ):
         super(FrameChannelList, self).__init__(master=master, cnf={}, **kw)
+        self._on_apply_alpha_changed = on_apply_alpha_changed
 
         # Channel List Box
         self.lb = tk.Listbox(self, selectmode=tk.MULTIPLE, height=4, width=9)
@@ -122,14 +130,25 @@ class FrameChannelList(tk.LabelFrame):
             onvalue=1,
             offvalue=0,
             height=2,
-            command=self._root().on_apply_alpha_toggle,
+            command=self._notify_apply_alpha_changed,
         )
         self.add_alpha.pack(side=tk.TOP, fill=tk.X)
 
+    def _notify_apply_alpha_changed(self):
+        self._on_apply_alpha_changed(bool(self.apply_alpha.get()))
+
 
 class FrameColorChooser(tk.Frame):
-    def __init__(self, master=None, cnf={}, **kw):
+    def __init__(
+        self,
+        master=None,
+        cnf={},
+        *,
+        on_color_changed: Callable[[int, str], None],
+        **kw,
+    ):
         super(FrameColorChooser, self).__init__(master=master, cnf={}, **kw)
+        self._on_color_changed = on_color_changed
         self.color_boxes = []
         self.color_buttons = []
         self.initialize()
@@ -173,8 +192,7 @@ class FrameColorChooser(tk.Frame):
         if color is not None:
             self.color_boxes[btn_idx]["bg"] = color
             self.draw_rgb_value()
-            self._root().update_pattern_action_states()
-            self._root().refresh_workspace()
+            self._on_color_changed(btn_idx, color)
 
     def draw_rgb_value(self):
         for color_box in self.color_boxes:
@@ -189,8 +207,16 @@ class FrameColorChooser(tk.Frame):
 
 
 class FrameSlider(tk.Frame):
-    def __init__(self, master=None, cnf={}, **kw):
+    def __init__(
+        self,
+        master=None,
+        cnf={},
+        *,
+        on_value_changed: Callable[[str], None],
+        **kw,
+    ):
         super(FrameSlider, self).__init__(master=master, cnf={}, **kw)
+        self._on_value_changed = on_value_changed
 
         # Brightness slider
         self.brightness_slider = tk.Scale(
@@ -200,7 +226,7 @@ class FrameSlider(tk.Frame):
             from_=0.0,
             to=150.0,
             orient=tk.HORIZONTAL,
-            command=self._root().on_slider_update,
+            command=self._on_value_changed,
         )
         self.brightness_slider.pack(side=tk.TOP, fill=tk.X)
 
@@ -212,14 +238,22 @@ class FrameSlider(tk.Frame):
             from_=0.0,
             to=200.0,
             orient=tk.HORIZONTAL,
-            command=self._root().on_slider_update,
+            command=self._on_value_changed,
         )
         self.contrast_slider.pack(side=tk.TOP, fill=tk.X)
 
 
 class FrameColorOps(tk.LabelFrame):
-    def __init__(self, master=None, cnf={}, **kw):
+    def __init__(
+        self,
+        master=None,
+        cnf={},
+        *,
+        on_operation_changed: Callable[[str], None],
+        **kw,
+    ):
         super(FrameColorOps, self).__init__(master=master, cnf={}, **kw)
+        self._on_operation_changed = on_operation_changed
         self.color_operation_btn = {op.value: None for op in ColorOps}
         self.var = tk.StringVar(value=ColorOps.OVERLAY.value)
         for op_name, value in self.color_operation_btn.items():
@@ -228,9 +262,12 @@ class FrameColorOps(tk.LabelFrame):
                 text=op_name,
                 variable=self.var,
                 value=op_name,
-                command=self._root().color_operation_update,
+                command=self._notify_operation_changed,
             )
             value.pack(side=tk.LEFT)
+
+    def _notify_operation_changed(self):
+        self._on_operation_changed(self.var.get())
 
 
 class PatternTreeview(ttk.Treeview):
@@ -853,8 +890,20 @@ class PatternCollectionConflictDialog(tk.Toplevel):
 
 
 class BatchEditTopLevel(tk.Toplevel):
-    def __init__(self, master=None, cnf={}, **kw):
+    def __init__(
+        self,
+        master=None,
+        cnf={},
+        *,
+        on_batch_edit: Callable[[], None],
+        on_batch_convert: Callable[[], None],
+        on_cancel: Callable[[], None],
+        **kw,
+    ):
         super(BatchEditTopLevel, self).__init__(master=master, cnf={}, **kw)
+        self._on_batch_edit = on_batch_edit
+        self._on_batch_convert = on_batch_convert
+        self._on_cancel = on_cancel
         self.resizable(width=False, height=False)
         self.initialize()
         self.title("Batch Edit")
@@ -908,21 +957,21 @@ class BatchEditTopLevel(tk.Toplevel):
         self.batch_edit_button = tk.Button(
             self.frame_destination_format,
             text="Process Batch Edit",
-            command=self._root().batch_edit,
+            command=self._on_batch_edit,
         )
         self.batch_edit_button.pack(side=tk.LEFT)
 
         self.batch_convert_button = tk.Button(
             self.frame_destination_format,
             text="Process Batch Convert",
-            command=self._root().batch_convert,
+            command=self._on_batch_convert,
         )
         self.batch_convert_button.pack(side=tk.LEFT)
 
         self.cancel_button = tk.Button(
             self.frame_destination_format,
             text="Cancel",
-            command=self._root().cancel_batch,
+            command=self._on_cancel,
             state=tk.DISABLED,
         )
         self.cancel_button.pack(side=tk.LEFT)

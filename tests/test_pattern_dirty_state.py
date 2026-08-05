@@ -64,21 +64,12 @@ class PatternDirtyStateTests(unittest.TestCase):
         chooser = object.__new__(FrameColorChooser)
         chooser.color_boxes = [{"bg": "#000000"} for _ in range(4)]
         chooser.draw_rgb_value = Mock()
-        root = type(
-            "Root",
-            (),
-            {
-                "update_pattern_action_states": Mock(),
-                "refresh_workspace": Mock(),
-            },
-        )()
-        chooser._root = lambda: root
+        chooser._on_color_changed = Mock()
 
         FrameColorChooser.apply_color(chooser, 1)
 
         self.assertEqual(chooser.color_boxes[1]["bg"], "#010203")
-        root.update_pattern_action_states.assert_called_once_with()
-        root.refresh_workspace.assert_called_once_with()
+        chooser._on_color_changed.assert_called_once_with(1, "#010203")
 
 
 if __name__ == "__main__":
