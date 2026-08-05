@@ -7,6 +7,7 @@ import os
 from dataclasses import dataclass
 from tkinter import colorchooser, filedialog
 from functools import partial
+from typing import Callable, Optional
 from src.color_pattern_handler import get_all_patterns, is_user_pattern
 from src.constant import OPEN_FILETYPES, SAVE_EXT_LIST, ColorOps
 
@@ -273,9 +274,26 @@ class PatternTreeview(ttk.Treeview):
 
 
 class FramePatternList(tk.Frame):
-    def __init__(self, master=None, cnf={}, **kw):
+    def __init__(
+        self,
+        master=None,
+        cnf={},
+        *,
+        on_save_new: Callable[[], None],
+        on_update: Callable[[], None],
+        on_rename: Callable[[], None],
+        on_delete: Callable[[], None],
+        on_selection_changed: Optional[Callable[[], None]] = None,
+        on_state_changed: Optional[Callable[[], None]] = None,
+        **kw,
+    ):
         super(FramePatternList, self).__init__(master=master, cnf={}, **kw)
-        self.state_change_callback = None
+        self._on_save_new = on_save_new
+        self._on_update = on_update
+        self._on_rename = on_rename
+        self._on_delete = on_delete
+        self._on_selection_changed = on_selection_changed
+        self._on_state_changed = on_state_changed
         self.pattern_style = ttk.Style(self)
         heading_font = self.pattern_style.lookup(
             "Treeview.Heading", "font"
@@ -329,6 +347,9 @@ class FramePatternList(tk.Frame):
             "<Motion>", self._update_header_separator_cursor, add="+"
         )
         self.tree.bind("<Leave>", self._restore_tree_cursor, add="+")
+        self.tree.bind(
+            "<<TreeviewSelect>>", self._notify_selection_changed, add="+"
+        )
 
         self.column_separator = ttk.Separator(
             self.tree_frame, orient=tk.VERTICAL, takefocus=False
@@ -391,24 +412,24 @@ class FramePatternList(tk.Frame):
         self.save_new_button = tk.Button(
             self.action_frame,
             text="Save New",
-            command=self._root().save_pattern,
+            command=self._on_save_new,
         )
         self.update_button = tk.Button(
             self.action_frame,
             text="Update",
-            command=self._root().update_selected_pattern,
+            command=self._on_update,
             state=tk.DISABLED,
         )
         self.rename_button = tk.Button(
             self.action_frame,
             text="Rename",
-            command=self._root().rename_selected_pattern,
+            command=self._on_rename,
             state=tk.DISABLED,
         )
         self.delete_button = tk.Button(
             self.action_frame,
             text="Delete",
-            command=self._root().delete_pattern,
+            command=self._on_delete,
             state=tk.DISABLED,
         )
 
@@ -419,6 +440,10 @@ class FramePatternList(tk.Frame):
         self.update_button.grid(row=1, column=1, sticky=tk.EW, padx=2, pady=2)
         self.rename_button.grid(row=2, column=0, sticky=tk.EW, padx=2, pady=2)
         self.delete_button.grid(row=2, column=1, sticky=tk.EW, padx=2, pady=2)
+
+    def _notify_selection_changed(self, Event=None):
+        if self._on_selection_changed is not None:
+            self._on_selection_changed()
 
     def _tree_border_width(self):
         border_width = self.pattern_style.lookup(
@@ -578,8 +603,8 @@ class FramePatternList(tk.Frame):
             self.select_pattern(pattern_name)
         if hasattr(self, "header_separator"):
             self.after_idle(self._position_header_separator)
-        if self.state_change_callback is not None:
-            self.state_change_callback()
+        if self._on_state_changed is not None:
+            self._on_state_changed()
 
     def get_selected_item_id(self):
         selection = self.tree.selection()

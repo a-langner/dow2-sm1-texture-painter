@@ -365,7 +365,7 @@ class PatternMenuStateTests(unittest.TestCase):
         callback = Mock()
         frame = SimpleNamespace(
             tree=tree,
-            state_change_callback=callback,
+            _on_state_changed=callback,
             get_selected_pattern=Mock(return_value=None),
         )
 

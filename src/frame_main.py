@@ -481,18 +481,19 @@ class ArmyPainter(tk.Tk):
 
         # Defining slave widget
         self.define_frame_workspace()
-        self.frame_army_pattern = FramePatternList(self.frame_img)
-        self.frame_army_pattern.state_change_callback = (
-            self.update_pattern_action_states
+        self.frame_army_pattern = FramePatternList(
+            self.frame_img,
+            on_save_new=self.save_pattern,
+            on_update=self.update_selected_pattern,
+            on_rename=self.rename_selected_pattern,
+            on_delete=self.delete_pattern,
+            on_selection_changed=self.on_pattern_select,
+            on_state_changed=self.update_pattern_action_states,
         )
         self.frame_army_pattern.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.frame_channel_select.lb.bind(
             "<<ListboxSelect>>", self.select_channel
         )
-        self.frame_army_pattern.tree.bind(
-            "<<TreeviewSelect>>", self.on_pattern_select
-        )
-
         # Defining menubar
         self.define_menu()
 

@@ -1,5 +1,6 @@
 import tkinter as tk
 import unittest
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
@@ -119,17 +120,10 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
         self, _frame_type, _button_type, _label_type
     ):
         frame = object.__new__(FramePatternList)
-        root = type(
-            "Root",
-            (),
-            {
-                "save_pattern": Mock(),
-                "update_selected_pattern": Mock(),
-                "rename_selected_pattern": Mock(),
-                "delete_pattern": Mock(),
-            },
-        )()
-        frame._root = lambda: root
+        frame._on_save_new = Mock()
+        frame._on_update = Mock()
+        frame._on_rename = Mock()
+        frame._on_delete = Mock()
 
         frame._create_action_buttons()
 
@@ -163,6 +157,15 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
         self.assertEqual(frame.delete_button.grid_options["row"], 2)
         self.assertEqual(frame.delete_button.grid_options["column"], 1)
 
+        for button, callback in (
+            (frame.save_new_button, frame._on_save_new),
+            (frame.update_button, frame._on_update),
+            (frame.rename_button, frame._on_rename),
+            (frame.delete_button, frame._on_delete),
+        ):
+            button.options["command"]()
+            callback.assert_called_once_with()
+
         frame.set_pattern_action_states(
             pattern_action_states(
                 type("Selection", (), {"is_user": False})(), modified=True
@@ -172,6 +175,30 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
 
         frame.set_pattern_action_states(pattern_action_states(None, modified=True))
         self.assertEqual(frame.modified_label.options["text"], "")
+
+    def test_selection_change_invokes_supplied_callback_without_event(self):
+        frame = object.__new__(FramePatternList)
+        frame._on_selection_changed = Mock()
+
+        frame._notify_selection_changed(object())
+
+        frame._on_selection_changed.assert_called_once_with()
+
+    def test_selection_change_callback_is_safely_optional(self):
+        frame = object.__new__(FramePatternList)
+        frame._on_selection_changed = None
+
+        frame._notify_selection_changed(object())
+
+    def test_pattern_list_has_no_implicit_root_lookup(self):
+        widget_source = (
+            Path(__file__).resolve().parents[1] / "src" / "widget.py"
+        ).read_text(encoding="utf-8")
+        class_source = widget_source.split("class FramePatternList", 1)[1].split(
+            "class PatternImportConflictDialog", 1
+        )[0]
+
+        self.assertNotIn("_root()", class_source)
 
     def test_header_boundary_uses_populated_tree_hit_testing(self):
         tree = FakeRegionTree(boundary=24, body_region="cell")
