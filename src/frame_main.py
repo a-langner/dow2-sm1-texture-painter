@@ -89,12 +89,13 @@ from src.settings_handler import SettingsHandler
 from src.texture_naming import (
     DEFAULT_TEXTURE_NAMING,
     TextureKind,
-    TextureNamingProfile,
     is_texture_kind,
-    replace_texture_suffix,
+)
+from src.texture_loading_service import (
+    TextureLoadingService,
+    find_companion_texture,
 )
 from pathlib import Path
-from typing import Optional
 
 from importlib.resources import as_file, files
 
@@ -325,42 +326,6 @@ def is_window_maximized(window):
         return False
 
 
-def find_companion_texture(
-    diffuse_filepath: Path,
-    target_kind: TextureKind,
-    profile: TextureNamingProfile = DEFAULT_TEXTURE_NAMING,
-) -> Optional[Path]:
-    """Find a sibling texture derived from a profile-recognized diffuse name.
-
-    Filename matching is case-insensitive for consistent behavior on Windows
-    and case-sensitive filesystems. The directory and extension are preserved.
-    If case-only duplicate filenames exist, the directory's first match wins.
-    """
-    diffuse_path = Path(diffuse_filepath)
-    if target_kind is TextureKind.DIFFUSE:
-        raise ValueError("A companion texture kind cannot be diffuse.")
-    expected_path = replace_texture_suffix(
-        diffuse_path,
-        TextureKind.DIFFUSE,
-        target_kind,
-        profile,
-    )
-    if expected_path is None:
-        LOGGER.debug(
-            "Texture name does not match profile '%s': %s",
-            profile.name,
-            diffuse_path,
-        )
-        return None
-
-    expected_name = expected_path.name.casefold()
-    for candidate in diffuse_path.parent.iterdir():
-        if candidate.is_file() and candidate.name.casefold() == expected_name:
-            return candidate
-    LOGGER.debug("Companion texture is absent: %s", expected_path)
-    return None
-
-
 def render_preview(snapshot):
     return snapshot.refresh_workspace(), snapshot.refresh_team_colour_img()
 
@@ -500,6 +465,9 @@ class ArmyPainter(tk.Tk):
         self.img_wbench = ImageWorkbench()
         self.settings = SettingsHandler()
         self.file_selection = FileSelectionService(self.settings, self.dialogs)
+        self.texture_loading = TextureLoadingService(
+            self.img_wbench, self.texture_naming_profile
+        )
         self.frame_batch_tools = None
         self.preview_executor = ThreadPoolExecutor(max_workers=1)
         self.batch_executor = ThreadPoolExecutor(max_workers=1)
@@ -916,61 +884,28 @@ class ArmyPainter(tk.Tk):
         self.refresh_workspace()
 
     def load_file(self, filepath: str):
-        """Load diffuse and team-color textures and set the workspace image,
-        both texture have to be located in the same directory
+        """Load one diffuse set, then perform its GUI-only follow-up actions."""
+        result = self.texture_loading.load_diffuse_and_companions(filepath)
 
-        :param filepath: path to file
-        :type filepath: str
-        """
-        self.img_wbench.load_diffuse_file(filepath)
-
-        # Load associated team-color file
-        tem_filepath = find_companion_texture(
-            filepath,
-            TextureKind.TEAM_COLOR,
-            self.texture_naming_profile,
-        )
-        if tem_filepath is not None:
-            LOGGER.debug("Loading team-colour companion: %s", tem_filepath)
-            try:
-                self.load_channel_packed_file(tem_filepath)
-            except TextureValidationError as exc:
-                self.dialogs.show_error(
-                    title="Invalid team-colour texture", message=str(exc)
-                )
+        if result.team_color_error is not None:
+            self.dialogs.show_error(
+                title="Invalid team-colour texture",
+                message=result.team_color_error,
+            )
+        elif result.team_color_path is not None:
+            self.select_channel()
         else:
             self.open_channel()
 
-        # Load associated dirt file
-        dirt_filepath = find_companion_texture(
-            filepath,
-            TextureKind.DIRT,
-            self.texture_naming_profile,
-        )
-        if dirt_filepath is not None:
-            try:
-                self.load_dirt_file(dirt_filepath)
-            except TextureValidationError as exc:
-                self.dialogs.show_warning(
-                    title="Invalid dirt texture", message=str(exc)
-                )
-
-        # Load associated spec file
-        spec_filepath = find_companion_texture(
-            filepath,
-            TextureKind.SPECULAR,
-            self.texture_naming_profile,
-        )
-        if spec_filepath is not None:
-            try:
-                self.load_spec_file(spec_filepath)
-            except TextureValidationError as exc:
-                self.dialogs.show_warning(
-                    title="Invalid specular texture", message=str(exc)
-                )
+        for warning in result.warnings:
+            label = "Dirt" if warning.kind is TextureKind.DIRT else "Specular"
+            self.dialogs.show_warning(
+                title=f"Invalid {label.casefold()} texture",
+                message=warning.message,
+            )
 
         self.refresh_workspace()
-        self.resize_for_diffuse(self.img_wbench.img_og_dif.size)
+        self.resize_for_diffuse((result.width, result.height))
 
     def resize_for_diffuse(self, texture_size):
         """Apply one texture-specific resize without disturbing maximized windows."""
@@ -998,16 +933,6 @@ class ArmyPainter(tk.Tk):
         )
         self.geometry(f"{target_width}x{target_height}+{target_x}+{target_y}")
 
-    def load_channel_packed_file(self, filepath: str):
-        self.img_wbench.load_team_colour_file(filepath)
-        self.select_channel()
-
-    def load_dirt_file(self, filepath: str):
-        self.img_wbench.load_dirt_file(filepath)
-
-    def load_spec_file(self, filepath: str):
-        self.img_wbench.load_specular_file(filepath)
-
     def open_diffuse(self, Event=None):
         filepath = self.file_selection.choose_diffuse_file()
         if not filepath:
@@ -1033,7 +958,8 @@ class ArmyPainter(tk.Tk):
         if not filepath:
             return
         try:
-            self.load_channel_packed_file(filepath)
+            self.texture_loading.load_channel_file(filepath)
+            self.select_channel()
         except TextureValidationError as exc:
             self.dialogs.show_error(
                 title="Invalid team-colour texture", message=str(exc)

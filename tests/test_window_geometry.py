@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch
+from types import SimpleNamespace
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.frame_main import (
@@ -24,19 +24,25 @@ class FakeMaximizedPainter:
         raise AssertionError("A maximized window must not be resized")
 
 
-class FailingWorkbench:
-    def load_diffuse_file(self, filepath):
-        raise TextureValidationError("invalid diffuse")
+class FakeTextureLoading:
+    def __init__(self, error=None):
+        self.error = error
 
-
-class SuccessfulWorkbench:
-    def load_diffuse_file(self, filepath):
-        self.img_og_dif = type("Diffuse", (), {"size": (512, 256)})()
+    def load_diffuse_and_companions(self, filepath):
+        if self.error is not None:
+            raise self.error
+        return SimpleNamespace(
+            width=512,
+            height=256,
+            team_color_error=None,
+            team_color_path=None,
+            warnings=(),
+        )
 
 
 class FakeLoadingPainter:
-    def __init__(self, workbench=None):
-        self.img_wbench = workbench or FailingWorkbench()
+    def __init__(self, load_error=None):
+        self.texture_loading = FakeTextureLoading(load_error)
         self.texture_naming_profile = DEFAULT_TEXTURE_NAMING
         self.resize_calls = []
         self.refresh_calls = 0
@@ -125,19 +131,16 @@ class DiffuseWindowGeometryTests(unittest.TestCase):
 
         ArmyPainter.resize_for_diffuse(painter, (1024, 1024))
 
-    @patch("src.frame_main.find_companion_texture")
-    def test_invalid_diffuse_does_not_reach_resize(self, find_companion):
-        painter = FakeLoadingPainter()
+    def test_invalid_diffuse_does_not_reach_resize(self):
+        painter = FakeLoadingPainter(TextureValidationError("invalid diffuse"))
 
         with self.assertRaises(TextureValidationError):
             ArmyPainter.load_file(painter, "invalid_dif.png")
 
         self.assertEqual(painter.resize_calls, [])
-        find_companion.assert_not_called()
 
-    @patch("src.frame_main.find_companion_texture", return_value=None)
-    def test_successful_diffuse_load_resizes_exactly_once(self, find_companion):
-        painter = FakeLoadingPainter(SuccessfulWorkbench())
+    def test_successful_diffuse_load_resizes_exactly_once(self):
+        painter = FakeLoadingPainter()
 
         ArmyPainter.load_file(painter, "valid_dif.png")
 
