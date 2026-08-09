@@ -1,3 +1,4 @@
 flake8
 black
 PyYAML
+mypy>=2.3,<3

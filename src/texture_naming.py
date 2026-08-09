@@ -30,7 +30,7 @@ class TextureNamingProfile:
     dirt_suffix: str
     specular_suffix: str
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         suffixes = (
             self.diffuse_suffix,
             self.team_color_suffix,

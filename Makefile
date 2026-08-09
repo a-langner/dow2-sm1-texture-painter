@@ -1,4 +1,4 @@
-.PHONY: clean clean-build clean-pyc clean-venv lint black test venv setup-dev run-dev build build-onefile build-clean help
+.PHONY: clean clean-build clean-pyc clean-venv lint black typecheck test venv setup-dev run-dev build build-onefile build-clean help
 
 SHELL := /bin/sh
 .DEFAULT_GOAL := help
@@ -14,6 +14,9 @@ BUILD_SPEC := texture-painter.spec
 
 test: ## run the complete unittest suite
 	$(PYTHON) -m unittest discover -s tests
+
+typecheck: ## type-check the initial core module set
+	$(PYTHON) -m mypy src/texture_set.py src/texture_renderer.py src/texture_naming.py src/render_settings.py
 
 venv: ## create the development virtual environment
 	$(PYTHON) -m venv $(VENV_DIR)

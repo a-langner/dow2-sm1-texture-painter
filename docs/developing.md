@@ -67,6 +67,30 @@ When using the repository's `.venv`, you can run:
 .\.venv\Scripts\python.exe -m unittest discover -s tests
 ```
 
+### Static typing
+
+Static typing is enforced incrementally. Core domain and processing modules are
+type-checked first; the Tkinter presentation layer remains intentionally less
+strict until its interfaces are stable. Targeted core modules must pass mypy,
+new core modules should be fully annotated, and `Any` should be explicit when
+it is genuinely unavoidable.
+
+On Unix-like systems, run the current target set with:
+
+```text
+make typecheck
+```
+
+GNU Make is not normally installed with Windows. Run the equivalent command
+directly in PowerShell instead:
+
+```powershell
+python -m mypy src/texture_set.py src/texture_renderer.py src/texture_naming.py src/render_settings.py
+```
+
+When using the repository's `.venv`, replace `python` with
+`.\.venv\Scripts\python.exe`.
+
 GitHub Actions runs the complete test suite on both Linux and Windows. The
 Windows job also performs a PyInstaller packaging smoke test that verifies the
 executable and bundled resources; it does not automate the graphical interface.

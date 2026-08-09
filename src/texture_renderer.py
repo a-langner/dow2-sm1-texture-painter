@@ -78,7 +78,11 @@ def _selected_team_colour(
             return textures.team_color
         return Image.new("L", textures.diffuse.size, "gray")
 
-    new_img = Image.new("L", textures.team_color.size)
+    team_color = textures.team_color
+    if team_color is None:
+        return Image.new("L", textures.diffuse.size, "gray")
+
+    new_img = Image.new("L", team_color.size)
     for index in settings.tem_selected:
         try:
             channel = channels[index]
@@ -104,7 +108,11 @@ class TextureRenderer:
 
         if settings.apply_alpha:
             team_colour = _selected_team_colour(textures, settings)
-            workspace.putalpha(ImageChops.invert(team_colour))
+            # Preserve the established runtime failure for an invalid channel
+            # selection until that domain contract is tightened separately.
+            workspace.putalpha(
+                ImageChops.invert(team_colour)  # type: ignore[arg-type]
+            )
 
         if settings.apply_dirt and textures.dirt is not None:
             workspace = Image.alpha_composite(workspace, textures.dirt)
