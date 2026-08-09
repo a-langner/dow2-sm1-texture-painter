@@ -1,10 +1,81 @@
 # ArmyPainter refactoring map
 
-This document records the current responsibilities in `src/frame_main.py` and
-the intended boundaries for their incremental extraction. It describes the
-architecture before extraction; it does not change application behavior.
+This document records both the original responsibility inventory and the
+architecture after the controller/service extraction. The extraction preserves
+application behavior and rendering output; it does not complete the separate
+image-state and renderer redesign.
 
-## Current responsibility inventory
+## Final architecture after extraction
+
+`ArmyPainter` is the Tkinter composition root. Its constructor now proceeds in
+explicit stages: application state, window configuration, service/controller
+construction, widget construction and callback activation, then initial view
+state. It owns the Tk root, widgets, menus, dialog gateway, GUI-thread
+scheduling, the preview and batch executors, and the deterministic shutdown
+sequence.
+
+### Final component ownership
+
+| Component | Responsibility and ownership |
+| --- | --- |
+| `ArmyPainter` | Constructs and connects dependencies; owns the window, widgets, menus, executors, GUI callbacks, GUI state collection/result application, contextual dialogs, geometry application, and shutdown coordination |
+| `DialogGateway` | Provides the narrow Tk-specific interface for file dialogs, prompts, confirmations, and messages |
+| `FileSelectionService` | Chooses files through the injected dialog gateway and coordinates success-only remembered-directory updates with `SettingsHandler` |
+| `TextureLoadingService` | Validates and loads diffuse/channel textures, discovers companions through the injected naming profile, and returns structured load results and warnings |
+| `PreviewController` | Owns debounce, generation/stale-result policy, request cancellation, and worker-result delivery through injected scheduling and presentation callbacks; it submits to, but does not own, the preview executor |
+| `PatternController` | Coordinates Pattern editing, single-Pattern exchange, Collection transactions, conflict decisions, persistence calls, and structured GUI operation results |
+| `BatchProcessingService` | Discovers and processes batch inputs, creates isolated workbenches, reports structured progress/results, and performs no Tk operations |
+| `action_state` | Derives menu and button state as pure policy; `ArmyPainter` collects GUI context and applies the result |
+| `window_geometry` | Contains pure size and position calculations; `ArmyPainter` performs the actual Tk geometry calls |
+| Pattern persistence/exchange modules | Own validation, normalization, atomic storage, built-in/user separation, and versioned exchange formats without GUI dependencies |
+| `ImageWorkbench` | Remains the current owner of mutable source images, render settings, transient output, rendering, preview snapshots, and image saving |
+
+Preview and batch work use separate single-worker executors. `ArmyPainter`
+creates and shuts down both executors. `PreviewController.shutdown()` first
+invalidates pending preview delivery; `ArmyPainter` then shuts down the preview
+executor and batch executor without waiting, cancelling queued futures where
+supported. Batch workers communicate with Tk only through a thread-safe queue,
+which `ArmyPainter` polls on the GUI thread.
+
+### Dependency direction
+
+The enforced dependency direction is:
+
+```text
+Tk widgets -> injected callbacks
+ArmyPainter -> widgets, controllers, services, and pure policies
+Controllers -> persistence and domain APIs
+Services -> filesystem, image-state, and naming APIs
+Persistence/domain/image-processing modules -> no GUI modules
+```
+
+Only the GUI-bound modules (`frame_main.py`, `widget.py`, and
+`dialog_gateway.py`) may import Tkinter. Architecture regression tests parse
+imports with Python's AST and protect this allowlist, prohibit lower-level
+imports of `frame_main`, and verify that Pattern persistence and image
+processing remain GUI-independent.
+
+### Remaining limitations and next phase
+
+- `ImageWorkbench` still combines mutable texture sources, render settings,
+  transient output, preview snapshot creation, rendering, and saving. This was
+  intentionally not redesigned in this extraction series.
+- GUI callbacks still translate several workflow-specific domain exceptions
+  into contextual messages. This belongs at the GUI boundary, though the
+  message mapping remains somewhat verbose.
+- `ArmyPainter` still coordinates the batch window, worker submission, queue
+  polling, and progress presentation because these operations cross the Tk
+  lifecycle boundary.
+- Full end-to-end GUI interaction remains manually verified; automated tests
+  focus on stable policies, services/controllers with fakes, composition
+  wiring, and packaged startup.
+
+The next architecture phase will introduce `TextureSet`, an improved
+`RenderSettings`, and `TextureRenderer`. That phase will separate source image
+state from rendering and is explicitly outside the completed `ArmyPainter`
+controller/service extraction.
+
+## Pre-extraction responsibility inventory (historical)
 
 | Responsibility | Current methods and free functions | Important state | Current kind | Proposed long-term owner |
 | --- | --- | --- | --- | --- |
