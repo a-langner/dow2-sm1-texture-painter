@@ -53,6 +53,47 @@ def _same_aspect_ratio(first_size, second_size):
     return first_width * second_height == first_height * second_width
 
 
+def load_diffuse_texture(filepath):
+    """Load one validated diffuse image in the renderer's RGBA mode."""
+    return _open_texture(filepath).convert("RGBA")
+
+
+def load_team_colour_texture(filepath, diffuse_size):
+    """Load and validate one RGB/RGBA team-colour image."""
+    img = _open_texture(filepath)
+    if img.size != diffuse_size:
+        raise TextureValidationError(
+            f'Team-colour texture "{filepath}" is '
+            f"{img.size[0]}x{img.size[1]}, but the diffuse texture is "
+            f"{diffuse_size[0]}x{diffuse_size[1]}. "
+            "Team-colour and diffuse textures must have identical dimensions."
+        )
+    if img.mode == "RGB":
+        empty_alpha = Image.new("L", img.size, 0)
+        return Image.merge("RGBA", (*img.split(), empty_alpha))
+    if img.mode != "RGBA":
+        raise TextureValidationError(
+            f'Team-colour texture "{filepath}" uses mode {img.mode}. '
+            "An RGB or RGBA texture is required."
+        )
+    return img
+
+
+def load_optional_texture(filepath, map_name, diffuse_size):
+    """Load, validate, resize, and convert one optional companion map."""
+    img = _open_texture(filepath)
+    if not _same_aspect_ratio(img.size, diffuse_size):
+        raise TextureValidationError(
+            f'{map_name} texture "{filepath}" is '
+            f"{img.size[0]}x{img.size[1]}, but the diffuse texture is "
+            f"{diffuse_size[0]}x{diffuse_size[1]}. "
+            "The textures must have the same aspect ratio."
+        )
+    if img.size != diffuse_size:
+        img = img.resize(diffuse_size, Image.Resampling.LANCZOS)
+    return img.convert("RGBA")
+
+
 def create_placeholder_img(text="Image PlaceHolder", mode="RGBA"):
     img = Image.new(mode=mode, size=(DEFAULT_IMG_SIZE, DEFAULT_IMG_SIZE), color="gray")
     d1 = ImageDraw.Draw(img)
@@ -236,7 +277,7 @@ class ImageWorkbench:
         :param filepath: path to file
         :type filepath: str
         """
-        diffuse = _open_texture(filepath).convert("RGBA")
+        diffuse = load_diffuse_texture(filepath)
         # Companion maps belong to a particular diffuse. Do not accidentally
         # retain maps from the previously opened texture.
         self.texture_set = TextureSet(
@@ -246,37 +287,12 @@ class ImageWorkbench:
         self.tem_channels = []
 
     def load_team_colour_file(self, filepath: str):
-        img = _open_texture(filepath)
-        if img.size != self.img_og_dif.size:
-            raise TextureValidationError(
-                f'Team-colour texture "{filepath}" is '
-                f"{img.size[0]}x{img.size[1]}, but the diffuse texture is "
-                f"{self.img_og_dif.size[0]}x{self.img_og_dif.size[1]}. "
-                "Team-colour and diffuse textures must have identical dimensions."
-            )
-        if img.mode == "RGB":
-            empty_alpha = Image.new("L", img.size, 0)
-            img = Image.merge("RGBA", (*img.split(), empty_alpha))
-        elif img.mode != "RGBA":
-            raise TextureValidationError(
-                f'Team-colour texture "{filepath}" uses mode {img.mode}. '
-                "An RGB or RGBA texture is required."
-            )
+        img = load_team_colour_texture(filepath, self.img_og_dif.size)
         self.img_og_tem = img
         self.tem_channels = [channel.convert("L") for channel in img.split()]
 
     def _prepare_optional_map(self, filepath: str, map_name: str):
-        img = _open_texture(filepath)
-        if not _same_aspect_ratio(img.size, self.img_og_dif.size):
-            raise TextureValidationError(
-                f'{map_name} texture "{filepath}" is '
-                f"{img.size[0]}x{img.size[1]}, but the diffuse texture is "
-                f"{self.img_og_dif.size[0]}x{self.img_og_dif.size[1]}. "
-                "The textures must have the same aspect ratio."
-            )
-        if img.size != self.img_og_dif.size:
-            img = img.resize(self.img_og_dif.size, Image.Resampling.LANCZOS)
-        return img.convert("RGBA")
+        return load_optional_texture(filepath, map_name, self.img_og_dif.size)
 
     def load_dirt_file(self, filepath: str):
         self.img_dirt = self._prepare_optional_map(filepath, "Dirt")

@@ -2,11 +2,11 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.dow1_converter import team_color_output_path
-from src.batch_processing_service import prepare_batch_workbench
+from src.batch_processing_service import load_batch_texture_set
 from src.frame_main import ArmyPainter
 from src.texture_naming import (
     DEFAULT_TEXTURE_NAMING,
@@ -87,17 +87,23 @@ class BatchTextureNamingTests(unittest.TestCase):
         self.assertTrue(is_texture_kind(output, TextureKind.TEAM_COLOR))
         self.assertEqual(output, Path("units") / "marine_tem.dds")
 
-    @patch("src.batch_processing_service.ImageWorkbench")
+    @patch("src.batch_processing_service.load_optional_texture")
+    @patch("src.batch_processing_service.load_team_colour_texture")
+    @patch("src.batch_processing_service.load_diffuse_texture")
     @patch("src.batch_processing_service.find_companion_texture")
     def test_batch_companion_discovery_receives_injected_profile(
-        self, find_companion, workbench_type
+        self,
+        find_companion,
+        load_diffuse,
+        load_team_color,
+        load_optional,
     ):
         profile = self._custom_profile()
-        workbench = workbench_type.return_value
         team_color_path = Path("marine_mask.dds")
+        load_diffuse.return_value.size = (4, 4)
         find_companion.side_effect = [team_color_path, None, None]
 
-        prepare_batch_workbench(Path("marine_base.dds"), Mock(), profile)
+        load_batch_texture_set(Path("marine_base.dds"), profile)
 
         self.assertEqual(
             [call.args[1] for call in find_companion.call_args_list],
@@ -106,7 +112,8 @@ class BatchTextureNamingTests(unittest.TestCase):
         self.assertTrue(
             all(call.args[2] is profile for call in find_companion.call_args_list)
         )
-        workbench.load_team_colour_file.assert_called_once_with(team_color_path)
+        load_team_color.assert_called_once_with(team_color_path, (4, 4))
+        load_optional.assert_not_called()
 
     def test_batch_detection_uses_no_filesystem_outside_temporary_data(self):
         with tempfile.TemporaryDirectory() as directory:

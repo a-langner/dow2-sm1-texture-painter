@@ -112,7 +112,9 @@ class ArmyPainterCompositionTests(unittest.TestCase):
             on_preview_error=painter.show_preview_error,
             debounce_ms=120,
         )
-        batch_service_type.assert_called_once_with()
+        batch_service_type.assert_called_once_with(
+            renderer=texture_renderer_type.return_value
+        )
         self.assertIs(painter.batch_executor, batch_executor)
 
     @patch("src.frame_main.FramePatternList", return_value=FakePatternPanel())

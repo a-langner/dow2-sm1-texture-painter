@@ -1,8 +1,10 @@
 import inspect
+import gc
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
+import weakref
 
 from PIL import Image
 
@@ -12,9 +14,10 @@ from src.batch_processing_service import (
     BatchProcessingRequest,
     BatchProcessingService,
     discover_batch_diffuses,
-    prepare_batch_workbench,
+    load_batch_texture_set,
 )
-from src.image_process import ImageWorkbench
+from src.render_settings import RenderSettings
+from src.texture_renderer import TextureRenderer
 from src.texture_naming import DEFAULT_TEXTURE_NAMING
 
 
@@ -26,7 +29,7 @@ class BatchProcessingServiceTests(unittest.TestCase):
         self.destination = self.root / "destination"
         self.source.mkdir()
         self.destination.mkdir()
-        self.settings = ImageWorkbench().get_render_settings()
+        self.settings = RenderSettings()
         self.service = BatchProcessingService()
 
     def tearDown(self):
@@ -64,10 +67,10 @@ class BatchProcessingServiceTests(unittest.TestCase):
 
     def test_valid_processing_matches_existing_render_path(self):
         diffuse, _ = self.create_texture_set("marine")
-        expected_workbench, _ = prepare_batch_workbench(
-            diffuse, self.settings, DEFAULT_TEXTURE_NAMING
+        textures, _ = load_batch_texture_set(
+            diffuse, DEFAULT_TEXTURE_NAMING
         )
-        expected = expected_workbench.refresh_workspace()
+        expected = TextureRenderer().render(textures, self.settings)
 
         result = self.service.process(self.request())
 
@@ -83,6 +86,18 @@ class BatchProcessingServiceTests(unittest.TestCase):
 
         self.assertEqual(result.items[0].warnings, ())
         self.assertEqual(result.items[0].status, BatchItemStatus.PROCESSED)
+
+    def test_multiple_valid_items_are_processed_in_deterministic_order(self):
+        second, _ = self.create_texture_set("zulu")
+        first, _ = self.create_texture_set("Alpha")
+
+        result = self.service.process(self.request())
+
+        self.assertEqual(result.processed_count, 2)
+        self.assertEqual(
+            tuple(item.source for item in result.items),
+            (first, second),
+        )
 
     def test_invalid_item_does_not_abort_later_valid_item(self):
         (self.source / "alpha_dif.png").write_text("not an image")
@@ -175,6 +190,53 @@ class BatchProcessingServiceTests(unittest.TestCase):
         self.assertEqual(output.read_bytes(), b"previous output")
         self.assertEqual(list(self.destination.glob(".marine_dif.*")), [])
 
+    def test_renderer_failure_is_one_structured_item_failure(self):
+        self.create_texture_set("marine")
+        renderer = Mock()
+        renderer.render.side_effect = ValueError("render failure")
+        service = BatchProcessingService(renderer=renderer)
+
+        result = service.process(self.request())
+
+        self.assertEqual(result.failed_count, 1)
+        self.assertEqual(result.items[0].status, BatchItemStatus.FAILED)
+        self.assertEqual(result.items[0].error_message, "render failure")
+        renderer.render.assert_called_once()
+
+    def test_batch_does_not_mutate_unrelated_interactive_textures(self):
+        self.create_texture_set("marine")
+        interactive_diffuse = Image.new("RGBA", (4, 4), "magenta")
+        interactive_team = Image.new("RGBA", (4, 4), "cyan")
+        diffuse_before = interactive_diffuse.tobytes()
+        team_before = interactive_team.tobytes()
+
+        self.service.process(self.request())
+
+        self.assertEqual(interactive_diffuse.tobytes(), diffuse_before)
+        self.assertEqual(interactive_team.tobytes(), team_before)
+
+    def test_item_texture_set_is_released_after_processing(self):
+        diffuse, _ = self.create_texture_set("marine")
+        textures, warnings = load_batch_texture_set(diffuse)
+        texture_reference = weakref.ref(textures)
+
+        class ReferenceOnlyRenderer:
+            def render(self, item_textures, settings):
+                nonlocal texture_reference
+                texture_reference = weakref.ref(item_textures)
+                return Image.new("RGBA", item_textures.dimensions)
+
+        with patch(
+            "src.batch_processing_service.load_batch_texture_set",
+            return_value=(textures, warnings),
+        ):
+            service = BatchProcessingService(renderer=ReferenceOnlyRenderer())
+            service.process(self.request())
+
+        del textures
+        gc.collect()
+        self.assertIsNone(texture_reference())
+
     def test_module_has_no_tk_widget_or_armypainter_dependency(self):
         import src.batch_processing_service as module
 
@@ -182,6 +244,9 @@ class BatchProcessingServiceTests(unittest.TestCase):
         self.assertNotIn("tkinter", source)
         self.assertNotIn("src.widget", source)
         self.assertNotIn("ArmyPainter", source)
+        self.assertNotIn("ImageWorkbench", source)
+        self.assertNotIn("refresh_workspace", source)
+        self.assertNotIn("apply_render_settings", source)
 
 
 if __name__ == "__main__":

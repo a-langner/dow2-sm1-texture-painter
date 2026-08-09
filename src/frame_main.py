@@ -227,7 +227,7 @@ class ArmyPainter(tk.Tk):
             debounce_ms=PREVIEW_DEBOUNCE_MS,
         )
         self.batch_executor = ThreadPoolExecutor(max_workers=1)
-        self.batch_processing = BatchProcessingService()
+        self.batch_processing = BatchProcessingService(renderer=self.texture_renderer)
 
     def create_preview_request(self):
         """Capture one shallow, read-only preview request on the Tk thread."""

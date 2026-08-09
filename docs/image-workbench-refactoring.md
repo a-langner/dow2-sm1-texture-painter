@@ -146,6 +146,35 @@ selection service and does not introduce a new remembered-directory setting.
 Preview completion now owns only display images, so no rendered output cache
 remains on either `ArmyPainter`, `ImageWorkbench`, or `TextureSet`.
 
+## BatchProcessingService migration
+
+Job 9 migrated batch rendering to the application-owned stateless
+`TextureRenderer`. The composition root injects the same renderer instance used
+by preview and normal Save As. Each batch request already contains one immutable
+`RenderSettings` snapshot, which is reused unchanged for every discovered item;
+workers never read GUI controls.
+
+The batch item flow is now:
+
+```text
+discover diffuse and named companions
+-> decode/validate source images through shared loading helpers
+-> construct one isolated TextureSet
+-> TextureRenderer.render(TextureSet, request RenderSettings)
+-> atomically save the caller-owned result
+-> release item-local image references
+```
+
+Batch processing does not create or import `ImageWorkbench`, call compatibility
+rendering methods, apply mutable settings, or retain loaded texture sets across
+items. Interactive source state is never passed into the batch service.
+Discovery rules, deterministic order, optional-map warnings, output naming and
+format, overwrite policy, cancellation, progress, atomic saving, and structured
+per-item failures remain unchanged. The shared loading functions retain the
+existing 16K validation, team-colour mode/dimension rules, optional-map aspect
+ratio validation, LANCZOS resizing, RGBA conversion, and closed-file-handle
+behavior.
+
 ## Current state ownership
 
 `ImageWorkbench` initializes some fields directly and creates the remaining

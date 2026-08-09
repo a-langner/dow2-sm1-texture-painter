@@ -13,7 +13,14 @@ from src.dow1_converter import (
     get_tem_filenames,
     team_color_output_path,
 )
-from src.image_process import ImageWorkbench, TextureValidationError
+from src.image_process import (
+    TextureValidationError,
+    load_diffuse_texture,
+    load_optional_texture,
+    load_team_colour_texture,
+)
+from src.texture_renderer import TextureRenderer
+from src.texture_set import TextureSet
 from src.texture_loading_service import find_companion_texture
 from src.texture_naming import (
     DEFAULT_TEXTURE_NAMING,
@@ -111,15 +118,13 @@ def discover_batch_diffuses(
     )
 
 
-def prepare_batch_workbench(
+def load_batch_texture_set(
     diffuse_path,
-    settings,
     profile=DEFAULT_TEXTURE_NAMING,
 ):
     """Load one isolated texture set for batch rendering."""
     diffuse_path = Path(diffuse_path)
-    workbench = ImageWorkbench()
-    workbench.load_diffuse_file(diffuse_path)
+    diffuse = load_diffuse_texture(diffuse_path)
     team_color_path = find_companion_texture(
         diffuse_path, TextureKind.TEAM_COLOR, profile
     )
@@ -127,23 +132,37 @@ def prepare_batch_workbench(
         raise TextureValidationError(
             f'No team-colour texture was found for "{diffuse_path.name}".'
         )
-    workbench.load_team_colour_file(team_color_path)
+    team_color = load_team_colour_texture(team_color_path, diffuse.size)
 
     warnings = []
-    for texture_kind, label, loader in (
-        (TextureKind.DIRT, "Dirt", workbench.load_dirt_file),
-        (TextureKind.SPECULAR, "Specular", workbench.load_specular_file),
+    optional_images = {}
+    for texture_kind, label in (
+        (TextureKind.DIRT, "Dirt"),
+        (TextureKind.SPECULAR, "Specular"),
     ):
         optional_path = find_companion_texture(diffuse_path, texture_kind, profile)
         if optional_path is None:
+            optional_images[texture_kind] = None
             continue
         try:
-            loader(optional_path)
+            optional_images[texture_kind] = load_optional_texture(
+                optional_path,
+                label,
+                diffuse.size,
+            )
         except TextureValidationError as exc:
             warnings.append(f"{label}: {exc}")
+            optional_images[texture_kind] = None
 
-    workbench.apply_render_settings(settings)
-    return workbench, tuple(warnings)
+    return (
+        TextureSet(
+            diffuse=diffuse,
+            team_color=team_color,
+            dirt=optional_images[TextureKind.DIRT],
+            specular=optional_images[TextureKind.SPECULAR],
+        ),
+        tuple(warnings),
+    )
 
 
 def save_processed_image(image, filepath):
@@ -213,6 +232,9 @@ def batch_convert_worker(
 class BatchProcessingService:
     """Process isolated batch items and report worker-thread-safe progress."""
 
+    def __init__(self, renderer=None):
+        self.renderer = renderer or TextureRenderer()
+
     def discover_inputs(self, request):
         return discover_batch_diffuses(
             request.source_directory,
@@ -273,12 +295,11 @@ class BatchProcessingService:
 
     def _process_item(self, request, diffuse_path, destination):
         try:
-            workbench, warnings = prepare_batch_workbench(
+            textures, warnings = load_batch_texture_set(
                 diffuse_path,
-                request.settings,
                 request.naming_profile,
             )
-            output = workbench.refresh_workspace()
+            output = self.renderer.render(textures, request.settings)
             save_processed_image(output, destination)
             return BatchItemResult(
                 diffuse_path,
