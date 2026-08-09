@@ -292,11 +292,27 @@ def batch_convert_worker(
 class ArmyPainter(tk.Tk):
     def __init__(self, application_log_path=None):
         super().__init__()
+        self._initialize_application_state(application_log_path)
+        self._configure_main_window()
+        self._initialize_services_and_controllers()
+        self._create_application_widgets()
+        self._initialize_view_state()
+
+    def _initialize_application_state(self, application_log_path):
+        """Create application-level state that has no widget dependencies."""
         self.application_log_path = application_log_path
         self.texture_naming_profile = DEFAULT_TEXTURE_NAMING
         self.dialogs = DialogGateway(self)
+        self.frame_batch_tools = None
+        self.batch_future = None
+        self.batch_cancel = threading.Event()
+        self.batch_events = queue.Queue()
+        self.closing = False
+        self._handling_callback_exception = False
+        self.user_pattern_warning_shown = False
 
-        # Setting main window
+    def _configure_main_window(self):
+        """Configure root-window geometry, identity, and lifecycle hook."""
         min_width = 256 * 2 + PATTERN_LIST_DEFAULT_WIDTH
         min_height = DEFAULT_IMG_SIZE + FRAME_TOOL_HEIGHT
         initial_width, initial_height = calculate_initial_window_size(
@@ -312,15 +328,22 @@ class ArmyPainter(tk.Tk):
         self.iconphoto(False, self.icon_img)
         self.minsize(min_width, min_height)
         self.title(f"Army Painter {VERSION}")
+        self.protocol("WM_DELETE_WINDOW", self.on_exit)
 
+    def _initialize_services_and_controllers(self):
+        """Construct and wire non-widget application dependencies.
+
+        ArmyPainter owns both executors and shuts them down. PreviewController
+        submits to the preview executor but does not own it; batch work uses a
+        separate executor so the two workloads cannot block one another.
+        """
         self.img_wbench = ImageWorkbench()
         self.settings = SettingsHandler()
         self.file_selection = FileSelectionService(self.settings, self.dialogs)
-        self.pattern_controller = self._create_pattern_controller()
+        self.pattern_controller = ArmyPainter._create_pattern_controller(self)
         self.texture_loading = TextureLoadingService(
             self.img_wbench, self.texture_naming_profile
         )
-        self.frame_batch_tools = None
         self.preview_executor = ThreadPoolExecutor(max_workers=1)
         self.preview_controller = PreviewController(
             workbench=self.img_wbench,
@@ -333,14 +356,9 @@ class ArmyPainter(tk.Tk):
         )
         self.batch_executor = ThreadPoolExecutor(max_workers=1)
         self.batch_processing = BatchProcessingService()
-        self.batch_future = None
-        self.batch_cancel = threading.Event()
-        self.batch_events = queue.Queue()
-        self.closing = False
-        self._handling_callback_exception = False
-        self.protocol("WM_DELETE_WINDOW", self.on_exit)
 
-        # Frame containing tools to edit the image
+    def _create_application_widgets(self):
+        """Build widgets and menus, then explicitly activate callbacks."""
         self.frame_img_tools = tk.Frame(
             self,
             width=DEFAULT_IMG_SIZE * 2,
@@ -350,14 +368,11 @@ class ArmyPainter(tk.Tk):
         )
         self.frame_img_tools.pack(side=tk.TOP, fill=tk.BOTH)
 
-        # Defining slave widget
         self.define_frame_workspace_tool()
 
-        # Frame containing the texture images
         self.frame_img = tk.Frame(self)
         self.frame_img.pack(side=tk.BOTTOM, fill=tk.X, expand=True)
 
-        # Defining slave widget
         self.define_frame_workspace()
         self.frame_army_pattern = FramePatternList(
             self.frame_img,
@@ -370,13 +385,12 @@ class ArmyPainter(tk.Tk):
         )
         self.frame_army_pattern.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.frame_channel_select.lb.bind("<<ListboxSelect>>", self.select_channel)
-        # Defining menubar
         self.define_menu()
         self.activate_pattern_panel_callbacks()
 
-        # Initialize the default workspace
+    def _initialize_view_state(self):
+        """Initialize previews and deferred warnings after complete wiring."""
         self.reset_workspace()
-        self.user_pattern_warning_shown = False
         self.after_idle(self.show_user_pattern_load_warning)
 
     def _create_pattern_controller(self):
@@ -403,7 +417,7 @@ class ArmyPainter(tk.Tk):
         )
 
     def _pattern_workflows(self):
-        """Return the composed controller, with a narrow test-double fallback."""
+        """Use the injected controller, composing one only for legacy test doubles."""
         controller = getattr(self, "pattern_controller", None)
         if controller is not None:
             return controller
@@ -1679,10 +1693,14 @@ class ArmyPainter(tk.Tk):
             return
         self.closing = True
         self.batch_cancel.set()
+        self._shutdown_owned_background_workers()
+        self.destroy()
+
+    def _shutdown_owned_background_workers(self):
+        """Stop controllers before shutting down ArmyPainter-owned executors."""
         self.preview_controller.shutdown()
         self.preview_executor.shutdown(wait=False, cancel_futures=True)
         self.batch_executor.shutdown(wait=False, cancel_futures=True)
-        self.destroy()
 
 
 def appears_to_run_from_pyinstaller_bundle():
