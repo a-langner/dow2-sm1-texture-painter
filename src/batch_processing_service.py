@@ -1,12 +1,15 @@
 """Non-GUI batch recoloring and filesystem orchestration."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
 import logging
 import os
 from pathlib import Path
+from queue import Queue
 import tempfile
-from typing import Callable
+from threading import Event
+from typing import Callable, Literal
 
 from PIL import Image
 
@@ -33,6 +36,14 @@ from src.texture_naming import (
 )
 
 LOGGER = logging.getLogger(__name__)
+
+CancellationCheck = Callable[[], bool]
+ProgressCallback = Callable[["BatchProgress"], None]
+BatchQueueEvent = (
+    tuple[Literal["total"], int]
+    | tuple[Literal["progress"], int, int]
+)
+LegacyBatchResult = tuple[list[str], list[str], bool]
 
 
 class BatchItemStatus(Enum):
@@ -93,9 +104,12 @@ class BatchProcessingResult:
         )
 
 
-def is_batch_diffuse(path, source_formats, profile=DEFAULT_TEXTURE_NAMING):
+def is_batch_diffuse(
+    path: Path,
+    source_formats: Sequence[str],
+    profile: TextureNamingProfile = DEFAULT_TEXTURE_NAMING,
+) -> bool:
     """Return whether a non-recursive batch entry is a supported diffuse."""
-    path = Path(path)
     normalized_formats = {value.casefold().lstrip(".") for value in source_formats}
     return path.suffix[1:].casefold() in normalized_formats and is_texture_kind(
         path, TextureKind.DIFFUSE, profile
@@ -103,12 +117,11 @@ def is_batch_diffuse(path, source_formats, profile=DEFAULT_TEXTURE_NAMING):
 
 
 def discover_batch_diffuses(
-    source_directory,
-    source_formats,
-    profile=DEFAULT_TEXTURE_NAMING,
-):
+    source_directory: Path,
+    source_formats: Sequence[str],
+    profile: TextureNamingProfile = DEFAULT_TEXTURE_NAMING,
+) -> tuple[Path, ...]:
     """Discover deterministic, non-recursive diffuse inputs."""
-    source_directory = Path(source_directory)
     return tuple(
         sorted(
             (
@@ -122,11 +135,10 @@ def discover_batch_diffuses(
 
 
 def load_batch_texture_set(
-    diffuse_path,
-    profile=DEFAULT_TEXTURE_NAMING,
-):
+    diffuse_path: Path,
+    profile: TextureNamingProfile = DEFAULT_TEXTURE_NAMING,
+) -> tuple[TextureSet, tuple[str, ...]]:
     """Load one isolated texture set for batch rendering."""
-    diffuse_path = Path(diffuse_path)
     diffuse = load_diffuse_texture(diffuse_path)
     team_color_path = find_companion_texture(
         diffuse_path, TextureKind.TEAM_COLOR, profile
@@ -168,9 +180,8 @@ def load_batch_texture_set(
     )
 
 
-def save_processed_image(image, filepath):
+def save_processed_image(image: Image.Image, filepath: Path) -> None:
     """Atomically save a processed image without exposing a partial output."""
-    filepath = Path(filepath)
     filepath.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary_name = tempfile.mkstemp(
         dir=filepath.parent,
@@ -199,16 +210,16 @@ def save_processed_image(image, filepath):
 
 
 def batch_convert_worker(
-    source,
-    destination,
-    dest_format,
-    src_format,
-    profile,
-    cancel,
-    events,
-):
+    source: Path,
+    destination: Path,
+    dest_format: str,
+    src_format: Sequence[str],
+    profile: TextureNamingProfile,
+    cancel: Event,
+    events: Queue[BatchQueueEvent],
+) -> LegacyBatchResult:
     """Convert legacy team-colour batches without touching Tk widgets."""
-    errors = []
+    errors: list[str] = []
     try:
         files_dict = get_tem_filenames(source, src_format)
     except Exception as exc:
@@ -235,10 +246,13 @@ def batch_convert_worker(
 class BatchProcessingService:
     """Process isolated batch items and report worker-thread-safe progress."""
 
-    def __init__(self, renderer=None):
-        self.renderer = renderer or TextureRenderer()
+    def __init__(self, renderer: TextureRenderer | None = None) -> None:
+        self.renderer: TextureRenderer = renderer or TextureRenderer()
 
-    def discover_inputs(self, request):
+    def discover_inputs(
+        self,
+        request: BatchProcessingRequest,
+    ) -> tuple[Path, ...]:
         return discover_batch_diffuses(
             request.source_directory,
             request.source_formats,
@@ -248,13 +262,13 @@ class BatchProcessingService:
     def process(
         self,
         request: BatchProcessingRequest,
-        cancellation_requested: Callable[[], bool] | None = None,
-        progress_callback: Callable[[BatchProgress], None] | None = None,
-    ):
+        cancellation_requested: CancellationCheck | None = None,
+        progress_callback: ProgressCallback | None = None,
+    ) -> BatchProcessingResult:
         """Process a request; progress callbacks may run on a worker thread."""
         cancelled = cancellation_requested or (lambda: False)
         files = self.discover_inputs(request)
-        items = []
+        items: list[BatchItemResult] = []
         total = len(files)
         if progress_callback is not None:
             progress_callback(BatchProgress(0, total, None))
@@ -285,10 +299,15 @@ class BatchProcessingService:
             items=tuple(items),
         )
 
-    def process_to_queue(self, request, cancel, events):
+    def process_to_queue(
+        self,
+        request: BatchProcessingRequest,
+        cancel: Event,
+        events: Queue[BatchQueueEvent],
+    ) -> BatchProcessingResult:
         """Adapt structured progress to the GUI's thread-safe event queue."""
 
-        def report(progress):
+        def report(progress: BatchProgress) -> None:
             if progress.current_path is None:
                 events.put(("total", progress.total))
             else:
@@ -296,7 +315,12 @@ class BatchProcessingService:
 
         return self.process(request, cancel.is_set, report)
 
-    def _process_item(self, request, diffuse_path, destination):
+    def _process_item(
+        self,
+        request: BatchProcessingRequest,
+        diffuse_path: Path,
+        destination: Path,
+    ) -> BatchItemResult:
         try:
             textures, warnings = load_batch_texture_set(
                 diffuse_path,

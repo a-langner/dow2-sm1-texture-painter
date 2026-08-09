@@ -2,7 +2,7 @@ from PIL import (
     Image,
 )
 from pathlib import Path
-from typing import Optional
+from collections.abc import Mapping, Sequence
 
 from src.texture_naming import (
     DEFAULT_TEXTURE_NAMING,
@@ -13,6 +13,8 @@ from src.texture_naming import (
 
 
 DOW1_DEFAULT_GROUP_TAG = "default"
+TemTexturePaths = dict[str, Path]
+TemFileGroups = dict[str, TemTexturePaths]
 
 
 def team_color_output_path(
@@ -20,7 +22,7 @@ def team_color_output_path(
     destination: Path,
     extension: str,
     profile: TextureNamingProfile = DEFAULT_TEXTURE_NAMING,
-) -> Optional[Path]:
+) -> Path | None:
     """Build a packed team-color output path for one DoW1 source group.
 
     A terminal ``default`` group tag is a DoW1 input convention and is removed
@@ -39,10 +41,10 @@ def team_color_output_path(
     return with_texture_kind(output_candidate, TextureKind.TEAM_COLOR, profile)
 
 
-def get_tem_filenames(path: Path, src_format: list):
+def get_tem_filenames(path: Path, src_format: Sequence[str]) -> TemFileGroups:
     file_suffix = set(["Primary", "Secondary", "Trim", "Weapon"])
 
-    def check_if_tem_exist(files_dict: dict):
+    def check_if_tem_exist(files_dict: TemFileGroups) -> None:
         """Check if the 4 files necessary to construct packed tem files exists
 
         :param files_dict: a dict containing unit name prefix as a key
@@ -66,8 +68,8 @@ def get_tem_filenames(path: Path, src_format: list):
                     f"Missing {filetype_missing} tem textures files"
                 )
 
-    def find_tem_files(file_paths: list[Path]) -> dict[str, dict[str, Path]]:
-        files_dict: dict[str, dict[str, Path]] = {}
+    def find_tem_files(file_paths: list[Path]) -> TemFileGroups:
+        files_dict: TemFileGroups = {}
         """
             Dawn of War 1 team colour texture used for the army painter are named
             with the following pattern :
@@ -109,13 +111,16 @@ def get_tem_filenames(path: Path, src_format: list):
     return find_tem_files(file_paths)
 
 
-def convert_tem_texture(tem_textures: dict, path: Path):
+def convert_tem_texture(
+    tem_textures: Mapping[str, Path],
+    path: Path,
+) -> Image.Image:
     # TODO: Find a way to handle icon banner pasted on textures
     # TODO: Check the size of Dawn of War 1 unit textures
     # can the different textures for the same unit differ in size?
 
     black_pixel_threshold = 1
-    bands = []
+    bands: list[Image.Image] = []
 
     if len(tem_textures) != 4:
         print(f"Found only {len(tem_textures)} textures :")
@@ -146,20 +151,20 @@ def convert_tem_texture(tem_textures: dict, path: Path):
 
 def exec_convert(
     path: Path,
-    src_format: list,
+    src_format: Sequence[str],
     dest_format: str,
     profile: TextureNamingProfile = DEFAULT_TEXTURE_NAMING,
-):
+) -> None:
     files_dict = get_tem_filenames(path, src_format)
-    for k in files_dict.keys():
-        result = convert_tem_texture(files_dict.get(k), path)
+    for k, textures in files_dict.items():
+        result = convert_tem_texture(textures, path)
         output_path = team_color_output_path(k, path, dest_format, profile)
         if output_path is None:
             raise ValueError(f"Cannot create a team-color filename from '{k}'.")
         result.save(output_path, dest_format)
 
 
-def local_test():
+def local_test() -> None:
     # Put test sample texture in /assets/dow1 directory
     path = Path.cwd() / "assets/dow1"
     exec_convert(path, ["tga"], "tga")
