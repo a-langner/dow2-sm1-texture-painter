@@ -55,6 +55,28 @@ ranges rather than silently clamped. GUI strings cross the compatibility
 boundary through explicit conversion to `ColorOps`; unsupported values are
 rejected instead of selecting the renderer's historical fallback branch.
 
+## TextureRenderer transition
+
+Job 5 introduced the stateless `src.texture_renderer.TextureRenderer`. Its
+primary operation is now the sole authoritative pixel pipeline:
+
+```text
+TextureSet + RenderSettings -> Pillow Image
+```
+
+It derives the RGB/RGBA team-colour bands locally, applies the four colours in
+canonical order, preserves contrast-before-brightness processing, flattens over
+black, applies the inverted selected-channel alpha when enabled, then
+alpha-composites dirt before specular. All render state and intermediate images
+are local to a call, and source Pillow images are treated as read-only.
+
+`ImageWorkbench` remains the compatibility facade for preview, normal save, and
+batch callers in this job. Its `process_coloring()`, `refresh_workspace()`, and
+`refresh_team_colour_img()` methods delegate to one reusable renderer instance;
+the old independent algorithm has been removed. No caller outside the facade
+has been migrated yet. The renderer has no Tkinter, filesystem, persistence,
+filename, output-path, preview-size, or `ImageWorkbench` dependency.
+
 ## Current state ownership
 
 `ImageWorkbench` initializes some fields directly and creates the remaining

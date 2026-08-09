@@ -31,6 +31,7 @@ IMAGE_PROCESSING_MODULES = {
     "image_process.py",
     "render_settings.py",
     "texture_naming.py",
+    "texture_renderer.py",
     "texture_set.py",
 }
 GUI_MODULES = {

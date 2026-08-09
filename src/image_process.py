@@ -1,11 +1,4 @@
-from PIL import (
-    Image,
-    ImageChops,
-    ImageOps,
-    ImageColor,
-    ImageEnhance,
-    ImageDraw,
-)
+from PIL import Image, ImageDraw
 from dataclasses import replace
 from src.constant import DEFAULT_IMG_SIZE, ColorOps
 from src.render_settings import (
@@ -13,6 +6,7 @@ from src.render_settings import (
     DEFAULT_RENDER_SETTINGS,
     RenderSettings,
 )
+from src.texture_renderer import TextureRenderer
 from src.texture_set import TextureSet
 
 MAX_TEXTURE_DIMENSION = 16 * 1024
@@ -74,6 +68,7 @@ class ImageWorkbench:
     def __init__(self):
         self.tem_channels = []
         self.render_settings = DEFAULT_RENDER_SETTINGS
+        self._renderer = TextureRenderer()
         self.set_placeholder_img()
 
     @property
@@ -213,95 +208,30 @@ class ImageWorkbench:
         snapshot.texture_set = self.texture_set.copy_for_render()
         snapshot.tem_channels = tuple(self.tem_channels)
         snapshot.render_settings = self.render_settings
+        snapshot._renderer = self._renderer
         return snapshot
 
     def process_coloring(self):
         """Process image with current workspace setting"""
-        # Creating a copied image to work on
-        self.img_workspace = self.img_og_dif.copy()
-        for color, channel in zip(self.colors, self.tem_channels):
-            rgb = ImageColor.getrgb(color)
-
-            # Ignore gray value as they are default
-            #  TODO: is this neccessary?
-            if rgb == (128, 128, 128):
-                continue
-
-            # Get grayscaled original img
-            #  TODO: useless variable as it is not altered
-            # Original implementation retained for reference. It applied the
-            # channel when generating the color, as alpha, and as the paste
-            # mask, which compounded the attenuation of soft mask values.
-            #
-            # gray_img = self.img_og_dif.copy()
-            # channel.convert("L")  # No effect unless the return value is used.
-            # new_img = ImageOps.colorize(
-            #     channel, (0, 0, 0), color
-            # ).convert("RGBA")
-            # new_img.putalpha(channel)
-            # if self.color_op == ColorOps.OVERLAY.value:
-            #     new_img = ImageChops.overlay(gray_img, new_img)
-            # elif self.color_op == ColorOps.MULTIPLY.value:
-            #     new_img = ImageChops.multiply(gray_img, new_img)
-            # else:
-            #     new_img = ImageChops.screen(gray_img, new_img)
-            # enhancer_contrast = ImageEnhance.Contrast(new_img)
-            # new_img = enhancer_contrast.enhance(self.contrast / 100)
-            # enhancer_brightness = ImageEnhance.Brightness(new_img)
-            # new_img = enhancer_brightness.enhance(self.brightness / 100)
-            # self.img_workspace.paste(new_img, mask=channel)
-
-            gray_img = self.img_og_dif.copy()
-            color_img = Image.new("RGBA", gray_img.size, color)
-
-            if self.color_op == ColorOps.OVERLAY.value:
-                new_img = ImageChops.overlay(gray_img, color_img)
-            elif self.color_op == ColorOps.MULTIPLY.value:
-                new_img = ImageChops.multiply(gray_img, color_img)
-            else:
-                new_img = ImageChops.screen(gray_img, color_img)
-
-            enhancer_contrast = ImageEnhance.Contrast(new_img)
-            new_img = enhancer_contrast.enhance(self.contrast / 100)
-            enhancer_brightness = ImageEnhance.Brightness(new_img)
-            new_img = enhancer_brightness.enhance(self.brightness / 100)
-
-            # Apply the team-colour channel exactly once.
-            self.img_workspace.paste(new_img, mask=channel)
+        self.img_workspace = self._renderer.render_team_colors(
+            self.texture_set,
+            self.render_settings,
+        )
+        return self.img_workspace
 
     def refresh_workspace(self):
         """Refresh the workspace image with current settings"""
-        self.process_coloring()
-        # Add black background, hiding transparent pixel
-        background = Image.new("RGBA", self.img_workspace.size, (0, 0, 0))
-        self.img_workspace = Image.alpha_composite(background, self.img_workspace)
-
-        if self.apply_alpha:
-            tmp = self.refresh_team_colour_img()
-            tmp = ImageChops.invert(tmp)
-            self.img_workspace.putalpha(tmp)
-
-        if self.apply_dirt and self.img_dirt is not None:
-            self.img_workspace = Image.alpha_composite(
-                self.img_workspace, self.img_dirt
-            )
-        if self.apply_spec and self.img_spec is not None:
-            self.img_workspace = Image.alpha_composite(
-                self.img_workspace, self.img_spec
-            )
+        self.img_workspace = self._renderer.render(
+            self.texture_set,
+            self.render_settings,
+        )
         return self.img_workspace
 
     def refresh_team_colour_img(self):
-        new_img = Image.new("L", self.img_og_tem.size)
-        if len(self.tem_channels) == 0:
-            return self.img_og_tem
-        for i in self.tem_selected:
-            # TODO: think about clean implementation
-            try:
-                new_img.paste(self.tem_channels[i], mask=self.tem_channels[i])
-            except IndexError:
-                return
-        return new_img
+        return self._renderer.render_team_colour(
+            self.texture_set,
+            self.render_settings,
+        )
 
     def load_diffuse_file(self, filepath: str):
         """Load diffuse texture and set it as workspace image,

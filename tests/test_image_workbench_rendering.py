@@ -7,6 +7,7 @@ import test_support  # noqa: F401 - installs the user-data path redirect
 from src.constant import ColorOps
 from src.image_process import ImageWorkbench
 from src.preview_controller import render_preview
+from src.texture_renderer import TextureRenderer
 
 DIFFUSE_PIXELS = (
     (0, 0, 0, 0),
@@ -93,7 +94,13 @@ class ImageWorkbenchRenderingTests(unittest.TestCase):
     def assert_render_pixels(self, workbench, expected_pixels):
         expected = image_from_pixels("RGBA", expected_pixels)
         actual = workbench.refresh_workspace()
+        direct = TextureRenderer().render(
+            workbench.texture_set,
+            workbench.render_settings,
+        )
         self.assert_images_equal(actual, expected)
+        self.assert_images_equal(direct, expected)
+        self.assert_images_equal(direct, actual)
         self.assertEqual(actual.mode, "RGBA")
         self.assertEqual(actual.size, (2, 2))
 
