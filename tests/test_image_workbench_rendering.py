@@ -443,10 +443,10 @@ class TextureRenderingBaselineTests(unittest.TestCase):
             workbench.textures.copy_for_render(),
             workbench.settings,
         )
-        preview_output, preview_team = render_preview(TextureRenderer(), request)
+        preview_result = render_preview(TextureRenderer(), request)
 
-        self.assert_images_equal(preview_output, direct_output)
-        self.assert_images_equal(preview_team, direct_team)
+        self.assert_images_equal(preview_result.workspace, direct_output)
+        self.assert_images_equal(preview_result.team_colour, direct_team)
 
 
 if __name__ == "__main__":
