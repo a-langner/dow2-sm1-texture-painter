@@ -1,12 +1,14 @@
 from collections import OrderedDict
+from collections.abc import Iterable, Mapping
 import json
 from importlib import resources
+from importlib.resources.abc import Traversable
 import logging
 import os
 from pathlib import Path
 import re
 import tempfile
-from typing import NamedTuple
+from typing import NamedTuple, cast
 
 from src.user_data import get_user_patterns_path
 
@@ -24,6 +26,11 @@ color_key = [
 
 COLOR_VALUE_PATTERN = re.compile(r"^#[0-9a-fA-F]{6}$")
 LOGGER = logging.getLogger(__name__)
+
+PatternColors = list[str]
+StoredPattern = OrderedDict[str, str]
+PatternCollection = OrderedDict[str, StoredPattern]
+PatternInput = Mapping[str, str]
 
 
 class PatternError(ValueError):
@@ -75,24 +82,26 @@ class UserPatternLoadIssue(NamedTuple):
     error: Exception
 
 
-def _load_pattern_file(pattern_file):
+def _load_pattern_file(pattern_file: Traversable) -> PatternCollection:
     with pattern_file.open("r", encoding="utf-8") as fp:
-        patterns = json.load(fp, object_pairs_hook=OrderedDict)
+        patterns: object = json.load(fp, object_pairs_hook=OrderedDict)
 
-    if not isinstance(patterns, dict):
-        raise ValueError("Pattern data must be a JSON object")
+    if not _is_valid_pattern_collection(patterns):
+        raise ValueError("Pattern data must contain valid Patterns")
 
-    return OrderedDict(patterns)
+    return cast(PatternCollection, patterns)
 
 
-def load_builtin_patterns(pattern_resource=None):
+def load_builtin_patterns(
+    pattern_resource: Traversable | None = None,
+) -> PatternCollection:
     """Load the ordered, read-only pattern collection bundled with the app."""
     if pattern_resource is None:
         pattern_resource = ARMY_PATTERN_RESOURCE
     return _load_pattern_file(pattern_resource)
 
 
-def load_user_patterns(pattern_path=None):
+def load_user_patterns(pattern_path: Path | None = None) -> PatternCollection:
     """Load ordered user patterns, or return an empty collection if absent."""
     if pattern_path is None:
         pattern_path = get_user_patterns_path()
@@ -105,7 +114,7 @@ def load_user_patterns(pattern_path=None):
 
     try:
         with pattern_path.open("r", encoding="utf-8") as fp:
-            document = json.load(fp, object_pairs_hook=OrderedDict)
+            document: object = json.load(fp, object_pairs_hook=OrderedDict)
     except json.JSONDecodeError as exc:
         raise InvalidUserPatternFileError(
             f"User-pattern file contains invalid JSON at line {exc.lineno}"
@@ -118,7 +127,7 @@ def load_user_patterns(pattern_path=None):
 
     # Explicit compatibility for files written before the versioned wrapper.
     if _is_valid_pattern_collection(document):
-        return OrderedDict(document)
+        return cast(PatternCollection, document)
 
     if document.get("format") != USER_PATTERN_FORMAT:
         raise InvalidUserPatternFileError(
@@ -150,10 +159,12 @@ def load_user_patterns(pattern_path=None):
             "User-pattern file contains an invalid pattern"
         )
 
-    return OrderedDict(patterns)
+    return cast(PatternCollection, patterns)
 
 
-def load_user_patterns_for_startup(pattern_path=None):
+def load_user_patterns_for_startup(
+    pattern_path: Path | None = None,
+) -> tuple[PatternCollection, UserPatternLoadIssue | None]:
     """Load user patterns without preventing application startup on failure."""
     if pattern_path is None:
         pattern_path = get_user_patterns_path()
@@ -166,7 +177,10 @@ def load_user_patterns_for_startup(pattern_path=None):
         return OrderedDict(), UserPatternLoadIssue(pattern_path, exc)
 
 
-def get_all_patterns(builtin_patterns=None, user_patterns=None):
+def get_all_patterns(
+    builtin_patterns: Mapping[str, StoredPattern] | None = None,
+    user_patterns: Mapping[str, StoredPattern] | None = None,
+) -> PatternCollection:
     """Return built-ins followed by users, rejecting name collisions."""
     if builtin_patterns is None:
         builtin_patterns = builtin_color_patterns
@@ -185,15 +199,15 @@ def get_all_patterns(builtin_patterns=None, user_patterns=None):
     return combined_patterns
 
 
-def is_user_pattern(name):
+def is_user_pattern(name: str) -> bool:
     return name in user_color_patterns
 
 
-def has_user_patterns():
+def has_user_patterns() -> bool:
     return bool(user_color_patterns)
 
 
-def get_pattern_colors(name):
+def get_pattern_colors(name: str) -> PatternColors:
     """Return stored Pattern colors in the canonical persistence order."""
     normalized_name = normalize_pattern_name(name)
     pattern = get_all_patterns().get(normalized_name)
@@ -208,7 +222,10 @@ def get_pattern_colors(name):
     return normalize_pattern_colors(colors)
 
 
-def pattern_colors_equal(first, second):
+def pattern_colors_equal(
+    first: Iterable[str],
+    second: Iterable[str],
+) -> bool:
     """Compare two valid color sets without hexadecimal case differences."""
     normalized_first = [
         color.casefold() for color in normalize_pattern_colors(first)
@@ -219,7 +236,7 @@ def pattern_colors_equal(first, second):
     return normalized_first == normalized_second
 
 
-def _is_valid_pattern_collection(patterns):
+def _is_valid_pattern_collection(patterns: object) -> bool:
     if not isinstance(patterns, dict):
         return False
 
@@ -237,14 +254,14 @@ def _is_valid_pattern_collection(patterns):
     return True
 
 
-def normalize_pattern_name(name):
+def normalize_pattern_name(name: object) -> str:
     """Validate and trim a pattern name using persistence rules."""
     if name is None or not isinstance(name, str) or not name.strip():
         raise InvalidPatternError("Pattern name must not be empty")
     return name.strip()
 
 
-def normalize_pattern_colors(colors):
+def normalize_pattern_colors(colors: Iterable[object]) -> PatternColors:
     """Validate four color values using the persistent #RRGGBB format."""
     try:
         normalized_colors = list(colors)
@@ -260,10 +277,13 @@ def normalize_pattern_colors(colors):
         raise InvalidPatternError(
             "Colors must use the #RRGGBB hexadecimal format"
         )
-    return normalized_colors
+    return [color for color in normalized_colors if isinstance(color, str)]
 
 
-def _validate_new_pattern(name, colors):
+def _validate_new_pattern(
+    name: str,
+    colors: Iterable[object],
+) -> tuple[str, PatternColors]:
     normalized_name = normalize_pattern_name(name)
     normalized_colors = normalize_pattern_colors(colors)
 
@@ -279,9 +299,12 @@ def _validate_new_pattern(name, colors):
     return normalized_name, normalized_colors
 
 
-def _write_user_patterns(patterns, pattern_path):
+def _write_user_patterns(
+    patterns: Mapping[str, StoredPattern],
+    pattern_path: Path,
+) -> None:
     pattern_path.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path = None
+    temporary_path: Path | None = None
     document = OrderedDict(
         [
             ("format", USER_PATTERN_FORMAT),
@@ -319,7 +342,7 @@ def _write_user_patterns(patterns, pattern_path):
                 )
 
 
-def _ensure_user_pattern_file_is_writable(pattern_path):
+def _ensure_user_pattern_file_is_writable(pattern_path: Path) -> None:
     if (
         user_pattern_load_issue is not None
         and pattern_path.resolve() == user_pattern_load_issue.path
@@ -330,7 +353,11 @@ def _ensure_user_pattern_file_is_writable(pattern_path):
         )
 
 
-def save(name: str, colors: list, pattern_path=None):
+def save(
+    name: str,
+    colors: Iterable[object],
+    pattern_path: Path | None = None,
+) -> None:
     normalized_name, normalized_colors = _validate_new_pattern(name, colors)
     if pattern_path is None:
         pattern_path = get_user_patterns_path(create_parent=True)
@@ -348,8 +375,11 @@ def save(name: str, colors: list, pattern_path=None):
 
 
 def save_imported_pattern(
-    name: str, colors: list, overwrite=False, pattern_path=None
-):
+    name: str,
+    colors: Iterable[object],
+    overwrite: bool = False,
+    pattern_path: Path | None = None,
+) -> str:
     """Persist an imported user pattern, optionally replacing that user name."""
     normalized_name = normalize_pattern_name(name)
     normalized_colors = normalize_pattern_colors(colors)
@@ -377,7 +407,11 @@ def save_imported_pattern(
     return normalized_name
 
 
-def update_user_pattern(name: str, colors, pattern_path=None) -> str:
+def update_user_pattern(
+    name: str,
+    colors: Iterable[object],
+    pattern_path: Path | None = None,
+) -> str:
     """Atomically replace the colors of one existing user-created Pattern."""
     normalized_name = normalize_pattern_name(name)
     if normalized_name in builtin_color_patterns:
@@ -410,7 +444,11 @@ def update_user_pattern(name: str, colors, pattern_path=None) -> str:
     return normalized_name
 
 
-def rename_user_pattern(old_name: str, new_name: str, pattern_path=None) -> str:
+def rename_user_pattern(
+    old_name: str,
+    new_name: str,
+    pattern_path: Path | None = None,
+) -> str:
     """Atomically rename one existing user-created Pattern in place."""
     normalized_old_name = normalize_pattern_name(old_name)
     normalized_new_name = normalize_pattern_name(new_name)
@@ -460,7 +498,10 @@ def rename_user_pattern(old_name: str, new_name: str, pattern_path=None) -> str:
     return normalized_new_name
 
 
-def replace_user_patterns(patterns, pattern_path=None):
+def replace_user_patterns(
+    patterns: Mapping[str, PatternInput],
+    pattern_path: Path | None = None,
+) -> None:
     """Atomically replace the complete user collection after batch validation."""
     normalized_patterns = OrderedDict()
     for name, pattern in patterns.items():
@@ -501,7 +542,7 @@ def replace_user_patterns(patterns, pattern_path=None):
     army_color_pattern.update(user_color_patterns)
 
 
-def delete(name: str, pattern_path=None):
+def delete(name: str, pattern_path: Path | None = None) -> None:
     normalized_name = name.strip() if isinstance(name, str) else name
     if normalized_name in builtin_color_patterns:
         raise BuiltinPatternDeletionError(

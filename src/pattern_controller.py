@@ -3,10 +3,12 @@
 from dataclasses import dataclass
 import logging
 from pathlib import Path
+from typing import Callable, Protocol
 
 import src.color_pattern_handler as pattern_store
 from src.color_pattern_handler import (
     InvalidPatternError,
+    PatternColors,
     get_pattern_colors,
     normalize_pattern_name,
     pattern_colors_equal,
@@ -14,6 +16,7 @@ from src.color_pattern_handler import (
 from src.pattern_exchange import (
     BuiltinPatternImportConflictError,
     UserPatternImportConflictError,
+    CollectionImportResult,
     CollectionImportAnalysis,
     ImportedPattern,
     ImportedPatternCollection,
@@ -27,6 +30,43 @@ from src.pattern_exchange import (
 )
 
 LOGGER = logging.getLogger(__name__)
+
+
+class PatternStore(Protocol):
+    def save(self, name: str, colors: PatternColors) -> None: ...
+    def update_user_pattern(self, name: str, colors: PatternColors) -> str: ...
+    def rename_user_pattern(self, old_name: str, new_name: str) -> str: ...
+    def delete(self, name: str) -> None: ...
+
+
+class PatternDirectoryRecorder(Protocol):
+    def remember_successful_pattern_import(self, source_path: Path) -> None: ...
+    def remember_successful_pattern_export(
+        self, destination_path: Path
+    ) -> None: ...
+
+
+class PersistSingleImport(Protocol):
+    def __call__(
+        self,
+        imported_pattern: ImportedPattern,
+        target_name: str | None = None,
+        overwrite: bool = False,
+    ) -> str: ...
+
+
+class PersistCollectionImport(Protocol):
+    def __call__(
+        self,
+        analysis: CollectionImportAnalysis,
+        *,
+        overwrite_user_conflicts: bool = False,
+    ) -> CollectionImportResult: ...
+
+
+ChooseConflict = Callable[[str, str], str]
+RequestRename = Callable[[str], str | None]
+ReportInvalidName = Callable[[str], None]
 
 
 @dataclass(frozen=True)
@@ -60,17 +100,25 @@ class PatternController:
     def __init__(
         self,
         *,
-        file_selection=None,
-        store=pattern_store,
-        get_colors=get_pattern_colors,
-        read_single=read_pattern_file,
-        persist_single_import=import_pattern,
-        export_single=export_pattern,
-        read_collection=read_pattern_collection_file,
-        analyze_collection=analyze_pattern_collection_import,
-        persist_collection=import_analyzed_pattern_collection,
-        export_collection=export_user_pattern_collection,
-    ):
+        file_selection: PatternDirectoryRecorder | None = None,
+        store: PatternStore = pattern_store,
+        get_colors: Callable[[str], PatternColors] = get_pattern_colors,
+        read_single: Callable[[Path], ImportedPattern] = read_pattern_file,
+        persist_single_import: PersistSingleImport = import_pattern,
+        export_single: Callable[[str, Path], None] = export_pattern,
+        read_collection: Callable[
+            [Path], ImportedPatternCollection
+        ] = read_pattern_collection_file,
+        analyze_collection: Callable[
+            [ImportedPatternCollection], CollectionImportAnalysis
+        ] = analyze_pattern_collection_import,
+        persist_collection: PersistCollectionImport = (
+            import_analyzed_pattern_collection
+        ),
+        export_collection: Callable[[str, Path], None] = (
+            export_user_pattern_collection
+        ),
+    ) -> None:
         self.file_selection = file_selection
         self.store = store
         self.get_colors = get_colors
@@ -82,7 +130,9 @@ class PatternController:
         self.persist_collection = persist_collection
         self.export_collection = export_collection
 
-    def save_new_pattern(self, name, current_colors):
+    def save_new_pattern(
+        self, name: str, current_colors: PatternColors
+    ) -> PatternOperationResult:
         normalized_name = normalize_pattern_name(name)
         self.store.save(name=normalized_name, colors=current_colors)
         return PatternOperationResult(
@@ -92,7 +142,9 @@ class PatternController:
             changed=True,
         )
 
-    def update_pattern(self, pattern_name, current_colors):
+    def update_pattern(
+        self, pattern_name: str, current_colors: PatternColors
+    ) -> PatternOperationResult:
         stored_colors = self.get_colors(pattern_name)
         if pattern_colors_equal(current_colors, stored_colors):
             return PatternOperationResult(selected_name=pattern_name)
@@ -103,10 +155,12 @@ class PatternController:
             changed=True,
         )
 
-    def pattern_is_modified(self, pattern_name, current_colors):
+    def pattern_is_modified(
+        self, pattern_name: str, current_colors: PatternColors
+    ) -> bool:
         return not pattern_colors_equal(current_colors, self.get_colors(pattern_name))
 
-    def rename_pattern(self, old_name, new_name):
+    def rename_pattern(self, old_name: str, new_name: str) -> PatternOperationResult:
         normalized_name = normalize_pattern_name(new_name)
         if normalized_name == old_name:
             return PatternOperationResult(selected_name=old_name)
@@ -118,7 +172,9 @@ class PatternController:
             changed=True,
         )
 
-    def duplicate_pattern(self, source_name, new_name):
+    def duplicate_pattern(
+        self, source_name: str, new_name: str
+    ) -> PatternOperationResult:
         stored_colors = self.get_colors(source_name)
         normalized_name = normalize_pattern_name(new_name)
         self.store.save(normalized_name, stored_colors)
@@ -130,7 +186,9 @@ class PatternController:
             changed=True,
         )
 
-    def delete_pattern(self, name, fallback_name=None):
+    def delete_pattern(
+        self, name: str, fallback_name: str | None = None
+    ) -> PatternOperationResult:
         self.store.delete(name)
         return PatternOperationResult(
             selected_name=fallback_name,
@@ -139,33 +197,39 @@ class PatternController:
             changed=True,
         )
 
-    def reset_pattern(self, name):
+    def reset_pattern(self, name: str) -> PatternOperationResult:
         return PatternOperationResult(
             selected_name=name,
             colors_to_apply=tuple(self.get_colors(name)),
             changed=True,
         )
 
-    def prepare_single_import(self, source):
+    def prepare_single_import(self, source: Path) -> PatternImportPreparation:
         imported = self.read_single(source)
         self._remember_import(source)
         return PatternImportPreparation(imported, source)
 
     def import_single(
         self,
-        preparation,
+        preparation: PatternImportPreparation,
         *,
-        selected_name,
-        choose_conflict,
-        request_rename,
-        report_invalid_name,
-    ):
+        selected_name: str | None,
+        choose_conflict: ChooseConflict,
+        request_rename: RequestRename,
+        report_invalid_name: ReportInvalidName,
+    ) -> PatternOperationResult:
         overwritten = False
 
-        def persist(pattern, target_name=None, overwrite=False):
+        def persist(
+            imported_pattern: ImportedPattern,
+            target_name: str | None = None,
+            overwrite: bool = False,
+        ) -> str:
             nonlocal overwritten
             persisted_name = self.persist_single_import(
-                pattern, target_name=target_name, overwrite=overwrite
+                imported_pattern,
+                target_name=target_name,
+                overwrite=overwrite,
             )
             overwritten = overwrite
             return persisted_name
@@ -195,11 +259,13 @@ class PatternController:
             changed=True,
         )
 
-    def export_selected(self, name, destination):
+    def export_selected(self, name: str, destination: Path) -> None:
         self.export_single(name, destination)
         self._remember_export(destination)
 
-    def prepare_collection_import(self, source):
+    def prepare_collection_import(
+        self, source: Path
+    ) -> CollectionImportPreparation:
         collection = self.read_collection(source)
         self._remember_import(source)
         return CollectionImportPreparation(
@@ -209,8 +275,12 @@ class PatternController:
         )
 
     def import_collection(
-        self, preparation, *, selected_name, overwrite_user_conflicts
-    ):
+        self,
+        preparation: CollectionImportPreparation,
+        *,
+        selected_name: str | None,
+        overwrite_user_conflicts: bool,
+    ) -> tuple[PatternOperationResult, CollectionImportResult]:
         result = self.persist_collection(
             preparation.analysis,
             overwrite_user_conflicts=overwrite_user_conflicts,
@@ -237,11 +307,13 @@ class PatternController:
         )
         return operation, result
 
-    def export_user_collection(self, collection_name, destination):
+    def export_user_collection(
+        self, collection_name: str, destination: Path
+    ) -> None:
         self.export_collection(collection_name, destination)
         self._remember_export(destination)
 
-    def _remember_import(self, source):
+    def _remember_import(self, source: Path) -> None:
         if self.file_selection is not None:
             try:
                 self.file_selection.remember_successful_pattern_import(source)
@@ -250,7 +322,7 @@ class PatternController:
                     "Could not remember Pattern import directory for %s", source
                 )
 
-    def _remember_export(self, destination):
+    def _remember_export(self, destination: Path) -> None:
         if self.file_selection is not None:
             try:
                 self.file_selection.remember_successful_pattern_export(destination)
@@ -262,8 +334,10 @@ class PatternController:
 
 
 def collection_selection_was_overwritten(
-    selected_pattern_name, analysis, overwrite_user_conflicts
-):
+    selected_pattern_name: str | None,
+    analysis: CollectionImportAnalysis,
+    overwrite_user_conflicts: bool,
+) -> bool:
     if selected_pattern_name is None or not overwrite_user_conflicts:
         return False
     return any(
@@ -271,7 +345,9 @@ def collection_selection_was_overwritten(
     )
 
 
-def _ordered_imported_colors(pattern):
+def _ordered_imported_colors(
+    pattern: ImportedPattern,
+) -> tuple[str, ...] | None:
     try:
         return tuple(pattern.colors[key] for key in pattern_store.color_key)
     except KeyError:
@@ -279,8 +355,10 @@ def _ordered_imported_colors(pattern):
 
 
 def single_import_selection_policy(
-    selected_pattern_name, imported_pattern_name, overwritten
-):
+    selected_pattern_name: str | None,
+    imported_pattern_name: str,
+    overwritten: bool,
+) -> tuple[str | None, bool]:
     if overwritten:
         selected_was_overwritten = (
             selected_pattern_name is not None
@@ -291,14 +369,14 @@ def single_import_selection_policy(
 
 
 def resolve_pattern_import_conflicts(
-    imported_pattern,
-    persist,
-    choose_conflict,
-    request_rename,
-    report_invalid_name,
-):
+    imported_pattern: ImportedPattern,
+    persist: PersistSingleImport,
+    choose_conflict: ChooseConflict,
+    request_rename: RequestRename,
+    report_invalid_name: ReportInvalidName,
+) -> str | None:
     """Resolve import conflicts iteratively without coupling policy to Tk."""
-    target_name = None
+    target_name: str | None = None
     overwrite = False
     while True:
         try:

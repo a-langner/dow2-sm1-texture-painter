@@ -85,7 +85,7 @@ GNU Make is not normally installed with Windows. Run the equivalent command
 directly in PowerShell instead:
 
 ```powershell
-python -m mypy src/texture_set.py src/texture_renderer.py src/texture_naming.py src/render_settings.py src/constant.py src/action_state.py src/texture_loading_service.py src/image_process.py src/preview_controller.py src/batch_processing_service.py src/dow1_converter.py src/pattern_controller.py src/pattern_exchange.py src/color_pattern_handler.py
+python -m mypy src/texture_set.py src/texture_renderer.py src/texture_naming.py src/render_settings.py src/constant.py src/action_state.py src/texture_loading_service.py src/image_process.py src/preview_controller.py src/batch_processing_service.py src/dow1_converter.py src/pattern_controller.py src/pattern_exchange.py src/color_pattern_handler.py src/settings_handler.py src/file_selection_service.py src/user_data.py
 ```
 
 When using the repository's `.venv`, replace `python` with

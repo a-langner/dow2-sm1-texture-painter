@@ -3,6 +3,7 @@ import logging
 import os
 from pathlib import Path
 import tempfile
+from typing import Literal
 
 from src.user_data import get_settings_path
 
@@ -14,6 +15,13 @@ DIRECTORY_FIELDS = (
     "last_pattern_import_directory",
     "last_pattern_export_directory",
 )
+DirectoryField = Literal[
+    "last_diffuse_directory",
+    "last_pattern_import_directory",
+    "last_pattern_export_directory",
+]
+DirectoryValues = dict[str, Path | None]
+SettingsDocument = dict[str, object]
 
 
 class SettingsFileError(OSError):
@@ -23,19 +31,23 @@ class SettingsFileError(OSError):
 class SettingsHandler:
     """Load and persist the small application settings document."""
 
-    def __init__(self, settings_path=None, home_directory=None):
+    def __init__(
+        self,
+        settings_path: Path | None = None,
+        home_directory: Path | None = None,
+    ) -> None:
         self.path = Path(settings_path or get_settings_path())
         self.home_directory = Path(home_directory or Path.home())
-        self.last_diffuse_directory = None
-        self.last_pattern_import_directory = None
-        self.last_pattern_export_directory = None
-        self.load_error = None
+        self.last_diffuse_directory: Path | None = None
+        self.last_pattern_import_directory: Path | None = None
+        self.last_pattern_export_directory: Path | None = None
+        self.load_error: Exception | None = None
         self._load()
 
-    def _load(self):
+    def _load(self) -> None:
         try:
             with self.path.open("r", encoding="utf-8") as fp:
-                document = json.load(fp)
+                document: object = json.load(fp)
             directories = self._validate(document)
             for field, directory in directories.items():
                 setattr(self, field, directory)
@@ -46,7 +58,7 @@ class SettingsHandler:
             LOGGER.exception("Could not load settings file: %s", self.path)
 
     @staticmethod
-    def _validate(document):
+    def _validate(document: object) -> DirectoryValues:
         if not isinstance(document, dict):
             raise ValueError("Settings file must contain a JSON object")
         if document.get("format") != SETTINGS_FORMAT:
@@ -56,7 +68,7 @@ class SettingsHandler:
             or document["version"] != SETTINGS_VERSION
         ):
             raise ValueError("Settings file has an unsupported version")
-        directories = {}
+        directories: DirectoryValues = {}
         for field in DIRECTORY_FIELDS:
             directory = document.get(field)
             if directory is not None and not isinstance(directory, str):
@@ -64,33 +76,38 @@ class SettingsHandler:
             directories[field] = Path(directory) if directory else None
         return directories
 
-    def _get_existing_directory(self, field):
-        directory = getattr(self, field)
+    def _get_existing_directory(self, field: DirectoryField) -> Path:
+        if field == "last_diffuse_directory":
+            directory = self.last_diffuse_directory
+        elif field == "last_pattern_import_directory":
+            directory = self.last_pattern_import_directory
+        else:
+            directory = self.last_pattern_export_directory
         if directory is not None and directory.is_dir():
             return directory
         return self.home_directory
 
-    def get_diffuse_initial_directory(self):
+    def get_diffuse_initial_directory(self) -> Path:
         return self._get_existing_directory("last_diffuse_directory")
 
-    def get_last_pattern_import_directory(self):
+    def get_last_pattern_import_directory(self) -> Path:
         return self._get_existing_directory("last_pattern_import_directory")
 
-    def get_last_pattern_export_directory(self):
+    def get_last_pattern_export_directory(self) -> Path:
         return self._get_existing_directory("last_pattern_export_directory")
 
-    def remember_diffuse_file(self, diffuse_file):
+    def remember_diffuse_file(self, diffuse_file: Path) -> None:
         self._set_directory(
             "last_diffuse_directory", Path(diffuse_file).resolve().parent
         )
 
-    def set_last_pattern_import_directory(self, directory):
+    def set_last_pattern_import_directory(self, directory: Path) -> None:
         self._set_directory("last_pattern_import_directory", directory)
 
-    def set_last_pattern_export_directory(self, directory):
+    def set_last_pattern_export_directory(self, directory: Path) -> None:
         self._set_directory("last_pattern_export_directory", directory)
 
-    def _set_directory(self, field, directory):
+    def _set_directory(self, field: DirectoryField, directory: Path) -> None:
         if self.load_error is not None and self.path.exists():
             raise SettingsFileError(
                 f"Settings file is invalid and was not overwritten: {self.path}"
@@ -99,9 +116,11 @@ class SettingsHandler:
         directory = Path(directory).resolve()
         if not directory.is_dir():
             raise SettingsFileError(f"Settings directory does not exist: {directory}")
-        values = {name: getattr(self, name) for name in DIRECTORY_FIELDS}
+        values: DirectoryValues = {
+            name: getattr(self, name) for name in DIRECTORY_FIELDS
+        }
         values[field] = directory
-        document = {
+        document: SettingsDocument = {
             "format": SETTINGS_FORMAT,
             "version": SETTINGS_VERSION,
         }
@@ -112,9 +131,9 @@ class SettingsHandler:
         setattr(self, field, directory)
         self.load_error = None
 
-    def _write_atomic(self, document):
+    def _write_atomic(self, document: SettingsDocument) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        temporary_path = None
+        temporary_path: Path | None = None
         try:
             with tempfile.NamedTemporaryFile(
                 mode="w",

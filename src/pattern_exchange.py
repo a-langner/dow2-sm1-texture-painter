@@ -5,7 +5,8 @@ from pathlib import Path
 import re
 import tempfile
 from collections import OrderedDict
-from typing import NamedTuple
+from collections.abc import Iterable, Mapping
+from typing import NamedTuple, TypedDict
 
 from src.color_pattern_handler import (
     ARMY_PATTERN_RESOURCE,
@@ -13,6 +14,7 @@ from src.color_pattern_handler import (
     PatternAlreadyExistsError,
     PatternNameConflictError,
     PatternNotFoundError,
+    StoredPattern,
     builtin_color_patterns,
     color_key,
     get_all_patterns,
@@ -33,6 +35,13 @@ PATTERN_COLLECTION_EXCHANGE_VERSION = 1
 PATTERN_COLLECTION_EXCHANGE_SUFFIX = ".pattern-collection.json"
 LOGGER = logging.getLogger(__name__)
 
+
+class PatternExchangeDocument(TypedDict):
+    format: str
+    version: int
+    name: str
+    colors: dict[str, str]
+
 WINDOWS_RESERVED_FILENAMES = {
     "CON",
     "PRN",
@@ -43,7 +52,11 @@ WINDOWS_RESERVED_FILENAMES = {
 }
 
 
-def suggested_exchange_filename(name, suffix, fallback_name):
+def suggested_exchange_filename(
+    name: str,
+    suffix: str,
+    fallback_name: str,
+) -> str:
     """Return a portable exchange filename for the supplied canonical suffix."""
     safe_name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name)
     safe_name = safe_name.rstrip(" .")
@@ -57,12 +70,12 @@ def suggested_exchange_filename(name, suffix, fallback_name):
     return safe_name
 
 
-def suggested_pattern_filename(pattern_name):
+def suggested_pattern_filename(pattern_name: str) -> str:
     """Return a portable filename while preserving the internal pattern name."""
     return suggested_exchange_filename(pattern_name, PATTERN_EXCHANGE_SUFFIX, "pattern")
 
 
-def suggested_pattern_collection_filename(collection_name):
+def suggested_pattern_collection_filename(collection_name: str) -> str:
     """Return a portable filename for a Pattern Collection."""
     return suggested_exchange_filename(
         collection_name,
@@ -207,7 +220,10 @@ class CollectionImportAnalysis(NamedTuple):
         return len(self.builtin_conflicts)
 
 
-def create_pattern_exchange_entry(name, pattern):
+def create_pattern_exchange_entry(
+    name: str,
+    pattern: Mapping[str, str],
+) -> dict[str, object]:
     """Create the shared name-and-colors structure for one pattern."""
     return {
         "name": name,
@@ -215,16 +231,23 @@ def create_pattern_exchange_entry(name, pattern):
     }
 
 
-def create_pattern_exchange_document(name, pattern):
+def create_pattern_exchange_document(
+    name: str,
+    pattern: Mapping[str, str],
+) -> PatternExchangeDocument:
     """Create the versioned document for exchanging one color pattern."""
     return {
         "format": PATTERN_EXCHANGE_FORMAT,
         "version": PATTERN_EXCHANGE_VERSION,
-        **create_pattern_exchange_entry(name, pattern),
+        "name": name,
+        "colors": {key: pattern[key] for key in color_key},
     }
 
 
-def create_pattern_collection_exchange_document(name, patterns):
+def create_pattern_collection_exchange_document(
+    name: str,
+    patterns: Iterable[tuple[str, Mapping[str, str]]],
+) -> dict[str, object]:
     """Create a versioned collection document from ordered pattern pairs."""
     return {
         "format": PATTERN_COLLECTION_EXCHANGE_FORMAT,
@@ -237,7 +260,9 @@ def create_pattern_collection_exchange_document(name, patterns):
     }
 
 
-def validate_imported_pattern_collection(data):
+def validate_imported_pattern_collection(
+    data: object,
+) -> ImportedPatternCollection:
     """Validate a collection atomically and return its normalized document."""
     if not isinstance(data, dict):
         raise InvalidPatternCollectionError(
@@ -282,8 +307,8 @@ def validate_imported_pattern_collection(data):
             "Pattern Collection must contain at least one Pattern"
         )
 
-    normalized_patterns = []
-    normalized_names = set()
+    normalized_patterns: list[ImportedPattern] = []
+    normalized_names: set[str] = set()
     for index, entry in enumerate(data["patterns"]):
         if not isinstance(entry, dict):
             raise InvalidPatternCollectionError(
@@ -318,10 +343,12 @@ def validate_imported_pattern_collection(data):
     return ImportedPatternCollection(collection_name, tuple(normalized_patterns))
 
 
-def parse_imported_pattern_collection_json(json_text):
+def parse_imported_pattern_collection_json(
+    json_text: str,
+) -> ImportedPatternCollection:
     """Parse and validate one Pattern Collection JSON document."""
     try:
-        data = json.loads(json_text)
+        data: object = json.loads(json_text)
     except (json.JSONDecodeError, TypeError) as exc:
         raise InvalidPatternJsonError(
             "Pattern Collection file contains invalid JSON"
@@ -329,7 +356,7 @@ def parse_imported_pattern_collection_json(json_text):
     return validate_imported_pattern_collection(data)
 
 
-def read_pattern_collection_file(path):
+def read_pattern_collection_file(path: Path) -> ImportedPatternCollection:
     """Read and validate one Pattern Collection without importing it."""
     path = Path(path)
     try:
@@ -354,8 +381,10 @@ def read_pattern_collection_file(path):
 
 
 def analyze_pattern_collection_import(
-    collection, builtin_patterns=None, user_patterns=None
-):
+    collection: ImportedPatternCollection,
+    builtin_patterns: Mapping[str, StoredPattern] | None = None,
+    user_patterns: Mapping[str, StoredPattern] | None = None,
+) -> CollectionImportAnalysis:
     """Classify a validated collection without selecting a conflict policy."""
     if not isinstance(collection, ImportedPatternCollection):
         raise InvalidPatternCollectionError(
@@ -366,9 +395,9 @@ def analyze_pattern_collection_import(
     if user_patterns is None:
         user_patterns = user_color_patterns
 
-    new_patterns = []
-    user_conflicts = []
-    builtin_conflicts = []
+    new_patterns: list[ImportedPattern] = []
+    user_conflicts: list[ImportedPattern] = []
+    builtin_conflicts: list[ImportedPattern] = []
     for pattern in collection.patterns:
         if pattern.name in builtin_patterns:
             builtin_conflicts.append(pattern)
@@ -386,8 +415,10 @@ def analyze_pattern_collection_import(
 
 
 def import_analyzed_pattern_collection(
-    analysis, overwrite_user_conflicts=False, pattern_path=None
-):
+    analysis: CollectionImportAnalysis,
+    overwrite_user_conflicts: bool = False,
+    pattern_path: Path | None = None,
+) -> CollectionImportResult:
     """Apply one analyzed collection through a single atomic user-data write."""
     if not isinstance(analysis, CollectionImportAnalysis):
         raise InvalidPatternCollectionError(
@@ -448,14 +479,14 @@ def import_analyzed_pattern_collection(
     return result
 
 
-def has_pattern_exchange_format(document):
+def has_pattern_exchange_format(document: object) -> bool:
     """Return whether a document declares the single-pattern format."""
     return (
         isinstance(document, dict) and document.get("format") == PATTERN_EXCHANGE_FORMAT
     )
 
 
-def has_supported_pattern_exchange_version(document):
+def has_supported_pattern_exchange_version(document: object) -> bool:
     """Return whether a document declares the supported exchange version."""
     return (
         isinstance(document, dict)
@@ -464,7 +495,7 @@ def has_supported_pattern_exchange_version(document):
     )
 
 
-def validate_imported_pattern(data):
+def validate_imported_pattern(data: object) -> PatternExchangeDocument:
     """Validate a parsed exchange document and return its normalized form."""
     if not isinstance(data, dict):
         raise InvalidPatternFileError("Pattern file must contain a JSON object")
@@ -511,16 +542,16 @@ def validate_imported_pattern(data):
     )
 
 
-def parse_imported_pattern_json(json_text):
+def parse_imported_pattern_json(json_text: str) -> PatternExchangeDocument:
     """Parse JSON text separately from validating its pattern content."""
     try:
-        data = json.loads(json_text)
+        data: object = json.loads(json_text)
     except (json.JSONDecodeError, TypeError) as exc:
         raise InvalidPatternJsonError("Pattern file contains invalid JSON") from exc
     return validate_imported_pattern(data)
 
 
-def read_pattern_file(path):
+def read_pattern_file(path: Path) -> ImportedPattern:
     """Read and validate one pattern file without resolving name conflicts."""
     path = Path(path)
     try:
@@ -542,8 +573,11 @@ def read_pattern_file(path):
 
 
 def import_pattern(
-    imported_pattern, target_name=None, overwrite=False, pattern_path=None
-):
+    imported_pattern: ImportedPattern,
+    target_name: str | None = None,
+    overwrite: bool = False,
+    pattern_path: Path | None = None,
+) -> str:
     """Persist a validated pattern after applying the requested conflict policy."""
     if not isinstance(imported_pattern, ImportedPattern):
         raise InvalidPatternFileError("Imported pattern has not been validated")
@@ -567,7 +601,7 @@ def import_pattern(
         raise UserPatternImportConflictError(str(exc)) from exc
 
 
-def export_pattern(name, destination):
+def export_pattern(name: str, destination: Path) -> None:
     """Atomically export one built-in or user pattern to a JSON file."""
     pattern = get_all_patterns().get(name)
     if pattern is None:
@@ -577,7 +611,10 @@ def export_pattern(name, destination):
     _write_exchange_document(document, destination)
 
 
-def export_user_pattern_collection(collection_name, destination):
+def export_user_pattern_collection(
+    collection_name: str,
+    destination: Path,
+) -> None:
     """Atomically export every user-created Pattern in deterministic order."""
     try:
         normalized_collection_name = normalize_pattern_name(collection_name)
@@ -600,7 +637,7 @@ def export_user_pattern_collection(collection_name, destination):
     _write_exchange_document(document, destination)
 
 
-def _validate_export_destination(destination):
+def _validate_export_destination(destination: Path) -> Path:
     try:
         destination = Path(destination)
     except TypeError as exc:
@@ -644,10 +681,13 @@ def _validate_export_destination(destination):
     return destination
 
 
-def _write_exchange_document(document, destination):
+def _write_exchange_document(
+    document: Mapping[str, object],
+    destination: Path,
+) -> None:
     """Write an exchange document atomically without touching its sources."""
     destination = _validate_export_destination(destination)
-    temporary_path = None
+    temporary_path: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(
             mode="w",
