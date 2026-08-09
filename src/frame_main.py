@@ -528,8 +528,7 @@ class ArmyPainter(tk.Tk):
             self.frame_batch_tools = None
 
     def on_slider_update(self, brightness: float, contrast: float):
-        self.sync_render_settings()
-        self.preview_controller.request_preview()
+        self.request_workspace_preview()
 
     def on_color_changed(self, slot_index: int, color: str):
         self.update_pattern_action_states()
@@ -584,8 +583,8 @@ class ArmyPainter(tk.Tk):
             )
 
     def close(self, Event=None):
-        self.active_texture_set = None
         self.preview_controller.invalidate()
+        self.active_texture_set = None
         self.img_dif = ImageTk.PhotoImage(
             create_placeholder_img("Select Diffuse Texture", "RGBA")
         )
@@ -608,13 +607,20 @@ class ArmyPainter(tk.Tk):
             tem_selected=tuple(self.frame_channel_select.lb.curselection()),
         )
 
-    def refresh_workspace(self):
-        """Schedule an immediate background workspace refresh."""
+    def request_workspace_preview(self, *, immediate=False):
+        """Schedule a preview only when an active texture can be snapshotted."""
         if self.active_texture_set is None:
             self.preview_controller.invalidate()
             return
         self.sync_render_settings()
-        self.preview_controller.request_preview_immediately()
+        if immediate:
+            self.preview_controller.request_preview_immediately()
+        else:
+            self.preview_controller.request_preview()
+
+    def refresh_workspace(self):
+        """Schedule an immediate background workspace refresh."""
+        self.request_workspace_preview(immediate=True)
 
     def apply_preview_result(self, result: PreviewResult):
         """Apply a completed preview on Tk's event thread."""

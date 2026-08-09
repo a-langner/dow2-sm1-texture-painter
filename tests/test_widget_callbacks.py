@@ -119,15 +119,13 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
             "Painter",
             (),
             {
-                "sync_render_settings": Mock(),
-                "preview_controller": Mock(),
+                "request_workspace_preview": Mock(),
             },
         )()
 
         ArmyPainter.on_slider_update(painter, 75.0, 100.0)
 
-        painter.sync_render_settings.assert_called_once_with()
-        painter.preview_controller.request_preview.assert_called_once_with()
+        painter.request_workspace_preview.assert_called_once_with()
 
     def test_widget_module_has_no_implicit_controller_lookup(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "widget.py").read_text(
