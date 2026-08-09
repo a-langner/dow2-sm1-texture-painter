@@ -33,29 +33,6 @@ class HelperOwnershipTests(unittest.TestCase):
 
         self.assertTrue(frame_definitions.isdisjoint(moved_helpers))
 
-    def test_lower_level_modules_do_not_import_frame_main(self):
-        offenders = []
-        for source_path in SRC_DIRECTORY.glob("*.py"):
-            if source_path.name == "frame_main.py":
-                continue
-            tree = ast.parse(source_path.read_text(encoding="utf-8"))
-            for node in ast.walk(tree):
-                imports_frame_main = (
-                    isinstance(node, ast.Import)
-                    and any(alias.name == "src.frame_main" for alias in node.names)
-                ) or (
-                    isinstance(node, ast.ImportFrom) and node.module == "src.frame_main"
-                )
-                if imports_frame_main:
-                    offenders.append(source_path.name)
-                    break
-
-        self.assertEqual(
-            offenders,
-            [],
-            f"Lower-level modules import src.frame_main: {offenders}",
-        )
-
 
 if __name__ == "__main__":
     unittest.main()

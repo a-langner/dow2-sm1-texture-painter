@@ -5,6 +5,7 @@ from unittest.mock import Mock, call, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.frame_main import ArmyPainter
+from src.widget import PatternSelection
 
 
 class FakeFrame:
@@ -17,6 +18,16 @@ class FakePatternPanel(FakeFrame):
 
 
 class ArmyPainterCompositionTests(unittest.TestCase):
+    @patch("src.frame_main.DialogGateway")
+    def test_application_state_owns_dialog_gateway(self, dialog_gateway_type):
+        painter = SimpleNamespace()
+
+        ArmyPainter._initialize_application_state(painter, "application.log")
+
+        dialog_gateway_type.assert_called_once_with(painter)
+        self.assertIs(painter.dialogs, dialog_gateway_type.return_value)
+        self.assertEqual(painter.application_log_path, "application.log")
+
     def test_constructor_runs_explicit_stages_in_order(self):
         order = []
         stage_names = (
@@ -178,6 +189,32 @@ class ArmyPainterCompositionTests(unittest.TestCase):
         painter.batch_executor.shutdown.assert_called_once_with(
             wait=False, cancel_futures=True
         )
+
+    @patch("src.frame_main.derive_pattern_action_state")
+    @patch("src.frame_main.src.color_pattern_handler.has_user_patterns")
+    @patch.object(ArmyPainter, "_apply_pattern_action_state")
+    def test_action_state_policy_is_derived_then_applied_at_gui_boundary(
+        self, apply_state, has_user_patterns, derive_state
+    ):
+        selection = PatternSelection("User", True)
+        state = Mock(name="derived_state")
+        derive_state.return_value = state
+        has_user_patterns.return_value = True
+        painter = SimpleNamespace(
+            frame_army_pattern=SimpleNamespace(
+                get_selected_pattern=Mock(return_value=selection)
+            ),
+            is_selected_pattern_dirty=Mock(return_value=True),
+        )
+
+        ArmyPainter.update_pattern_action_states(painter)
+
+        context = derive_state.call_args.args[0]
+        self.assertTrue(context.has_selection)
+        self.assertTrue(context.selected_is_user_pattern)
+        self.assertTrue(context.selected_is_dirty)
+        self.assertTrue(context.has_any_user_patterns)
+        apply_state.assert_called_once_with(painter, state)
 
     def test_controllers_and_services_do_not_import_army_painter(self):
         import src.batch_processing_service as batch_service
