@@ -3,15 +3,15 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import test_support  # noqa: F401 - installs the user-data path redirect
-from src.frame_main import (
-    FRAME_TOOL_HEIGHT,
+from src.constant import FRAME_TOOL_HEIGHT
+from src.frame_main import ArmyPainter
+from src.window_geometry import (
     PATTERN_LIST_DEFAULT_WIDTH,
     WINDOW_CONTENT_PADDING,
     WINDOW_INITIAL_SCALE,
     calculate_diffuse_window_size,
     calculate_initial_window_size,
     clamp_window_position,
-    ArmyPainter,
 )
 from src.image_process import TextureValidationError
 from src.texture_naming import DEFAULT_TEXTURE_NAMING

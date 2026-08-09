@@ -5,13 +5,13 @@ from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from fake_dialog_gateway import make_dialog_gateway, make_file_selection_service
-from src.frame_main import (
+from src.file_selection_service import PATTERN_COLLECTION_FILETYPES
+from src.frame_main import ArmyPainter
+from src.pattern_exchange import (
     PATTERN_COLLECTION_EXCHANGE_SUFFIX,
-    PATTERN_COLLECTION_FILETYPES,
-    ArmyPainter,
+    PatternExportError,
     suggested_pattern_collection_filename,
 )
-from src.pattern_exchange import PatternExportError
 
 
 class FakeSettings:
@@ -128,7 +128,9 @@ class PatternCollectionExportGuiTests(unittest.TestCase):
 
     @patch("src.frame_main.export_user_pattern_collection")
     @patch("src.dialog_gateway.filedialog.asksaveasfilename")
-    @patch("src.dialog_gateway.simpledialog.askstring", return_value="  Élite Collection  ")
+    @patch(
+        "src.dialog_gateway.simpledialog.askstring", return_value="  Élite Collection  "
+    )
     @patch(
         "src.frame_main.src.color_pattern_handler.has_user_patterns",
         return_value=True,
@@ -175,9 +177,7 @@ class PatternCollectionExportGuiTests(unittest.TestCase):
 
         message = showerror.call_args.args[1]
         self.assertIn("My Collection", message)
-        self.assertIn(
-            str(Path("C:/exports/failed.pattern-collection.json")), message
-        )
+        self.assertIn(str(Path("C:/exports/failed.pattern-collection.json")), message)
         self.assertIn("disk failure", message)
         self.assertEqual(painter.settings.saved_directories, [])
 

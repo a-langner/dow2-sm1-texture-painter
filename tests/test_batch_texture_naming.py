@@ -6,7 +6,8 @@ from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.dow1_converter import team_color_output_path
-from src.frame_main import ArmyPainter, prepare_batch_workbench
+from src.batch_processing_service import prepare_batch_workbench
+from src.frame_main import ArmyPainter
 from src.texture_naming import (
     DEFAULT_TEXTURE_NAMING,
     TextureKind,

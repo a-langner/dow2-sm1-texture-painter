@@ -1,6 +1,8 @@
 import logging
 from logging.handlers import RotatingFileHandler
+import platform
 from pathlib import Path
+import sys
 
 from src.user_data import get_user_data_file_path
 
@@ -73,3 +75,25 @@ def configure_application_logging(data_directory=None) -> Path | None:
     root_logger.setLevel(logging.INFO)
     logging.captureWarnings(True)
     return log_path
+
+
+def appears_to_run_from_pyinstaller_bundle():
+    """Return whether runtime markers indicate a PyInstaller bundle."""
+    return bool(getattr(sys, "frozen", False))
+
+
+def log_application_startup(log_path, version="0.1"):
+    """Record startup context after logging has been configured."""
+    logger = logging.getLogger("src.frame_main")
+    logger.info("Application startup")
+    logger.info("Application version: %s", version)
+    logger.info("Python version: %s", sys.version.replace("\n", " "))
+    logger.info("Operating system/platform: %s", platform.platform())
+    logger.info(
+        "Running from a PyInstaller bundle: %s",
+        appears_to_run_from_pyinstaller_bundle(),
+    )
+    logger.info(
+        "Application log path: %s",
+        log_path if log_path is not None else "unavailable; using stderr fallback",
+    )

@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 import src.frame_main as frame_main
+import src.logging_setup as logging_setup
 
 
 class FakeArmyPainter:
@@ -51,7 +52,7 @@ class ApplicationStartupTests(unittest.TestCase):
         )
         configure.assert_called_once_with()
         painter_type.assert_called_once_with(application_log_path=log_path)
-        log_startup.assert_called_once_with(log_path)
+        log_startup.assert_called_once_with(log_path, frame_main.VERSION)
         self.assertEqual(
             captured.output.count("INFO:src.frame_main:Clean application shutdown"),
             1,
@@ -60,13 +61,13 @@ class ApplicationStartupTests(unittest.TestCase):
     def test_startup_metadata_is_logged_without_settings_or_pattern_data(self):
         log_path = Path("user-data") / "logs" / "application.log"
         with patch.object(
-            frame_main.platform, "platform", return_value="TestOS"
-        ), patch.object(frame_main.sys, "version", "3.test"), patch.object(
-            frame_main.sys, "frozen", True, create=True
+            logging_setup.platform, "platform", return_value="TestOS"
+        ), patch.object(logging_setup.sys, "version", "3.test"), patch.object(
+            logging_setup.sys, "frozen", True, create=True
         ), self.assertLogs(
             frame_main.LOGGER, level="INFO"
         ) as captured:
-            frame_main.log_application_startup(log_path)
+            logging_setup.log_application_startup(log_path, frame_main.VERSION)
 
         output = "\n".join(captured.output)
         self.assertIn("Application startup", output)
@@ -80,9 +81,9 @@ class ApplicationStartupTests(unittest.TestCase):
 
     def test_stderr_fallback_path_is_reported_clearly(self):
         with patch.object(
-            frame_main.platform, "platform", return_value="TestOS"
+            logging_setup.platform, "platform", return_value="TestOS"
         ), self.assertLogs(frame_main.LOGGER, level="INFO") as captured:
-            frame_main.log_application_startup(None)
+            logging_setup.log_application_startup(None, frame_main.VERSION)
 
         self.assertIn(
             "Application log path: unavailable; using stderr fallback",

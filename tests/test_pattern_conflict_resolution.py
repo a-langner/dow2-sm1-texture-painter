@@ -1,7 +1,7 @@
 import unittest
 
 import test_support  # noqa: F401 - installs the user-data path redirect
-from src.frame_main import resolve_pattern_import_conflicts
+from src.pattern_controller import resolve_pattern_import_conflicts
 from src.pattern_exchange import (
     BuiltinPatternImportConflictError,
     ImportedPattern,

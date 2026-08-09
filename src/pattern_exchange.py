@@ -2,6 +2,7 @@ import json
 import logging
 import os
 from pathlib import Path
+import re
 import tempfile
 from collections import OrderedDict
 from typing import NamedTuple
@@ -31,6 +32,43 @@ PATTERN_COLLECTION_EXCHANGE_FORMAT = "sm1-dow2-texture-painter-pattern-collectio
 PATTERN_COLLECTION_EXCHANGE_VERSION = 1
 PATTERN_COLLECTION_EXCHANGE_SUFFIX = ".pattern-collection.json"
 LOGGER = logging.getLogger(__name__)
+
+WINDOWS_RESERVED_FILENAMES = {
+    "CON",
+    "PRN",
+    "AUX",
+    "NUL",
+    *(f"COM{number}" for number in range(1, 10)),
+    *(f"LPT{number}" for number in range(1, 10)),
+}
+
+
+def suggested_exchange_filename(name, suffix, fallback_name):
+    """Return a portable exchange filename for the supplied canonical suffix."""
+    safe_name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name)
+    safe_name = safe_name.rstrip(" .")
+    if not safe_name:
+        safe_name = fallback_name
+    windows_stem = safe_name.split(".", 1)[0].rstrip(" .").upper()
+    if windows_stem in WINDOWS_RESERVED_FILENAMES:
+        safe_name = f"_{safe_name}"
+    if not safe_name.casefold().endswith(suffix.casefold()):
+        safe_name += suffix
+    return safe_name
+
+
+def suggested_pattern_filename(pattern_name):
+    """Return a portable filename while preserving the internal pattern name."""
+    return suggested_exchange_filename(pattern_name, PATTERN_EXCHANGE_SUFFIX, "pattern")
+
+
+def suggested_pattern_collection_filename(collection_name):
+    """Return a portable filename for a Pattern Collection."""
+    return suggested_exchange_filename(
+        collection_name,
+        PATTERN_COLLECTION_EXCHANGE_SUFFIX,
+        "pattern-collection",
+    )
 
 
 class PatternImportError(ValueError):

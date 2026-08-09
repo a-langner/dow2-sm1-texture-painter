@@ -8,6 +8,11 @@ from pathlib import Path
 import tempfile
 from typing import Callable
 
+from src.dow1_converter import (
+    convert_tem_texture,
+    get_tem_filenames,
+    team_color_output_path,
+)
 from src.image_process import ImageWorkbench, TextureValidationError
 from src.texture_loading_service import find_companion_texture
 from src.texture_naming import (
@@ -169,6 +174,40 @@ def save_processed_image(image, filepath):
                 temporary_path,
                 exc_info=True,
             )
+
+
+def batch_convert_worker(
+    source,
+    destination,
+    dest_format,
+    src_format,
+    profile,
+    cancel,
+    events,
+):
+    """Convert legacy team-colour batches without touching Tk widgets."""
+    errors = []
+    try:
+        files_dict = get_tem_filenames(source, src_format)
+    except Exception as exc:
+        return [str(exc)], [], cancel.is_set()
+
+    events.put(("total", len(files_dict)))
+    for current, (name, textures) in enumerate(files_dict.items(), start=1):
+        if cancel.is_set():
+            break
+        try:
+            result = convert_tem_texture(textures, source)
+            output_path = team_color_output_path(
+                name, destination, dest_format, profile
+            )
+            if output_path is None:
+                raise ValueError(f"Cannot create a team-color filename from '{name}'.")
+            save_processed_image(result, output_path)
+        except Exception as exc:
+            errors.append(f"{name}: {exc}")
+        events.put(("progress", current, len(files_dict)))
+    return errors, [], cancel.is_set()
 
 
 class BatchProcessingService:

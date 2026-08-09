@@ -5,15 +5,13 @@ from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from fake_dialog_gateway import make_dialog_gateway, make_file_selection_service
-from src.frame_main import (
-    PATTERN_EXCHANGE_SUFFIX,
-    PATTERN_FILETYPES,
-    ArmyPainter,
-    suggested_pattern_filename,
-)
+from src.file_selection_service import PATTERN_FILETYPES
+from src.frame_main import ArmyPainter
 from src.pattern_exchange import (
+    PATTERN_EXCHANGE_SUFFIX,
     PatternExportError,
     PatternExportPermissionDeniedError,
+    suggested_pattern_filename,
 )
 from src.widget import PatternSelection
 

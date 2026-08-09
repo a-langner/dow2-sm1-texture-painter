@@ -7,7 +7,7 @@ from unittest.mock import patch
 import test_support
 import src.color_pattern_handler as pattern_handler
 from src.action_state import PatternActionContext, derive_pattern_action_state
-from src.frame_main import (
+from src.pattern_controller import (
     collection_selection_was_overwritten,
     single_import_selection_policy,
 )

@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from src.frame_main import find_companion_texture
+from src.texture_loading_service import find_companion_texture
 from src.texture_naming import TextureKind, TextureNamingProfile
 
 
@@ -31,18 +31,14 @@ class CompanionTextureDiscoveryTests(unittest.TestCase):
             diffuse = Path(directory) / "marine_dif.dds"
             diffuse.touch()
 
-            self.assertIsNone(
-                find_companion_texture(diffuse, TextureKind.SPECULAR)
-            )
+            self.assertIsNone(find_companion_texture(diffuse, TextureKind.SPECULAR))
 
     def test_invalid_diffuse_name_returns_none(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "marine.dds"
             source.touch()
 
-            self.assertIsNone(
-                find_companion_texture(source, TextureKind.TEAM_COLOR)
-            )
+            self.assertIsNone(find_companion_texture(source, TextureKind.TEAM_COLOR))
 
     def test_extension_matching_remains_case_insensitive_but_not_broadened(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -1,9 +1,6 @@
 import os
 import logging
-import platform
 import queue
-import re
-import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from PIL import (
@@ -24,12 +21,11 @@ from src.widget import (
 )
 from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.batch_processing_service import (
+    batch_convert_worker,
     BatchProcessingRequest,
     BatchProcessingResult,
     BatchProcessingService,
     is_batch_diffuse,
-    prepare_batch_workbench,  # noqa: F401 - compatibility export
-    save_processed_image,
 )
 from src.constant import (
     DEFAULT_IMG_SIZE,
@@ -38,17 +34,8 @@ from src.constant import (
     FRAME_TOOL_HEIGHT,
 )
 import src.color_pattern_handler
-from src.dow1_converter import (
-    convert_tem_texture,
-    get_tem_filenames,
-    team_color_output_path,
-)
 from src.dialog_gateway import DialogGateway
-from src.file_selection_service import (
-    FileSelectionService,
-    PATTERN_COLLECTION_FILETYPES,  # noqa: F401 - compatibility export
-    PATTERN_FILETYPES,  # noqa: F401 - compatibility export
-)
+from src.file_selection_service import FileSelectionService
 from src.color_pattern_handler import (
     InvalidPatternError,
     PatternError,
@@ -59,10 +46,8 @@ from src.color_pattern_handler import (
     pattern_colors_equal,
 )
 from src.image_process import ImageWorkbench, TextureValidationError
-from src.logging_setup import configure_application_logging
+from src.logging_setup import configure_application_logging, log_application_startup
 from src.pattern_exchange import (
-    PATTERN_COLLECTION_EXCHANGE_SUFFIX,
-    PATTERN_EXCHANGE_SUFFIX,
     EmptyUserPatternCollectionError,
     DuplicatePatternNameInCollectionError,
     InvalidImportedPatternColorsError,
@@ -88,34 +73,30 @@ from src.pattern_exchange import (
     import_pattern as persist_imported_pattern,
     read_pattern_file,
     read_pattern_collection_file,
+    suggested_pattern_collection_filename,
+    suggested_pattern_filename,
 )
 from src.platform_tools import open_directory_in_file_manager
-from src.pattern_controller import (
-    PatternController,
-    collection_selection_was_overwritten,  # noqa: F401 - compatibility export
-    resolve_pattern_import_conflicts,  # noqa: F401 - compatibility export
-    single_import_selection_policy,  # noqa: F401 - compatibility export
-)
+from src.pattern_controller import PatternController
 from src.preview_controller import PreviewController, PreviewResult
 from src.settings_handler import SettingsHandler
 from src.texture_naming import (
     DEFAULT_TEXTURE_NAMING,
     TextureKind,
 )
-from src.texture_loading_service import (
-    TextureLoadingService,
-    find_companion_texture,  # noqa: F401 - compatibility export
+from src.texture_loading_service import TextureLoadingService
+from src.window_geometry import (
+    PATTERN_LIST_DEFAULT_WIDTH,
+    calculate_diffuse_window_size,
+    calculate_initial_window_size,
+    clamp_window_position,
 )
 from pathlib import Path
 
 from importlib.resources import as_file, files
 
-PATTERN_LIST_DEFAULT_WIDTH = 166
 VERSION = "0.1"
 PREVIEW_DEBOUNCE_MS = 120
-WINDOW_INITIAL_SCALE = 1.4
-WINDOW_SCREEN_FRACTION = 0.9
-WINDOW_CONTENT_PADDING = 16
 PATTERN_SAVE_MENU_LABEL = "Save Current as New Pattern…"
 PATTERN_UPDATE_MENU_LABEL = "Update Selected Pattern"
 PATTERN_RESET_MENU_LABEL = "Reset to Selected Pattern"
@@ -127,43 +108,6 @@ PATTERN_EXPORT_MENU_LABEL = "Export Selected Pattern…"
 PATTERN_COLLECTION_IMPORT_MENU_LABEL = "Import Pattern Collection…"
 PATTERN_COLLECTION_EXPORT_MENU_LABEL = "Export All User Patterns…"
 LOGGER = logging.getLogger(__name__)
-
-WINDOWS_RESERVED_FILENAMES = {
-    "CON",
-    "PRN",
-    "AUX",
-    "NUL",
-    *(f"COM{number}" for number in range(1, 10)),
-    *(f"LPT{number}" for number in range(1, 10)),
-}
-
-
-def suggested_exchange_filename(name, suffix, fallback_name):
-    """Return a portable exchange filename for the supplied canonical suffix."""
-    safe_name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name)
-    safe_name = safe_name.rstrip(" .")
-    if not safe_name:
-        safe_name = fallback_name
-    windows_stem = safe_name.split(".", 1)[0].rstrip(" .").upper()
-    if windows_stem in WINDOWS_RESERVED_FILENAMES:
-        safe_name = f"_{safe_name}"
-    if not safe_name.casefold().endswith(suffix.casefold()):
-        safe_name += suffix
-    return safe_name
-
-
-def suggested_pattern_filename(pattern_name):
-    """Return a portable filename while preserving the internal pattern name."""
-    return suggested_exchange_filename(pattern_name, PATTERN_EXCHANGE_SUFFIX, "pattern")
-
-
-def suggested_pattern_collection_filename(collection_name):
-    """Return a portable filename for a Pattern Collection."""
-    return suggested_exchange_filename(
-        collection_name,
-        PATTERN_COLLECTION_EXCHANGE_SUFFIX,
-        "pattern-collection",
-    )
 
 
 def format_collection_import_result(result):
@@ -203,49 +147,6 @@ def format_collection_import_result(result):
     return "\n\n".join((lines[0], "\n".join(lines[1:])))
 
 
-def calculate_initial_window_size(min_width, min_height, screen_width, screen_height):
-    """Scale the initial size and keep it within a sensible screen area."""
-    scaled_width = round(min_width * WINDOW_INITIAL_SCALE)
-    scaled_height = round(min_height * WINDOW_INITIAL_SCALE)
-    available_width = max(min_width, round(screen_width * WINDOW_SCREEN_FRACTION))
-    available_height = max(min_height, round(screen_height * WINDOW_SCREEN_FRACTION))
-    return (
-        min(scaled_width, available_width),
-        min(scaled_height, available_height),
-    )
-
-
-def calculate_diffuse_window_size(
-    texture_width,
-    texture_height,
-    min_width,
-    min_height,
-    screen_width,
-    screen_height,
-):
-    """Size two texture previews and the tools within the screen margin."""
-    content_width = (
-        texture_width * 2 + PATTERN_LIST_DEFAULT_WIDTH + WINDOW_CONTENT_PADDING
-    )
-    content_height = texture_height + FRAME_TOOL_HEIGHT + WINDOW_CONTENT_PADDING
-    available_width = max(min_width, round(screen_width * WINDOW_SCREEN_FRACTION))
-    available_height = max(min_height, round(screen_height * WINDOW_SCREEN_FRACTION))
-    return (
-        min(max(content_width, min_width), available_width),
-        min(max(content_height, min_height), available_height),
-    )
-
-
-def clamp_window_position(
-    current_x, current_y, window_width, window_height, screen_width, screen_height
-):
-    """Keep the resized window visible while retaining its position if possible."""
-    return (
-        min(max(current_x, 0), max(screen_width - window_width, 0)),
-        min(max(current_y, 0), max(screen_height - window_height, 0)),
-    )
-
-
 def is_window_maximized(window):
     """Recognize the maximized state exposed by different Tk window managers."""
     if window.state() == "zoomed":
@@ -254,39 +155,6 @@ def is_window_maximized(window):
         return bool(window.attributes("-zoomed"))
     except tk.TclError:
         return False
-
-
-def batch_convert_worker(
-    source,
-    destination,
-    dest_format,
-    src_format,
-    profile,
-    cancel,
-    events,
-):
-    errors = []
-    try:
-        files_dict = get_tem_filenames(source, src_format)
-    except Exception as exc:
-        return [str(exc)], [], cancel.is_set()
-
-    events.put(("total", len(files_dict)))
-    for current, (name, textures) in enumerate(files_dict.items(), start=1):
-        if cancel.is_set():
-            break
-        try:
-            result = convert_tem_texture(textures, source)
-            output_path = team_color_output_path(
-                name, destination, dest_format, profile
-            )
-            if output_path is None:
-                raise ValueError(f"Cannot create a team-color filename from '{name}'.")
-            save_processed_image(result, output_path)
-        except Exception as exc:
-            errors.append(f"{name}: {exc}")
-        events.put(("progress", current, len(files_dict)))
-    return errors, [], cancel.is_set()
 
 
 class ArmyPainter(tk.Tk):
@@ -1703,30 +1571,9 @@ class ArmyPainter(tk.Tk):
         self.batch_executor.shutdown(wait=False, cancel_futures=True)
 
 
-def appears_to_run_from_pyinstaller_bundle():
-    """Return whether the interpreter exposes PyInstaller's frozen marker."""
-    return bool(getattr(sys, "frozen", False))
-
-
-def log_application_startup(log_path):
-    """Record non-sensitive runtime details useful for diagnostics."""
-    LOGGER.info("Application startup")
-    LOGGER.info("Application version: %s", VERSION)
-    LOGGER.info("Python version: %s", sys.version.replace("\n", " "))
-    LOGGER.info("Operating system/platform: %s", platform.platform())
-    LOGGER.info(
-        "Running from a PyInstaller bundle: %s",
-        appears_to_run_from_pyinstaller_bundle(),
-    )
-    LOGGER.info(
-        "Application log path: %s",
-        log_path if log_path is not None else "unavailable; using stderr fallback",
-    )
-
-
 def main():
     application_log_path = configure_application_logging()
-    log_application_startup(application_log_path)
+    log_application_startup(application_log_path, VERSION)
     army_painter = ArmyPainter(application_log_path=application_log_path)
     army_painter.mainloop()
     LOGGER.info("Clean application shutdown")

@@ -5,12 +5,9 @@ from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from fake_dialog_gateway import make_dialog_gateway, make_file_selection_service
-from src.frame_main import (
-    PATTERN_COLLECTION_FILETYPES,
-    ArmyPainter,
-    collection_selection_was_overwritten,
-    format_collection_import_result,
-)
+from src.file_selection_service import PATTERN_COLLECTION_FILETYPES
+from src.frame_main import ArmyPainter, format_collection_import_result
+from src.pattern_controller import collection_selection_was_overwritten
 from src.pattern_exchange import (
     CollectionImportAnalysis,
     CollectionImportResult,

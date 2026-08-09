@@ -7,11 +7,9 @@ from unittest.mock import patch
 import test_support  # noqa: F401 - installs the user-data path redirect
 from fake_dialog_gateway import make_dialog_gateway, make_file_selection_service
 from src.color_pattern_handler import color_key
-from src.frame_main import (
-    PATTERN_FILETYPES,
-    ArmyPainter,
-    single_import_selection_policy,
-)
+from src.file_selection_service import PATTERN_FILETYPES
+from src.frame_main import ArmyPainter
+from src.pattern_controller import single_import_selection_policy
 from src.pattern_exchange import (
     ImportedPattern,
     InvalidImportedPatternColorsError,
@@ -191,9 +189,7 @@ class PatternImportGuiTests(unittest.TestCase):
         ArmyPainter.import_pattern(painter)
 
         self.assertEqual(painter.frame_army_pattern.load_count, 0)
-        self.assertEqual(
-            painter.settings.saved_directories, [Path("C:/patterns")]
-        )
+        self.assertEqual(painter.settings.saved_directories, [Path("C:/patterns")])
 
     @patch("src.dialog_gateway.messagebox.showerror")
     @patch(
@@ -220,9 +216,7 @@ class PatternImportGuiTests(unittest.TestCase):
             parent=painter,
         )
         self.assertEqual(painter.frame_army_pattern.load_count, 0)
-        self.assertEqual(
-            painter.settings.saved_directories, [Path("C:/patterns")]
-        )
+        self.assertEqual(painter.settings.saved_directories, [Path("C:/patterns")])
 
     @patch("src.dialog_gateway.messagebox.showerror")
     @patch("src.frame_main.persist_imported_pattern", return_value="Imported")
@@ -316,9 +310,7 @@ class PatternImportGuiTests(unittest.TestCase):
         painter = FakePainter(Path("imports"))
         painter.frame_army_pattern.selected_name = "Selected"
         painter.conflict_decisions = ["overwrite"]
-        colors_before = [
-            box["bg"] for box in painter.frame_color_chooser.color_boxes
-        ]
+        colors_before = [box["bg"] for box in painter.frame_color_chooser.color_boxes]
 
         ArmyPainter.import_pattern(painter)
 
