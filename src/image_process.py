@@ -1,4 +1,8 @@
+from pathlib import Path
+from typing import Sequence
+
 from PIL import Image, ImageDraw
+
 from src.constant import DEFAULT_IMG_SIZE
 
 MAX_TEXTURE_DIMENSION = 16 * 1024
@@ -11,7 +15,7 @@ class TextureValidationError(ValueError):
     """Raised when a texture cannot safely be used by the workbench."""
 
 
-def _validate_dimensions(img, filepath):
+def _validate_dimensions(img: Image.Image, filepath: Path) -> None:
     width, height = img.size
     if width <= 0 or height <= 0:
         raise TextureValidationError(
@@ -24,7 +28,7 @@ def _validate_dimensions(img, filepath):
         )
 
 
-def _open_texture(filepath):
+def _open_texture(filepath: Path) -> Image.Image:
     """Decode an image and return a copy independent of its file handle."""
     try:
         with Image.open(filepath) as img:
@@ -39,18 +43,24 @@ def _open_texture(filepath):
         ) from exc
 
 
-def _same_aspect_ratio(first_size, second_size):
+def _same_aspect_ratio(
+    first_size: tuple[int, int],
+    second_size: tuple[int, int],
+) -> bool:
     first_width, first_height = first_size
     second_width, second_height = second_size
     return first_width * second_height == first_height * second_width
 
 
-def load_diffuse_texture(filepath):
+def load_diffuse_texture(filepath: Path) -> Image.Image:
     """Load one validated diffuse image in the renderer's RGBA mode."""
     return _open_texture(filepath).convert("RGBA")
 
 
-def load_team_colour_texture(filepath, diffuse_size):
+def load_team_colour_texture(
+    filepath: Path,
+    diffuse_size: tuple[int, int],
+) -> Image.Image:
     """Load and validate one RGB/RGBA team-colour image."""
     img = _open_texture(filepath)
     if img.size != diffuse_size:
@@ -71,7 +81,11 @@ def load_team_colour_texture(filepath, diffuse_size):
     return img
 
 
-def load_optional_texture(filepath, map_name, diffuse_size):
+def load_optional_texture(
+    filepath: Path,
+    map_name: str,
+    diffuse_size: tuple[int, int],
+) -> Image.Image:
     """Load, validate, resize, and convert one optional companion map."""
     img = _open_texture(filepath)
     if not _same_aspect_ratio(img.size, diffuse_size):
@@ -86,18 +100,25 @@ def load_optional_texture(filepath, map_name, diffuse_size):
     return img.convert("RGBA")
 
 
-def create_placeholder_img(text="Image PlaceHolder", mode="RGBA"):
+def create_placeholder_img(
+    text: str = "Image PlaceHolder",
+    mode: str = "RGBA",
+) -> Image.Image:
     img = Image.new(mode=mode, size=(DEFAULT_IMG_SIZE, DEFAULT_IMG_SIZE), color="gray")
     d1 = ImageDraw.Draw(img)
     d1.text(xy=(90, 128), fill="black", text=text)
     return img
 
 
-def almostEquals(a, b, thres=5):
+def almostEquals(
+    a: Sequence[int | float],
+    b: Sequence[int | float],
+    thres: int | float = 5,
+) -> bool:
     return all(abs(a[i] - b[i]) < thres for i in range(len(a)))
 
 
-def save_image(image: Image.Image, filepath) -> None:
+def save_image(image: Image.Image, filepath: Path) -> None:
     """Save an explicitly supplied rendered image using established behavior."""
     if str(filepath).endswith(".jpg"):
         image.convert("RGB").save(filepath)

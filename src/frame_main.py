@@ -567,7 +567,7 @@ class ArmyPainter(tk.Tk):
             return
 
         try:
-            save_image(rendered, filename)
+            save_image(rendered, Path(filename))
         except KeyError:
             LOGGER.exception("Unsupported image save extension: %s", filename)
             self.dialogs.show_error(
@@ -700,7 +700,7 @@ class ArmyPainter(tk.Tk):
 
     def load_file(self, filepath: str):
         """Load one diffuse set, then perform its GUI-only follow-up actions."""
-        result = self.texture_loading.load_diffuse_and_companions(filepath)
+        result = self.texture_loading.load_diffuse_and_companions(Path(filepath))
         self.preview_controller.invalidate()
         self.active_texture_set = result.texture_set
 
@@ -774,7 +774,7 @@ class ArmyPainter(tk.Tk):
             return
         try:
             result = self.texture_loading.load_channel_file(
-                self.active_texture_set, filepath
+                self.active_texture_set, Path(filepath)
             )
             self.preview_controller.invalidate()
             self.active_texture_set = result.texture_set

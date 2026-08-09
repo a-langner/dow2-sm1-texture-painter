@@ -61,13 +61,12 @@ class ChannelLoadResult:
 
 
 def validate_supported_texture_path(texture_path: Path) -> Path:
-    path = Path(texture_path)
-    if path.suffix.casefold() not in SUPPORTED_TEXTURE_EXTENSIONS:
+    if texture_path.suffix.casefold() not in SUPPORTED_TEXTURE_EXTENSIONS:
         raise UnsupportedTextureError(
-            f'Unsupported texture file "{path}". Choose a DDS, PNG, JPG, '
-            "BMP, TGA, or BLP file."
+            f'Unsupported texture file "{texture_path}". '
+            "Choose a DDS, PNG, JPG, BMP, TGA, or BLP file."
         )
-    return path
+    return texture_path
 
 
 def find_companion_texture(
@@ -76,7 +75,7 @@ def find_companion_texture(
     profile: TextureNamingProfile = DEFAULT_TEXTURE_NAMING,
 ) -> Path | None:
     """Find a case-insensitive sibling derived from the naming profile."""
-    diffuse_path = Path(diffuse_filepath)
+    diffuse_path = diffuse_filepath
     if target_kind is TextureKind.DIFFUSE:
         raise ValueError("A companion texture kind cannot be diffuse.")
     if not isinstance(target_kind, TextureKind):
@@ -121,7 +120,7 @@ class TextureLoadingService:
         textures = TextureSet(diffuse=diffuse)
 
         try:
-            companions = {
+            companions: dict[TextureKind, Path | None] = {
                 kind: find_companion_texture(
                     diffuse_path, kind, self.naming_profile
                 )
@@ -136,7 +135,7 @@ class TextureLoadingService:
                 f'Could not inspect companion textures for "{diffuse_path}": {exc}'
             ) from exc
 
-        team_color_error = None
+        team_color_error: str | None = None
         team_color_path = companions[TextureKind.TEAM_COLOR]
         if team_color_path is not None:
             LOGGER.debug("Loading team-colour companion: %s", team_color_path)
@@ -152,7 +151,7 @@ class TextureLoadingService:
                     exc,
                 )
 
-        warnings = []
+        warnings: list[TextureLoadWarning] = []
         for kind, path, attribute in (
             (
                 TextureKind.DIRT,
