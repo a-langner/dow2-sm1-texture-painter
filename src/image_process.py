@@ -72,15 +72,6 @@ class ImageWorkbench:
         self.set_placeholder_img()
 
     @property
-    def img_workspace(self):
-        """Temporary compatibility cache for the accepted GUI preview."""
-        return self._compatibility_output
-
-    @img_workspace.setter
-    def img_workspace(self, image):
-        self._compatibility_output = image
-
-    @property
     def colors(self):
         """Compatibility view of the four canonical Pattern colours."""
         return self.render_settings.colors
@@ -200,7 +191,6 @@ class ImageWorkbench:
         diffuse = create_placeholder_img("Select Diffuse Texture", "RGBA")
         team_color = create_placeholder_img("Select Channel Texture", "L")
         self.texture_set = TextureSet(diffuse, team_color)
-        self.img_workspace = self.img_og_dif.copy()
         self.tem_channels = []
 
     def get_render_settings(self):
@@ -293,11 +283,6 @@ class ImageWorkbench:
 
     def load_specular_file(self, filepath: str):
         self.img_spec = self._prepare_optional_map(filepath, "Specular")
-
-    def save(self, filepath: str):
-        """Save the temporary compatibility output used by the current GUI."""
-        save_image(self.img_workspace, filepath)
-
 
 def save_image(image: Image.Image, filepath) -> None:
     """Save an explicitly supplied rendered image using established behavior."""

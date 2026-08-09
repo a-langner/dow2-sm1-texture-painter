@@ -209,7 +209,6 @@ class ArmyPainter(tk.Tk):
         """
         self.img_wbench = ImageWorkbench()
         self.texture_renderer = TextureRenderer()
-        self.preview_output = self.img_wbench.img_workspace
         self.settings = SettingsHandler()
         self.file_selection = FileSelectionService(self.settings, self.dialogs)
         self.pattern_controller = ArmyPainter._create_pattern_controller(self)
@@ -534,19 +533,42 @@ class ArmyPainter(tk.Tk):
         :type Event: [type], optional
         """
         filename = self.file_selection.choose_image_save_destination(self.og_filename)
-        if filename:
-            try:
-                save_image(self.preview_output, filename)
-            except KeyError:
-                self.dialogs.show_error(
-                    title="Wrong File Extension",
-                    message="Error: wrong extension,"
-                    + 'choose an extension from the "Save as type" list',
-                )
+        if not filename:
+            return
+
+        self.sync_render_settings()
+        settings = self.img_wbench.get_render_settings()
+        try:
+            rendered = self.texture_renderer.render(
+                self.img_wbench.texture_set,
+                settings,
+            )
+        except Exception:
+            LOGGER.exception("Could not render the current texture for saving")
+            self.dialogs.show_error(
+                title="Cannot Render Image",
+                message="Could not render the current texture.",
+            )
+            return
+
+        try:
+            save_image(rendered, filename)
+        except KeyError:
+            LOGGER.exception("Unsupported image save extension: %s", filename)
+            self.dialogs.show_error(
+                title="Wrong File Extension",
+                message="Error: wrong extension,"
+                + 'choose an extension from the "Save as type" list',
+            )
+        except (OSError, ValueError):
+            LOGGER.exception("Could not write rendered image to %s", filename)
+            self.dialogs.show_error(
+                title="Cannot Save Image",
+                message=f"Could not write the output image to:\n{filename}",
+            )
 
     def close(self, Event=None):
         self.img_wbench.set_placeholder_img()
-        self.preview_output = self.img_wbench.img_workspace
         self.img_wbench.tem_channels = []
         self.refresh_workspace()
 
@@ -563,7 +585,6 @@ class ArmyPainter(tk.Tk):
 
     def apply_preview_result(self, result: PreviewResult):
         """Apply a completed preview on Tk's event thread."""
-        self.preview_output = result.workspace
         self.img_dif = ImageTk.PhotoImage(result.workspace)
         self.label_img_dif.config(image=self.img_dif)
         self.img_tem = ImageTk.PhotoImage(result.team_colour)
@@ -865,7 +886,6 @@ class ArmyPainter(tk.Tk):
         )
 
     def reset_workspace(self, Event=None):
-        self.preview_output = self.img_wbench.img_og_dif
         for color_box in self.frame_color_chooser.color_boxes:
             color_box["bg"] = "#808080"
         self.frame_sliders.brightness_slider.set(DEFAULT_RENDER_SETTINGS.brightness)

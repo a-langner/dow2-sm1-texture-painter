@@ -91,15 +91,11 @@ Rendering       -> TextureRenderer
 Rendered result -> caller
 ```
 
-`TextureSet` still has exactly four source fields and no output state.
-`ImageWorkbench.img_workspace` remains only as a documented compatibility cache
-for the accepted GUI preview because normal Save As has not yet been migrated.
-The workbench render methods no longer replace that cache. Preview workers
-therefore return their own images without writing shared workbench output;
-`ArmyPainter` alone installs an accepted, non-stale preview for the legacy save
-path. `save_image(image, destination)` provides an explicit saving handoff, and
-the old `ImageWorkbench.save(destination)` temporarily delegates to it with the
-compatibility cache. Job 8 will migrate normal saving and remove that reliance.
+`TextureSet` still has exactly four source fields and no output state. Job 6
+temporarily retained `ImageWorkbench.img_workspace` for the then-unmigrated
+normal Save As path while making workbench rendering side-effect free. Job 8
+subsequently removed that compatibility cache and the old workbench save method.
+`save_image(image, destination)` is the explicit file-writing handoff.
 
 ## PreviewController migration
 
@@ -119,11 +115,36 @@ shutdown, and Tk-thread delivery remain unchanged. Preview rendering remains
 full resolution because the pre-migration path also rendered full-resolution
 sources; resizing behavior was not introduced or moved.
 
-Until Job 8 migrates normal saving, `ArmyPainter.preview_output` retains the
-latest accepted preview and is passed explicitly to `save_image()`. It replaces
-the former workbench output-cache dependency without changing current Save As
-behavior. The legacy `ImageWorkbench.render_snapshot()` remains only as a
-documented compatibility method and has no production preview caller.
+During Job 7, `ArmyPainter.preview_output` temporarily retained the latest
+accepted preview for normal saving. Job 8 removed that transitional field. The
+legacy `ImageWorkbench.render_snapshot()` remains only as a documented
+compatibility method and has no production preview caller.
+
+## Normal Save As migration
+
+Job 8 made normal Save As an independent synchronous full-resolution render:
+
+```text
+choose destination
+-> synchronize current GUI controls into immutable RenderSettings
+-> TextureRenderer.render(current TextureSet, current RenderSettings)
+-> save_image(rendered image, destination)
+```
+
+Cancellation stops before settings synchronization or rendering. Saving does
+not read a preview image, wait for preview completion, reconstruct sources from
+Tk images, or call workbench rendering methods. The renderer is invoked exactly
+once with the authoritative full-resolution source container and current
+settings. `TextureRenderer` remains filesystem-independent; `save_image()` owns
+the established format behavior, including RGB conversion for lowercase `.jpg`
+destinations.
+
+Rendering and writing failures are logged separately and receive distinct
+concise GUI messages. The historical wrong-extension message remains for
+Pillow's `KeyError` path. Image Save As continues to use the existing file
+selection service and does not introduce a new remembered-directory setting.
+Preview completion now owns only display images, so no rendered output cache
+remains on either `ArmyPainter`, `ImageWorkbench`, or `TextureSet`.
 
 ## Current state ownership
 

@@ -104,17 +104,15 @@ class RenderResultOwnershipTests(unittest.TestCase):
         assert_images_equal(self, self.team_color, team_color)
         self.assertIs(self.settings, settings)
 
-    def test_workbench_render_returns_without_replacing_compatibility_output(self):
+    def test_workbench_render_returns_without_storing_output_state(self):
         workbench = ImageWorkbench()
         workbench.texture_set = self.textures
         workbench.apply_render_settings(self.settings)
-        accepted_preview = Image.new("RGBA", (1, 1), "yellow")
-        workbench.img_workspace = accepted_preview
 
         result = workbench.refresh_workspace()
 
-        self.assertIsNot(result, accepted_preview)
-        self.assertIs(workbench.img_workspace, accepted_preview)
+        self.assertFalse(hasattr(workbench, "img_workspace"))
+        self.assertFalse(hasattr(workbench, "_compatibility_output"))
         expected = self.renderer.render(self.textures, self.settings)
         assert_images_equal(self, result, expected)
 
