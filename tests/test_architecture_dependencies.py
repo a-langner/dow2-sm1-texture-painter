@@ -106,6 +106,35 @@ class ArchitectureDependencyTests(unittest.TestCase):
             with self.subTest(module=module_name):
                 self.assert_no_forbidden_imports(module_name, GUI_MODULES)
 
+    def test_renderer_does_not_import_persistence_or_composition_root(self):
+        self.assert_no_forbidden_imports(
+            "texture_renderer.py",
+            {
+                "src.color_pattern_handler",
+                "src.frame_main",
+                "src.pattern_exchange",
+                "src.settings_handler",
+                "src.user_data",
+            },
+        )
+
+    def test_render_consumers_do_not_import_gui_widgets(self):
+        for module_name in (
+            "preview_controller.py",
+            "batch_processing_service.py",
+        ):
+            with self.subTest(module=module_name):
+                self.assert_no_forbidden_imports(
+                    module_name,
+                    {"src.widget", "tkinter"},
+                )
+
+    def test_batch_service_uses_the_concrete_renderer(self):
+        self.assertIn(
+            "src.texture_renderer",
+            imports_for("batch_processing_service.py"),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

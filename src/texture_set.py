@@ -9,9 +9,9 @@ from PIL import Image
 class TextureSet:
     """One renderable set of source textures.
 
-    The container is mutable during the loading migration so callers may replace
-    whole image references. Incoming Pillow images are retained directly rather
-    than copied; rendering code must treat them as read-only.
+    Incoming Pillow images are retained directly rather than copied. Once a set
+    is exposed as active or submitted for rendering, its image references and
+    pixel data are treated as read-only; loading replaces the whole container.
     """
 
     diffuse: Image.Image
