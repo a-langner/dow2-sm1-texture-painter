@@ -5,11 +5,11 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
+from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.widget import (
     FramePatternList,
     calculate_pattern_separator_x,
     find_treeview_body_boundary,
-    pattern_action_states,
 )
 
 
@@ -168,13 +168,13 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
             callback.assert_called_once_with()
 
         frame.set_pattern_action_states(
-            pattern_action_states(
-                type("Selection", (), {"is_user": False})(), modified=True
-            )
+            derive_pattern_action_state(PatternActionContext(True, False, True, False))
         )
         self.assertEqual(frame.modified_label.options["text"], "Modified")
 
-        frame.set_pattern_action_states(pattern_action_states(None, modified=True))
+        frame.set_pattern_action_states(
+            derive_pattern_action_state(PatternActionContext(False, False, True, False))
+        )
         self.assertEqual(frame.modified_label.options["text"], "")
 
     def test_selection_change_invokes_supplied_callback_without_event(self):

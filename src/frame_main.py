@@ -21,8 +21,8 @@ from src.widget import (
     PatternImportConflictDialog,
     PatternCollectionImportConfirmationDialog,
     PatternCollectionConflictDialog,
-    pattern_action_states,
 )
+from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.batch_processing_service import (
     BatchProcessingRequest,
     BatchProcessingResult,
@@ -1246,28 +1246,36 @@ class ArmyPainter(tk.Tk):
     def update_pattern_action_states(self, selection=None):
         if selection is None:
             selection = self.frame_army_pattern.get_selected_pattern()
-        states = pattern_action_states(
-            selection, modified=self.is_selected_pattern_dirty(selection)
+        context = PatternActionContext(
+            has_selection=selection is not None,
+            selected_is_user_pattern=bool(selection and selection.is_user),
+            selected_is_dirty=self.is_selected_pattern_dirty(selection),
+            has_any_user_patterns=(src.color_pattern_handler.has_user_patterns()),
         )
+        ArmyPainter._apply_pattern_action_state(
+            self, derive_pattern_action_state(context)
+        )
+
+    def _apply_pattern_action_state(self, states):
+        """Apply one policy result to the sidebar and Patterns menu."""
         self.frame_army_pattern.set_pattern_action_states(states)
-        self.pattern_menu.entryconfig(PATTERN_SAVE_MENU_LABEL, state=states.save_new)
-        self.pattern_menu.entryconfig(PATTERN_UPDATE_MENU_LABEL, state=states.update)
-        self.pattern_menu.entryconfig(PATTERN_RESET_MENU_LABEL, state=states.reset)
-        self.pattern_menu.entryconfig(PATTERN_RENAME_MENU_LABEL, state=states.rename)
-        self.pattern_menu.entryconfig(
-            PATTERN_DUPLICATE_MENU_LABEL, state=states.duplicate
+        menu_states = (
+            (PATTERN_SAVE_MENU_LABEL, states.save_new_enabled),
+            (PATTERN_UPDATE_MENU_LABEL, states.update_enabled),
+            (PATTERN_RESET_MENU_LABEL, states.reset_enabled),
+            (PATTERN_RENAME_MENU_LABEL, states.rename_enabled),
+            (PATTERN_DUPLICATE_MENU_LABEL, states.duplicate_enabled),
+            (PATTERN_DELETE_MENU_LABEL, states.delete_enabled),
+            (PATTERN_EXPORT_MENU_LABEL, states.export_selected_enabled),
+            (
+                PATTERN_COLLECTION_EXPORT_MENU_LABEL,
+                states.export_all_enabled,
+            ),
         )
-        self.pattern_menu.entryconfig(PATTERN_DELETE_MENU_LABEL, state=states.delete)
-        self.pattern_menu.entryconfig(
-            PATTERN_EXPORT_MENU_LABEL, state=states.export_selected
-        )
-        export_all_state = (
-            tk.NORMAL if src.color_pattern_handler.has_user_patterns() else tk.DISABLED
-        )
-        self.pattern_menu.entryconfig(
-            PATTERN_COLLECTION_EXPORT_MENU_LABEL,
-            state=export_all_state,
-        )
+        for label, enabled in menu_states:
+            self.pattern_menu.entryconfig(
+                label, state=tk.NORMAL if enabled else tk.DISABLED
+            )
 
     def is_selected_pattern_dirty(self, selection=None):
         """Compare current GUI colors with the selected in-memory Pattern."""

@@ -6,11 +6,12 @@ from unittest.mock import patch
 
 import test_support
 import src.color_pattern_handler as pattern_handler
+from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.frame_main import (
     collection_selection_was_overwritten,
     single_import_selection_policy,
 )
-from src.widget import PatternSelection, build_pattern_rows, pattern_action_states
+from src.widget import PatternSelection, build_pattern_rows
 
 ORIGINAL_COLORS = ["#112233", "#445566", "#778899", "#aabbcc"]
 UPDATED_COLORS = ["#010203", "#141516", "#272829", "#3a3b3c"]
@@ -70,28 +71,36 @@ class PatternEditingEndToEndTests(unittest.TestCase):
         builtin = PatternSelection("Built-in", False)
         user = PatternSelection("User", True)
 
-        no_selection = pattern_action_states(None)
-        builtin_state = pattern_action_states(builtin)
-        clean_user = pattern_action_states(user, modified=False)
-        dirty_user = pattern_action_states(user, modified=True)
-        restored_user = pattern_action_states(
+        def derive(selection, modified=False):
+            return derive_pattern_action_state(
+                PatternActionContext(
+                    selection is not None,
+                    bool(selection and selection.is_user),
+                    modified,
+                    True,
+                )
+            )
+
+        no_selection = derive(None)
+        builtin_state = derive(builtin)
+        clean_user = derive(user, modified=False)
+        dirty_user = derive(user, modified=True)
+        restored_user = derive(
             user,
-            modified=not pattern_handler.pattern_colors_equal(
-                ORIGINAL_COLORS, ORIGINAL_COLORS
-            ),
+            not pattern_handler.pattern_colors_equal(ORIGINAL_COLORS, ORIGINAL_COLORS),
         )
 
         for state in (no_selection, builtin_state):
-            self.assertEqual(state.update, "disabled")
-            self.assertEqual(state.rename, "disabled")
-            self.assertEqual(state.delete, "disabled")
-        self.assertEqual(clean_user.update, "disabled")
-        self.assertEqual(clean_user.rename, "normal")
-        self.assertEqual(clean_user.delete, "normal")
-        self.assertEqual(dirty_user.update, "normal")
-        self.assertEqual(dirty_user.reset, "normal")
-        self.assertEqual(restored_user.update, "disabled")
-        self.assertEqual(restored_user.reset, "disabled")
+            self.assertFalse(state.update_enabled)
+            self.assertFalse(state.rename_enabled)
+            self.assertFalse(state.delete_enabled)
+        self.assertFalse(clean_user.update_enabled)
+        self.assertTrue(clean_user.rename_enabled)
+        self.assertTrue(clean_user.delete_enabled)
+        self.assertTrue(dirty_user.update_enabled)
+        self.assertTrue(dirty_user.reset_enabled)
+        self.assertFalse(restored_user.update_enabled)
+        self.assertFalse(restored_user.reset_enabled)
 
         # Brightness and contrast are deliberately absent from color comparison.
         for brightness, contrast in ((0, 0), (75, 100), (200, 200)):

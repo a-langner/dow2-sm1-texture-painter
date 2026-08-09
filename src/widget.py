@@ -9,8 +9,8 @@ from tkinter import colorchooser, filedialog
 from functools import partial
 from typing import Callable, Optional
 from src.color_pattern_handler import get_all_patterns, is_user_pattern
+from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.constant import OPEN_FILETYPES, SAVE_EXT_LIST, ColorOps
-
 
 COLOR_BOX_SIZE = 90
 COLOR_BTN_HEIGHT = 26
@@ -30,43 +30,13 @@ class PatternSelection:
     is_user: bool
 
 
-@dataclass(frozen=True)
-class PatternActionStates:
-    save_new: str
-    update: str
-    reset: str
-    rename: str
-    duplicate: str
-    delete: str
-    export_selected: str
-    modified: bool
-
-
-def pattern_action_states(selection, modified=False):
-    """Return all selection-based Pattern action states."""
-    has_selection = selection is not None
-    user_selected = has_selection and selection.is_user
-    return PatternActionStates(
-        save_new=tk.NORMAL,
-        update=tk.NORMAL if user_selected and modified else tk.DISABLED,
-        reset=tk.NORMAL if has_selection and modified else tk.DISABLED,
-        rename=tk.NORMAL if user_selected else tk.DISABLED,
-        duplicate=tk.NORMAL if has_selection else tk.DISABLED,
-        delete=tk.NORMAL if user_selected else tk.DISABLED,
-        export_selected=tk.NORMAL if has_selection else tk.DISABLED,
-        modified=bool(has_selection and modified),
-    )
-
-
 def pattern_name_to_restore(preferred_name, current_name, available_names):
     """Choose a refresh selection by internal name, never by row position."""
     candidate = preferred_name if preferred_name is not None else current_name
     return candidate if candidate in available_names else None
 
 
-def calculate_pattern_separator_x(
-    tree_x, tree_width, marker_width, border_width=0
-):
+def calculate_pattern_separator_x(tree_x, tree_width, marker_width, border_width=0):
     """Return the marker-column boundary within the Treeview parent."""
     return max(tree_x, tree_x + tree_width - marker_width - border_width)
 
@@ -175,9 +145,7 @@ class FrameColorChooser(tk.Frame):
                     width=COLOR_BOX_SIZE,
                 )
             )
-            self.color_boxes[i].bind(
-                "<Button-1>", partial(self.apply_color, i)
-            )
+            self.color_boxes[i].bind("<Button-1>", partial(self.apply_color, i))
             self.color_boxes[i].place(
                 anchor=tk.NW, x=COLOR_BOX_SIZE * i, y=COLOR_BTN_HEIGHT
             )
@@ -191,9 +159,7 @@ class FrameColorChooser(tk.Frame):
                     command=partial(self.apply_color, i),
                 )
             )
-            self.color_buttons[i].place(
-                anchor=tk.NW, x=COLOR_BOX_SIZE * i + i * 1, y=0
-            )
+            self.color_buttons[i].place(anchor=tk.NW, x=COLOR_BOX_SIZE * i + i * 1, y=0)
         self.draw_rgb_value()
 
     def apply_color(self, btn_idx: int, Event=None):
@@ -359,12 +325,10 @@ class FramePatternList(tk.Frame):
         self._on_state_changed = on_state_changed
         self._external_callbacks_enabled = False
         self.pattern_style = ttk.Style(self)
-        heading_font = self.pattern_style.lookup(
-            "Treeview.Heading", "font"
-        ) or "TkHeadingFont"
-        self.pattern_heading_font = tkfont.Font(
-            root=self, font=heading_font
+        heading_font = (
+            self.pattern_style.lookup("Treeview.Heading", "font") or "TkHeadingFont"
         )
+        self.pattern_heading_font = tkfont.Font(root=self, font=heading_font)
         self.pattern_heading_font.configure(weight=tkfont.BOLD)
         self.pattern_style.configure(
             "Pattern.Treeview.Heading", font=self.pattern_heading_font
@@ -396,20 +360,14 @@ class FramePatternList(tk.Frame):
         self.scrollbar.config(command=self.tree.yview)
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.header_separator_pressed = False
-        self.tree.bind(
-            "<Button-1>", self._block_header_separator_press, add="+"
-        )
-        self.tree.bind(
-            "<B1-Motion>", self._block_header_separator_drag, add="+"
-        )
+        self.tree.bind("<Button-1>", self._block_header_separator_press, add="+")
+        self.tree.bind("<B1-Motion>", self._block_header_separator_drag, add="+")
         self.tree.bind(
             "<ButtonRelease-1>",
             self._block_header_separator_release,
             add="+",
         )
-        self.tree.bind(
-            "<Motion>", self._update_header_separator_cursor, add="+"
-        )
+        self.tree.bind("<Motion>", self._update_header_separator_cursor, add="+")
         self.tree.bind("<Leave>", self._restore_tree_cursor, add="+")
 
         self.column_separator = ttk.Separator(
@@ -423,33 +381,17 @@ class FramePatternList(tk.Frame):
         self.header_separator_map_binding_id = self.tree.bind(
             "<Map>", self._on_tree_mapped, add="+"
         )
-        self.tree.bind(
-            "<Configure>", self._position_column_separator, add="+"
-        )
-        self.tree.bind(
-            "<Configure>", self._position_header_separator, add="+"
-        )
-        self.tree.bind(
-            "<<ThemeChanged>>", self._schedule_separator_position, add="+"
-        )
-        self.column_separator.bind(
-            "<Button-1>", self._select_row_through_separator
-        )
-        self.column_separator.bind(
-            "<MouseWheel>", self._scroll_tree_through_separator
-        )
-        self.column_separator.bind(
-            "<Button-4>", self._scroll_tree_up_through_separator
-        )
+        self.tree.bind("<Configure>", self._position_column_separator, add="+")
+        self.tree.bind("<Configure>", self._position_header_separator, add="+")
+        self.tree.bind("<<ThemeChanged>>", self._schedule_separator_position, add="+")
+        self.column_separator.bind("<Button-1>", self._select_row_through_separator)
+        self.column_separator.bind("<MouseWheel>", self._scroll_tree_through_separator)
+        self.column_separator.bind("<Button-4>", self._scroll_tree_up_through_separator)
         self.column_separator.bind(
             "<Button-5>", self._scroll_tree_down_through_separator
         )
-        self.header_separator.bind(
-            "<MouseWheel>", self._scroll_tree_through_separator
-        )
-        self.header_separator.bind(
-            "<Button-4>", self._scroll_tree_up_through_separator
-        )
+        self.header_separator.bind("<MouseWheel>", self._scroll_tree_through_separator)
+        self.header_separator.bind("<Button-4>", self._scroll_tree_up_through_separator)
         self.header_separator.bind(
             "<Button-5>", self._scroll_tree_down_through_separator
         )
@@ -457,15 +399,17 @@ class FramePatternList(tk.Frame):
 
         self.load_pattern_list(notify_state=False)
         self._create_action_buttons()
-        self.set_pattern_action_states(pattern_action_states(None))
+        self.set_pattern_action_states(
+            derive_pattern_action_state(
+                PatternActionContext(False, False, False, False)
+            )
+        )
 
     def enable_external_callbacks(self):
         """Enable controller notifications after widget assignment completes."""
         if self._external_callbacks_enabled:
             return
-        self.tree.bind(
-            "<<TreeviewSelect>>", self._notify_selection_changed, add="+"
-        )
+        self.tree.bind("<<TreeviewSelect>>", self._notify_selection_changed, add="+")
         self._external_callbacks_enabled = True
 
     def _create_action_buttons(self):
@@ -512,10 +456,7 @@ class FramePatternList(tk.Frame):
         self.delete_button.grid(row=2, column=1, sticky=tk.EW, padx=2, pady=2)
 
     def _notify_selection_changed(self, Event=None):
-        if (
-            self._external_callbacks_enabled
-            and self._on_selection_changed is not None
-        ):
+        if self._external_callbacks_enabled and self._on_selection_changed is not None:
             self._on_selection_changed()
 
     def _tree_border_width(self):
@@ -542,8 +483,8 @@ class FramePatternList(tk.Frame):
             return "break"
 
     def _block_header_separator_release(self, Event):
-        block_release = (
-            self.header_separator_pressed or self._is_header_separator(Event)
+        block_release = self.header_separator_pressed or self._is_header_separator(
+            Event
         )
         self.header_separator_pressed = False
         if block_release:
@@ -604,9 +545,7 @@ class FramePatternList(tk.Frame):
         if self._position_header_separator():
             self.header_separator_startup_retries = 0
             if self.header_separator_map_binding_id is not None:
-                self.tree.unbind(
-                    "<Map>", self.header_separator_map_binding_id
-                )
+                self.tree.unbind("<Map>", self.header_separator_map_binding_id)
                 self.header_separator_map_binding_id = None
             return
 
@@ -620,9 +559,7 @@ class FramePatternList(tk.Frame):
             return False
 
         separator_height = max(self.header_separator.winfo_reqheight(), 1)
-        separator_y = self.tree.winfo_y() + max(
-            boundary_y - separator_height, 0
-        )
+        separator_y = self.tree.winfo_y() + max(boundary_y - separator_height, 0)
         self.header_separator.place(
             x=self.tree.winfo_x(),
             y=separator_y,
@@ -664,9 +601,7 @@ class FramePatternList(tk.Frame):
         self.tree.clear_patterns()
         rows = build_pattern_rows()
         for row in rows:
-            self.tree.insert_pattern(
-                row["name"], user_created=row["is_user"]
-            )
+            self.tree.insert_pattern(row["name"], user_created=row["is_user"])
         pattern_name = pattern_name_to_restore(
             preferred_pattern_name,
             current_pattern_name,
@@ -723,11 +658,21 @@ class FramePatternList(tk.Frame):
 
     def set_pattern_action_states(self, states):
         """Apply centralized Pattern action policy to this widget's buttons."""
-        self.save_new_button.config(state=states.save_new)
-        self.update_button.config(state=states.update)
-        self.rename_button.config(state=states.rename)
-        self.delete_button.config(state=states.delete)
-        self.modified_label.config(text="Modified" if states.modified else "")
+        self.save_new_button.config(
+            state=tk.NORMAL if states.save_new_enabled else tk.DISABLED
+        )
+        self.update_button.config(
+            state=tk.NORMAL if states.update_enabled else tk.DISABLED
+        )
+        self.rename_button.config(
+            state=tk.NORMAL if states.rename_enabled else tk.DISABLED
+        )
+        self.delete_button.config(
+            state=tk.NORMAL if states.delete_enabled else tk.DISABLED
+        )
+        self.modified_label.config(
+            text="Modified" if states.modified_indicator_visible else ""
+        )
 
     def select_pattern(self, pattern_name):
         item_id = self.get_pattern_item_id(pattern_name)
@@ -753,8 +698,7 @@ class PatternImportConflictDialog(tk.Toplevel):
         ttk.Label(
             self,
             text=(
-                f"A {conflict_source} pattern named '{pattern_name}' already "
-                "exists."
+                f"A {conflict_source} pattern named '{pattern_name}' already " "exists."
             ),
             justify=tk.LEFT,
             wraplength=360,
@@ -900,9 +844,7 @@ class PatternCollectionConflictDialog(tk.Toplevel):
 
         button_frame = ttk.Frame(self, padding=(12, 8, 12, 12))
         button_frame.pack(fill=tk.X)
-        import_button = ttk.Button(
-            button_frame, text="Import", command=self._import
-        )
+        import_button = ttk.Button(button_frame, text="Import", command=self._import)
         import_button.pack(side=tk.LEFT, padx=4)
         ttk.Button(
             button_frame, text="Cancel", command=lambda: self._finish(False)
@@ -985,9 +927,9 @@ class BatchEditTopLevel(tk.Toplevel):
         # Destination Format Option Menu
         self.frame_destination_format = tk.Frame(self)
         self.frame_destination_format.pack(side=tk.TOP, fill=tk.X)
-        tk.Label(
-            self.frame_destination_format, text="Destination format:"
-        ).pack(side=tk.LEFT)
+        tk.Label(self.frame_destination_format, text="Destination format:").pack(
+            side=tk.LEFT
+        )
         self.dest_format = tk.StringVar(self)
         self.dest_format.set(SAVE_EXT_LIST[0].upper())
         self.dest_menu = tk.OptionMenu(
@@ -1031,9 +973,9 @@ class BatchEditTopLevel(tk.Toplevel):
         ):
             entry_frame = tk.Frame(frame)
             entry_frame.pack(side=tk.TOP, fill=tk.X)
-            tk.Label(
-                entry_frame, text=label, width=label_width, anchor=tk.W
-            ).pack(side=tk.LEFT)
+            tk.Label(entry_frame, text=label, width=label_width, anchor=tk.W).pack(
+                side=tk.LEFT
+            )
             entry_frame.entry_value = tk.StringVar(value=starting_value)
             entry_path = tk.Entry(
                 entry_frame,
@@ -1052,12 +994,8 @@ class BatchEditTopLevel(tk.Toplevel):
             entry_button.pack(side=tk.LEFT)
             return entry_frame
 
-        self.frame_batch_src_path = widget_entry_template(
-            self, "Source folder:"
-        )
-        self.frame_batch_dest_path = widget_entry_template(
-            self, "Destination folder:"
-        )
+        self.frame_batch_src_path = widget_entry_template(self, "Source folder:")
+        self.frame_batch_dest_path = widget_entry_template(self, "Destination folder:")
 
         self.frame_progress_bar = tk.LabelFrame(
             self, relief=tk.RIDGE, bd=2, text="Awaiting process"
@@ -1075,9 +1013,7 @@ class BatchEditTopLevel(tk.Toplevel):
     def update_progress_bar_label(self, current: int):
         maximum = self.progress_bar["maximum"]
         self.progress_bar["value"] = current
-        self.frame_progress_bar.configure(
-            text=f"Completed {current}/{maximum} file(s)"
-        )
+        self.frame_progress_bar.configure(text=f"Completed {current}/{maximum} file(s)")
 
     def set_running(self, running):
         normal_state = tk.DISABLED if running else tk.NORMAL
@@ -1092,6 +1028,4 @@ class BatchEditTopLevel(tk.Toplevel):
         ):
             entry_frame.entry_path.configure(state=normal_state)
             entry_frame.entry_button.configure(state=normal_state)
-        self.cancel_button.configure(
-            state=tk.NORMAL if running else tk.DISABLED
-        )
+        self.cancel_button.configure(state=tk.NORMAL if running else tk.DISABLED)

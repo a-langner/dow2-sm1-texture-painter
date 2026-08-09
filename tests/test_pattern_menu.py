@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
+from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.frame_main import (
     PATTERN_COLLECTION_IMPORT_MENU_LABEL,
     PATTERN_COLLECTION_EXPORT_MENU_LABEL,
@@ -20,9 +21,19 @@ from src.frame_main import (
 from src.widget import (
     FramePatternList,
     PatternSelection,
-    pattern_action_states,
     pattern_name_to_restore,
 )
+
+
+def derive_for_selection(selection, modified=False, has_users=False):
+    return derive_pattern_action_state(
+        PatternActionContext(
+            selection is not None,
+            bool(selection and selection.is_user),
+            modified,
+            has_users,
+        )
+    )
 
 
 class FakePatternList:
@@ -126,9 +137,7 @@ class PatternMenuStateTests(unittest.TestCase):
             for item_type, options in menubar.items
             if item_type == "cascade"
         }
-        self.assertEqual(
-            list(cascades), ["File", "Edit", "Patterns", "Tools", "Help"]
-        )
+        self.assertEqual(list(cascades), ["File", "Edit", "Patterns", "Tools", "Help"])
         self.assertEqual(
             cascades["Help"].items,
             [
@@ -188,66 +197,73 @@ class PatternMenuStateTests(unittest.TestCase):
         self.assertIs(commands[PATTERN_DELETE_MENU_LABEL], handlers["delete_pattern"])
 
     def test_command_policy_covers_no_builtin_and_user_selection(self):
-        no_selection = pattern_action_states(None)
+        no_selection = derive_for_selection(None)
         self.assertEqual(
             (
-                no_selection.save_new,
-                no_selection.update,
-                no_selection.reset,
-                no_selection.rename,
-                no_selection.duplicate,
-                no_selection.delete,
-                no_selection.export_selected,
+                no_selection.save_new_enabled,
+                no_selection.update_enabled,
+                no_selection.reset_enabled,
+                no_selection.rename_enabled,
+                no_selection.duplicate_enabled,
+                no_selection.delete_enabled,
+                no_selection.export_selected_enabled,
             ),
             (
-                "normal",
-                "disabled",
-                "disabled",
-                "disabled",
-                "disabled",
-                "disabled",
-                "disabled",
+                True,
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
             ),
         )
 
-        builtin = pattern_action_states(PatternSelection("Built-in", False))
+        builtin = derive_for_selection(PatternSelection("Built-in", False))
         self.assertEqual(
             (
-                builtin.update,
-                builtin.reset,
-                builtin.rename,
-                builtin.duplicate,
-                builtin.delete,
-                builtin.export_selected,
+                builtin.update_enabled,
+                builtin.reset_enabled,
+                builtin.rename_enabled,
+                builtin.duplicate_enabled,
+                builtin.delete_enabled,
+                builtin.export_selected_enabled,
             ),
             (
-                "disabled",
-                "disabled",
-                "disabled",
-                "normal",
-                "disabled",
-                "normal",
+                False,
+                False,
+                False,
+                True,
+                False,
+                True,
             ),
         )
 
-        user = pattern_action_states(PatternSelection("Custom", True))
+        user = derive_for_selection(PatternSelection("Custom", True))
         self.assertEqual(
-            (user.update, user.rename, user.delete, user.export_selected),
-            ("disabled", "normal", "normal", "normal"),
+            (
+                user.update_enabled,
+                user.rename_enabled,
+                user.delete_enabled,
+                user.export_selected_enabled,
+            ),
+            (False, True, True, True),
         )
 
-        modified_user = pattern_action_states(
+        modified_user = derive_for_selection(
             PatternSelection("Custom", True), modified=True
         )
-        self.assertEqual(modified_user.update, "normal")
-        self.assertEqual(modified_user.reset, "normal")
-        self.assertTrue(modified_user.modified)
+        self.assertTrue(modified_user.update_enabled)
+        self.assertTrue(modified_user.reset_enabled)
+        self.assertTrue(modified_user.modified_indicator_visible)
         self.assertTrue(
-            pattern_action_states(
+            derive_for_selection(
                 PatternSelection("Built-in", False), modified=True
-            ).modified
+            ).modified_indicator_visible
         )
-        self.assertFalse(pattern_action_states(None, modified=True).modified)
+        self.assertFalse(
+            derive_for_selection(None, modified=True).modified_indicator_visible
+        )
 
     def test_refresh_selection_uses_internal_name_and_handles_removal(self):
         names = {"Built-in", "Custom"}
@@ -273,7 +289,7 @@ class PatternMenuStateTests(unittest.TestCase):
                 PATTERN_COLLECTION_EXPORT_MENU_LABEL: "disabled",
             },
         )
-        self.assertEqual(painter.frame_army_pattern.action_states.delete, "disabled")
+        self.assertFalse(painter.frame_army_pattern.action_states.delete_enabled)
 
     def test_export_is_enabled_for_any_internal_pattern_name(self):
         for pattern_name in ("Built-in", "User-created"):
@@ -290,8 +306,8 @@ class PatternMenuStateTests(unittest.TestCase):
                     "normal" if pattern_name == "User-created" else "disabled"
                 )
                 self.assertEqual(
-                    painter.frame_army_pattern.action_states.delete,
-                    expected_delete,
+                    painter.frame_army_pattern.action_states.delete_enabled,
+                    expected_delete == "normal",
                 )
 
     def test_only_dirty_user_selection_enables_update(self):
@@ -306,8 +322,8 @@ class PatternMenuStateTests(unittest.TestCase):
                 ArmyPainter.update_pattern_action_states(painter)
 
                 self.assertEqual(
-                    painter.frame_army_pattern.action_states.update,
-                    expected_update,
+                    painter.frame_army_pattern.action_states.update_enabled,
+                    expected_update == "normal",
                 )
                 self.assertEqual(
                     painter.pattern_menu.states[PATTERN_UPDATE_MENU_LABEL],
@@ -320,15 +336,27 @@ class PatternMenuStateTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     painter.pattern_menu.states[PATTERN_RENAME_MENU_LABEL],
-                    painter.frame_army_pattern.action_states.rename,
+                    (
+                        "normal"
+                        if painter.frame_army_pattern.action_states.rename_enabled
+                        else "disabled"
+                    ),
                 )
                 self.assertEqual(
                     painter.pattern_menu.states[PATTERN_DUPLICATE_MENU_LABEL],
-                    painter.frame_army_pattern.action_states.duplicate,
+                    (
+                        "normal"
+                        if painter.frame_army_pattern.action_states.duplicate_enabled
+                        else "disabled"
+                    ),
                 )
                 self.assertEqual(
                     painter.pattern_menu.states[PATTERN_DELETE_MENU_LABEL],
-                    painter.frame_army_pattern.action_states.delete,
+                    (
+                        "normal"
+                        if painter.frame_army_pattern.action_states.delete_enabled
+                        else "disabled"
+                    ),
                 )
 
     def test_export_returns_to_disabled_when_selection_is_cleared(self):
@@ -342,7 +370,7 @@ class PatternMenuStateTests(unittest.TestCase):
             painter.pattern_menu.states[PATTERN_EXPORT_MENU_LABEL],
             "disabled",
         )
-        self.assertEqual(painter.frame_army_pattern.action_states.delete, "disabled")
+        self.assertFalse(painter.frame_army_pattern.action_states.delete_enabled)
 
     def test_export_all_state_depends_on_user_patterns_not_selection(self):
         for selected_name in (None, "Built-in"):
@@ -355,11 +383,36 @@ class PatternMenuStateTests(unittest.TestCase):
                 ArmyPainter.update_pattern_action_states(painter)
 
                 self.assertEqual(
-                    painter.pattern_menu.states[
-                        PATTERN_COLLECTION_EXPORT_MENU_LABEL
-                    ],
+                    painter.pattern_menu.states[PATTERN_COLLECTION_EXPORT_MENU_LABEL],
                     "normal",
                 )
+
+    @patch(
+        "src.frame_main.src.color_pattern_handler.has_user_patterns",
+        side_effect=(False, True, False),
+    )
+    def test_first_save_and_last_delete_transition_export_all_state(
+        self, has_user_patterns
+    ):
+        painter = FakePainter()
+
+        ArmyPainter.update_pattern_action_states(painter)
+        self.assertEqual(
+            painter.pattern_menu.states[PATTERN_COLLECTION_EXPORT_MENU_LABEL],
+            "disabled",
+        )
+
+        ArmyPainter.update_pattern_action_states(painter)
+        self.assertEqual(
+            painter.pattern_menu.states[PATTERN_COLLECTION_EXPORT_MENU_LABEL],
+            "normal",
+        )
+
+        ArmyPainter.update_pattern_action_states(painter)
+        self.assertEqual(
+            painter.pattern_menu.states[PATTERN_COLLECTION_EXPORT_MENU_LABEL],
+            "disabled",
+        )
 
     def test_pattern_list_refresh_invokes_state_change_callback(self):
         tree = SimpleNamespace(clear_patterns=Mock(), insert_pattern=Mock())
