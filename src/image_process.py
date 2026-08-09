@@ -72,6 +72,15 @@ class ImageWorkbench:
         self.set_placeholder_img()
 
     @property
+    def img_workspace(self):
+        """Temporary compatibility cache for the accepted GUI preview."""
+        return self._compatibility_output
+
+    @img_workspace.setter
+    def img_workspace(self, image):
+        self._compatibility_output = image
+
+    @property
     def colors(self):
         """Compatibility view of the four canonical Pattern colours."""
         return self.render_settings.colors
@@ -213,19 +222,17 @@ class ImageWorkbench:
 
     def process_coloring(self):
         """Process image with current workspace setting"""
-        self.img_workspace = self._renderer.render_team_colors(
+        return self._renderer.render_team_colors(
             self.texture_set,
             self.render_settings,
         )
-        return self.img_workspace
 
     def refresh_workspace(self):
         """Refresh the workspace image with current settings"""
-        self.img_workspace = self._renderer.render(
+        return self._renderer.render(
             self.texture_set,
             self.render_settings,
         )
-        return self.img_workspace
 
     def refresh_team_colour_img(self):
         return self._renderer.render_team_colour(
@@ -288,7 +295,13 @@ class ImageWorkbench:
         self.img_spec = self._prepare_optional_map(filepath, "Specular")
 
     def save(self, filepath: str):
-        if filepath.endswith(".jpg"):
-            self.img_workspace.convert("RGB").save(filepath)
-        else:
-            self.img_workspace.save(filepath)
+        """Save the temporary compatibility output used by the current GUI."""
+        save_image(self.img_workspace, filepath)
+
+
+def save_image(image: Image.Image, filepath) -> None:
+    """Save an explicitly supplied rendered image using established behavior."""
+    if str(filepath).endswith(".jpg"):
+        image.convert("RGB").save(filepath)
+    else:
+        image.save(filepath)

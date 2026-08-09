@@ -77,6 +77,30 @@ the old independent algorithm has been removed. No caller outside the facade
 has been migrated yet. The renderer has no Tkinter, filesystem, persistence,
 filename, output-path, preview-size, or `ImageWorkbench` dependency.
 
+## Render-result ownership transition
+
+Job 6 keeps the renderer's single `Image.Image` return value rather than adding
+a one-field `RenderResult` wrapper. Each render creates and returns a distinct
+caller-owned image; the renderer stores no output and rendering does not mutate
+the workbench, sources, or settings. The ownership rule is now:
+
+```text
+Source images   -> TextureSet
+Settings        -> RenderSettings
+Rendering       -> TextureRenderer
+Rendered result -> caller
+```
+
+`TextureSet` still has exactly four source fields and no output state.
+`ImageWorkbench.img_workspace` remains only as a documented compatibility cache
+for the accepted GUI preview because normal Save As has not yet been migrated.
+The workbench render methods no longer replace that cache. Preview workers
+therefore return their own images without writing shared workbench output;
+`ArmyPainter` alone installs an accepted, non-stale preview for the legacy save
+path. `save_image(image, destination)` provides an explicit saving handoff, and
+the old `ImageWorkbench.save(destination)` temporarily delegates to it with the
+compatibility cache. Job 8 will migrate normal saving and remove that reliance.
+
 ## Current state ownership
 
 `ImageWorkbench` initializes some fields directly and creates the remaining
