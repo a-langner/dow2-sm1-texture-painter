@@ -59,6 +59,7 @@ class ArmyPainterCompositionTests(unittest.TestCase):
 
     @patch("src.frame_main.BatchProcessingService")
     @patch("src.frame_main.PreviewController")
+    @patch("src.frame_main.TextureRenderer")
     @patch("src.frame_main.TextureLoadingService")
     @patch("src.frame_main.FileSelectionService")
     @patch("src.frame_main.SettingsHandler")
@@ -73,6 +74,7 @@ class ArmyPainterCompositionTests(unittest.TestCase):
         settings_type,
         file_selection_type,
         texture_loading_type,
+        texture_renderer_type,
         preview_controller_type,
         batch_service_type,
     ):
@@ -86,6 +88,7 @@ class ArmyPainterCompositionTests(unittest.TestCase):
             after_cancel=Mock(name="after_cancel"),
             apply_preview_result=Mock(name="apply_preview_result"),
             show_preview_error=Mock(name="show_preview_error"),
+            create_preview_request=Mock(name="create_preview_request"),
         )
 
         ArmyPainter._initialize_services_and_controllers(painter)
@@ -100,7 +103,8 @@ class ArmyPainterCompositionTests(unittest.TestCase):
             workbench_type.return_value, painter.texture_naming_profile
         )
         preview_controller_type.assert_called_once_with(
-            workbench=workbench_type.return_value,
+            renderer=texture_renderer_type.return_value,
+            snapshot_provider=painter.create_preview_request,
             executor=preview_executor,
             schedule_after=painter.after,
             cancel_scheduled=painter.after_cancel,

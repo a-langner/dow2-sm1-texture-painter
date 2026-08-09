@@ -212,7 +212,7 @@ class ImageWorkbench:
         self.render_settings = settings
 
     def render_snapshot(self):
-        """Create a worker-safe view over immutable source images/settings."""
+        """Compatibility snapshot; preview rendering no longer uses this API."""
         snapshot = object.__new__(ImageWorkbench)
         snapshot.texture_set = self.texture_set.copy_for_render()
         snapshot.tem_channels = tuple(self.tem_channels)

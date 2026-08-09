@@ -45,7 +45,7 @@ from src.color_pattern_handler import (
     normalize_pattern_colors,
     pattern_colors_equal,
 )
-from src.image_process import ImageWorkbench, TextureValidationError
+from src.image_process import ImageWorkbench, TextureValidationError, save_image
 from src.logging_setup import configure_application_logging, log_application_startup
 from src.pattern_exchange import (
     EmptyUserPatternCollectionError,
@@ -78,13 +78,14 @@ from src.pattern_exchange import (
 )
 from src.platform_tools import open_directory_in_file_manager
 from src.pattern_controller import PatternController
-from src.preview_controller import PreviewController, PreviewResult
+from src.preview_controller import PreviewController, PreviewRequest, PreviewResult
 from src.render_settings import DEFAULT_RENDER_SETTINGS
 from src.settings_handler import SettingsHandler
 from src.texture_naming import (
     DEFAULT_TEXTURE_NAMING,
     TextureKind,
 )
+from src.texture_renderer import TextureRenderer
 from src.texture_loading_service import TextureLoadingService
 from src.window_geometry import (
     PATTERN_LIST_DEFAULT_WIDTH,
@@ -207,6 +208,8 @@ class ArmyPainter(tk.Tk):
         separate executor so the two workloads cannot block one another.
         """
         self.img_wbench = ImageWorkbench()
+        self.texture_renderer = TextureRenderer()
+        self.preview_output = self.img_wbench.img_workspace
         self.settings = SettingsHandler()
         self.file_selection = FileSelectionService(self.settings, self.dialogs)
         self.pattern_controller = ArmyPainter._create_pattern_controller(self)
@@ -215,7 +218,8 @@ class ArmyPainter(tk.Tk):
         )
         self.preview_executor = ThreadPoolExecutor(max_workers=1)
         self.preview_controller = PreviewController(
-            workbench=self.img_wbench,
+            renderer=self.texture_renderer,
+            snapshot_provider=self.create_preview_request,
             executor=self.preview_executor,
             schedule_after=self.after,
             cancel_scheduled=self.after_cancel,
@@ -225,6 +229,13 @@ class ArmyPainter(tk.Tk):
         )
         self.batch_executor = ThreadPoolExecutor(max_workers=1)
         self.batch_processing = BatchProcessingService()
+
+    def create_preview_request(self):
+        """Capture one shallow, read-only preview request on the Tk thread."""
+        return PreviewRequest(
+            textures=self.img_wbench.texture_set.copy_for_render(),
+            settings=self.img_wbench.get_render_settings(),
+        )
 
     def _create_application_widgets(self):
         """Build widgets and menus, then explicitly activate callbacks."""
@@ -525,7 +536,7 @@ class ArmyPainter(tk.Tk):
         filename = self.file_selection.choose_image_save_destination(self.og_filename)
         if filename:
             try:
-                self.img_wbench.save(filename)
+                save_image(self.preview_output, filename)
             except KeyError:
                 self.dialogs.show_error(
                     title="Wrong File Extension",
@@ -535,6 +546,7 @@ class ArmyPainter(tk.Tk):
 
     def close(self, Event=None):
         self.img_wbench.set_placeholder_img()
+        self.preview_output = self.img_wbench.img_workspace
         self.img_wbench.tem_channels = []
         self.refresh_workspace()
 
@@ -551,7 +563,7 @@ class ArmyPainter(tk.Tk):
 
     def apply_preview_result(self, result: PreviewResult):
         """Apply a completed preview on Tk's event thread."""
-        self.img_wbench.img_workspace = result.workspace
+        self.preview_output = result.workspace
         self.img_dif = ImageTk.PhotoImage(result.workspace)
         self.label_img_dif.config(image=self.img_dif)
         self.img_tem = ImageTk.PhotoImage(result.team_colour)
@@ -853,7 +865,7 @@ class ArmyPainter(tk.Tk):
         )
 
     def reset_workspace(self, Event=None):
-        self.img_wbench.img_workspace = self.img_wbench.img_og_dif
+        self.preview_output = self.img_wbench.img_og_dif
         for color_box in self.frame_color_chooser.color_boxes:
             color_box["bg"] = "#808080"
         self.frame_sliders.brightness_slider.set(DEFAULT_RENDER_SETTINGS.brightness)

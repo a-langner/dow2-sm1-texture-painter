@@ -101,6 +101,30 @@ path. `save_image(image, destination)` provides an explicit saving handoff, and
 the old `ImageWorkbench.save(destination)` temporarily delegates to it with the
 compatibility cache. Job 8 will migrate normal saving and remove that reliance.
 
+## PreviewController migration
+
+Job 7 migrated interactive preview work to explicit `PreviewRequest` values.
+`ArmyPainter` synchronizes GUI settings, then its injected snapshot provider
+captures a shallow `TextureSet` copy and the current immutable `RenderSettings`.
+The container is distinct while its Pillow images are shared read-only; this
+avoids copying full-resolution pixel buffers for rapid slider and colour
+changes. Replacing live texture references or settings after capture cannot
+alter an outstanding request.
+
+One application-owned `TextureRenderer` is injected into `PreviewController`.
+The worker invokes it directly for the final image and selected-channel preview;
+it never calls `ImageWorkbench`, reads widgets, or writes a cached workbench
+output. Debounce, request identity, cancellation, stale-result rejection,
+shutdown, and Tk-thread delivery remain unchanged. Preview rendering remains
+full resolution because the pre-migration path also rendered full-resolution
+sources; resizing behavior was not introduced or moved.
+
+Until Job 8 migrates normal saving, `ArmyPainter.preview_output` retains the
+latest accepted preview and is passed explicitly to `save_image()`. It replaces
+the former workbench output-cache dependency without changing current Save As
+behavior. The legacy `ImageWorkbench.render_snapshot()` remains only as a
+documented compatibility method and has no production preview caller.
+
 ## Current state ownership
 
 `ImageWorkbench` initializes some fields directly and creates the remaining

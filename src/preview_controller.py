@@ -3,6 +3,9 @@
 from dataclasses import dataclass
 import logging
 
+from src.render_settings import RenderSettings
+from src.texture_set import TextureSet
+
 LOGGER = logging.getLogger(__name__)
 PREVIEW_POLL_INTERVAL_MS = 20
 
@@ -14,9 +17,18 @@ class PreviewResult:
     team_colour: object
 
 
-def render_preview(snapshot):
-    """Render one immutable workbench snapshot in a worker thread."""
-    return snapshot.refresh_workspace(), snapshot.refresh_team_colour_img()
+@dataclass(frozen=True)
+class PreviewRequest:
+    textures: TextureSet
+    settings: RenderSettings
+
+
+def render_preview(renderer, request):
+    """Render one immutable source/settings request in a worker thread."""
+    return (
+        renderer.render(request.textures, request.settings),
+        renderer.render_team_colour(request.textures, request.settings),
+    )
 
 
 class PreviewController:
@@ -30,7 +42,8 @@ class PreviewController:
     def __init__(
         self,
         *,
-        workbench,
+        renderer,
+        snapshot_provider,
         executor,
         schedule_after,
         cancel_scheduled,
@@ -40,7 +53,8 @@ class PreviewController:
         render=render_preview,
         poll_interval_ms=PREVIEW_POLL_INTERVAL_MS,
     ):
-        self.workbench = workbench
+        self.renderer = renderer
+        self.snapshot_provider = snapshot_provider
         self.executor = executor
         self.schedule_after = schedule_after
         self.cancel_scheduled = cancel_scheduled
@@ -102,8 +116,8 @@ class PreviewController:
         if self.is_shutdown or request_id != self.request_id:
             return
         self._cancel_not_running_futures()
-        snapshot = self.workbench.render_snapshot()
-        future = self.executor.submit(self.render, snapshot)
+        request = self.snapshot_provider()
+        future = self.executor.submit(self.render, self.renderer, request)
         self.futures.add(future)
         self._schedule(
             self.poll_interval_ms,

@@ -6,7 +6,7 @@ from PIL import Image
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.constant import ColorOps
 from src.image_process import ImageWorkbench
-from src.preview_controller import render_preview
+from src.preview_controller import PreviewRequest, render_preview
 from src.texture_renderer import TextureRenderer
 
 DIFFUSE_PIXELS = (
@@ -405,7 +405,11 @@ class ImageWorkbenchRenderingTests(unittest.TestCase):
         direct_output = workbench.refresh_workspace().copy()
         direct_team = workbench.refresh_team_colour_img().copy()
 
-        preview_output, preview_team = render_preview(workbench.render_snapshot())
+        request = PreviewRequest(
+            workbench.texture_set.copy_for_render(),
+            workbench.get_render_settings(),
+        )
+        preview_output, preview_team = render_preview(TextureRenderer(), request)
 
         self.assert_images_equal(preview_output, direct_output)
         self.assert_images_equal(preview_team, direct_team)

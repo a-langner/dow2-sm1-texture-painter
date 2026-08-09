@@ -2,8 +2,13 @@ import threading
 import unittest
 from concurrent.futures import Future
 
+from PIL import Image
+
 import test_support  # noqa: F401 - installs the user-data path redirect
-from src.preview_controller import PreviewController
+from src.preview_controller import PreviewController, PreviewRequest
+from src.render_settings import RenderSettings
+from src.texture_renderer import TextureRenderer
+from src.texture_set import TextureSet
 
 
 class FakeScheduler:
@@ -36,14 +41,14 @@ class ControlledExecutor:
         self.submissions = []
         self.shutdown_calls = 0
 
-    def submit(self, function, argument):
+    def submit(self, function, *arguments):
         future = Future()
-        self.submissions.append((future, function, argument))
+        self.submissions.append((future, function, arguments))
         return future
 
     def complete(self, index=0):
-        future, function, argument = self.submissions[index]
-        future.set_result(function(argument))
+        future, function, arguments = self.submissions[index]
+        future.set_result(function(*arguments))
 
     def fail(self, error, index=0):
         self.submissions[index][0].set_exception(error)
@@ -52,13 +57,30 @@ class ControlledExecutor:
         self.shutdown_calls += 1
 
 
-class FakeWorkbench:
+class FakeSnapshotProvider:
     def __init__(self):
         self.snapshot_number = 0
 
-    def render_snapshot(self):
+    def __call__(self):
         self.snapshot_number += 1
-        return self.snapshot_number
+        return PreviewRequest(
+            f"textures-{self.snapshot_number}",
+            f"settings-{self.snapshot_number}",
+        )
+
+
+class FakeRenderer:
+    def __init__(self):
+        self.render_calls = []
+        self.team_calls = []
+
+    def render(self, textures, settings):
+        self.render_calls.append((textures, settings))
+        return f"workspace-{textures[-1]}"
+
+    def render_team_colour(self, textures, settings):
+        self.team_calls.append((textures, settings))
+        return f"team-{textures[-1]}"
 
 
 class PreviewControllerTests(unittest.TestCase):
@@ -67,18 +89,17 @@ class PreviewControllerTests(unittest.TestCase):
         self.executor = ControlledExecutor()
         self.results = []
         self.errors = []
+        self.renderer = FakeRenderer()
+        self.snapshot_provider = FakeSnapshotProvider()
         self.controller = PreviewController(
-            workbench=FakeWorkbench(),
+            renderer=self.renderer,
+            snapshot_provider=self.snapshot_provider,
             executor=self.executor,
             schedule_after=self.scheduler.after,
             cancel_scheduled=self.scheduler.cancel,
             on_preview_ready=self.results.append,
             on_preview_error=self.errors.append,
             debounce_ms=120,
-            render=lambda snapshot: (
-                f"workspace-{snapshot}",
-                f"team-{snapshot}",
-            ),
         )
 
     def start_request(self, immediate=True):
@@ -99,6 +120,14 @@ class PreviewControllerTests(unittest.TestCase):
         self.assertEqual(len(self.executor.submissions), 1)
         self.assertEqual(self.results[0].workspace, "workspace-1")
         self.assertEqual(self.results[0].team_colour, "team-1")
+        self.assertEqual(
+            self.renderer.render_calls,
+            [("textures-1", "settings-1")],
+        )
+        self.assertEqual(
+            self.renderer.team_calls,
+            [("textures-1", "settings-1")],
+        )
 
     def test_repeated_debounced_requests_replace_pending_callback(self):
         first = self.controller.request_preview()
@@ -200,6 +229,77 @@ class PreviewControllerTests(unittest.TestCase):
         self.controller.shutdown()
         self.controller.shutdown()
         self.assertFalse(self.scheduler.callbacks)
+
+    def test_snapshot_is_captured_before_later_state_changes(self):
+        settings = RenderSettings(primary_color="#cc2020")
+        textures = TextureSet(
+            Image.new("RGBA", (2, 2), "gray"),
+            Image.new("RGBA", (2, 2), (255, 0, 0, 0)),
+        )
+        live = {"textures": textures, "settings": settings}
+        renderer = FakeRenderer()
+        controller = PreviewController(
+            renderer=renderer,
+            snapshot_provider=lambda: PreviewRequest(
+                live["textures"].copy_for_render(), live["settings"]
+            ),
+            executor=self.executor,
+            schedule_after=self.scheduler.after,
+            cancel_scheduled=self.scheduler.cancel,
+            on_preview_ready=self.results.append,
+            on_preview_error=self.errors.append,
+            debounce_ms=120,
+        )
+        controller.request_preview_immediately()
+        self.scheduler.run_next()
+        captured_request = self.executor.submissions[0][2][1]
+
+        replacement = TextureSet(Image.new("RGBA", (2, 2), "blue"))
+        live["textures"] = replacement
+        live["settings"] = RenderSettings(brightness=20)
+
+        self.assertIsNot(captured_request.textures, textures)
+        self.assertIs(captured_request.textures.diffuse, textures.diffuse)
+        self.assertIs(captured_request.settings, settings)
+
+    def test_real_renderer_preserves_source_pixels_and_dimensions(self):
+        diffuse = Image.new("RGBA", (32, 16), (80, 120, 160, 128))
+        team_color = Image.new("RGBA", (32, 16), (255, 0, 0, 0))
+        diffuse_before = diffuse.tobytes()
+        team_before = team_color.tobytes()
+        request = PreviewRequest(
+            TextureSet(diffuse, team_color).copy_for_render(),
+            RenderSettings(primary_color="#cc2020"),
+        )
+        controller = PreviewController(
+            renderer=TextureRenderer(),
+            snapshot_provider=lambda: request,
+            executor=self.executor,
+            schedule_after=self.scheduler.after,
+            cancel_scheduled=self.scheduler.cancel,
+            on_preview_ready=self.results.append,
+            on_preview_error=self.errors.append,
+            debounce_ms=120,
+        )
+
+        controller.request_preview_immediately()
+        self.scheduler.run_next()
+        self.executor.complete()
+        self.scheduler.run_next()
+
+        self.assertEqual(self.results[0].workspace.size, (32, 16))
+        self.assertEqual(diffuse.tobytes(), diffuse_before)
+        self.assertEqual(team_color.tobytes(), team_before)
+
+    def test_controller_has_no_workbench_or_cached_output_path(self):
+        import inspect
+        import src.preview_controller as module
+
+        source = inspect.getsource(module)
+        self.assertNotIn("ImageWorkbench", source)
+        self.assertNotIn("render_snapshot", source)
+        self.assertNotIn("img_workspace", source)
+        self.assertFalse(hasattr(self.controller, "workbench"))
 
 
 if __name__ == "__main__":
