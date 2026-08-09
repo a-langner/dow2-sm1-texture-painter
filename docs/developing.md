@@ -85,15 +85,22 @@ GNU Make is not normally installed with Windows. Run the equivalent command
 directly in PowerShell instead:
 
 ```powershell
-python -m mypy src/texture_set.py src/texture_renderer.py src/texture_naming.py src/render_settings.py src/constant.py src/action_state.py src/texture_loading_service.py src/image_process.py src/preview_controller.py src/batch_processing_service.py src/dow1_converter.py src/pattern_controller.py src/pattern_exchange.py src/color_pattern_handler.py src/settings_handler.py src/file_selection_service.py src/user_data.py
+python -m mypy
 ```
 
 When using the repository's `.venv`, replace `python` with
 `.\.venv\Scripts\python.exe`.
 
-GitHub Actions runs the complete test suite on both Linux and Windows. The
-Windows job also performs a PyInstaller packaging smoke test that verifies the
-executable and bundled resources; it does not automate the graphical interface.
+The canonical module scope is configured once in `mypy.ini`. It covers the core
+domain, rendering, loading, preview, batch, Pattern, settings, and persistence
+layers. Complex Tkinter presentation and custom-dialog implementations remain
+outside the enforced scope while their interfaces are migrated incrementally.
+New core code must not introduce untyped public interfaces.
+
+GitHub Actions runs the complete test suite on both Linux and Windows and runs
+the canonical mypy command on Linux. The Windows job also performs a PyInstaller
+packaging smoke test that verifies the executable and bundled resources; it does
+not automate the graphical interface.
 
 ### Building the application
 

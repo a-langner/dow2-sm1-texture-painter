@@ -41,6 +41,9 @@ jobs:
       - name: Run complete test suite
         run: python -m unittest discover -s tests
 
+      - name: Type-check core modules
+        run: python -m mypy
+
   windows-tests:
     name: Windows tests and packaging smoke test
     runs-on: windows-latest

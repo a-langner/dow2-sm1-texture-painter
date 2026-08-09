@@ -15,8 +15,8 @@ BUILD_SPEC := texture-painter.spec
 test: ## run the complete unittest suite
 	$(PYTHON) -m unittest discover -s tests
 
-typecheck: ## type-check the initial core module set
-	$(PYTHON) -m mypy src/texture_set.py src/texture_renderer.py src/texture_naming.py src/render_settings.py src/constant.py src/action_state.py src/texture_loading_service.py src/image_process.py src/preview_controller.py src/batch_processing_service.py src/dow1_converter.py src/pattern_controller.py src/pattern_exchange.py src/color_pattern_handler.py src/settings_handler.py src/file_selection_service.py src/user_data.py
+typecheck: ## type-check the configured core module set
+	$(PYTHON) -m mypy
 
 venv: ## create the development virtual environment
 	$(PYTHON) -m venv $(VENV_DIR)

@@ -110,6 +110,7 @@ class TextureRenderer:
             team_colour = _selected_team_colour(textures, settings)
             # Preserve the established runtime failure for an invalid channel
             # selection until that domain contract is tightened separately.
+            # Pillow's stub excludes valid single-band images here.
             workspace.putalpha(
                 ImageChops.invert(team_colour)  # type: ignore[arg-type]
             )

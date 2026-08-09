@@ -71,6 +71,16 @@ class GitHubActionsWorkflowTests(unittest.TestCase):
                 self.assertNotIn("continue-on-error", test_steps[0])
         self.assertNotIn("|| true", self.contents)
 
+    def test_linux_job_runs_canonical_typecheck(self):
+        steps = self.workflow["jobs"]["linux-tests"]["steps"]
+        typecheck_steps = [
+            step for step in steps if step.get("name") == "Type-check core modules"
+        ]
+
+        self.assertEqual(len(typecheck_steps), 1)
+        self.assertEqual(typecheck_steps[0]["run"], "python -m mypy")
+        self.assertNotIn("continue-on-error", typecheck_steps[0])
+
     def test_windows_job_builds_and_verifies_the_authoritative_bundle(self):
         steps = self.workflow["jobs"]["windows-tests"]["steps"]
         build_step = next(
