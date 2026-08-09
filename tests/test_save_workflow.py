@@ -29,9 +29,6 @@ class NormalSaveWorkflowTests(unittest.TestCase):
         )
         self.destination = Path("rendered.png")
         self.rendered = Image.new("RGBA", (8, 4), (10, 20, 30, 40))
-        self.workbench = SimpleNamespace(
-            texture_set=self.textures,
-        )
         self.renderer = Mock(render=Mock(return_value=self.rendered))
         self.painter = SimpleNamespace(
             og_filename="unit_dif.png",
@@ -41,7 +38,7 @@ class NormalSaveWorkflowTests(unittest.TestCase):
                 )
             ),
             sync_render_settings=Mock(),
-            img_wbench=self.workbench,
+            active_texture_set=self.textures,
             render_settings=self.settings,
             texture_renderer=self.renderer,
             dialogs=Mock(),
@@ -87,6 +84,22 @@ class NormalSaveWorkflowTests(unittest.TestCase):
         ArmyPainter.save(self.painter)
 
         self.painter.sync_render_settings.assert_not_called()
+        self.renderer.render.assert_not_called()
+        save_rendered.assert_not_called()
+
+    @patch("src.frame_main.save_image")
+    def test_save_without_active_texture_stops_before_dialog_or_render(
+        self, save_rendered
+    ):
+        self.painter.active_texture_set = None
+
+        ArmyPainter.save(self.painter)
+
+        self.painter.dialogs.show_error.assert_called_once_with(
+            title="Cannot Save Image",
+            message="Load a diffuse texture before saving.",
+        )
+        self.painter.file_selection.choose_image_save_destination.assert_not_called()
         self.renderer.render.assert_not_called()
         save_rendered.assert_not_called()
 
@@ -147,7 +160,7 @@ class NormalSaveWorkflowTests(unittest.TestCase):
                     )
                 ),
                 sync_render_settings=Mock(),
-                img_wbench=self.workbench,
+                active_texture_set=self.textures,
                 render_settings=self.settings,
                 texture_renderer=renderer,
                 dialogs=Mock(),

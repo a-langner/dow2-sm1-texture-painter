@@ -16,7 +16,6 @@ class FakeLabel:
 
 class FakePainter:
     def __init__(self):
-        self.img_wbench = type("Workbench", (), {})()
         self.label_img_dif = FakeLabel()
         self.label_img_tem = FakeLabel()
 
@@ -40,7 +39,7 @@ class PreviewGeometryTests(unittest.TestCase):
         )
 
         self.assertFalse(hasattr(painter, "preview_output"))
-        self.assertFalse(hasattr(painter.img_wbench, "img_workspace"))
+        self.assertFalse(hasattr(painter, "rendered_output"))
         self.assertEqual(
             painter.label_img_dif.image, "display:workspace-image"
         )

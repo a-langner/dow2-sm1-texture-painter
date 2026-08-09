@@ -33,6 +33,7 @@ class FakeTextureLoading:
         if self.error is not None:
             raise self.error
         return SimpleNamespace(
+            texture_set=object(),
             width=512,
             height=256,
             team_color_error=None,
@@ -48,6 +49,7 @@ class FakeLoadingPainter:
         self.resize_calls = []
         self.refresh_calls = 0
         self.preview_controller = Mock()
+        self.active_texture_set = None
 
     def open_channel(self):
         pass

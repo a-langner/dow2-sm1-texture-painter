@@ -64,14 +64,12 @@ class ArmyPainterCompositionTests(unittest.TestCase):
     @patch("src.frame_main.TextureLoadingService")
     @patch("src.frame_main.FileSelectionService")
     @patch("src.frame_main.SettingsHandler")
-    @patch("src.frame_main.ImageWorkbench")
     @patch("src.frame_main.ThreadPoolExecutor")
     @patch.object(ArmyPainter, "_create_pattern_controller")
     def test_services_and_controllers_receive_explicit_dependencies(
         self,
         create_pattern_controller,
         executor_type,
-        workbench_type,
         settings_type,
         file_selection_type,
         texture_loading_type,
@@ -100,9 +98,8 @@ class ArmyPainterCompositionTests(unittest.TestCase):
             settings_type.return_value, painter.dialogs
         )
         create_pattern_controller.assert_called_once_with(painter)
-        texture_loading_type.assert_called_once_with(
-            workbench_type.return_value, painter.texture_naming_profile
-        )
+        texture_loading_type.assert_called_once_with(painter.texture_naming_profile)
+        self.assertIsNone(painter.active_texture_set)
         preview_controller_type.assert_called_once_with(
             renderer=texture_renderer_type.return_value,
             snapshot_provider=painter.create_preview_request,

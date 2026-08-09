@@ -1,6 +1,5 @@
 from PIL import Image, ImageDraw
 from src.constant import DEFAULT_IMG_SIZE
-from src.texture_set import TextureSet
 
 MAX_TEXTURE_DIMENSION = 16 * 1024
 # Pillow's default decompression-bomb threshold is lower than a valid 16K
@@ -96,51 +95,6 @@ def create_placeholder_img(text="Image PlaceHolder", mode="RGBA"):
 
 def almostEquals(a, b, thres=5):
     return all(abs(a[i] - b[i]) < thres for i in range(len(a)))
-
-
-class ImageWorkbench:
-    """Own and load the active interactive TextureSet during migration."""
-
-    def __init__(self):
-        self.set_placeholder_img()
-
-    def set_placeholder_img(self):
-        diffuse = create_placeholder_img("Select Diffuse Texture", "RGBA")
-        team_color = create_placeholder_img("Select Channel Texture", "L")
-        self.texture_set = TextureSet(diffuse, team_color)
-
-    def load_diffuse_file(self, filepath: str):
-        """Load diffuse texture and set it as workspace image,
-
-        :param filepath: path to file
-        :type filepath: str
-        """
-        diffuse = load_diffuse_texture(filepath)
-        # Companion maps belong to a particular diffuse. Do not accidentally
-        # retain maps from the previously opened texture.
-        self.texture_set = TextureSet(
-            diffuse=diffuse,
-            team_color=Image.new("L", diffuse.size, "gray"),
-        )
-
-    def load_team_colour_file(self, filepath: str):
-        self.texture_set.team_color = load_team_colour_texture(
-            filepath,
-            self.texture_set.diffuse.size,
-        )
-
-    def _prepare_optional_map(self, filepath: str, map_name: str):
-        return load_optional_texture(
-            filepath,
-            map_name,
-            self.texture_set.diffuse.size,
-        )
-
-    def load_dirt_file(self, filepath: str):
-        self.texture_set.dirt = self._prepare_optional_map(filepath, "Dirt")
-
-    def load_specular_file(self, filepath: str):
-        self.texture_set.specular = self._prepare_optional_map(filepath, "Specular")
 
 
 def save_image(image: Image.Image, filepath) -> None:

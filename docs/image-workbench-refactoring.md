@@ -468,3 +468,23 @@ The class remains temporarily as a narrow active-texture loading facade because
 surface is limited to the authoritative `texture_set`, placeholder reset, and
 the diffuse, team-colour, dirt, and specular loading methods. Job 11 can decide
 whether to replace this final facade with a dedicated state/loading owner.
+
+## Job 11 decision: ImageWorkbench retired
+
+`ImageWorkbench` was only wrapping one `TextureSet` reference and forwarding
+loading operations, so it did not retain a cohesive responsibility after Job
+10. It has been removed rather than renamed or replaced by another wrapper.
+
+`ArmyPainter`, as the composition root, now owns the single authoritative
+`active_texture_set` reference. `None` means that no diffuse is loaded.
+`TextureLoadingService` is stateless with respect to the active workspace: it
+builds and returns complete replacement `TextureSet` values for diffuse loads
+and separate channel replacements. The composition root swaps the reference
+only after loading succeeds. Preview requests retain shallow source snapshots,
+and preview invalidation rejects results belonging to a replaced or closed
+workspace.
+
+Placeholder images are presentation state only. They are created for the two
+Tk labels and are never stored in a `TextureSet`. Closing the workspace clears
+the active reference, invalidates preview work, and restores those UI
+placeholders without changing Patterns, render settings, or window geometry.

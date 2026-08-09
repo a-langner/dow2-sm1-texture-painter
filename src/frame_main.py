@@ -47,7 +47,11 @@ from src.color_pattern_handler import (
     normalize_pattern_colors,
     pattern_colors_equal,
 )
-from src.image_process import ImageWorkbench, TextureValidationError, save_image
+from src.image_process import (
+    TextureValidationError,
+    create_placeholder_img,
+    save_image,
+)
 from src.logging_setup import configure_application_logging, log_application_startup
 from src.pattern_exchange import (
     EmptyUserPatternCollectionError,
@@ -209,15 +213,13 @@ class ArmyPainter(tk.Tk):
         submits to the preview executor but does not own it; batch work uses a
         separate executor so the two workloads cannot block one another.
         """
-        self.img_wbench = ImageWorkbench()
+        self.active_texture_set = None
         self.texture_renderer = TextureRenderer()
         self.render_settings = DEFAULT_RENDER_SETTINGS
         self.settings = SettingsHandler()
         self.file_selection = FileSelectionService(self.settings, self.dialogs)
         self.pattern_controller = ArmyPainter._create_pattern_controller(self)
-        self.texture_loading = TextureLoadingService(
-            self.img_wbench, self.texture_naming_profile
-        )
+        self.texture_loading = TextureLoadingService(self.texture_naming_profile)
         self.preview_executor = ThreadPoolExecutor(max_workers=1)
         self.preview_controller = PreviewController(
             renderer=self.texture_renderer,
@@ -234,8 +236,10 @@ class ArmyPainter(tk.Tk):
 
     def create_preview_request(self):
         """Capture one shallow, read-only preview request on the Tk thread."""
+        if self.active_texture_set is None:
+            raise RuntimeError("No active texture is available for preview.")
         return PreviewRequest(
-            textures=self.img_wbench.texture_set.copy_for_render(),
+            textures=self.active_texture_set.copy_for_render(),
             settings=self.render_settings,
         )
 
@@ -477,13 +481,17 @@ class ArmyPainter(tk.Tk):
         self.bind("<Control-r>", self.reset_workspace)
 
     def define_frame_workspace(self):
-        self.img_dif = ImageTk.PhotoImage(self.img_wbench.texture_set.diffuse)
+        self.img_dif = ImageTk.PhotoImage(
+            create_placeholder_img("Select Diffuse Texture", "RGBA")
+        )
         self.label_img_dif = tk.Label(
             self.frame_img, image=self.img_dif, relief=tk.RAISED
         )
         self.label_img_dif.pack(side=tk.LEFT, fill=tk.Y)
 
-        self.img_tem = ImageTk.PhotoImage(self.img_wbench.texture_set.team_color)
+        self.img_tem = ImageTk.PhotoImage(
+            create_placeholder_img("Select Channel Texture", "L")
+        )
         self.label_img_tem = tk.Label(
             self.frame_img, image=self.img_tem, relief=tk.RAISED
         )
@@ -533,6 +541,13 @@ class ArmyPainter(tk.Tk):
         :param Event: widget triggered event, defaults to None
         :type Event: [type], optional
         """
+        if self.active_texture_set is None:
+            self.dialogs.show_error(
+                title="Cannot Save Image",
+                message="Load a diffuse texture before saving.",
+            )
+            return
+
         filename = self.file_selection.choose_image_save_destination(self.og_filename)
         if not filename:
             return
@@ -541,7 +556,7 @@ class ArmyPainter(tk.Tk):
         settings = self.render_settings
         try:
             rendered = self.texture_renderer.render(
-                self.img_wbench.texture_set,
+                self.active_texture_set,
                 settings,
             )
         except Exception:
@@ -569,8 +584,16 @@ class ArmyPainter(tk.Tk):
             )
 
     def close(self, Event=None):
-        self.img_wbench.set_placeholder_img()
-        self.refresh_workspace()
+        self.active_texture_set = None
+        self.preview_controller.invalidate()
+        self.img_dif = ImageTk.PhotoImage(
+            create_placeholder_img("Select Diffuse Texture", "RGBA")
+        )
+        self.label_img_dif.config(image=self.img_dif)
+        self.img_tem = ImageTk.PhotoImage(
+            create_placeholder_img("Select Channel Texture", "L")
+        )
+        self.label_img_tem.config(image=self.img_tem)
 
     def sync_render_settings(self):
         colors = self.get_current_pattern_colors()
@@ -587,6 +610,9 @@ class ArmyPainter(tk.Tk):
 
     def refresh_workspace(self):
         """Schedule an immediate background workspace refresh."""
+        if self.active_texture_set is None:
+            self.preview_controller.invalidate()
+            return
         self.sync_render_settings()
         self.preview_controller.request_preview_immediately()
 
@@ -670,6 +696,7 @@ class ArmyPainter(tk.Tk):
         """Load one diffuse set, then perform its GUI-only follow-up actions."""
         result = self.texture_loading.load_diffuse_and_companions(filepath)
         self.preview_controller.invalidate()
+        self.active_texture_set = result.texture_set
 
         if result.team_color_error is not None:
             self.dialogs.show_error(
@@ -740,7 +767,11 @@ class ArmyPainter(tk.Tk):
         if not filepath:
             return
         try:
-            self.texture_loading.load_channel_file(filepath)
+            result = self.texture_loading.load_channel_file(
+                self.active_texture_set, filepath
+            )
+            self.preview_controller.invalidate()
+            self.active_texture_set = result.texture_set
             self.select_channel()
         except TextureValidationError as exc:
             self.dialogs.show_error(

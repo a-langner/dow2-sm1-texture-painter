@@ -5,12 +5,18 @@ import logging
 from pathlib import Path
 
 from src.constant import OPEN_EXT_LIST
-from src.image_process import TextureValidationError
+from src.image_process import (
+    TextureValidationError,
+    load_diffuse_texture,
+    load_optional_texture,
+    load_team_colour_texture,
+)
 from src.texture_naming import (
     DEFAULT_TEXTURE_NAMING,
     TextureKind,
     replace_texture_suffix,
 )
+from src.texture_set import TextureSet
 
 LOGGER = logging.getLogger(__name__)
 SUPPORTED_TEXTURE_EXTENSIONS = frozenset(
@@ -34,6 +40,7 @@ class TextureLoadWarning:
 
 @dataclass(frozen=True)
 class TextureLoadResult:
+    texture_set: TextureSet
     diffuse_path: Path
     team_color_path: Path | None
     dirt_path: Path | None
@@ -46,6 +53,7 @@ class TextureLoadResult:
 
 @dataclass(frozen=True)
 class ChannelLoadResult:
+    texture_set: TextureSet
     channel_path: Path
     width: int
     height: int
@@ -95,16 +103,15 @@ def find_companion_texture(
 
 
 class TextureLoadingService:
-    """Load one active texture set into an injected texture-state facade."""
+    """Build replacement TextureSets without owning active application state."""
 
-    def __init__(self, workbench, naming_profile=DEFAULT_TEXTURE_NAMING):
-        self.workbench = workbench
+    def __init__(self, naming_profile=DEFAULT_TEXTURE_NAMING):
         self.naming_profile = naming_profile
 
     def load_diffuse_and_companions(self, diffuse_path):
         diffuse_path = validate_supported_texture_path(diffuse_path)
-        previous_state = self._source_state()
-        self.workbench.load_diffuse_file(diffuse_path)
+        diffuse = load_diffuse_texture(diffuse_path)
+        textures = TextureSet(diffuse=diffuse)
 
         try:
             companions = {
@@ -118,7 +125,6 @@ class TextureLoadingService:
                 )
             }
         except OSError as exc:
-            self._restore_source_state(previous_state)
             raise TextureDiscoveryError(
                 f'Could not inspect companion textures for "{diffuse_path}": {exc}'
             ) from exc
@@ -128,7 +134,9 @@ class TextureLoadingService:
         if team_color_path is not None:
             LOGGER.debug("Loading team-colour companion: %s", team_color_path)
             try:
-                self.workbench.load_team_colour_file(team_color_path)
+                textures.team_color = load_team_colour_texture(
+                    team_color_path, diffuse.size
+                )
             except TextureValidationError as exc:
                 team_color_error = str(exc)
                 LOGGER.warning(
@@ -138,22 +146,26 @@ class TextureLoadingService:
                 )
 
         warnings = []
-        for kind, path, loader in (
+        for kind, path, attribute in (
             (
                 TextureKind.DIRT,
                 companions[TextureKind.DIRT],
-                self.workbench.load_dirt_file,
+                "dirt",
             ),
             (
                 TextureKind.SPECULAR,
                 companions[TextureKind.SPECULAR],
-                self.workbench.load_specular_file,
+                "specular",
             ),
         ):
             if path is None:
                 continue
             try:
-                loader(path)
+                setattr(
+                    textures,
+                    attribute,
+                    load_optional_texture(path, kind.value.title(), diffuse.size),
+                )
             except TextureValidationError as exc:
                 warnings.append(TextureLoadWarning(kind, str(exc)))
                 LOGGER.warning(
@@ -163,8 +175,9 @@ class TextureLoadingService:
                     exc,
                 )
 
-        width, height = self.workbench.texture_set.diffuse.size
+        width, height = diffuse.size
         return TextureLoadResult(
+            texture_set=textures,
             diffuse_path=diffuse_path,
             team_color_path=team_color_path,
             dirt_path=companions[TextureKind.DIRT],
@@ -175,14 +188,18 @@ class TextureLoadingService:
             warnings=tuple(warnings),
         )
 
-    def load_channel_file(self, channel_path):
+    def load_channel_file(self, textures, channel_path):
+        if textures is None:
+            raise TextureValidationError(
+                "Load a diffuse texture before loading a team-colour texture."
+            )
         channel_path = validate_supported_texture_path(channel_path)
-        self.workbench.load_team_colour_file(channel_path)
-        width, height = self.workbench.texture_set.team_color.size
-        return ChannelLoadResult(channel_path, width, height)
-
-    def _source_state(self):
-        return self.workbench.texture_set
-
-    def _restore_source_state(self, state):
-        self.workbench.texture_set = state
+        team_color = load_team_colour_texture(channel_path, textures.diffuse.size)
+        replacement = TextureSet(
+            diffuse=textures.diffuse,
+            team_color=team_color,
+            dirt=textures.dirt,
+            specular=textures.specular,
+        )
+        width, height = team_color.size
+        return ChannelLoadResult(replacement, channel_path, width, height)
