@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 import logging
 
+from PIL import Image
+
 from src.render_settings import RenderSettings
 from src.texture_set import TextureSet
 
@@ -13,8 +15,8 @@ PREVIEW_POLL_INTERVAL_MS = 20
 @dataclass(frozen=True)
 class PreviewResult:
     request_id: int
-    workspace: object
-    team_colour: object
+    workspace: Image.Image
+    team_colour: Image.Image | None
 
 
 @dataclass(frozen=True)
@@ -151,7 +153,7 @@ class PreviewController:
         )
 
     def _schedule(self, delay_ms, callback, *args):
-        callback_id_holder = {}
+        callback_id_holder: dict[str, object] = {}
 
         def deliver():
             callback_id = callback_id_holder.get("id")

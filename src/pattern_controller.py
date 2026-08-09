@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 import logging
+from pathlib import Path
 
 import src.color_pattern_handler as pattern_store
 from src.color_pattern_handler import (
@@ -13,6 +14,9 @@ from src.color_pattern_handler import (
 from src.pattern_exchange import (
     BuiltinPatternImportConflictError,
     UserPatternImportConflictError,
+    CollectionImportAnalysis,
+    ImportedPattern,
+    ImportedPatternCollection,
     analyze_pattern_collection_import,
     export_pattern,
     export_user_pattern_collection,
@@ -39,15 +43,15 @@ class PatternOperationResult:
 
 @dataclass(frozen=True)
 class PatternImportPreparation:
-    imported_pattern: object
-    source: object
+    imported_pattern: ImportedPattern
+    source: Path
 
 
 @dataclass(frozen=True)
 class CollectionImportPreparation:
-    collection: object
-    analysis: object
-    source: object
+    collection: ImportedPatternCollection
+    analysis: CollectionImportAnalysis
+    source: Path
 
 
 class PatternController:

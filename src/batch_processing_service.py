@@ -8,6 +8,8 @@ from pathlib import Path
 import tempfile
 from typing import Callable
 
+from PIL import Image
+
 from src.dow1_converter import (
     convert_tem_texture,
     get_tem_filenames,
@@ -19,6 +21,7 @@ from src.image_process import (
     load_optional_texture,
     load_team_colour_texture,
 )
+from src.render_settings import RenderSettings
 from src.texture_renderer import TextureRenderer
 from src.texture_set import TextureSet
 from src.texture_loading_service import find_companion_texture
@@ -44,7 +47,7 @@ class BatchProcessingRequest:
     destination_directory: Path
     source_formats: tuple[str, ...]
     destination_format: str
-    settings: object
+    settings: RenderSettings
     naming_profile: TextureNamingProfile = DEFAULT_TEXTURE_NAMING
     overwrite_existing: bool = False
 
@@ -74,7 +77,7 @@ class BatchProcessingResult:
     items: tuple[BatchItemResult, ...]
 
     @property
-    def errors(self):
+    def errors(self) -> tuple[str, ...]:
         return tuple(
             f"{item.source.name}: {item.error_message}"
             for item in self.items
@@ -82,7 +85,7 @@ class BatchProcessingResult:
         )
 
     @property
-    def warnings(self):
+    def warnings(self) -> tuple[str, ...]:
         return tuple(
             f"{item.source.name}: {warning}"
             for item in self.items
@@ -134,8 +137,8 @@ def load_batch_texture_set(
         )
     team_color = load_team_colour_texture(team_color_path, diffuse.size)
 
-    warnings = []
-    optional_images = {}
+    warnings: list[str] = []
+    optional_images: dict[TextureKind, Image.Image | None] = {}
     for texture_kind, label in (
         (TextureKind.DIRT, "Dirt"),
         (TextureKind.SPECULAR, "Specular"),

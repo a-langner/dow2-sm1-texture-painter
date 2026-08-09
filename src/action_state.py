@@ -24,7 +24,9 @@ class PatternActionState:
     modified_indicator_visible: bool
 
 
-def derive_pattern_action_state(context: PatternActionContext):
+def derive_pattern_action_state(
+    context: PatternActionContext,
+) -> PatternActionState:
     """Derive every Pattern command state from one immutable context."""
     has_selection = bool(context.has_selection)
     user_selected = bool(has_selection and context.selected_is_user_pattern)

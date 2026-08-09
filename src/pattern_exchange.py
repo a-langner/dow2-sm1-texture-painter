@@ -172,22 +172,22 @@ class CollectionImportResult(NamedTuple):
 
 class ImportedPattern(NamedTuple):
     name: str
-    colors: dict
+    colors: dict[str, str]
 
 
 class ImportedPatternCollection(NamedTuple):
     name: str
-    patterns: tuple
+    patterns: tuple[ImportedPattern, ...]
 
 
 class CollectionImportAnalysis(NamedTuple):
     collection_name: str
-    new_patterns: tuple
-    user_conflicts: tuple
-    builtin_conflicts: tuple
+    new_patterns: tuple[ImportedPattern, ...]
+    user_conflicts: tuple[ImportedPattern, ...]
+    builtin_conflicts: tuple[ImportedPattern, ...]
 
     @property
-    def total_pattern_count(self):
+    def total_pattern_count(self) -> int:
         return (
             len(self.new_patterns)
             + len(self.user_conflicts)
@@ -195,15 +195,15 @@ class CollectionImportAnalysis(NamedTuple):
         )
 
     @property
-    def new_pattern_count(self):
+    def new_pattern_count(self) -> int:
         return len(self.new_patterns)
 
     @property
-    def user_conflict_count(self):
+    def user_conflict_count(self) -> int:
         return len(self.user_conflicts)
 
     @property
-    def builtin_conflict_count(self):
+    def builtin_conflict_count(self) -> int:
         return len(self.builtin_conflicts)
 
 
@@ -611,7 +611,11 @@ def _validate_export_destination(destination):
             get_settings_path().resolve(),
         }
         try:
-            protected_destinations.add(Path(ARMY_PATTERN_RESOURCE).resolve())
+            protected_destinations.add(
+                # ``Traversable`` implementations are path-like for the
+                # filesystem-backed packaged resource used at runtime.
+                Path(ARMY_PATTERN_RESOURCE).resolve()  # type: ignore[arg-type]
+            )
         except TypeError:
             pass
         if destination.resolve() in protected_destinations:

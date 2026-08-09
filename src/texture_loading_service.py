@@ -14,6 +14,7 @@ from src.image_process import (
 from src.texture_naming import (
     DEFAULT_TEXTURE_NAMING,
     TextureKind,
+    TextureNamingProfile,
     replace_texture_suffix,
 )
 from src.texture_set import TextureSet
@@ -59,7 +60,7 @@ class ChannelLoadResult:
     height: int
 
 
-def validate_supported_texture_path(texture_path):
+def validate_supported_texture_path(texture_path: Path) -> Path:
     path = Path(texture_path)
     if path.suffix.casefold() not in SUPPORTED_TEXTURE_EXTENSIONS:
         raise UnsupportedTextureError(
@@ -70,10 +71,10 @@ def validate_supported_texture_path(texture_path):
 
 
 def find_companion_texture(
-    diffuse_filepath,
-    target_kind,
-    profile=DEFAULT_TEXTURE_NAMING,
-):
+    diffuse_filepath: Path,
+    target_kind: TextureKind,
+    profile: TextureNamingProfile = DEFAULT_TEXTURE_NAMING,
+) -> Path | None:
     """Find a case-insensitive sibling derived from the naming profile."""
     diffuse_path = Path(diffuse_filepath)
     if target_kind is TextureKind.DIFFUSE:
@@ -105,10 +106,16 @@ def find_companion_texture(
 class TextureLoadingService:
     """Build replacement TextureSets without owning active application state."""
 
-    def __init__(self, naming_profile=DEFAULT_TEXTURE_NAMING):
+    def __init__(
+        self,
+        naming_profile: TextureNamingProfile = DEFAULT_TEXTURE_NAMING,
+    ) -> None:
         self.naming_profile = naming_profile
 
-    def load_diffuse_and_companions(self, diffuse_path):
+    def load_diffuse_and_companions(
+        self,
+        diffuse_path: Path,
+    ) -> TextureLoadResult:
         diffuse_path = validate_supported_texture_path(diffuse_path)
         diffuse = load_diffuse_texture(diffuse_path)
         textures = TextureSet(diffuse=diffuse)
@@ -188,7 +195,11 @@ class TextureLoadingService:
             warnings=tuple(warnings),
         )
 
-    def load_channel_file(self, textures, channel_path):
+    def load_channel_file(
+        self,
+        textures: TextureSet | None,
+        channel_path: Path,
+    ) -> ChannelLoadResult:
         if textures is None:
             raise TextureValidationError(
                 "Load a diffuse texture before loading a team-colour texture."

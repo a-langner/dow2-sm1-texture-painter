@@ -16,7 +16,7 @@ test: ## run the complete unittest suite
 	$(PYTHON) -m unittest discover -s tests
 
 typecheck: ## type-check the initial core module set
-	$(PYTHON) -m mypy src/texture_set.py src/texture_renderer.py src/texture_naming.py src/render_settings.py
+	$(PYTHON) -m mypy src/texture_set.py src/texture_renderer.py src/texture_naming.py src/render_settings.py src/constant.py src/action_state.py src/texture_loading_service.py src/preview_controller.py src/batch_processing_service.py src/pattern_controller.py src/pattern_exchange.py src/color_pattern_handler.py
 
 venv: ## create the development virtual environment
 	$(PYTHON) -m venv $(VENV_DIR)

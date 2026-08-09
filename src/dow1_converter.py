@@ -66,8 +66,8 @@ def get_tem_filenames(path: Path, src_format: list):
                     f"Missing {filetype_missing} tem textures files"
                 )
 
-    def find_tem_files(file_paths: list) -> dict:
-        files_dict = {}
+    def find_tem_files(file_paths: list[Path]) -> dict[str, dict[str, Path]]:
+        files_dict: dict[str, dict[str, Path]] = {}
         """
             Dawn of War 1 team colour texture used for the army painter are named
             with the following pattern :
@@ -103,7 +103,7 @@ def get_tem_filenames(path: Path, src_format: list):
         check_if_tem_exist(files_dict)
         return files_dict
 
-    file_paths = []
+    file_paths: list[Path] = []
     for format in src_format:
         file_paths.extend(Path(path).glob(f"*.{format}"))
     return find_tem_files(file_paths)
