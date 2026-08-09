@@ -362,9 +362,12 @@ class ImageWorkbenchRenderingTests(unittest.TestCase):
         original = workbench.get_render_settings()
         changed = replace(
             original,
-            colors=PATTERN_COLORS,
+            primary_color=PATTERN_COLORS[0],
+            secondary_color=PATTERN_COLORS[1],
+            tint_color=PATTERN_COLORS[2],
+            extra_color=PATTERN_COLORS[3],
             brightness=40,
-            color_op=ColorOps.SCREEN.value,
+            color_op=ColorOps.SCREEN,
         )
 
         workbench.apply_render_settings(changed)
@@ -374,9 +377,12 @@ class ImageWorkbenchRenderingTests(unittest.TestCase):
             original,
             replace(
                 changed,
-                colors=(),
+                primary_color="#808080",
+                secondary_color="#808080",
+                tint_color="#808080",
+                extra_color="#808080",
                 brightness=100,
-                color_op=ColorOps.OVERLAY.value,
+                color_op=ColorOps.OVERLAY,
             ),
         )
         self.assertNotEqual(original, changed)

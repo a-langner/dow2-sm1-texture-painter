@@ -6,8 +6,13 @@ from PIL import (
     ImageEnhance,
     ImageDraw,
 )
-from dataclasses import dataclass
+from dataclasses import replace
 from src.constant import DEFAULT_IMG_SIZE, ColorOps
+from src.render_settings import (
+    DEFAULT_COLOR,
+    DEFAULT_RENDER_SETTINGS,
+    RenderSettings,
+)
 from src.texture_set import TextureSet
 
 MAX_TEXTURE_DIMENSION = 16 * 1024
@@ -18,18 +23,6 @@ Image.MAX_IMAGE_PIXELS = MAX_TEXTURE_DIMENSION * MAX_TEXTURE_DIMENSION
 
 class TextureValidationError(ValueError):
     """Raised when a texture cannot safely be used by the workbench."""
-
-
-@dataclass(frozen=True)
-class RenderSettings:
-    colors: tuple
-    brightness: float
-    contrast: float
-    apply_alpha: bool
-    apply_dirt: bool
-    apply_spec: bool
-    color_op: str
-    tem_selected: tuple
 
 
 def _validate_dimensions(img, filepath):
@@ -80,15 +73,88 @@ def almostEquals(a, b, thres=5):
 class ImageWorkbench:
     def __init__(self):
         self.tem_channels = []
-        self.tem_selected = []
-        self.colors = []
-        self.brightness = 75
-        self.contrast = 100
-        self.apply_alpha = False
-        self.apply_dirt = False
-        self.apply_spec = False
-        self.color_op = ColorOps.OVERLAY.value
+        self.render_settings = DEFAULT_RENDER_SETTINGS
         self.set_placeholder_img()
+
+    @property
+    def colors(self):
+        """Compatibility view of the four canonical Pattern colours."""
+        return self.render_settings.colors
+
+    @colors.setter
+    def colors(self, values):
+        values = tuple(values)
+        if len(values) > 4:
+            raise ValueError("Rendering supports at most four Pattern colours.")
+        values += (DEFAULT_COLOR,) * (4 - len(values))
+        self.render_settings = replace(
+            self.render_settings,
+            primary_color=values[0],
+            secondary_color=values[1],
+            tint_color=values[2],
+            extra_color=values[3],
+        )
+
+    @property
+    def brightness(self):
+        return self.render_settings.brightness
+
+    @brightness.setter
+    def brightness(self, value):
+        self.render_settings = replace(self.render_settings, brightness=value)
+
+    @property
+    def contrast(self):
+        return self.render_settings.contrast
+
+    @contrast.setter
+    def contrast(self, value):
+        self.render_settings = replace(self.render_settings, contrast=value)
+
+    @property
+    def apply_alpha(self):
+        return self.render_settings.apply_alpha
+
+    @apply_alpha.setter
+    def apply_alpha(self, value):
+        self.render_settings = replace(self.render_settings, apply_alpha=value)
+
+    @property
+    def apply_dirt(self):
+        return self.render_settings.apply_dirt
+
+    @apply_dirt.setter
+    def apply_dirt(self, value):
+        self.render_settings = replace(self.render_settings, apply_dirt=value)
+
+    @property
+    def apply_spec(self):
+        return self.render_settings.apply_spec
+
+    @apply_spec.setter
+    def apply_spec(self, value):
+        self.render_settings = replace(self.render_settings, apply_spec=value)
+
+    @property
+    def color_op(self):
+        """Compatibility string for GUI operation values."""
+        return self.render_settings.color_op.value
+
+    @color_op.setter
+    def color_op(self, value):
+        try:
+            operation = value if isinstance(value, ColorOps) else ColorOps(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Unsupported color operation: {value!r}") from exc
+        self.render_settings = replace(self.render_settings, color_op=operation)
+
+    @property
+    def tem_selected(self):
+        return self.render_settings.tem_selected
+
+    @tem_selected.setter
+    def tem_selected(self, value):
+        self.render_settings = replace(self.render_settings, tem_selected=tuple(value))
 
     @property
     def img_og_dif(self):
@@ -134,33 +200,19 @@ class ImageWorkbench:
         self.tem_channels = []
 
     def get_render_settings(self):
-        return RenderSettings(
-            colors=tuple(self.colors),
-            brightness=self.brightness,
-            contrast=self.contrast,
-            apply_alpha=self.apply_alpha,
-            apply_dirt=self.apply_dirt,
-            apply_spec=self.apply_spec,
-            color_op=self.color_op,
-            tem_selected=tuple(self.tem_selected),
-        )
+        return self.render_settings
 
     def apply_render_settings(self, settings):
-        self.colors = list(settings.colors)
-        self.brightness = settings.brightness
-        self.contrast = settings.contrast
-        self.apply_alpha = settings.apply_alpha
-        self.apply_dirt = settings.apply_dirt
-        self.apply_spec = settings.apply_spec
-        self.color_op = settings.color_op
-        self.tem_selected = tuple(settings.tem_selected)
+        if not isinstance(settings, RenderSettings):
+            raise TypeError("settings must be a RenderSettings instance.")
+        self.render_settings = settings
 
     def render_snapshot(self):
         """Create a worker-safe view over immutable source images/settings."""
         snapshot = object.__new__(ImageWorkbench)
         snapshot.texture_set = self.texture_set.copy_for_render()
         snapshot.tem_channels = tuple(self.tem_channels)
-        snapshot.apply_render_settings(self.get_render_settings())
+        snapshot.render_settings = self.render_settings
         return snapshot
 
     def process_coloring(self):

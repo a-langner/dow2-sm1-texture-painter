@@ -11,6 +11,12 @@ from typing import Callable, Optional
 from src.color_pattern_handler import get_all_patterns, is_user_pattern
 from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.constant import OPEN_FILETYPES, SAVE_EXT_LIST, ColorOps
+from src.render_settings import (
+    MAX_BRIGHTNESS,
+    MAX_CONTRAST,
+    MIN_BRIGHTNESS,
+    MIN_CONTRAST,
+)
 
 COLOR_BOX_SIZE = 90
 COLOR_BTN_HEIGHT = 26
@@ -201,8 +207,8 @@ class FrameSlider(tk.Frame):
             self,
             label="Brightness",
             length=150,
-            from_=0.0,
-            to=150.0,
+            from_=MIN_BRIGHTNESS,
+            to=MAX_BRIGHTNESS,
             orient=tk.HORIZONTAL,
             command=self._notify_levels_changed,
         )
@@ -213,8 +219,8 @@ class FrameSlider(tk.Frame):
             self,
             label="Contrast",
             length=200,
-            from_=0.0,
-            to=200.0,
+            from_=MIN_CONTRAST,
+            to=MAX_CONTRAST,
             orient=tk.HORIZONTAL,
             command=self._notify_levels_changed,
         )

@@ -29,6 +29,7 @@ PATTERN_PERSISTENCE_MODULES = {
 IMAGE_PROCESSING_MODULES = {
     "dow1_converter.py",
     "image_process.py",
+    "render_settings.py",
     "texture_naming.py",
     "texture_set.py",
 }

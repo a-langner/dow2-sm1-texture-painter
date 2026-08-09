@@ -25,6 +25,36 @@ remain outside `TextureSet`. `dimensions` reports the required diffuse size;
 format, mode, companion-size, and filesystem validation remain at the loading
 boundary.
 
+## RenderSettings transition
+
+Job 4 made `src.render_settings.RenderSettings` the complete immutable settings
+value. `ImageWorkbench.render_settings` is authoritative; the historical
+`colors`, brightness/contrast, operation, toggle, and selected-channel
+attributes are compatibility properties that create a replacement settings
+value. `get_render_settings()` returns the immutable value directly,
+`apply_render_settings()` replaces it, and a preview snapshot safely retains the
+value that existed when the request started.
+
+The pixel-affecting fields, in canonical order, are:
+
+1. `primary_color`, `secondary_color`, `tint_color`, and `extra_color` as
+   validated `#RRGGBB` strings;
+2. `brightness` in the GUI range 0–150, defaulting to 75;
+3. `contrast` in the GUI range 0–200, defaulting to 100;
+4. `apply_alpha` and the immutable `tem_selected` channel-index tuple used to
+   construct its mask;
+5. `apply_dirt`;
+6. `apply_spec`;
+7. `color_op` as the existing `ColorOps` enum, defaulting to overlay.
+
+There are no dirt or specular strength values in the current renderer. Preview
+size, paths, Pattern identity, GUI selection objects, and save destinations do
+not affect rendered pixels and are not settings. Colours are validated without
+normalizing their case. Brightness and contrast are rejected outside their GUI
+ranges rather than silently clamped. GUI strings cross the compatibility
+boundary through explicit conversion to `ColorOps`; unsupported values are
+rejected instead of selecting the renderer's historical fallback branch.
+
 ## Current state ownership
 
 `ImageWorkbench` initializes some fields directly and creates the remaining

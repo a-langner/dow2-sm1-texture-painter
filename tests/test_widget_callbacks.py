@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
+from src.constant import ColorOps
 from src.frame_main import ArmyPainter
 from src.widget import (
     BatchEditTopLevel,
@@ -106,10 +107,10 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         )()
 
         ArmyPainter.on_apply_alpha_toggle(painter, True)
-        ArmyPainter.color_operation_update(painter, "screen")
+        ArmyPainter.color_operation_update(painter, ColorOps.SCREEN.value)
 
         self.assertIs(painter.img_wbench.apply_alpha, True)
-        self.assertEqual(painter.img_wbench.color_op, "screen")
+        self.assertEqual(painter.img_wbench.color_op, ColorOps.SCREEN.value)
         self.assertEqual(painter.refresh_workspace.call_count, 2)
 
     def test_controller_receives_both_slider_levels(self):
@@ -131,9 +132,9 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         painter.preview_controller.request_preview.assert_called_once_with()
 
     def test_widget_module_has_no_implicit_controller_lookup(self):
-        source = (
-            Path(__file__).resolve().parents[1] / "src" / "widget.py"
-        ).read_text(encoding="utf-8")
+        source = (Path(__file__).resolve().parents[1] / "src" / "widget.py").read_text(
+            encoding="utf-8"
+        )
 
         self.assertNotIn("self._root()", source)
         self.assertNotIn("winfo_toplevel()", source)
