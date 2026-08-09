@@ -594,7 +594,7 @@ class ArmyPainter(tk.Tk):
         )
         self.label_img_tem.config(image=self.img_tem)
 
-    def sync_render_settings(self):
+    def sync_render_settings(self) -> None:
         colors = self.get_current_pattern_colors()
         self.render_settings = replace(
             self.render_settings,
@@ -602,8 +602,8 @@ class ArmyPainter(tk.Tk):
             secondary_color=colors[1],
             tint_color=colors[2],
             extra_color=colors[3],
-            brightness=self.frame_sliders.brightness_slider.get(),
-            contrast=self.frame_sliders.contrast_slider.get(),
+            brightness=float(self.frame_sliders.brightness_slider.get()),
+            contrast=float(self.frame_sliders.contrast_slider.get()),
             tem_selected=tuple(self.frame_channel_select.lb.curselection()),
         )
 
