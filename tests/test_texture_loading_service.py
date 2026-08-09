@@ -48,9 +48,9 @@ class TextureLoadingServiceTests(unittest.TestCase):
         self.assertEqual(result.specular_path, specular)
         self.assertIsNone(result.team_color_error)
         self.assertEqual(result.warnings, ())
-        self.assertEqual(len(self.workbench.tem_channels), 4)
-        self.assertEqual(self.workbench.img_dirt.size, (8, 4))
-        self.assertEqual(self.workbench.img_spec.size, (8, 4))
+        self.assertEqual(self.workbench.texture_set.team_color.mode, "RGBA")
+        self.assertEqual(self.workbench.texture_set.dirt.size, (8, 4))
+        self.assertEqual(self.workbench.texture_set.specular.size, (8, 4))
 
     def test_missing_optional_companions_are_nonfatal(self):
         diffuse = self.root / "marine_dif.png"
@@ -72,7 +72,7 @@ class TextureLoadingServiceTests(unittest.TestCase):
 
         self.assertIsNone(result.team_color_path)
         self.assertIsNone(result.team_color_error)
-        self.assertEqual(self.workbench.tem_channels, [])
+        self.assertEqual(self.workbench.texture_set.team_color.mode, "L")
 
     def test_invalid_companions_return_structured_issues(self):
         diffuse = self.root / "marine_dif.png"
@@ -92,29 +92,29 @@ class TextureLoadingServiceTests(unittest.TestCase):
             [warning.kind for warning in result.warnings],
             [TextureKind.DIRT, TextureKind.SPECULAR],
         )
-        self.assertEqual(self.workbench.img_og_dif.size, (8, 4))
-        self.assertIsNone(self.workbench.img_dirt)
-        self.assertIsNone(self.workbench.img_spec)
+        self.assertEqual(self.workbench.texture_set.diffuse.size, (8, 4))
+        self.assertIsNone(self.workbench.texture_set.dirt)
+        self.assertIsNone(self.workbench.texture_set.specular)
 
     def test_invalid_diffuse_preserves_previous_workbench_state(self):
-        previous_diffuse = self.workbench.img_og_dif
+        previous_diffuse = self.workbench.texture_set.diffuse
         invalid = self.root / "broken_dif.png"
         invalid.write_bytes(b"not an image")
 
         with self.assertRaises(TextureValidationError):
             self.service.load_diffuse_and_companions(invalid)
 
-        self.assertIs(self.workbench.img_og_dif, previous_diffuse)
+        self.assertIs(self.workbench.texture_set.diffuse, previous_diffuse)
 
     def test_unsupported_extension_is_rejected_before_workbench_mutation(self):
-        previous_diffuse = self.workbench.img_og_dif
+        previous_diffuse = self.workbench.texture_set.diffuse
         unsupported = self.root / "marine_dif.gif"
         save_image(unsupported)
 
         with self.assertRaises(UnsupportedTextureError):
             self.service.load_diffuse_and_companions(unsupported)
 
-        self.assertIs(self.workbench.img_og_dif, previous_diffuse)
+        self.assertIs(self.workbench.texture_set.diffuse, previous_diffuse)
 
     def test_separate_channel_loading_returns_dimensions(self):
         diffuse = self.root / "marine_dif.png"
@@ -158,13 +158,7 @@ class TextureLoadingServiceTests(unittest.TestCase):
         self.assertEqual(result.team_color_path, team)
 
     def test_discovery_failure_restores_previous_source_state(self):
-        previous_state = (
-            self.workbench.img_og_dif,
-            self.workbench.img_og_tem,
-            self.workbench.tem_channels,
-            self.workbench.img_dirt,
-            self.workbench.img_spec,
-        )
+        previous_state = self.workbench.texture_set
         diffuse = self.root / "marine_dif.png"
         save_image(diffuse)
 
@@ -175,16 +169,7 @@ class TextureLoadingServiceTests(unittest.TestCase):
             with self.assertRaises(TextureDiscoveryError):
                 self.service.load_diffuse_and_companions(diffuse)
 
-        self.assertEqual(
-            (
-                self.workbench.img_og_dif,
-                self.workbench.img_og_tem,
-                self.workbench.tem_channels,
-                self.workbench.img_dirt,
-                self.workbench.img_spec,
-            ),
-            previous_state,
-        )
+        self.assertIs(self.workbench.texture_set, previous_state)
 
     def test_loaded_files_are_not_kept_open(self):
         diffuse = self.root / "marine_dif.png"

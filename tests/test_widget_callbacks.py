@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.constant import ColorOps
 from src.frame_main import ArmyPainter
+from src.render_settings import DEFAULT_RENDER_SETTINGS
 from src.widget import (
     BatchEditTopLevel,
     FrameChannelList,
@@ -101,7 +102,7 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
             "Painter",
             (),
             {
-                "img_wbench": type("Workbench", (), {})(),
+                "render_settings": DEFAULT_RENDER_SETTINGS,
                 "refresh_workspace": Mock(),
             },
         )()
@@ -109,8 +110,8 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         ArmyPainter.on_apply_alpha_toggle(painter, True)
         ArmyPainter.color_operation_update(painter, ColorOps.SCREEN.value)
 
-        self.assertIs(painter.img_wbench.apply_alpha, True)
-        self.assertEqual(painter.img_wbench.color_op, ColorOps.SCREEN.value)
+        self.assertIs(painter.render_settings.apply_alpha, True)
+        self.assertIs(painter.render_settings.color_op, ColorOps.SCREEN)
         self.assertEqual(painter.refresh_workspace.call_count, 2)
 
     def test_controller_receives_both_slider_levels(self):
@@ -118,7 +119,6 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
             "Painter",
             (),
             {
-                "img_wbench": type("Workbench", (), {})(),
                 "sync_render_settings": Mock(),
                 "preview_controller": Mock(),
             },
@@ -126,8 +126,6 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
 
         ArmyPainter.on_slider_update(painter, 75.0, 100.0)
 
-        self.assertEqual(painter.img_wbench.brightness, 75.0)
-        self.assertEqual(painter.img_wbench.contrast, 100.0)
         painter.sync_render_settings.assert_called_once_with()
         painter.preview_controller.request_preview.assert_called_once_with()
 

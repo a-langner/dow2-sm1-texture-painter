@@ -31,7 +31,6 @@ class NormalSaveWorkflowTests(unittest.TestCase):
         self.rendered = Image.new("RGBA", (8, 4), (10, 20, 30, 40))
         self.workbench = SimpleNamespace(
             texture_set=self.textures,
-            get_render_settings=Mock(return_value=self.settings),
         )
         self.renderer = Mock(render=Mock(return_value=self.rendered))
         self.painter = SimpleNamespace(
@@ -43,6 +42,7 @@ class NormalSaveWorkflowTests(unittest.TestCase):
             ),
             sync_render_settings=Mock(),
             img_wbench=self.workbench,
+            render_settings=self.settings,
             texture_renderer=self.renderer,
             dialogs=Mock(),
         )
@@ -57,7 +57,7 @@ class NormalSaveWorkflowTests(unittest.TestCase):
         )
 
         def synchronize():
-            self.workbench.get_render_settings.return_value = current_settings
+            self.painter.render_settings = current_settings
 
         self.painter.sync_render_settings.side_effect = synchronize
 
@@ -87,7 +87,6 @@ class NormalSaveWorkflowTests(unittest.TestCase):
         ArmyPainter.save(self.painter)
 
         self.painter.sync_render_settings.assert_not_called()
-        self.workbench.get_render_settings.assert_not_called()
         self.renderer.render.assert_not_called()
         save_rendered.assert_not_called()
 
@@ -149,6 +148,7 @@ class NormalSaveWorkflowTests(unittest.TestCase):
                 ),
                 sync_render_settings=Mock(),
                 img_wbench=self.workbench,
+                render_settings=self.settings,
                 texture_renderer=renderer,
                 dialogs=Mock(),
             )

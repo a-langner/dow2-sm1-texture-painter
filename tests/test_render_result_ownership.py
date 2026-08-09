@@ -8,7 +8,7 @@ from pathlib import Path
 from PIL import Image
 
 import test_support  # noqa: F401 - installs the user-data path redirect
-from src.image_process import ImageWorkbench, save_image
+from src.image_process import save_image
 from src.render_settings import RenderSettings
 from src.texture_renderer import TextureRenderer
 from src.texture_set import TextureSet
@@ -103,18 +103,6 @@ class RenderResultOwnershipTests(unittest.TestCase):
         assert_images_equal(self, self.diffuse, diffuse)
         assert_images_equal(self, self.team_color, team_color)
         self.assertIs(self.settings, settings)
-
-    def test_workbench_render_returns_without_storing_output_state(self):
-        workbench = ImageWorkbench()
-        workbench.texture_set = self.textures
-        workbench.apply_render_settings(self.settings)
-
-        result = workbench.refresh_workspace()
-
-        self.assertFalse(hasattr(workbench, "img_workspace"))
-        self.assertFalse(hasattr(workbench, "_compatibility_output"))
-        expected = self.renderer.render(self.textures, self.settings)
-        assert_images_equal(self, result, expected)
 
     def test_explicit_save_handoff_uses_supplied_result(self):
         result = self.renderer.render(self.textures, self.settings)

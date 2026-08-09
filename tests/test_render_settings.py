@@ -2,10 +2,11 @@ import ast
 import unittest
 from dataclasses import FrozenInstanceError, replace
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.constant import ColorOps
-from src.image_process import ImageWorkbench
 from src.render_settings import (
     DEFAULT_COLOR,
     DEFAULT_RENDER_SETTINGS,
@@ -102,19 +103,18 @@ class RenderSettingsTests(unittest.TestCase):
         self.assertEqual(changed.brightness, 25)
         self.assertEqual(changed.primary_color, COLORS[0])
 
-    def test_worker_snapshot_is_independent_of_later_workbench_settings(self):
-        workbench = ImageWorkbench()
-        workbench.colors = COLORS
-        snapshot = workbench.render_snapshot()
-        captured = snapshot.get_render_settings()
+    def test_worker_snapshot_is_independent_of_later_settings(self):
+        captured = RenderSettings(
+            primary_color=COLORS[0],
+            secondary_color=COLORS[1],
+            tint_color=COLORS[2],
+            extra_color=COLORS[3],
+        )
+        later = replace(captured, brightness=20, primary_color=COLORS[3])
 
-        workbench.brightness = 20
-        workbench.colors = tuple(reversed(COLORS))
-
-        self.assertIs(snapshot.get_render_settings(), captured)
         self.assertEqual(captured.colors, COLORS)
         self.assertEqual(captured.brightness, 75.0)
-        self.assertNotEqual(captured, workbench.get_render_settings())
+        self.assertNotEqual(captured, later)
 
     def test_invalid_levels_are_rejected_without_clamping(self):
         invalid_values = (
@@ -138,20 +138,29 @@ class RenderSettingsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "cannot be negative"):
             RenderSettings(tem_selected=(-1,))
 
-    def test_compatibility_properties_build_one_authoritative_settings_value(self):
-        workbench = ImageWorkbench()
+    def test_army_painter_collects_one_authoritative_settings_value(self):
+        from src.frame_main import ArmyPainter
 
-        workbench.colors = COLORS
-        workbench.brightness = 125
-        workbench.contrast = 175
-        workbench.apply_alpha = True
-        workbench.apply_dirt = True
-        workbench.apply_spec = True
-        workbench.color_op = ColorOps.MULTIPLY.value
-        workbench.tem_selected = (0, 2)
+        painter = SimpleNamespace(
+            render_settings=RenderSettings(
+                apply_alpha=True,
+                apply_dirt=True,
+                apply_spec=True,
+                color_op=ColorOps.MULTIPLY,
+            ),
+            get_current_pattern_colors=Mock(return_value=COLORS),
+            frame_sliders=SimpleNamespace(
+                brightness_slider=SimpleNamespace(get=Mock(return_value=125)),
+                contrast_slider=SimpleNamespace(get=Mock(return_value=175)),
+            ),
+            frame_channel_select=SimpleNamespace(
+                lb=SimpleNamespace(curselection=Mock(return_value=(0, 2)))
+            ),
+        )
 
-        settings = workbench.get_render_settings()
-        self.assertIs(settings, workbench.render_settings)
+        ArmyPainter.sync_render_settings(painter)
+
+        settings = painter.render_settings
         self.assertEqual(settings.colors, COLORS)
         self.assertEqual(settings.brightness, 125)
         self.assertEqual(settings.contrast, 175)
@@ -160,16 +169,6 @@ class RenderSettingsTests(unittest.TestCase):
         self.assertTrue(settings.apply_spec)
         self.assertIs(settings.color_op, ColorOps.MULTIPLY)
         self.assertEqual(settings.tem_selected, (0, 2))
-
-    def test_apply_render_settings_replaces_the_authoritative_value(self):
-        workbench = ImageWorkbench()
-        settings = RenderSettings(primary_color=COLORS[0])
-
-        workbench.apply_render_settings(settings)
-
-        self.assertIs(workbench.render_settings, settings)
-        self.assertIs(workbench.get_render_settings(), settings)
-        self.assertEqual(workbench.colors, settings.colors)
 
     def test_model_has_no_tkinter_or_image_dependency(self):
         source_path = Path(__file__).resolve().parents[1] / "src" / "render_settings.py"

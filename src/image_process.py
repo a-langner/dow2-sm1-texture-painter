@@ -1,12 +1,5 @@
 from PIL import Image, ImageDraw
-from dataclasses import replace
-from src.constant import DEFAULT_IMG_SIZE, ColorOps
-from src.render_settings import (
-    DEFAULT_COLOR,
-    DEFAULT_RENDER_SETTINGS,
-    RenderSettings,
-)
-from src.texture_renderer import TextureRenderer
+from src.constant import DEFAULT_IMG_SIZE
 from src.texture_set import TextureSet
 
 MAX_TEXTURE_DIMENSION = 16 * 1024
@@ -106,170 +99,15 @@ def almostEquals(a, b, thres=5):
 
 
 class ImageWorkbench:
+    """Own and load the active interactive TextureSet during migration."""
+
     def __init__(self):
-        self.tem_channels = []
-        self.render_settings = DEFAULT_RENDER_SETTINGS
-        self._renderer = TextureRenderer()
         self.set_placeholder_img()
-
-    @property
-    def colors(self):
-        """Compatibility view of the four canonical Pattern colours."""
-        return self.render_settings.colors
-
-    @colors.setter
-    def colors(self, values):
-        values = tuple(values)
-        if len(values) > 4:
-            raise ValueError("Rendering supports at most four Pattern colours.")
-        values += (DEFAULT_COLOR,) * (4 - len(values))
-        self.render_settings = replace(
-            self.render_settings,
-            primary_color=values[0],
-            secondary_color=values[1],
-            tint_color=values[2],
-            extra_color=values[3],
-        )
-
-    @property
-    def brightness(self):
-        return self.render_settings.brightness
-
-    @brightness.setter
-    def brightness(self, value):
-        self.render_settings = replace(self.render_settings, brightness=value)
-
-    @property
-    def contrast(self):
-        return self.render_settings.contrast
-
-    @contrast.setter
-    def contrast(self, value):
-        self.render_settings = replace(self.render_settings, contrast=value)
-
-    @property
-    def apply_alpha(self):
-        return self.render_settings.apply_alpha
-
-    @apply_alpha.setter
-    def apply_alpha(self, value):
-        self.render_settings = replace(self.render_settings, apply_alpha=value)
-
-    @property
-    def apply_dirt(self):
-        return self.render_settings.apply_dirt
-
-    @apply_dirt.setter
-    def apply_dirt(self, value):
-        self.render_settings = replace(self.render_settings, apply_dirt=value)
-
-    @property
-    def apply_spec(self):
-        return self.render_settings.apply_spec
-
-    @apply_spec.setter
-    def apply_spec(self, value):
-        self.render_settings = replace(self.render_settings, apply_spec=value)
-
-    @property
-    def color_op(self):
-        """Compatibility string for GUI operation values."""
-        return self.render_settings.color_op.value
-
-    @color_op.setter
-    def color_op(self, value):
-        try:
-            operation = value if isinstance(value, ColorOps) else ColorOps(value)
-        except (TypeError, ValueError) as exc:
-            raise ValueError(f"Unsupported color operation: {value!r}") from exc
-        self.render_settings = replace(self.render_settings, color_op=operation)
-
-    @property
-    def tem_selected(self):
-        return self.render_settings.tem_selected
-
-    @tem_selected.setter
-    def tem_selected(self, value):
-        self.render_settings = replace(self.render_settings, tem_selected=tuple(value))
-
-    @property
-    def img_og_dif(self):
-        """Compatibility name for the authoritative diffuse source."""
-        return self.texture_set.diffuse
-
-    @img_og_dif.setter
-    def img_og_dif(self, image):
-        self.texture_set.diffuse = image
-
-    @property
-    def img_og_tem(self):
-        """Compatibility name for the authoritative team-colour source."""
-        return self.texture_set.team_color
-
-    @img_og_tem.setter
-    def img_og_tem(self, image):
-        self.texture_set.team_color = image
-
-    @property
-    def img_dirt(self):
-        """Compatibility name for the authoritative dirt source."""
-        return self.texture_set.dirt
-
-    @img_dirt.setter
-    def img_dirt(self, image):
-        self.texture_set.dirt = image
-
-    @property
-    def img_spec(self):
-        """Compatibility name for the authoritative specular source."""
-        return self.texture_set.specular
-
-    @img_spec.setter
-    def img_spec(self, image):
-        self.texture_set.specular = image
 
     def set_placeholder_img(self):
         diffuse = create_placeholder_img("Select Diffuse Texture", "RGBA")
         team_color = create_placeholder_img("Select Channel Texture", "L")
         self.texture_set = TextureSet(diffuse, team_color)
-        self.tem_channels = []
-
-    def get_render_settings(self):
-        return self.render_settings
-
-    def apply_render_settings(self, settings):
-        if not isinstance(settings, RenderSettings):
-            raise TypeError("settings must be a RenderSettings instance.")
-        self.render_settings = settings
-
-    def render_snapshot(self):
-        """Compatibility snapshot; preview rendering no longer uses this API."""
-        snapshot = object.__new__(ImageWorkbench)
-        snapshot.texture_set = self.texture_set.copy_for_render()
-        snapshot.tem_channels = tuple(self.tem_channels)
-        snapshot.render_settings = self.render_settings
-        snapshot._renderer = self._renderer
-        return snapshot
-
-    def process_coloring(self):
-        """Process image with current workspace setting"""
-        return self._renderer.render_team_colors(
-            self.texture_set,
-            self.render_settings,
-        )
-
-    def refresh_workspace(self):
-        """Refresh the workspace image with current settings"""
-        return self._renderer.render(
-            self.texture_set,
-            self.render_settings,
-        )
-
-    def refresh_team_colour_img(self):
-        return self._renderer.render_team_colour(
-            self.texture_set,
-            self.render_settings,
-        )
 
     def load_diffuse_file(self, filepath: str):
         """Load diffuse texture and set it as workspace image,
@@ -284,21 +122,26 @@ class ImageWorkbench:
             diffuse=diffuse,
             team_color=Image.new("L", diffuse.size, "gray"),
         )
-        self.tem_channels = []
 
     def load_team_colour_file(self, filepath: str):
-        img = load_team_colour_texture(filepath, self.img_og_dif.size)
-        self.img_og_tem = img
-        self.tem_channels = [channel.convert("L") for channel in img.split()]
+        self.texture_set.team_color = load_team_colour_texture(
+            filepath,
+            self.texture_set.diffuse.size,
+        )
 
     def _prepare_optional_map(self, filepath: str, map_name: str):
-        return load_optional_texture(filepath, map_name, self.img_og_dif.size)
+        return load_optional_texture(
+            filepath,
+            map_name,
+            self.texture_set.diffuse.size,
+        )
 
     def load_dirt_file(self, filepath: str):
-        self.img_dirt = self._prepare_optional_map(filepath, "Dirt")
+        self.texture_set.dirt = self._prepare_optional_map(filepath, "Dirt")
 
     def load_specular_file(self, filepath: str):
-        self.img_spec = self._prepare_optional_map(filepath, "Specular")
+        self.texture_set.specular = self._prepare_optional_map(filepath, "Specular")
+
 
 def save_image(image: Image.Image, filepath) -> None:
     """Save an explicitly supplied rendered image using established behavior."""

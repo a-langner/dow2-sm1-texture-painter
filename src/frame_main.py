@@ -2,6 +2,7 @@ import os
 import logging
 import queue
 import threading
+from dataclasses import replace
 from concurrent.futures import ThreadPoolExecutor
 from PIL import (
     ImageTk,
@@ -32,6 +33,7 @@ from src.constant import (
     COLOR_BOX_SIZE,
     COLOR_BTN_HEIGHT,
     FRAME_TOOL_HEIGHT,
+    ColorOps,
 )
 import src.color_pattern_handler
 from src.dialog_gateway import DialogGateway
@@ -209,6 +211,7 @@ class ArmyPainter(tk.Tk):
         """
         self.img_wbench = ImageWorkbench()
         self.texture_renderer = TextureRenderer()
+        self.render_settings = DEFAULT_RENDER_SETTINGS
         self.settings = SettingsHandler()
         self.file_selection = FileSelectionService(self.settings, self.dialogs)
         self.pattern_controller = ArmyPainter._create_pattern_controller(self)
@@ -233,7 +236,7 @@ class ArmyPainter(tk.Tk):
         """Capture one shallow, read-only preview request on the Tk thread."""
         return PreviewRequest(
             textures=self.img_wbench.texture_set.copy_for_render(),
-            settings=self.img_wbench.get_render_settings(),
+            settings=self.render_settings,
         )
 
     def _create_application_widgets(self):
@@ -474,13 +477,13 @@ class ArmyPainter(tk.Tk):
         self.bind("<Control-r>", self.reset_workspace)
 
     def define_frame_workspace(self):
-        self.img_dif = ImageTk.PhotoImage(self.img_wbench.img_og_dif)
+        self.img_dif = ImageTk.PhotoImage(self.img_wbench.texture_set.diffuse)
         self.label_img_dif = tk.Label(
             self.frame_img, image=self.img_dif, relief=tk.RAISED
         )
         self.label_img_dif.pack(side=tk.LEFT, fill=tk.Y)
 
-        self.img_tem = ImageTk.PhotoImage(self.img_wbench.img_og_tem)
+        self.img_tem = ImageTk.PhotoImage(self.img_wbench.texture_set.team_color)
         self.label_img_tem = tk.Label(
             self.frame_img, image=self.img_tem, relief=tk.RAISED
         )
@@ -517,8 +520,6 @@ class ArmyPainter(tk.Tk):
             self.frame_batch_tools = None
 
     def on_slider_update(self, brightness: float, contrast: float):
-        self.img_wbench.brightness = brightness
-        self.img_wbench.contrast = contrast
         self.sync_render_settings()
         self.preview_controller.request_preview()
 
@@ -537,7 +538,7 @@ class ArmyPainter(tk.Tk):
             return
 
         self.sync_render_settings()
-        settings = self.img_wbench.get_render_settings()
+        settings = self.render_settings
         try:
             rendered = self.texture_renderer.render(
                 self.img_wbench.texture_set,
@@ -569,14 +570,20 @@ class ArmyPainter(tk.Tk):
 
     def close(self, Event=None):
         self.img_wbench.set_placeholder_img()
-        self.img_wbench.tem_channels = []
         self.refresh_workspace()
 
     def sync_render_settings(self):
-        self.img_wbench.colors = self.get_current_pattern_colors()
-        self.img_wbench.brightness = self.frame_sliders.brightness_slider.get()
-        self.img_wbench.contrast = self.frame_sliders.contrast_slider.get()
-        self.img_wbench.tem_selected = self.frame_channel_select.lb.curselection()
+        colors = self.get_current_pattern_colors()
+        self.render_settings = replace(
+            self.render_settings,
+            primary_color=colors[0],
+            secondary_color=colors[1],
+            tint_color=colors[2],
+            extra_color=colors[3],
+            brightness=self.frame_sliders.brightness_slider.get(),
+            contrast=self.frame_sliders.contrast_slider.get(),
+            tem_selected=tuple(self.frame_channel_select.lb.curselection()),
+        )
 
     def refresh_workspace(self):
         """Schedule an immediate background workspace refresh."""
@@ -595,19 +602,31 @@ class ArmyPainter(tk.Tk):
         self.dialogs.show_error(title="Preview error", message=str(error))
 
     def color_operation_update(self, color_op: str):
-        self.img_wbench.color_op = color_op
+        self.render_settings = replace(
+            self.render_settings,
+            color_op=ColorOps(color_op),
+        )
         self.refresh_workspace()
 
     def on_apply_alpha_toggle(self, apply_alpha: bool):
-        self.img_wbench.apply_alpha = apply_alpha
+        self.render_settings = replace(
+            self.render_settings,
+            apply_alpha=apply_alpha,
+        )
         self.refresh_workspace()
 
     def on_dirt_toggle(self):
-        self.img_wbench.apply_dirt = self.apply_dirt.get()
+        self.render_settings = replace(
+            self.render_settings,
+            apply_dirt=bool(self.apply_dirt.get()),
+        )
         self.refresh_workspace()
 
     def on_spec_toggle(self):
-        self.img_wbench.apply_spec = self.apply_spec.get()
+        self.render_settings = replace(
+            self.render_settings,
+            apply_spec=bool(self.apply_spec.get()),
+        )
         self.refresh_workspace()
 
     def on_pattern_select(self, Event=None):
@@ -645,7 +664,6 @@ class ArmyPainter(tk.Tk):
         :param Event: event triggered from widget, defaults to None
         :type Event: [type], optional
         """
-        self.img_wbench.tem_selected = self.frame_channel_select.lb.curselection()
         self.refresh_workspace()
 
     def load_file(self, filepath: str):
@@ -870,7 +888,7 @@ class ArmyPainter(tk.Tk):
             return
         src, dest, dest_format, src_format = batch_input
         self.sync_render_settings()
-        settings = self.img_wbench.get_render_settings()
+        settings = self.render_settings
         request = BatchProcessingRequest(
             source_directory=src,
             destination_directory=dest,

@@ -5,9 +5,10 @@ from PIL import Image
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.constant import ColorOps
-from src.image_process import ImageWorkbench
 from src.preview_controller import PreviewRequest, render_preview
+from src.render_settings import DEFAULT_COLOR, RenderSettings
 from src.texture_renderer import TextureRenderer
+from src.texture_set import TextureSet
 
 DIFFUSE_PIXELS = (
     (0, 0, 0, 0),
@@ -42,6 +43,41 @@ SPECULAR_PIXELS = (
 )
 
 
+class RenderingCase:
+    """Mutable test builder that emits immutable settings for each render."""
+
+    def __init__(self, textures, settings):
+        self.textures = textures
+        self.settings = settings
+        self.renderer = TextureRenderer()
+
+    @property
+    def colors(self):
+        return self.settings.colors
+
+    @colors.setter
+    def colors(self, values):
+        values = tuple(values) + (DEFAULT_COLOR,) * (4 - len(values))
+        self.settings = replace(
+            self.settings,
+            primary_color=values[0],
+            secondary_color=values[1],
+            tint_color=values[2],
+            extra_color=values[3],
+        )
+
+    def set(self, **values):
+        if "color_op" in values and isinstance(values["color_op"], str):
+            values["color_op"] = ColorOps(values["color_op"])
+        self.settings = replace(self.settings, **values)
+
+    def render(self):
+        return self.renderer.render(self.textures, self.settings)
+
+    def render_team_colour(self):
+        return self.renderer.render_team_colour(self.textures, self.settings)
+
+
 def image_from_pixels(mode, pixels):
     image = Image.new(mode, (2, 2))
     image.putdata(pixels)
@@ -54,21 +90,23 @@ def pixels(image):
     )
 
 
-class ImageWorkbenchRenderingTests(unittest.TestCase):
+class TextureRenderingBaselineTests(unittest.TestCase):
     """Pixel baselines captured from the renderer before its decomposition."""
 
     def make_workbench(self):
-        workbench = ImageWorkbench()
-        workbench.img_og_dif = image_from_pixels("RGBA", DIFFUSE_PIXELS)
-        workbench.tem_channels = [
+        diffuse = image_from_pixels("RGBA", DIFFUSE_PIXELS)
+        channels = [
             image_from_pixels("L", channel) for channel in CHANNEL_PIXELS
         ]
-        workbench.img_og_tem = Image.merge("RGBA", tuple(workbench.tem_channels))
-        workbench.colors = []
-        workbench.brightness = 100
-        workbench.contrast = 100
-        workbench.tem_selected = (0, 1, 2, 3)
-        return workbench
+        team_color = Image.merge("RGBA", tuple(channels))
+        return RenderingCase(
+            TextureSet(diffuse, team_color),
+            RenderSettings(
+                brightness=100,
+                contrast=100,
+                tem_selected=(0, 1, 2, 3),
+            ),
+        )
 
     def assert_images_equal(self, actual, expected):
         self.assertEqual(
@@ -93,10 +131,10 @@ class ImageWorkbenchRenderingTests(unittest.TestCase):
 
     def assert_render_pixels(self, workbench, expected_pixels):
         expected = image_from_pixels("RGBA", expected_pixels)
-        actual = workbench.refresh_workspace()
+        actual = workbench.render()
         direct = TextureRenderer().render(
-            workbench.texture_set,
-            workbench.render_settings,
+            workbench.textures,
+            workbench.settings,
         )
         self.assert_images_equal(actual, expected)
         self.assert_images_equal(direct, expected)
@@ -161,7 +199,7 @@ class ImageWorkbenchRenderingTests(unittest.TestCase):
     def test_brightness_change(self):
         workbench = self.make_workbench()
         workbench.colors = [PATTERN_COLORS[0]]
-        workbench.brightness = 50
+        workbench.set(brightness=50)
 
         self.assert_render_pixels(
             workbench,
@@ -176,7 +214,7 @@ class ImageWorkbenchRenderingTests(unittest.TestCase):
     def test_contrast_change(self):
         workbench = self.make_workbench()
         workbench.colors = [PATTERN_COLORS[0]]
-        workbench.contrast = 50
+        workbench.set(contrast=50)
 
         self.assert_render_pixels(
             workbench,
@@ -191,8 +229,7 @@ class ImageWorkbenchRenderingTests(unittest.TestCase):
     def test_brightness_and_contrast_combination(self):
         workbench = self.make_workbench()
         workbench.colors = [PATTERN_COLORS[0]]
-        workbench.brightness = 50
-        workbench.contrast = 150
+        workbench.set(brightness=50, contrast=150)
 
         self.assert_render_pixels(
             workbench,
@@ -206,8 +243,7 @@ class ImageWorkbenchRenderingTests(unittest.TestCase):
 
     def test_alpha_uses_inverted_selected_channel_image(self):
         workbench = self.make_workbench()
-        workbench.apply_alpha = True
-        workbench.tem_selected = (0, 2)
+        workbench.set(apply_alpha=True, tem_selected=(0, 2))
 
         self.assert_render_pixels(
             workbench,
@@ -219,7 +255,7 @@ class ImageWorkbenchRenderingTests(unittest.TestCase):
             ),
         )
         expected_team = image_from_pixels("L", (255, 0, 255, 28))
-        self.assert_images_equal(workbench.refresh_team_colour_img(), expected_team)
+        self.assert_images_equal(workbench.render_team_colour(), expected_team)
 
     def test_each_supported_color_operation(self):
         expected_by_operation = {
@@ -247,24 +283,24 @@ class ImageWorkbenchRenderingTests(unittest.TestCase):
             with self.subTest(operation=operation):
                 workbench = self.make_workbench()
                 workbench.colors = [PATTERN_COLORS[0]]
-                workbench.color_op = operation
+                workbench.set(color_op=operation)
                 self.assert_render_pixels(workbench, expected)
 
     def make_optional_maps_workbench(self):
         workbench = self.make_workbench()
-        workbench.img_dirt = image_from_pixels("RGBA", DIRT_PIXELS)
-        workbench.img_spec = image_from_pixels("RGBA", SPECULAR_PIXELS)
+        workbench.textures.dirt = image_from_pixels("RGBA", DIRT_PIXELS)
+        workbench.textures.specular = image_from_pixels("RGBA", SPECULAR_PIXELS)
         return workbench
 
     def test_dirt_disabled(self):
         workbench = self.make_optional_maps_workbench()
-        workbench.apply_dirt = False
+        workbench.set(apply_dirt=False)
 
         self.assert_render_pixels(workbench, DIFFUSE_ONLY)
 
     def test_dirt_enabled(self):
         workbench = self.make_optional_maps_workbench()
-        workbench.apply_dirt = True
+        workbench.set(apply_dirt=True)
 
         self.assert_render_pixels(
             workbench,
@@ -278,13 +314,13 @@ class ImageWorkbenchRenderingTests(unittest.TestCase):
 
     def test_specular_disabled(self):
         workbench = self.make_optional_maps_workbench()
-        workbench.apply_spec = False
+        workbench.set(apply_spec=False)
 
         self.assert_render_pixels(workbench, DIFFUSE_ONLY)
 
     def test_specular_enabled(self):
         workbench = self.make_optional_maps_workbench()
-        workbench.apply_spec = True
+        workbench.set(apply_spec=True)
 
         self.assert_render_pixels(
             workbench,
@@ -298,8 +334,7 @@ class ImageWorkbenchRenderingTests(unittest.TestCase):
 
     def test_dirt_and_specular_combination_preserves_compositing_order(self):
         workbench = self.make_optional_maps_workbench()
-        workbench.apply_dirt = True
-        workbench.apply_spec = True
+        workbench.set(apply_dirt=True, apply_spec=True)
 
         self.assert_render_pixels(
             workbench,
@@ -314,12 +349,14 @@ class ImageWorkbenchRenderingTests(unittest.TestCase):
     def test_representative_full_pipeline(self):
         workbench = self.make_optional_maps_workbench()
         workbench.colors = list(PATTERN_COLORS)
-        workbench.brightness = 85
-        workbench.contrast = 120
-        workbench.color_op = ColorOps.MULTIPLY.value
-        workbench.apply_alpha = True
-        workbench.apply_dirt = True
-        workbench.apply_spec = True
+        workbench.set(
+            brightness=85,
+            contrast=120,
+            color_op=ColorOps.MULTIPLY,
+            apply_alpha=True,
+            apply_dirt=True,
+            apply_spec=True,
+        )
 
         self.assert_render_pixels(
             workbench,
@@ -334,20 +371,17 @@ class ImageWorkbenchRenderingTests(unittest.TestCase):
     def test_rendering_does_not_mutate_source_images(self):
         workbench = self.make_optional_maps_workbench()
         workbench.colors = list(PATTERN_COLORS)
-        workbench.apply_alpha = True
-        workbench.apply_dirt = True
-        workbench.apply_spec = True
+        workbench.set(apply_alpha=True, apply_dirt=True, apply_spec=True)
         sources = (
-            workbench.img_og_dif,
-            workbench.img_og_tem,
-            *workbench.tem_channels,
-            workbench.img_dirt,
-            workbench.img_spec,
+            workbench.textures.diffuse,
+            workbench.textures.team_color,
+            workbench.textures.dirt,
+            workbench.textures.specular,
         )
         source_copies = tuple(image.copy() for image in sources)
 
-        workbench.refresh_workspace()
-        workbench.refresh_team_colour_img()
+        workbench.render()
+        workbench.render_team_colour()
 
         for source, original in zip(sources, source_copies):
             self.assert_images_equal(source, original)
@@ -355,18 +389,16 @@ class ImageWorkbenchRenderingTests(unittest.TestCase):
     def test_repeated_rendering_is_pixel_identical(self):
         workbench = self.make_optional_maps_workbench()
         workbench.colors = list(PATTERN_COLORS)
-        workbench.apply_alpha = True
-        workbench.apply_dirt = True
-        workbench.apply_spec = True
+        workbench.set(apply_alpha=True, apply_dirt=True, apply_spec=True)
 
-        first = workbench.refresh_workspace().copy()
-        second = workbench.refresh_workspace()
+        first = workbench.render().copy()
+        second = workbench.render()
 
         self.assert_images_equal(first, second)
 
     def test_render_settings_snapshots_are_independent(self):
         workbench = self.make_workbench()
-        original = workbench.get_render_settings()
+        original = workbench.settings
         changed = replace(
             original,
             primary_color=PATTERN_COLORS[0],
@@ -377,8 +409,8 @@ class ImageWorkbenchRenderingTests(unittest.TestCase):
             color_op=ColorOps.SCREEN,
         )
 
-        workbench.apply_render_settings(changed)
-        workbench.refresh_workspace()
+        workbench.settings = changed
+        workbench.render()
 
         self.assertEqual(
             original,
@@ -397,17 +429,19 @@ class ImageWorkbenchRenderingTests(unittest.TestCase):
     def test_preview_and_direct_output_use_equivalent_core_rendering(self):
         workbench = self.make_optional_maps_workbench()
         workbench.colors = list(PATTERN_COLORS)
-        workbench.brightness = 85
-        workbench.contrast = 120
-        workbench.apply_alpha = True
-        workbench.apply_dirt = True
-        workbench.apply_spec = True
-        direct_output = workbench.refresh_workspace().copy()
-        direct_team = workbench.refresh_team_colour_img().copy()
+        workbench.set(
+            brightness=85,
+            contrast=120,
+            apply_alpha=True,
+            apply_dirt=True,
+            apply_spec=True,
+        )
+        direct_output = workbench.render().copy()
+        direct_team = workbench.render_team_colour().copy()
 
         request = PreviewRequest(
-            workbench.texture_set.copy_for_render(),
-            workbench.get_render_settings(),
+            workbench.textures.copy_for_render(),
+            workbench.settings,
         )
         preview_output, preview_team = render_preview(TextureRenderer(), request)
 

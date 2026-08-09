@@ -7,7 +7,6 @@ from PIL import Image
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.constant import ColorOps
-from src.image_process import ImageWorkbench
 from src.render_settings import RenderSettings
 from src.texture_renderer import TextureRenderer
 from src.texture_set import TextureSet
@@ -70,19 +69,6 @@ class TextureRendererTests(unittest.TestCase):
             color_op=ColorOps.MULTIPLY,
             tem_selected=(0, 1, 2, 3),
         )
-
-    def test_direct_and_compatibility_rendering_are_identical(self):
-        workbench = ImageWorkbench()
-        workbench.texture_set = self.make_textures()
-        workbench.apply_render_settings(self.full_settings())
-
-        compatibility = workbench.refresh_workspace()
-        direct = TextureRenderer().render(
-            workbench.texture_set,
-            workbench.render_settings,
-        )
-
-        assert_images_equal(self, direct, compatibility)
 
     def test_rendering_does_not_mutate_any_source_image(self):
         textures = self.make_textures()

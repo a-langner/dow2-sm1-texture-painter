@@ -453,3 +453,18 @@ brightness on each layer; black flattening before optional alpha; selected-mask
 construction and inversion; dirt-before-specular composition; optional-map
 LANCZOS resizing and RGBA conversion; and final image modes. None of these are
 assumed interchangeable during the refactor.
+
+## Job 10 compatibility boundary
+
+`ImageWorkbench` no longer renders images or owns render settings. The GUI now
+owns one immutable `RenderSettings` value, while preview, save, and batch paths
+all invoke `TextureRenderer` directly with an explicit `TextureSet` snapshot.
+The old image aliases, settings properties, derived-channel cache, render
+wrappers, settings snapshot methods, and rendered-output state have been
+removed.
+
+The class remains temporarily as a narrow active-texture loading facade because
+`TextureLoadingService` still coordinates its loading adapters. Its supported
+surface is limited to the authoritative `texture_set`, placeholder reset, and
+the diffuse, team-colour, dirt, and specular loading methods. Job 11 can decide
+whether to replace this final facade with a dedicated state/loading owner.

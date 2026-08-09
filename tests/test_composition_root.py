@@ -5,6 +5,7 @@ from unittest.mock import Mock, call, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.frame_main import ArmyPainter
+from src.render_settings import DEFAULT_RENDER_SETTINGS
 from src.widget import PatternSelection
 
 
@@ -115,6 +116,7 @@ class ArmyPainterCompositionTests(unittest.TestCase):
         batch_service_type.assert_called_once_with(
             renderer=texture_renderer_type.return_value
         )
+        self.assertIs(painter.render_settings, DEFAULT_RENDER_SETTINGS)
         self.assertIs(painter.batch_executor, batch_executor)
 
     @patch("src.frame_main.FramePatternList", return_value=FakePatternPanel())

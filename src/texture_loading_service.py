@@ -1,4 +1,4 @@
-"""Filesystem and ImageWorkbench coordination for active texture loading."""
+"""Filesystem and active TextureSet coordination for texture loading."""
 
 from dataclasses import dataclass
 import logging
@@ -95,7 +95,7 @@ def find_companion_texture(
 
 
 class TextureLoadingService:
-    """Load one active texture set into an injected ImageWorkbench."""
+    """Load one active texture set into an injected texture-state facade."""
 
     def __init__(self, workbench, naming_profile=DEFAULT_TEXTURE_NAMING):
         self.workbench = workbench
@@ -163,7 +163,7 @@ class TextureLoadingService:
                     exc,
                 )
 
-        width, height = self.workbench.img_og_dif.size
+        width, height = self.workbench.texture_set.diffuse.size
         return TextureLoadResult(
             diffuse_path=diffuse_path,
             team_color_path=team_color_path,
@@ -178,23 +178,11 @@ class TextureLoadingService:
     def load_channel_file(self, channel_path):
         channel_path = validate_supported_texture_path(channel_path)
         self.workbench.load_team_colour_file(channel_path)
-        width, height = self.workbench.img_og_tem.size
+        width, height = self.workbench.texture_set.team_color.size
         return ChannelLoadResult(channel_path, width, height)
 
     def _source_state(self):
-        return (
-            self.workbench.img_og_dif,
-            self.workbench.img_og_tem,
-            self.workbench.tem_channels,
-            self.workbench.img_dirt,
-            self.workbench.img_spec,
-        )
+        return self.workbench.texture_set
 
     def _restore_source_state(self, state):
-        (
-            self.workbench.img_og_dif,
-            self.workbench.img_og_tem,
-            self.workbench.tem_channels,
-            self.workbench.img_dirt,
-            self.workbench.img_spec,
-        ) = state
+        self.workbench.texture_set = state
