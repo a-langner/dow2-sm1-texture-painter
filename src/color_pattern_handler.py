@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 from collections import OrderedDict
 from collections.abc import Iterable, Mapping
 import json
 from importlib import resources
-from importlib.resources.abc import Traversable
 import logging
 import os
 from pathlib import Path
 import re
 import tempfile
-from typing import NamedTuple, cast
+from typing import TYPE_CHECKING, NamedTuple, cast
+
+if TYPE_CHECKING:
+    from importlib.resources.abc import Traversable
 
 from src.user_data import get_user_patterns_path
 
