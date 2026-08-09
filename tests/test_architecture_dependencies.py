@@ -30,6 +30,7 @@ IMAGE_PROCESSING_MODULES = {
     "dow1_converter.py",
     "image_process.py",
     "texture_naming.py",
+    "texture_set.py",
 }
 GUI_MODULES = {
     "src.dialog_gateway",

@@ -8,7 +8,7 @@ from PIL import (
 )
 from dataclasses import dataclass
 from src.constant import DEFAULT_IMG_SIZE, ColorOps
-
+from src.texture_set import TextureSet
 
 MAX_TEXTURE_DIMENSION = 16 * 1024
 # Pillow's default decompression-bomb threshold is lower than a valid 16K
@@ -41,7 +41,7 @@ def _validate_dimensions(img, filepath):
     if width > MAX_TEXTURE_DIMENSION or height > MAX_TEXTURE_DIMENSION:
         raise TextureValidationError(
             f'"{filepath}" is {width}x{height}. Textures may not exceed '
-            f'{MAX_TEXTURE_DIMENSION} pixels in either dimension.'
+            f"{MAX_TEXTURE_DIMENSION} pixels in either dimension."
         )
 
 
@@ -67,9 +67,7 @@ def _same_aspect_ratio(first_size, second_size):
 
 
 def create_placeholder_img(text="Image PlaceHolder", mode="RGBA"):
-    img = Image.new(
-        mode=mode, size=(DEFAULT_IMG_SIZE, DEFAULT_IMG_SIZE), color="gray"
-    )
+    img = Image.new(mode=mode, size=(DEFAULT_IMG_SIZE, DEFAULT_IMG_SIZE), color="gray")
     d1 = ImageDraw.Draw(img)
     d1.text(xy=(90, 128), fill="black", text=text)
     return img
@@ -90,17 +88,50 @@ class ImageWorkbench:
         self.apply_dirt = False
         self.apply_spec = False
         self.color_op = ColorOps.OVERLAY.value
-        self.img_dirt = None
-        self.img_spec = None
         self.set_placeholder_img()
 
+    @property
+    def img_og_dif(self):
+        """Compatibility name for the authoritative diffuse source."""
+        return self.texture_set.diffuse
+
+    @img_og_dif.setter
+    def img_og_dif(self, image):
+        self.texture_set.diffuse = image
+
+    @property
+    def img_og_tem(self):
+        """Compatibility name for the authoritative team-colour source."""
+        return self.texture_set.team_color
+
+    @img_og_tem.setter
+    def img_og_tem(self, image):
+        self.texture_set.team_color = image
+
+    @property
+    def img_dirt(self):
+        """Compatibility name for the authoritative dirt source."""
+        return self.texture_set.dirt
+
+    @img_dirt.setter
+    def img_dirt(self, image):
+        self.texture_set.dirt = image
+
+    @property
+    def img_spec(self):
+        """Compatibility name for the authoritative specular source."""
+        return self.texture_set.specular
+
+    @img_spec.setter
+    def img_spec(self, image):
+        self.texture_set.specular = image
+
     def set_placeholder_img(self):
-        self.img_og_dif = create_placeholder_img("Select Diffuse Texture", "RGBA")
-        self.img_og_tem = create_placeholder_img("Select Channel Texture", "L")
+        diffuse = create_placeholder_img("Select Diffuse Texture", "RGBA")
+        team_color = create_placeholder_img("Select Channel Texture", "L")
+        self.texture_set = TextureSet(diffuse, team_color)
         self.img_workspace = self.img_og_dif.copy()
         self.tem_channels = []
-        self.img_dirt = None
-        self.img_spec = None
 
     def get_render_settings(self):
         return RenderSettings(
@@ -127,11 +158,8 @@ class ImageWorkbench:
     def render_snapshot(self):
         """Create a worker-safe view over immutable source images/settings."""
         snapshot = object.__new__(ImageWorkbench)
-        snapshot.img_og_dif = self.img_og_dif
-        snapshot.img_og_tem = self.img_og_tem
+        snapshot.texture_set = self.texture_set.copy_for_render()
         snapshot.tem_channels = tuple(self.tem_channels)
-        snapshot.img_dirt = self.img_dirt
-        snapshot.img_spec = self.img_spec
         snapshot.apply_render_settings(self.get_render_settings())
         return snapshot
 
@@ -194,9 +222,7 @@ class ImageWorkbench:
         self.process_coloring()
         # Add black background, hiding transparent pixel
         background = Image.new("RGBA", self.img_workspace.size, (0, 0, 0))
-        self.img_workspace = Image.alpha_composite(
-            background, self.img_workspace
-        )
+        self.img_workspace = Image.alpha_composite(background, self.img_workspace)
 
         if self.apply_alpha:
             tmp = self.refresh_team_colour_img()
@@ -231,21 +257,22 @@ class ImageWorkbench:
         :param filepath: path to file
         :type filepath: str
         """
-        self.img_og_dif = _open_texture(filepath).convert("RGBA")
+        diffuse = _open_texture(filepath).convert("RGBA")
         # Companion maps belong to a particular diffuse. Do not accidentally
         # retain maps from the previously opened texture.
-        self.img_og_tem = Image.new("L", self.img_og_dif.size, "gray")
+        self.texture_set = TextureSet(
+            diffuse=diffuse,
+            team_color=Image.new("L", diffuse.size, "gray"),
+        )
         self.tem_channels = []
-        self.img_dirt = None
-        self.img_spec = None
 
     def load_team_colour_file(self, filepath: str):
         img = _open_texture(filepath)
         if img.size != self.img_og_dif.size:
             raise TextureValidationError(
                 f'Team-colour texture "{filepath}" is '
-                f'{img.size[0]}x{img.size[1]}, but the diffuse texture is '
-                f'{self.img_og_dif.size[0]}x{self.img_og_dif.size[1]}. '
+                f"{img.size[0]}x{img.size[1]}, but the diffuse texture is "
+                f"{self.img_og_dif.size[0]}x{self.img_og_dif.size[1]}. "
                 "Team-colour and diffuse textures must have identical dimensions."
             )
         if img.mode == "RGB":
@@ -264,8 +291,8 @@ class ImageWorkbench:
         if not _same_aspect_ratio(img.size, self.img_og_dif.size):
             raise TextureValidationError(
                 f'{map_name} texture "{filepath}" is '
-                f'{img.size[0]}x{img.size[1]}, but the diffuse texture is '
-                f'{self.img_og_dif.size[0]}x{self.img_og_dif.size[1]}. '
+                f"{img.size[0]}x{img.size[1]}, but the diffuse texture is "
+                f"{self.img_og_dif.size[0]}x{self.img_og_dif.size[1]}. "
                 "The textures must have the same aspect ratio."
             )
         if img.size != self.img_og_dif.size:

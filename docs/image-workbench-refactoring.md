@@ -6,6 +6,25 @@ This document records the pre-decomposition responsibilities of
 The inventory describes the implementation before those migrations; Job 1 makes
 no rendering or user-visible changes.
 
+## TextureSet transition
+
+Job 3 introduced `src.texture_set.TextureSet` as the single authoritative
+container for diffuse, team-colour, dirt, and specular Pillow images.
+`ImageWorkbench` owns one mutable `TextureSet` and exposes its historical image
+field names as compatibility properties; there is no duplicate source-image
+state. The container retains incoming image references directly to avoid large
+copies. Rendering treats those images as read-only.
+
+The container is deliberately mutable during loading so a complete image
+reference can be replaced. `copy_for_render()` creates a separate container but
+retains the same read-only Pillow image references. Consequently later source
+reference replacement cannot alter an outstanding preview's texture selection,
+while snapshot creation does not copy texture pixel buffers. File paths,
+validation policy, derived channels, settings, rendered output, and GUI state
+remain outside `TextureSet`. `dimensions` reports the required diffuse size;
+format, mode, companion-size, and filesystem validation remain at the loading
+boundary.
+
 ## Current state ownership
 
 `ImageWorkbench` initializes some fields directly and creates the remaining
