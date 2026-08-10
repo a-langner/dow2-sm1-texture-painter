@@ -11,6 +11,7 @@ from typing import Callable, Optional
 from src.color_pattern_handler import get_all_patterns, is_user_pattern
 from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.constant import OPEN_FILETYPES, SAVE_EXT_LIST, ColorOps
+from src.paint_color_analysis import ColorGroup, VISUAL_GROUP_ORDER
 from src.render_settings import (
     MAX_BRIGHTNESS,
     MAX_CONTRAST,
@@ -27,6 +28,29 @@ COLOR_PICKER_DEFAULT_HEIGHT = 680
 COLOR_PICKER_MIN_WIDTH = 700
 COLOR_PICKER_MIN_HEIGHT = 480
 COLOR_PICKER_SCREEN_MARGIN = 80
+COLOR_PICKER_GROUP_ENTRIES = ((None, "All Colors"),) + tuple(
+    (color_group, color_group.value) for color_group in VISUAL_GROUP_ORDER
+)
+COLOR_GROUP_INDICATORS = {
+    ColorGroup.RED: "#d32f2f",
+    ColorGroup.ORANGE: "#f57c00",
+    ColorGroup.YELLOW: "#fbc02d",
+    ColorGroup.GREEN: "#388e3c",
+    ColorGroup.TEAL_CYAN: "#0097a7",
+    ColorGroup.BLUE: "#1976d2",
+    ColorGroup.PURPLE: "#7b1fa2",
+    ColorGroup.PINK: "#d81b60",
+    ColorGroup.BROWN: "#795548",
+    ColorGroup.NEUTRAL: "#757575",
+}
+ALL_COLOR_INDICATORS = (
+    "#d32f2f",
+    "#f57c00",
+    "#fbc02d",
+    "#388e3c",
+    "#1976d2",
+    "#7b1fa2",
+)
 
 ActionCallback = Callable[[], None]
 BooleanChangedCallback = Callable[[bool], None]
@@ -60,6 +84,7 @@ class ColorPickerDialog(tk.Toplevel):
         self._configure_window(parent)
         self._build_actions()
         self._build_main_layout()
+        self._build_group_navigation()
         self.protocol("WM_DELETE_WINDOW", self.cancel)
         self.bind("<Return>", self.accept)
         self.bind("<Escape>", self.cancel)
@@ -155,6 +180,66 @@ class ColorPickerDialog(tk.Toplevel):
         self.original_color_preview_area.pack(side=tk.LEFT, fill=tk.X, expand=True)
         self.current_color_preview_area = ttk.Frame(self.editor_preview_area)
         self.current_color_preview_area.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+    def _build_group_navigation(self) -> None:
+        style = ttk.Style(self)
+        style.configure("ColorPickerGroup.TButton", anchor=tk.W)
+        style.map(
+            "ColorPickerGroup.TButton",
+            relief=[("selected", tk.SUNKEN)],
+        )
+
+        self.group_buttons = {}
+        self.group_button_labels = {}
+        for color_group, label in COLOR_PICKER_GROUP_ENTRIES:
+            row = ttk.Frame(self.group_navigation)
+            row.pack(fill=tk.X, pady=1)
+            indicator = tk.Canvas(
+                row,
+                width=14,
+                height=14,
+                bd=0,
+                highlightthickness=1,
+            )
+            indicator.pack(side=tk.LEFT, padx=(0, 5))
+            self._draw_group_indicator(indicator, color_group)
+
+            button = ttk.Button(
+                row,
+                text=label,
+                style="ColorPickerGroup.TButton",
+                command=partial(self.select_color_group, color_group),
+            )
+            button.pack(side=tk.LEFT, fill=tk.X, expand=True)
+            self.group_buttons[color_group] = button
+            self.group_button_labels[color_group] = label
+
+        self.select_color_group(None)
+
+    def _draw_group_indicator(self, indicator, color_group) -> None:
+        if color_group is not None:
+            indicator.configure(background=COLOR_GROUP_INDICATORS[color_group])
+            return
+
+        stripe_width = 14 / len(ALL_COLOR_INDICATORS)
+        for index, color in enumerate(ALL_COLOR_INDICATORS):
+            indicator.create_rectangle(
+                index * stripe_width,
+                0,
+                (index + 1) * stripe_width,
+                14,
+                fill=color,
+                outline="",
+            )
+
+    def select_color_group(self, color_group: Optional[ColorGroup]) -> None:
+        """Select a navigation group for the future palette filter."""
+        self.selected_color_group = color_group
+        for candidate, button in self.group_buttons.items():
+            selected = candidate is color_group
+            button.state(["selected"] if selected else ["!selected"])
+            marker = "▸ " if selected else "  "
+            button.configure(text=f"{marker}{self.group_button_labels[candidate]}")
 
     def set_current_color(self, color: str) -> None:
         """Update the one working color shared by future editor controls."""

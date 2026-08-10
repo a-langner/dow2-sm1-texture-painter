@@ -1,11 +1,13 @@
 import unittest
 from unittest.mock import Mock, patch
 
+from src.paint_color_analysis import ColorGroup, VISUAL_GROUP_ORDER
 from src.widget import (
     COLOR_PICKER_DEFAULT_HEIGHT,
     COLOR_PICKER_DEFAULT_WIDTH,
     COLOR_PICKER_MIN_HEIGHT,
     COLOR_PICKER_MIN_WIDTH,
+    COLOR_PICKER_GROUP_ENTRIES,
     ColorPickerDialog,
 )
 
@@ -24,11 +26,24 @@ class FakeWidget:
         self.panes.append((child, options))
 
 
+class FakeGroupButton:
+    def __init__(self):
+        self.states = []
+        self.text = None
+
+    def state(self, states):
+        self.states = states
+
+    def configure(self, *, text):
+        self.text = text
+
+
 class ColorPickerDialogTests(unittest.TestCase):
     @patch("src.widget.tk.Toplevel.wait_window")
     @patch("src.widget.tk.Toplevel.grab_set")
     @patch("src.widget.tk.Toplevel.bind")
     @patch("src.widget.tk.Toplevel.protocol")
+    @patch.object(ColorPickerDialog, "_build_group_navigation")
     @patch.object(ColorPickerDialog, "_build_main_layout")
     @patch.object(ColorPickerDialog, "_build_actions")
     @patch.object(ColorPickerDialog, "_configure_window")
@@ -39,6 +54,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         _configure_window,
         _build_actions,
         _build_main_layout,
+        _build_group_navigation,
         _protocol,
         _bind,
         grab_set,
@@ -144,6 +160,34 @@ class ColorPickerDialogTests(unittest.TestCase):
         ):
             with self.subTest(container=attribute):
                 self.assertIsInstance(getattr(dialog, attribute), FakeWidget)
+
+    def test_navigation_entries_reuse_all_runtime_color_groups(self):
+        groups = tuple(color_group for color_group, _ in COLOR_PICKER_GROUP_ENTRIES)
+        labels = tuple(label for _, label in COLOR_PICKER_GROUP_ENTRIES)
+
+        self.assertEqual(groups, (None,) + VISUAL_GROUP_ORDER)
+        self.assertEqual(labels[0], "All Colors")
+        self.assertNotIn("Metallic", labels)
+
+    def test_all_colors_is_default_and_selection_updates_button_state(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.group_buttons = {
+            color_group: FakeGroupButton()
+            for color_group, _ in COLOR_PICKER_GROUP_ENTRIES
+        }
+        dialog.group_button_labels = dict(COLOR_PICKER_GROUP_ENTRIES)
+
+        dialog.select_color_group(None)
+
+        self.assertIsNone(dialog.selected_color_group)
+        self.assertEqual(dialog.group_buttons[None].states, ["selected"])
+        self.assertTrue(dialog.group_buttons[None].text.startswith("▸"))
+
+        dialog.select_color_group(ColorGroup.BLUE)
+
+        self.assertIs(dialog.selected_color_group, ColorGroup.BLUE)
+        self.assertEqual(dialog.group_buttons[None].states, ["!selected"])
+        self.assertEqual(dialog.group_buttons[ColorGroup.BLUE].states, ["selected"])
 
     @patch.object(ColorPickerDialog, "get_accepted_color", return_value="#abcdef")
     @patch.object(ColorPickerDialog, "__init__", return_value=None)
