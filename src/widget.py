@@ -22,6 +22,11 @@ COLOR_BOX_SIZE = 90
 COLOR_BTN_HEIGHT = 26
 PATTERN_MARKER_COLUMN_WIDTH = 28
 HEADER_SEPARATOR_STARTUP_RETRIES = 3
+COLOR_PICKER_DEFAULT_WIDTH = 960
+COLOR_PICKER_DEFAULT_HEIGHT = 680
+COLOR_PICKER_MIN_WIDTH = 700
+COLOR_PICKER_MIN_HEIGHT = 480
+COLOR_PICKER_SCREEN_MARGIN = 80
 
 ActionCallback = Callable[[], None]
 BooleanChangedCallback = Callable[[bool], None]
@@ -41,6 +46,68 @@ def choose_native_color(initial_color: str) -> Optional[str]:
     """Return the native Tk picker selection as a hex value, or cancellation."""
     _, selected_color = colorchooser.askcolor(initial_color)
     return selected_color
+
+
+class ColorPickerDialog(tk.Toplevel):
+    """Modal foundation for the future application color picker."""
+
+    def __init__(self, parent: tk.Misc, initial_color: str):
+        super().__init__(parent)
+        self.original_color = initial_color
+        self.current_color = initial_color
+        self.accepted_color: Optional[str] = None
+
+        self._configure_window(parent)
+        self._build_actions()
+        self.protocol("WM_DELETE_WINDOW", self.cancel)
+        self.bind("<Return>", self.accept)
+        self.bind("<Escape>", self.cancel)
+        self.grab_set()
+        self.wait_window()
+
+    @classmethod
+    def show(cls, parent: tk.Misc, initial_color: str) -> Optional[str]:
+        """Show the modal dialog and return its accepted color or cancellation."""
+        return cls(parent, initial_color).get_accepted_color()
+
+    def _configure_window(self, parent: tk.Misc) -> None:
+        self.title("Select Color")
+        self.transient(parent)
+        self.resizable(True, True)
+
+        available_width = max(1, self.winfo_screenwidth() - COLOR_PICKER_SCREEN_MARGIN)
+        available_height = max(1, self.winfo_screenheight() - COLOR_PICKER_SCREEN_MARGIN)
+        width = min(COLOR_PICKER_DEFAULT_WIDTH, available_width)
+        height = min(COLOR_PICKER_DEFAULT_HEIGHT, available_height)
+        self.geometry(f"{width}x{height}")
+        self.minsize(
+            min(COLOR_PICKER_MIN_WIDTH, width),
+            min(COLOR_PICKER_MIN_HEIGHT, height),
+        )
+
+    def _build_actions(self) -> None:
+        actions = ttk.Frame(self, padding=8)
+        actions.pack(side=tk.BOTTOM, fill=tk.X)
+        ttk.Button(actions, text="OK", command=self.accept).pack(side=tk.RIGHT)
+        ttk.Button(actions, text="Cancel", command=self.cancel).pack(
+            side=tk.RIGHT, padx=(0, 8)
+        )
+
+    def set_current_color(self, color: str) -> None:
+        """Update the one working color shared by future editor controls."""
+        self.current_color = color
+
+    def get_accepted_color(self) -> Optional[str]:
+        """Return the accepted working color, or ``None`` after cancellation."""
+        return self.accepted_color
+
+    def accept(self, Event=None) -> None:
+        self.accepted_color = self.current_color
+        self.destroy()
+
+    def cancel(self, Event=None) -> None:
+        self.accepted_color = None
+        self.destroy()
 
 
 def pattern_name_to_restore(preferred_name, current_name, available_names):
