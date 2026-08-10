@@ -11,7 +11,13 @@ from typing import Callable, Optional
 from src.color_pattern_handler import get_all_patterns, is_user_pattern
 from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.constant import OPEN_FILETYPES, SAVE_EXT_LIST, ColorOps
-from src.paint_color_analysis import ColorGroup, VISUAL_GROUP_ORDER
+from src.paint_catalog import PaintCatalog, load_citadel_catalog
+from src.paint_color_analysis import (
+    ColorGroup,
+    VISUAL_GROUP_ORDER,
+    get_paints_for_group,
+    sort_paints_visually,
+)
 from src.render_settings import (
     MAX_BRIGHTNESS,
     MAX_CONTRAST,
@@ -77,12 +83,21 @@ def choose_native_color(initial_color: str) -> Optional[str]:
 class ColorPickerDialog(tk.Toplevel):
     """Modal foundation for the future application color picker."""
 
-    def __init__(self, parent: tk.Misc, initial_color: str):
+    def __init__(
+        self,
+        parent: tk.Misc,
+        initial_color: str,
+        paint_catalog: Optional[PaintCatalog] = None,
+    ):
         super().__init__(parent)
         self.original_color = initial_color
         self.current_color = initial_color
         self.accepted_color: Optional[str] = None
         self.color_space_mode = DEFAULT_COLOR_SPACE_MODE
+        self.paint_catalog = (
+            load_citadel_catalog() if paint_catalog is None else paint_catalog
+        )
+        self.palette_paints = ()
 
         self._configure_window(parent)
         self._build_actions()
@@ -244,6 +259,18 @@ class ColorPickerDialog(tk.Toplevel):
             button.state(["selected"] if selected else ["!selected"])
             marker = "▸ " if selected else "  "
             button.configure(text=f"{marker}{self.group_button_labels[candidate]}")
+        self._refresh_palette_data_source()
+
+    def _refresh_palette_data_source(self) -> None:
+        paints = self.paint_catalog.paints
+        if self.selected_color_group is not None:
+            paints = get_paints_for_group(paints, self.selected_color_group)
+        self.palette_paints = sort_paints_visually(paints)
+        self._refresh_palette_display()
+
+    def _refresh_palette_display(self) -> None:
+        """Notify the palette view hook populated by the responsive grid job."""
+        self.event_generate("<<ColorPickerPaletteChanged>>")
 
     def _build_editor_placeholders(self) -> None:
         ttk.Label(self.editor_color_space_area, text="Color Space:").pack(

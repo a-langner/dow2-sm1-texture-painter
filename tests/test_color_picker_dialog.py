@@ -1,7 +1,9 @@
 import unittest
 from unittest.mock import Mock, patch
 
+from src.paint_catalog import PaintCatalog, PaintColor
 from src.paint_color_analysis import ColorGroup, VISUAL_GROUP_ORDER
+from src.paint_color_analysis import get_paints_for_group, sort_paints_visually
 from src.widget import (
     COLOR_PICKER_DEFAULT_HEIGHT,
     COLOR_PICKER_DEFAULT_WIDTH,
@@ -190,6 +192,13 @@ class ColorPickerDialogTests(unittest.TestCase):
 
     def test_all_colors_is_default_and_selection_updates_button_state(self):
         dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(
+            paints=(
+                PaintColor("red", "Red", 255, 0, 0),
+                PaintColor("blue", "Blue", 0, 0, 255),
+            )
+        )
+        dialog._refresh_palette_display = Mock()
         dialog.group_buttons = {
             color_group: FakeGroupButton()
             for color_group, _ in COLOR_PICKER_GROUP_ENTRIES
@@ -207,6 +216,44 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertIs(dialog.selected_color_group, ColorGroup.BLUE)
         self.assertEqual(dialog.group_buttons[None].states, ["!selected"])
         self.assertEqual(dialog.group_buttons[ColorGroup.BLUE].states, ["selected"])
+
+    def test_group_filtering_reuses_catalog_and_visual_analysis_apis(self):
+        catalog_paints = (
+            PaintColor("blue", "Blue", 0, 0, 255),
+            PaintColor("dark-red", "Dark Red", 150, 10, 10),
+            PaintColor("orange", "Orange", 255, 128, 0),
+            PaintColor("bright-red", "Bright Red", 255, 0, 0),
+            PaintColor("grey", "Grey", 128, 128, 128),
+        )
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(paints=catalog_paints)
+        dialog.group_buttons = {
+            color_group: FakeGroupButton()
+            for color_group, _ in COLOR_PICKER_GROUP_ENTRIES
+        }
+        dialog.group_button_labels = dict(COLOR_PICKER_GROUP_ENTRIES)
+        dialog._refresh_palette_display = Mock()
+
+        dialog.select_color_group(None)
+
+        expected_all = sort_paints_visually(catalog_paints)
+        self.assertEqual(dialog.palette_paints, expected_all)
+        self.assertEqual(len(dialog.palette_paints), len(catalog_paints))
+
+        dialog.select_color_group(ColorGroup.RED)
+
+        expected_reds = sort_paints_visually(
+            get_paints_for_group(catalog_paints, ColorGroup.RED)
+        )
+        self.assertEqual(dialog.palette_paints, expected_reds)
+        self.assertLess(len(dialog.palette_paints), len(catalog_paints))
+        self.assertEqual(dialog.palette_paints, sort_paints_visually(expected_reds))
+
+        dialog.select_color_group(None)
+
+        self.assertEqual(dialog.palette_paints, expected_all)
+        self.assertEqual(dialog.paint_catalog.paints, catalog_paints)
+        self.assertEqual(dialog._refresh_palette_display.call_count, 3)
 
     @patch("src.widget.tk.Canvas", side_effect=FakeWidget)
     @patch("src.widget.ttk.Combobox", side_effect=FakeWidget)
