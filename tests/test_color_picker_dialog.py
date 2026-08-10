@@ -476,11 +476,12 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog._refresh_palette_display.call_count, 3)
 
     @patch("src.widget.tk.Canvas", side_effect=FakeWidget)
+    @patch("src.widget.ttk.Entry", side_effect=FakeWidget)
     @patch("src.widget.ttk.Spinbox", side_effect=FakeWidget)
     @patch("src.widget.ttk.Combobox", side_effect=FakeWidget)
     @patch("src.widget.ttk.Label", side_effect=FakeWidget)
     def test_editor_placeholders_share_mode_and_color_state(
-        self, _label_type, _combobox_type, _spinbox_type, _canvas_type
+        self, _label_type, _combobox_type, _spinbox_type, _entry_type, _canvas_type
     ):
         dialog = object.__new__(ColorPickerDialog)
         dialog.original_color = "#123456"
@@ -518,6 +519,54 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog.original_color, "#123456")
         self.assertEqual(dialog.current_color, "#fedcba")
         self.assertEqual(dialog.current_color_preview.options["background"], "#fedcba")
+        self.assertEqual(dialog.hex_input.get(), "#FEDCBA")
+
+    def test_valid_hex_edit_normalizes_and_refreshes_all_representations(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.original_color = "#123456"
+        dialog.current_color = "#123456"
+        dialog._updating_color_representations = False
+        dialog.hex_input = FakeWidget()
+        dialog.hex_input.value = "960c09"
+        refreshers = (
+            "_refresh_rgb_controls",
+            "_refresh_color_model_controls",
+            "_refresh_hex_control",
+            "_refresh_visual_picker",
+            "_refresh_current_color_preview",
+        )
+        for refresher in refreshers:
+            setattr(dialog, refresher, Mock())
+
+        self.assertTrue(dialog._commit_hex_input())
+
+        self.assertEqual(dialog.current_color, "#960C09")
+        self.assertEqual(dialog.original_color, "#123456")
+        for refresher in refreshers:
+            getattr(dialog, refresher).assert_called_once_with()
+
+    def test_invalid_or_incomplete_hex_restores_last_valid_value(self):
+        for invalid in ("#12345", "#1234567", "#12GG56"):
+            with self.subTest(invalid=invalid):
+                dialog = object.__new__(ColorPickerDialog)
+                dialog.current_color = "#123456"
+                dialog.hex_input = FakeWidget()
+                dialog.hex_input.value = invalid
+
+                self.assertFalse(dialog._commit_hex_input())
+
+                self.assertEqual(dialog.current_color, "#123456")
+                self.assertEqual(dialog.hex_input.get(), "#123456")
+
+    def test_non_hex_color_change_updates_hex_display(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.current_color = "#123456"
+        dialog.color_space_mode = DEFAULT_COLOR_SPACE_MODE
+        dialog.hex_input = FakeWidget()
+
+        dialog.set_current_color("#00ff00")
+
+        self.assertEqual(dialog.hex_input.get(), "#00FF00")
 
     def test_rgb_validation_accepts_only_blank_or_values_from_zero_to_255(self):
         for accepted in ("", "0", "1", "127", "255"):

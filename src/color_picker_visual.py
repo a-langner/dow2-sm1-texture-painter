@@ -5,19 +5,26 @@ from __future__ import annotations
 import colorsys
 
 
-def rgb_hex_to_channels(color: str) -> tuple[int, int, int]:
-    """Convert a six-digit RGB color string to integer channels."""
-    value = color.removeprefix("#")
+def normalize_rgb_hex(color: str) -> str:
+    """Validate six-digit RGB input and return uppercase ``#RRGGBB``."""
+    value = color.strip().removeprefix("#")
     if len(value) != 6:
         raise ValueError(f"Expected a six-digit RGB color, got {color!r}")
     try:
-        return (
-            int(value[0:2], 16),
-            int(value[2:4], 16),
-            int(value[4:6], 16),
-        )
+        int(value, 16)
     except ValueError as exc:
         raise ValueError(f"Expected a six-digit RGB color, got {color!r}") from exc
+    return f"#{value.upper()}"
+
+
+def rgb_hex_to_channels(color: str) -> tuple[int, int, int]:
+    """Convert a six-digit RGB color string to integer channels."""
+    value = normalize_rgb_hex(color)[1:]
+    return (
+        int(value[0:2], 16),
+        int(value[2:4], 16),
+        int(value[4:6], 16),
+    )
 
 
 def rgb_channels_to_hex(red: int, green: int, blue: int) -> str:

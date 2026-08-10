@@ -23,6 +23,7 @@ from src.color_picker_visual import (
     hsv_to_rgb_hex,
     hue_from_slider_position,
     hue_slider_position,
+    normalize_rgb_hex,
     rgb_channels_to_hex,
     rgb_hex_to_channels,
     rgb_hex_to_hsl,
@@ -694,8 +695,11 @@ class ColorPickerDialog(tk.Toplevel):
             control.bind("<Return>", self._on_color_model_control_changed)
             self.color_model_labels[name] = component_label
             self.color_model_controls[name] = control
-        self.editor_hex_label = ttk.Label(self.editor_hex_area)
-        self.editor_hex_label.pack(anchor=tk.W)
+        ttk.Label(self.editor_hex_area, text="Hex:").pack(side=tk.LEFT)
+        self.hex_input = ttk.Entry(self.editor_hex_area, width=9)
+        self.hex_input.pack(side=tk.LEFT, padx=(3, 0))
+        self.hex_input.bind("<Return>", self._on_hex_input_return)
+        self.hex_input.bind("<FocusOut>", self._on_hex_input_focus_out)
 
         ttk.Label(self.original_color_preview_area, text="Original").pack(anchor=tk.W)
         self.original_color_preview = tk.Canvas(
@@ -788,9 +792,27 @@ class ColorPickerDialog(tk.Toplevel):
             control.insert(0, str(value))
 
     def _refresh_hex_control(self) -> None:
-        label = getattr(self, "editor_hex_label", None)
-        if label is not None:
-            label.configure(text=f"Hex input (coming later): {self.current_color.upper()}")
+        control = getattr(self, "hex_input", None)
+        if control is not None:
+            control.delete(0, tk.END)
+            control.insert(0, normalize_rgb_hex(self.current_color))
+
+    def _commit_hex_input(self) -> bool:
+        """Commit valid Hex input or restore the canonical color display."""
+        try:
+            color = normalize_rgb_hex(self.hex_input.get())
+        except ValueError:
+            self._refresh_hex_control()
+            return False
+        self.set_current_color(color)
+        return True
+
+    def _on_hex_input_return(self, Event=None) -> str:
+        self._commit_hex_input()
+        return "break"
+
+    def _on_hex_input_focus_out(self, Event=None) -> None:
+        self._commit_hex_input()
 
     @staticmethod
     def _validate_rgb_input(proposed: str) -> bool:

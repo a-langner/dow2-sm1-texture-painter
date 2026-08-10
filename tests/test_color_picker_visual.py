@@ -10,6 +10,7 @@ from src.color_picker_visual import (
     hsv_to_rgb_hex,
     hue_from_slider_position,
     hue_slider_position,
+    normalize_rgb_hex,
     rgb_channels_to_hex,
     rgb_hex_to_channels,
 )
@@ -68,6 +69,17 @@ class ColorPickerVisualTests(unittest.TestCase):
             with self.subTest(channels=channels):
                 with self.assertRaises(ValueError):
                     rgb_channels_to_hex(*channels)
+
+    def test_hex_normalization_accepts_hash_optional_and_lowercase(self):
+        self.assertEqual(normalize_rgb_hex("#960C09"), "#960C09")
+        self.assertEqual(normalize_rgb_hex("960c09"), "#960C09")
+        self.assertEqual(normalize_rgb_hex("  #abcdef  "), "#ABCDEF")
+
+    def test_hex_normalization_rejects_invalid_input(self):
+        for value in ("#12345", "#1234567", "#12GG56", "", "#RGBA"):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    normalize_rgb_hex(value)
 
 
 if __name__ == "__main__":
