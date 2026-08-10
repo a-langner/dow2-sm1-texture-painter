@@ -64,6 +64,7 @@ PAINT_SWATCH_PREVIEW_SIZE = 60
 PAINT_SWATCH_NAME_WRAP = 88
 PAINT_SEARCH_PLACEHOLDER = "Search Citadel colors..."
 NO_CITADEL_COLORS_MESSAGE = "No Citadel colors found."
+PAINT_TOOLTIP_DELAY_MS = 400
 
 ActionCallback = Callable[[], None]
 BooleanChangedCallback = Callable[[bool], None]
@@ -112,6 +113,14 @@ def filter_paints_by_name(paints, query: str) -> tuple[PaintColor, ...]:
     )
 
 
+def format_visible_paint_count(count: int) -> str:
+    return f"{count} color" if count == 1 else f"{count} colors"
+
+
+def paint_tooltip_text(paint: PaintColor) -> str:
+    return f"{paint.name}\nRGB: {paint.r}, {paint.g}, {paint.b}"
+
+
 def choose_native_color(initial_color: str) -> Optional[str]:
     """Return the native Tk picker selection as a hex value, or cancellation."""
     _, selected_color = colorchooser.askcolor(initial_color)
@@ -131,6 +140,8 @@ class PaintSwatchGrid(ttk.Frame):
         self._column_count = 1
         self._configured_column_count = 0
         self._relayout_after_id = None
+        self._tooltip_after_id = None
+        self._tooltip_window = None
 
         style = ttk.Style(self)
         style.configure(
@@ -173,6 +184,7 @@ class PaintSwatchGrid(ttk.Frame):
         self._rebuild_items()
 
     def _rebuild_items(self) -> None:
+        self._hide_tooltip()
         for _, item, _, _ in self._swatch_items:
             item.destroy()
         self._swatch_items = []
@@ -219,6 +231,11 @@ class PaintSwatchGrid(ttk.Frame):
                     "<Button-1>",
                     partial(self._select_paint, paint),
                 )
+                widget.bind(
+                    "<Enter>",
+                    partial(self._schedule_tooltip, paint),
+                )
+                widget.bind("<Leave>", self._hide_tooltip)
             self._swatch_items.append((paint, item, preview, name_label))
 
         self._apply_selection_highlight()
@@ -287,6 +304,40 @@ class PaintSwatchGrid(ttk.Frame):
     def _on_mousewheel(self, Event):
         self.canvas.yview_scroll(int(-Event.delta / 120), "units")
         return "break"
+
+    def _schedule_tooltip(self, paint: PaintColor, Event) -> None:
+        self._hide_tooltip()
+        self._tooltip_after_id = self.after(
+            PAINT_TOOLTIP_DELAY_MS,
+            partial(self._show_tooltip, paint, Event.widget),
+        )
+
+    def _show_tooltip(self, paint: PaintColor, widget) -> None:
+        self._tooltip_after_id = None
+        tooltip = tk.Toplevel(self)
+        tooltip.wm_overrideredirect(True)
+        tooltip.wm_geometry(
+            f"+{widget.winfo_rootx() + 12}+{widget.winfo_rooty() + widget.winfo_height() + 4}"
+        )
+        tk.Label(
+            tooltip,
+            text=paint_tooltip_text(paint),
+            justify=tk.LEFT,
+            background="#ffffe0",
+            relief=tk.SOLID,
+            borderwidth=1,
+            padx=5,
+            pady=3,
+        ).pack()
+        self._tooltip_window = tooltip
+
+    def _hide_tooltip(self, Event=None) -> None:
+        if self._tooltip_after_id is not None:
+            self.after_cancel(self._tooltip_after_id)
+            self._tooltip_after_id = None
+        if self._tooltip_window is not None:
+            self._tooltip_window.destroy()
+            self._tooltip_window = None
 
 
 class ColorPickerDialog(tk.Toplevel):
@@ -427,6 +478,11 @@ class ColorPickerDialog(tk.Toplevel):
         self.search_entry.bind("<FocusIn>", self._on_search_focus_in)
         self.search_entry.bind("<FocusOut>", self._on_search_focus_out)
         self.search_entry.bind("<KeyRelease>", self._on_search_key_released)
+        self.palette_count_label = ttk.Label(
+            self.palette_count_area,
+            text=format_visible_paint_count(0),
+        )
+        self.palette_count_label.pack(padx=(8, 0))
 
     def _on_search_focus_in(self, Event=None) -> None:
         if self.search_entry.get() == PAINT_SEARCH_PLACEHOLDER:
@@ -469,6 +525,7 @@ class ColorPickerDialog(tk.Toplevel):
                 height=14,
                 bd=0,
                 highlightthickness=1,
+                highlightbackground="#606060",
             )
             indicator.pack(side=tk.LEFT, padx=(0, 5))
             self._draw_group_indicator(indicator, color_group)
@@ -521,6 +578,9 @@ class ColorPickerDialog(tk.Toplevel):
 
     def _refresh_palette_display(self) -> None:
         self.palette_grid.set_paints(self.palette_paints)
+        self.palette_count_label.configure(
+            text=format_visible_paint_count(len(self.palette_paints))
+        )
         self.event_generate("<<ColorPickerPaletteChanged>>")
 
     def select_paint(self, paint: PaintColor) -> None:

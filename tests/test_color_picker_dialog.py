@@ -18,6 +18,8 @@ from src.widget import (
     PaintSwatchGrid,
     calculate_paint_swatch_columns,
     filter_paints_by_name,
+    format_visible_paint_count,
+    paint_tooltip_text,
     paint_swatch_presentation,
 )
 
@@ -412,6 +414,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.paint_catalog = PaintCatalog(paints=(red, blue))
         dialog.search_query = ""
         dialog.palette_grid = FakePaletteGrid()
+        dialog.palette_count_label = FakeWidget()
         dialog.event_generate = Mock()
         dialog.group_buttons = {
             color_group: FakeGroupButton()
@@ -476,6 +479,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.current_color = "#abcdef"
         dialog.paint_catalog = PaintCatalog(paints=paints)
         dialog.palette_grid = FakePaletteGrid()
+        dialog.palette_count_label = FakeWidget()
         dialog.event_generate = Mock()
         dialog.search_query = ""
         dialog.group_buttons = {
@@ -508,10 +512,24 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         self.assertEqual(dialog.palette_paints, ())
         self.assertEqual(dialog.palette_grid.paints, ())
+        self.assertEqual(dialog.palette_count_label.options["text"], "0 colors")
         self.assertEqual(dialog.current_color, "#abcdef")
         self.assertEqual(dialog.original_color, "#123456")
         self.assertEqual(NO_CITADEL_COLORS_MESSAGE, "No Citadel colors found.")
         self.assertEqual(PAINT_SEARCH_PLACEHOLDER, "Search Citadel colors...")
+
+    def test_visible_count_uses_filtered_size_and_english_pluralization(self):
+        self.assertEqual(format_visible_paint_count(0), "0 colors")
+        self.assertEqual(format_visible_paint_count(1), "1 color")
+        self.assertEqual(format_visible_paint_count(367), "367 colors")
+
+    def test_paint_tooltip_contains_only_complete_catalog_color_details(self):
+        paint = PaintColor("mephiston", "Mephiston Red", 150, 12, 9)
+
+        self.assertEqual(
+            paint_tooltip_text(paint),
+            "Mephiston Red\nRGB: 150, 12, 9",
+        )
 
     @patch.object(ColorPickerDialog, "get_accepted_color", return_value="#abcdef")
     @patch.object(ColorPickerDialog, "__init__", return_value=None)
