@@ -367,6 +367,7 @@ class ColorPickerDialog(tk.Toplevel):
         self._updating_color_representations = False
         self._hsv_field_cache = None
         self._hsl_field_cache = None
+        self._displayed_field_mode = None
         self._hue_slider_cache = None
         self._visual_resize_after_id = None
         self._field_indicator_items = ()
@@ -760,6 +761,9 @@ class ColorPickerDialog(tk.Toplevel):
         if mode not in COLOR_SPACE_MODES:
             raise ValueError(f"Unsupported color space: {mode}")
         self.color_space_mode = mode
+        selector = getattr(self, "color_space_selector", None)
+        if selector is not None and selector.get() != mode:
+            selector.set(mode)
         self.editor_mode_controls_label.configure(
             text=f"{mode} controls:"
         )
@@ -997,7 +1001,11 @@ class ColorPickerDialog(tk.Toplevel):
         cached = self._hsv_field_cache
         if width <= 1 or height <= 1:
             return
-        if cached is not None and cached[:2] == cache_key[:2]:
+        if (
+            getattr(self, "_displayed_field_mode", None) == DEFAULT_COLOR_SPACE_MODE
+            and cached is not None
+            and cached[:2] == cache_key[:2]
+        ):
             hue_distance = abs(cached[2] - hue)
             if min(hue_distance, 1.0 - hue_distance) < 1 / 1024:
                 return
@@ -1017,6 +1025,7 @@ class ColorPickerDialog(tk.Toplevel):
         )
         self.hsv_color_field.tag_lower("gradient")
         self._hsv_field_cache = cache_key
+        self._displayed_field_mode = DEFAULT_COLOR_SPACE_MODE
 
     def _render_hsl_field(self, hue: float) -> None:
         width = self.hsv_color_field.winfo_width()
@@ -1025,7 +1034,11 @@ class ColorPickerDialog(tk.Toplevel):
         cached = self._hsl_field_cache
         if width <= 1 or height <= 1:
             return
-        if cached is not None and cached[:2] == cache_key[:2]:
+        if (
+            getattr(self, "_displayed_field_mode", None) == "HSL"
+            and cached is not None
+            and cached[:2] == cache_key[:2]
+        ):
             hue_distance = abs(cached[2] - hue)
             if min(hue_distance, 1.0 - hue_distance) < 1 / 1024:
                 return
@@ -1045,6 +1058,7 @@ class ColorPickerDialog(tk.Toplevel):
         )
         self.hsv_color_field.tag_lower("gradient")
         self._hsl_field_cache = cache_key
+        self._displayed_field_mode = "HSL"
 
     def _render_hue_slider(self) -> None:
         width = self.hue_slider.winfo_width()

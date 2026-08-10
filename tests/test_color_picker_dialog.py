@@ -291,19 +291,35 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.set_current_color.assert_called_once_with("#df9f9f")
 
     def test_repeated_color_space_switching_preserves_exact_rgb(self):
-        dialog = object.__new__(ColorPickerDialog)
-        dialog.color_space_mode = DEFAULT_COLOR_SPACE_MODE
-        dialog.current_color = "#960C09"
-        dialog.editor_mode_controls_label = FakeWidget()
-        dialog.color_model_labels = {"component": FakeWidget()}
-        dialog._refresh_color_model_controls = Mock()
-        dialog._refresh_visual_picker = Mock()
+        colors = (
+            "#2A7FD4",
+            "#000000",
+            "#FFFFFF",
+            "#808080",
+            "#FF0000",
+            "#960C09",  # Citadel Mephiston Red
+        )
+        modes = ("HSL", DEFAULT_COLOR_SPACE_MODE, "HSL", DEFAULT_COLOR_SPACE_MODE)
+        for color in colors:
+            with self.subTest(color=color):
+                dialog = object.__new__(ColorPickerDialog)
+                dialog.color_space_mode = DEFAULT_COLOR_SPACE_MODE
+                dialog.current_color = color
+                dialog.color_space_selector = FakeWidget()
+                dialog.color_space_selector.set(DEFAULT_COLOR_SPACE_MODE)
+                dialog.editor_mode_controls_label = FakeWidget()
+                dialog.color_model_labels = {"component": FakeWidget()}
+                dialog._refresh_color_model_controls = Mock()
+                dialog._refresh_visual_picker = Mock()
 
-        for mode in ("HSL", DEFAULT_COLOR_SPACE_MODE, "HSL", DEFAULT_COLOR_SPACE_MODE):
-            dialog.select_color_space(mode)
-            self.assertEqual(dialog.current_color, "#960C09")
+                for mode in modes:
+                    dialog.select_color_space(mode)
+                    self.assertEqual(dialog.color_space_mode, mode)
+                    self.assertEqual(dialog.color_space_selector.get(), mode)
+                    self.assertEqual(dialog.current_color, color)
 
-        self.assertEqual(dialog._refresh_visual_picker.call_count, 4)
+                self.assertEqual(dialog._refresh_color_model_controls.call_count, 4)
+                self.assertEqual(dialog._refresh_visual_picker.call_count, 4)
 
     def test_color_model_validation_enforces_hue_and_percent_boundaries(self):
         for proposed, maximum in (("0", "359"), ("359", "359"), ("100", "100")):
@@ -756,13 +772,31 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog._hsv_field_cache = (101, 101, 0.5)
         dialog._hsl_field_cache = (101, 101, 0.5)
         dialog._hue_slider_cache = (28, 101)
+        dialog._displayed_field_mode = DEFAULT_COLOR_SPACE_MODE
 
         dialog._render_hsv_field(0.5001)
+        dialog._displayed_field_mode = "HSL"
         dialog._render_hsl_field(0.5001)
         dialog._render_hue_slider()
 
         dialog.hsv_color_field.delete.assert_not_called()
         dialog.hue_slider.delete.assert_not_called()
+
+    @patch("src.widget.ImageTk.PhotoImage")
+    @patch("src.widget.Image.new")
+    def test_switching_mode_redraws_a_cached_field(self, image_new, _photo_image):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.hsv_color_field = Mock()
+        dialog.hsv_color_field.winfo_width.return_value = 2
+        dialog.hsv_color_field.winfo_height.return_value = 2
+        dialog._hsv_field_cache = (2, 2, 0.5)
+        dialog._displayed_field_mode = "HSL"
+
+        dialog._render_hsv_field(0.5)
+
+        image_new.assert_called_once_with("RGB", (2, 2))
+        dialog.hsv_color_field.delete.assert_called_once_with("gradient")
+        self.assertEqual(dialog._displayed_field_mode, DEFAULT_COLOR_SPACE_MODE)
 
     def test_rgb_validation_accepts_only_blank_or_values_from_zero_to_255(self):
         for accepted in ("", "0", "1", "127", "255"):
