@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from src.paint_catalog import PaintCatalog, PaintColor
@@ -187,6 +188,35 @@ class ColorPickerDialogTests(unittest.TestCase):
         for refresher in refreshers:
             with self.subTest(refresher=refresher):
                 getattr(dialog, refresher).assert_called_once_with()
+
+    def test_hsv_visual_interaction_updates_canonical_current_color(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.color_space_mode = DEFAULT_COLOR_SPACE_MODE
+        dialog.current_color = "#ff0000"
+        dialog.hsv_color_field = Mock()
+        dialog.hsv_color_field.winfo_width.return_value = 101
+        dialog.hsv_color_field.winfo_height.return_value = 101
+        dialog.set_current_color = Mock()
+
+        dialog._on_hsv_field_input(SimpleNamespace(x=50, y=25))
+
+        dialog.set_current_color.assert_called_once_with("#bf6060")
+
+    def test_programmatic_color_change_repositions_hsv_indicators(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.color_space_mode = DEFAULT_COLOR_SPACE_MODE
+        dialog.current_color = "#00ff00"
+        dialog.hsv_color_field = Mock()
+        dialog.hue_slider = Mock()
+        dialog._render_hsv_field = Mock()
+        dialog._render_hue_slider = Mock()
+        dialog._draw_hsv_indicators = Mock()
+
+        dialog._refresh_visual_picker()
+
+        dialog._render_hsv_field.assert_called_once_with(1 / 3)
+        dialog._render_hue_slider.assert_called_once_with()
+        dialog._draw_hsv_indicators.assert_called_once_with(1 / 3, 1.0, 1.0)
 
     def test_color_synchronization_guard_is_released_after_refresh_failure(self):
         dialog = object.__new__(ColorPickerDialog)
