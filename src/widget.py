@@ -372,6 +372,7 @@ class ColorPickerDialog(tk.Toplevel):
         self._hsv_field_cache = None
         self._hsl_field_cache = None
         self._hue_slider_cache = None
+        self._achromatic_hue = rgb_hex_to_hsv(initial_color)[0]
         self.accepted_color: Optional[str] = None
         self.color_space_mode = DEFAULT_COLOR_SPACE_MODE
         self.paint_catalog = (
@@ -659,9 +660,40 @@ class ColorPickerDialog(tk.Toplevel):
             self.rgb_controls[channel] = control
         self.editor_mode_controls_label = ttk.Label(
             self.editor_alternate_color_space_area,
-            text=f"{self.color_space_mode} controls (coming later)",
+            text=f"{self.color_space_mode} controls:",
         )
-        self.editor_mode_controls_label.pack(anchor=tk.W)
+        self.editor_mode_controls_label.pack(side=tk.LEFT, padx=(0, 6))
+        self.color_model_labels = {}
+        self.color_model_controls = {}
+        for name, label, maximum in (
+            ("hue", "Hue", 359),
+            ("saturation", "Saturation", 100),
+            ("component", "Value", 100),
+        ):
+            component_label = ttk.Label(
+                self.editor_alternate_color_space_area, text=f"{label}:"
+            )
+            component_label.pack(side=tk.LEFT)
+            validation = (
+                self.register(self._validate_model_input),
+                "%P",
+                str(maximum),
+            )
+            control = ttk.Spinbox(
+                self.editor_alternate_color_space_area,
+                from_=0,
+                to=maximum,
+                width=4,
+                validate="key",
+                validatecommand=validation,
+                command=self._on_color_model_control_changed,
+            )
+            control.pack(side=tk.LEFT, padx=(3, 8))
+            control.bind("<KeyRelease>", self._on_color_model_control_changed)
+            control.bind("<FocusOut>", self._on_color_model_control_changed)
+            control.bind("<Return>", self._on_color_model_control_changed)
+            self.color_model_labels[name] = component_label
+            self.color_model_controls[name] = control
         self.editor_hex_label = ttk.Label(self.editor_hex_area)
         self.editor_hex_label.pack(anchor=tk.W)
 
@@ -694,7 +726,10 @@ class ColorPickerDialog(tk.Toplevel):
             raise ValueError(f"Unsupported color space: {mode}")
         self.color_space_mode = mode
         self.editor_mode_controls_label.configure(
-            text=f"{mode} controls (coming later)"
+            text=f"{mode} controls:"
+        )
+        self.color_model_labels["component"].configure(
+            text="Value:" if mode == DEFAULT_COLOR_SPACE_MODE else "Lightness:"
         )
         self._refresh_color_model_controls()
         self._refresh_visual_picker()
@@ -731,22 +766,26 @@ class ColorPickerDialog(tk.Toplevel):
             control.insert(0, str(value))
 
     def _refresh_color_model_controls(self) -> None:
-        label = getattr(self, "editor_mode_controls_label", None)
-        if label is None:
+        controls = getattr(self, "color_model_controls", None)
+        if controls is None:
             return
         if self.color_space_mode == DEFAULT_COLOR_SPACE_MODE:
             hue, saturation, component = rgb_hex_to_hsv(self.current_color)
-            names = ("S", "V")
         else:
             hue, saturation, component = rgb_hex_to_hsl(self.current_color)
-            names = ("S", "L")
-        label.configure(
-            text=(
-                f"{self.color_space_mode} controls (coming later): "
-                f"H {round(hue * 360) % 360}°, {names[0]} {round(saturation * 100)}%, "
-                f"{names[1]} {round(component * 100)}%"
-            )
-        )
+        if saturation > 0.0:
+            self._achromatic_hue = hue
+        else:
+            hue = getattr(self, "_achromatic_hue", 0.0)
+        values = {
+            "hue": round(hue * 360) % 360,
+            "saturation": round(saturation * 100),
+            "component": round(component * 100),
+        }
+        for name, value in values.items():
+            control = controls[name]
+            control.delete(0, tk.END)
+            control.insert(0, str(value))
 
     def _refresh_hex_control(self) -> None:
         label = getattr(self, "editor_hex_label", None)
@@ -758,6 +797,13 @@ class ColorPickerDialog(tk.Toplevel):
         """Allow an editable blank or a decimal RGB value in range."""
         return proposed == "" or (proposed.isdecimal() and int(proposed) <= 255)
 
+    @staticmethod
+    def _validate_model_input(proposed: str, maximum: str) -> bool:
+        """Allow an editable blank or a decimal component within its UI range."""
+        return proposed == "" or (
+            proposed.isdecimal() and int(proposed) <= int(maximum)
+        )
+
     def _on_rgb_control_changed(self, Event=None) -> None:
         if getattr(self, "_updating_color_representations", False):
             return
@@ -768,6 +814,29 @@ class ColorPickerDialog(tk.Toplevel):
         if not all(value.isdecimal() and 0 <= int(value) <= 255 for value in values):
             return
         self.set_current_color(rgb_channels_to_hex(*(int(value) for value in values)))
+
+    def _on_color_model_control_changed(self, Event=None) -> None:
+        if getattr(self, "_updating_color_representations", False):
+            return
+        values = tuple(
+            self.color_model_controls[name].get()
+            for name in ("hue", "saturation", "component")
+        )
+        maximums = (359, 100, 100)
+        if not all(
+            value.isdecimal() and 0 <= int(value) <= maximum
+            for value, maximum in zip(values, maximums)
+        ):
+            return
+        hue = int(values[0]) / 360.0
+        saturation = int(values[1]) / 100.0
+        component = int(values[2]) / 100.0
+        self._achromatic_hue = hue
+        if self.color_space_mode == DEFAULT_COLOR_SPACE_MODE:
+            color = hsv_to_rgb_hex(hue, saturation, component)
+        else:
+            color = hsl_to_rgb_hex(hue, saturation, component)
+        self.set_current_color(color)
 
     def _refresh_visual_picker(self) -> None:
         """Refresh HSV gradients when needed and always reposition indicators."""
@@ -782,9 +851,15 @@ class ColorPickerDialog(tk.Toplevel):
         mode = getattr(self, "color_space_mode", DEFAULT_COLOR_SPACE_MODE)
         if mode == DEFAULT_COLOR_SPACE_MODE:
             hue, saturation, component = rgb_hex_to_hsv(self.current_color)
-            self._render_hsv_field(hue)
         else:
             hue, saturation, component = rgb_hex_to_hsl(self.current_color)
+        if saturation > 0.0:
+            self._achromatic_hue = hue
+        else:
+            hue = getattr(self, "_achromatic_hue", 0.0)
+        if mode == DEFAULT_COLOR_SPACE_MODE:
+            self._render_hsv_field(hue)
+        else:
             self._render_hsl_field(hue)
         self._render_hue_slider()
         self._draw_hsv_indicators(hue, saturation, component)
@@ -799,11 +874,15 @@ class ColorPickerDialog(tk.Toplevel):
         width = self.hsv_color_field.winfo_width()
         height = self.hsv_color_field.winfo_height()
         if self.color_space_mode == DEFAULT_COLOR_SPACE_MODE:
-            hue, _, _ = rgb_hex_to_hsv(self.current_color)
+            hue, saturation, _ = rgb_hex_to_hsv(self.current_color)
+            if saturation == 0.0:
+                hue = getattr(self, "_achromatic_hue", 0.0)
             components = hsv_from_field_position(Event.x, Event.y, width, height, hue)
             color = hsv_to_rgb_hex(*components)
         else:
-            hue, _, _ = rgb_hex_to_hsl(self.current_color)
+            hue, saturation, _ = rgb_hex_to_hsl(self.current_color)
+            if saturation == 0.0:
+                hue = getattr(self, "_achromatic_hue", 0.0)
             components = hsl_from_field_position(Event.x, Event.y, width, height, hue)
             color = hsl_to_rgb_hex(*components)
         self.set_current_color(color)
@@ -814,6 +893,7 @@ class ColorPickerDialog(tk.Toplevel):
 
     def _on_hue_slider_input(self, Event) -> None:
         hue = hue_from_slider_position(Event.y, self.hue_slider.winfo_height())
+        self._achromatic_hue = hue
         if self.color_space_mode == DEFAULT_COLOR_SPACE_MODE:
             _, saturation, component = rgb_hex_to_hsv(self.current_color)
             color = hsv_to_rgb_hex(hue, saturation, component)

@@ -242,6 +242,8 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.color_space_mode = DEFAULT_COLOR_SPACE_MODE
         dialog.current_color = "#960C09"
         dialog.editor_mode_controls_label = FakeWidget()
+        dialog.color_model_labels = {"component": FakeWidget()}
+        dialog._refresh_color_model_controls = Mock()
         dialog._refresh_visual_picker = Mock()
 
         for mode in ("HSL", DEFAULT_COLOR_SPACE_MODE, "HSL", DEFAULT_COLOR_SPACE_MODE):
@@ -249,6 +251,68 @@ class ColorPickerDialogTests(unittest.TestCase):
             self.assertEqual(dialog.current_color, "#960C09")
 
         self.assertEqual(dialog._refresh_visual_picker.call_count, 4)
+
+    def test_color_model_validation_enforces_hue_and_percent_boundaries(self):
+        for proposed, maximum in (("0", "359"), ("359", "359"), ("100", "100")):
+            self.assertTrue(ColorPickerDialog._validate_model_input(proposed, maximum))
+        for proposed, maximum in (("360", "359"), ("101", "100"), ("-1", "100")):
+            self.assertFalse(ColorPickerDialog._validate_model_input(proposed, maximum))
+
+    def test_hsv_numeric_edit_updates_canonical_color_and_dependents(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.color_space_mode = DEFAULT_COLOR_SPACE_MODE
+        dialog.original_color = "#123456"
+        dialog.current_color = "#123456"
+        dialog._updating_color_representations = False
+        dialog.color_model_controls = {
+            name: FakeWidget() for name in ("hue", "saturation", "component")
+        }
+        for name, value in zip(
+            ("hue", "saturation", "component"), ("120", "100", "100")
+        ):
+            dialog.color_model_controls[name].value = value
+        dialog._refresh_color_representations = Mock()
+
+        dialog._on_color_model_control_changed()
+
+        self.assertEqual(dialog.current_color, "#00ff00")
+        self.assertEqual(dialog.original_color, "#123456")
+        dialog._refresh_color_representations.assert_called_once_with()
+
+    def test_hsl_numeric_edit_updates_canonical_color(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.color_space_mode = "HSL"
+        dialog.original_color = "#123456"
+        dialog.current_color = "#123456"
+        dialog._updating_color_representations = False
+        dialog.color_model_controls = {
+            name: FakeWidget() for name in ("hue", "saturation", "component")
+        }
+        for name, value in zip(
+            ("hue", "saturation", "component"), ("240", "100", "50")
+        ):
+            dialog.color_model_controls[name].value = value
+        dialog._refresh_color_representations = Mock()
+
+        dialog._on_color_model_control_changed()
+
+        self.assertEqual(dialog.current_color, "#0000ff")
+        self.assertEqual(dialog.original_color, "#123456")
+
+    def test_achromatic_color_preserves_last_editing_hue(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.color_space_mode = DEFAULT_COLOR_SPACE_MODE
+        dialog.current_color = "#808080"
+        dialog._achromatic_hue = 2 / 3
+        dialog.color_model_controls = {
+            name: FakeWidget() for name in ("hue", "saturation", "component")
+        }
+
+        dialog._refresh_color_model_controls()
+
+        self.assertEqual(dialog.color_model_controls["hue"].get(), "240")
+        self.assertEqual(dialog.color_model_controls["saturation"].get(), "0")
+        self.assertEqual(dialog.color_model_controls["component"].get(), "50")
 
     def test_programmatic_color_change_repositions_hsl_indicators(self):
         dialog = object.__new__(ColorPickerDialog)
@@ -448,6 +512,9 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         self.assertEqual(dialog.color_space_mode, "HSL")
         self.assertIn("HSL controls", dialog.editor_mode_controls_label.options["text"])
+        self.assertEqual(
+            dialog.color_model_labels["component"].options["text"], "Lightness:"
+        )
         self.assertEqual(dialog.original_color, "#123456")
         self.assertEqual(dialog.current_color, "#fedcba")
         self.assertEqual(dialog.current_color_preview.options["background"], "#fedcba")
