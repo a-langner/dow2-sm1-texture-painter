@@ -12,9 +12,12 @@ from src.widget import (
     COLOR_PICKER_GROUP_ENTRIES,
     COLOR_SPACE_MODES,
     DEFAULT_COLOR_SPACE_MODE,
+    NO_CITADEL_COLORS_MESSAGE,
+    PAINT_SEARCH_PLACEHOLDER,
     ColorPickerDialog,
     PaintSwatchGrid,
     calculate_paint_swatch_columns,
+    filter_paints_by_name,
     paint_swatch_presentation,
 )
 
@@ -79,6 +82,7 @@ class ColorPickerDialogTests(unittest.TestCase):
     @patch.object(ColorPickerDialog, "_build_editor_placeholders")
     @patch.object(ColorPickerDialog, "_build_group_navigation")
     @patch.object(ColorPickerDialog, "_build_palette_grid")
+    @patch.object(ColorPickerDialog, "_build_palette_search")
     @patch.object(ColorPickerDialog, "_build_main_layout")
     @patch.object(ColorPickerDialog, "_build_actions")
     @patch.object(ColorPickerDialog, "_configure_window")
@@ -89,6 +93,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         _configure_window,
         _build_actions,
         _build_main_layout,
+        _build_palette_search,
         _build_palette_grid,
         _build_group_navigation,
         _build_editor_placeholders,
@@ -102,6 +107,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog.original_color, "#123456")
         self.assertEqual(dialog.current_color, "#123456")
         self.assertEqual(dialog.color_space_mode, DEFAULT_COLOR_SPACE_MODE)
+        self.assertEqual(dialog.search_query, "")
         self.assertIsNone(dialog.get_accepted_color())
         grab_set.assert_called_once_with()
         wait_window.assert_called_once_with()
@@ -215,6 +221,7 @@ class ColorPickerDialogTests(unittest.TestCase):
                 PaintColor("blue", "Blue", 0, 0, 255),
             )
         )
+        dialog.search_query = ""
         dialog._refresh_palette_display = Mock()
         dialog.group_buttons = {
             color_group: FakeGroupButton()
@@ -244,6 +251,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         )
         dialog = object.__new__(ColorPickerDialog)
         dialog.paint_catalog = PaintCatalog(paints=catalog_paints)
+        dialog.search_query = ""
         dialog.group_buttons = {
             color_group: FakeGroupButton()
             for color_group, _ in COLOR_PICKER_GROUP_ENTRIES
@@ -359,6 +367,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         grid._configured_column_count = 5
         grid._column_count = 2
         grid._swatch_items = []
+        grid._empty_label = None
         grid.inner = Mock()
 
         grid._relayout()
@@ -401,6 +410,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.original_color = "#123456"
         dialog.current_color = "#123456"
         dialog.paint_catalog = PaintCatalog(paints=(red, blue))
+        dialog.search_query = ""
         dialog.palette_grid = FakePaletteGrid()
         dialog.event_generate = Mock()
         dialog.group_buttons = {
@@ -444,6 +454,64 @@ class ColorPickerDialogTests(unittest.TestCase):
             style="Selected.PaintSwatch.TFrame"
         )
         light_item.configure.assert_called_with(style="PaintSwatch.TFrame")
+
+    def test_name_filter_is_case_insensitive_substring_and_preserves_order(self):
+        paints = (
+            PaintColor("other", "Other Color", 0, 0, 0),
+            PaintColor("mephiston", "Mephiston Red", 150, 12, 9),
+            PaintColor("green", "Warpstone Green", 0, 128, 0),
+        )
+
+        self.assertEqual(filter_paints_by_name(paints, "MEPHI"), (paints[1],))
+        self.assertEqual(filter_paints_by_name(paints, "stone gre"), (paints[2],))
+        self.assertEqual(filter_paints_by_name(paints, ""), paints)
+
+    def test_live_search_combines_with_groups_and_zero_results_preserve_color(self):
+        red = PaintColor("mephiston", "Mephiston Red", 200, 0, 0)
+        green = PaintColor("warpstone", "Warpstone Green", 0, 200, 0)
+        named_green = PaintColor("blue", "Blue Green Horror", 0, 0, 200)
+        paints = (named_green, red, green)
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.original_color = "#123456"
+        dialog.current_color = "#abcdef"
+        dialog.paint_catalog = PaintCatalog(paints=paints)
+        dialog.palette_grid = FakePaletteGrid()
+        dialog.event_generate = Mock()
+        dialog.search_query = ""
+        dialog.group_buttons = {
+            color_group: FakeGroupButton()
+            for color_group, _ in COLOR_PICKER_GROUP_ENTRIES
+        }
+        dialog.group_button_labels = dict(COLOR_PICKER_GROUP_ENTRIES)
+
+        dialog.select_color_group(None)
+        dialog.set_paint_search("GREEN")
+
+        expected_all_search = filter_paints_by_name(
+            sort_paints_visually(paints), "green"
+        )
+        self.assertEqual(dialog.palette_paints, expected_all_search)
+
+        dialog.select_color_group(ColorGroup.GREEN)
+
+        self.assertEqual(dialog.search_query, "GREEN")
+        self.assertEqual(dialog.palette_paints, (green,))
+
+        dialog.set_paint_search("")
+
+        expected_greens = sort_paints_visually(
+            get_paints_for_group(paints, ColorGroup.GREEN)
+        )
+        self.assertEqual(dialog.palette_paints, expected_greens)
+
+        dialog.set_paint_search("no matches anywhere")
+
+        self.assertEqual(dialog.palette_paints, ())
+        self.assertEqual(dialog.palette_grid.paints, ())
+        self.assertEqual(dialog.current_color, "#abcdef")
+        self.assertEqual(dialog.original_color, "#123456")
+        self.assertEqual(NO_CITADEL_COLORS_MESSAGE, "No Citadel colors found.")
+        self.assertEqual(PAINT_SEARCH_PLACEHOLDER, "Search Citadel colors...")
 
     @patch.object(ColorPickerDialog, "get_accepted_color", return_value="#abcdef")
     @patch.object(ColorPickerDialog, "__init__", return_value=None)

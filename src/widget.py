@@ -62,6 +62,8 @@ DEFAULT_COLOR_SPACE_MODE = COLOR_SPACE_MODES[0]
 PAINT_SWATCH_TARGET_WIDTH = 96
 PAINT_SWATCH_PREVIEW_SIZE = 60
 PAINT_SWATCH_NAME_WRAP = 88
+PAINT_SEARCH_PLACEHOLDER = "Search Citadel colors..."
+NO_CITADEL_COLORS_MESSAGE = "No Citadel colors found."
 
 ActionCallback = Callable[[], None]
 BooleanChangedCallback = Callable[[bool], None]
@@ -100,6 +102,16 @@ def paint_swatch_presentation(paint: PaintColor) -> PaintSwatchPresentation:
     )
 
 
+def filter_paints_by_name(paints, query: str) -> tuple[PaintColor, ...]:
+    """Return case-insensitive complete-name substring matches in input order."""
+    normalized_query = query.strip().casefold()
+    if not normalized_query:
+        return tuple(paints)
+    return tuple(
+        paint for paint in paints if normalized_query in paint.name.casefold()
+    )
+
+
 def choose_native_color(initial_color: str) -> Optional[str]:
     """Return the native Tk picker selection as a hex value, or cancellation."""
     _, selected_color = colorchooser.askcolor(initial_color)
@@ -115,6 +127,7 @@ class PaintSwatchGrid(ttk.Frame):
         self.paints = ()
         self.selected_paint_id = None
         self._swatch_items = []
+        self._empty_label = None
         self._column_count = 1
         self._configured_column_count = 0
         self._relayout_after_id = None
@@ -163,6 +176,17 @@ class PaintSwatchGrid(ttk.Frame):
         for _, item, _, _ in self._swatch_items:
             item.destroy()
         self._swatch_items = []
+        if self._empty_label is not None:
+            self._empty_label.destroy()
+            self._empty_label = None
+
+        if not self.paints:
+            self._empty_label = ttk.Label(
+                self.inner,
+                text=NO_CITADEL_COLORS_MESSAGE,
+                anchor=tk.CENTER,
+            )
+            self._empty_label.bind("<MouseWheel>", self._on_mousewheel)
 
         for paint in self.paints:
             presentation = paint_swatch_presentation(paint)
@@ -242,6 +266,14 @@ class PaintSwatchGrid(ttk.Frame):
             weight = 1 if column < self._column_count else 0
             self.inner.grid_columnconfigure(column, weight=weight)
         self._configured_column_count = self._column_count
+        if self._empty_label is not None:
+            self._empty_label.grid(
+                row=0,
+                column=0,
+                columnspan=self._column_count,
+                pady=24,
+                sticky=tk.EW,
+            )
         for index, (_, item, _, _) in enumerate(self._swatch_items):
             item.grid_forget()
             item.grid(
@@ -276,10 +308,12 @@ class ColorPickerDialog(tk.Toplevel):
         )
         self.palette_paints = ()
         self.selected_paint_id: Optional[str] = None
+        self.search_query = ""
 
         self._configure_window(parent)
         self._build_actions()
         self._build_main_layout()
+        self._build_palette_search()
         self._build_palette_grid()
         self._build_group_navigation()
         self._build_editor_placeholders()
@@ -386,6 +420,36 @@ class ColorPickerDialog(tk.Toplevel):
         )
         self.palette_grid.pack(fill=tk.BOTH, expand=True)
 
+    def _build_palette_search(self) -> None:
+        self.search_entry = ttk.Entry(self.palette_search_area)
+        self.search_entry.insert(0, PAINT_SEARCH_PLACEHOLDER)
+        self.search_entry.pack(fill=tk.X, expand=True)
+        self.search_entry.bind("<FocusIn>", self._on_search_focus_in)
+        self.search_entry.bind("<FocusOut>", self._on_search_focus_out)
+        self.search_entry.bind("<KeyRelease>", self._on_search_key_released)
+
+    def _on_search_focus_in(self, Event=None) -> None:
+        if self.search_entry.get() == PAINT_SEARCH_PLACEHOLDER:
+            self.search_entry.delete(0, tk.END)
+
+    def _on_search_focus_out(self, Event=None) -> None:
+        if not self.search_entry.get():
+            self.search_entry.insert(0, PAINT_SEARCH_PLACEHOLDER)
+
+    def _on_search_key_released(self, Event=None) -> None:
+        query = self.search_entry.get()
+        if query == PAINT_SEARCH_PLACEHOLDER:
+            query = ""
+        self.set_paint_search(query)
+
+    def set_paint_search(self, query: str) -> None:
+        """Apply a live name search within the currently selected group."""
+        normalized_query = query.strip()
+        if normalized_query == self.search_query:
+            return
+        self.search_query = normalized_query
+        self._refresh_palette_data_source()
+
     def _build_group_navigation(self) -> None:
         style = ttk.Style(self)
         style.configure("ColorPickerGroup.TButton", anchor=tk.W)
@@ -451,7 +515,8 @@ class ColorPickerDialog(tk.Toplevel):
         paints = self.paint_catalog.paints
         if self.selected_color_group is not None:
             paints = get_paints_for_group(paints, self.selected_color_group)
-        self.palette_paints = sort_paints_visually(paints)
+        paints = sort_paints_visually(paints)
+        self.palette_paints = filter_paints_by_name(paints, self.search_query)
         self._refresh_palette_display()
 
     def _refresh_palette_display(self) -> None:
