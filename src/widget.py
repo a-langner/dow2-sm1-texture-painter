@@ -6,7 +6,7 @@ from tkinter.ttk import Progressbar
 import os
 from dataclasses import dataclass
 import colorsys
-from tkinter import colorchooser, filedialog
+from tkinter import filedialog
 from functools import partial
 from typing import Callable, Optional
 from PIL import Image, ImageTk
