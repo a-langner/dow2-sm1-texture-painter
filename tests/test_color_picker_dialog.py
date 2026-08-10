@@ -14,6 +14,7 @@ from src.widget import (
     NO_CITADEL_COLORS_MESSAGE,
     PAINT_SEARCH_PLACEHOLDER,
     PAINT_SWATCH_OUTLINE,
+    PAINT_SWATCH_PREVIEW_SIZE,
     PAINT_SWATCH_SELECTED_OUTLINE,
     ColorPickerDialog,
     PaintSwatchGrid,
@@ -887,24 +888,28 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         grid._rebuild_items.assert_called_once_with()
 
-    def test_swatch_relayout_releases_columns_after_narrowing(self):
+    def test_swatch_relayout_draws_paints_without_child_widgets(self):
         grid = object.__new__(PaintSwatchGrid)
         grid._relayout_after_id = "pending"
         grid._configured_column_count = 5
         grid._column_count = 2
-        grid._swatch_items = []
-        grid._empty_label = None
-        grid.inner = Mock()
+        grid.paints = (
+            PaintColor("red", "Red", 255, 0, 0),
+            PaintColor("white", "White", 255, 255, 255),
+        )
+        grid.selected_paint_id = "red"
+        grid.canvas = Mock()
+        grid.canvas.winfo_width.return_value = 192
 
         grid._relayout()
 
         self.assertEqual(grid._configured_column_count, 2)
-        grid.inner.grid_columnconfigure.assert_any_call(0, weight=1)
-        grid.inner.grid_columnconfigure.assert_any_call(1, weight=1)
-        for obsolete_column in (2, 3, 4):
-            grid.inner.grid_columnconfigure.assert_any_call(
-                obsolete_column, weight=0
-            )
+        self.assertEqual(len(grid._paint_regions), 2)
+        self.assertEqual(grid.canvas.create_rectangle.call_count, 4)
+        self.assertEqual(grid.canvas.create_text.call_count, 2)
+        grid.canvas.configure.assert_called_once_with(
+            scrollregion=(0, 0, 192, PAINT_SWATCH_PREVIEW_SIZE + 56)
+        )
 
     def test_selecting_paints_updates_exact_current_color_and_identity(self):
         first = PaintColor("first", "First", 1, 128, 255)
@@ -998,37 +1003,29 @@ class ColorPickerDialogTests(unittest.TestCase):
 
     def test_grid_click_callback_and_highlight_track_selected_identity(self):
         dark = PaintColor("dark", "Dark", 0, 0, 0)
-        light = PaintColor("light", "Light", 255, 255, 255)
-        dark_item = Mock()
-        light_item = Mock()
-        dark_preview = Mock()
-        light_preview = Mock()
         grid = object.__new__(PaintSwatchGrid)
         grid._on_paint_selected = Mock()
         grid.selected_paint_id = None
-        grid._swatch_items = (
-            (dark, dark_item, dark_preview, Mock()),
-            (light, light_item, light_preview, Mock()),
-        )
+        grid._schedule_relayout = Mock()
 
         grid._select_paint(dark)
         grid.set_selected_paint("dark")
 
         grid._on_paint_selected.assert_called_once_with(dark)
-        dark_item.configure.assert_called_with(
-            style="Selected.PaintSwatch.TFrame"
-        )
-        light_item.configure.assert_called_with(style="PaintSwatch.TFrame")
-        dark_preview.configure.assert_called_with(
-            highlightbackground=PAINT_SWATCH_SELECTED_OUTLINE,
-            highlightcolor=PAINT_SWATCH_SELECTED_OUTLINE,
-            highlightthickness=3,
-        )
-        light_preview.configure.assert_called_with(
-            highlightbackground=PAINT_SWATCH_OUTLINE,
-            highlightcolor=PAINT_SWATCH_OUTLINE,
-            highlightthickness=1,
-        )
+        self.assertEqual(grid.selected_paint_id, "dark")
+        grid._schedule_relayout.assert_called_once_with()
+
+    def test_canvas_hit_testing_accounts_for_vertical_scroll(self):
+        paint = PaintColor("red", "Red", 255, 0, 0)
+        grid = object.__new__(PaintSwatchGrid)
+        grid.canvas = Mock()
+        grid.canvas.canvasy.side_effect = lambda y: y + 100
+        grid._paint_regions = [(paint, 0, 100, 96, 216)]
+        grid._select_paint = Mock()
+
+        grid._on_canvas_click(SimpleNamespace(x=40, y=20))
+
+        grid._select_paint.assert_called_once_with(paint)
 
     def test_name_filter_is_case_insensitive_substring_and_preserves_order(self):
         paints = (

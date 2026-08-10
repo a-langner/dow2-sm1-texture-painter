@@ -144,33 +144,20 @@ def paint_tooltip_text(paint: PaintColor) -> str:
 
 
 class PaintSwatchGrid(ttk.Frame):
-    """Vertically scrollable paint grid that reflows existing items on resize."""
+    """Vertically scrollable canvas grid that reflows paints on resize."""
 
     def __init__(self, parent, *, on_paint_selected: PaintSelectedCallback):
         super().__init__(parent)
         self._on_paint_selected = on_paint_selected
         self.paints = ()
         self.selected_paint_id = None
-        self._swatch_items = []
-        self._empty_label = None
+        self._paint_regions = []
+        self._hovered_paint = None
         self._column_count = 1
         self._configured_column_count = 0
         self._relayout_after_id = None
         self._tooltip_after_id = None
         self._tooltip_window = None
-
-        style = ttk.Style(self)
-        style.configure(
-            "PaintSwatch.TFrame",
-            relief=tk.SOLID,
-            borderwidth=1,
-        )
-        style.configure(
-            "Selected.PaintSwatch.TFrame",
-            background="#2f80ed",
-            relief=tk.SOLID,
-            borderwidth=3,
-        )
 
         self.vertical_scrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL)
         self.vertical_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
@@ -186,18 +173,15 @@ class PaintSwatchGrid(ttk.Frame):
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.vertical_scrollbar.configure(command=self.canvas.yview)
 
-        self.inner = ttk.Frame(self.canvas)
-        self._inner_window = self.canvas.create_window(
-            (0, 0), window=self.inner, anchor=tk.NW
-        )
-        self.inner.bind("<Configure>", self._on_inner_configure)
         self.canvas.bind("<Configure>", self._on_canvas_configure)
         self.canvas.bind("<MouseWheel>", self._on_mousewheel)
         self.canvas.bind("<Up>", partial(self._on_scroll_key, -1, "units"))
         self.canvas.bind("<Down>", partial(self._on_scroll_key, 1, "units"))
         self.canvas.bind("<Prior>", partial(self._on_scroll_key, -1, "pages"))
         self.canvas.bind("<Next>", partial(self._on_scroll_key, 1, "pages"))
-        self.inner.bind("<MouseWheel>", self._on_mousewheel)
+        self.canvas.bind("<Button-1>", self._on_canvas_click)
+        self.canvas.bind("<Motion>", self._on_canvas_motion)
+        self.canvas.bind("<Leave>", self._on_canvas_leave)
 
     def _on_scroll_key(self, amount: int, what: str, Event=None) -> str:
         self.canvas.yview_scroll(amount, what)
@@ -212,61 +196,6 @@ class PaintSwatchGrid(ttk.Frame):
 
     def _rebuild_items(self) -> None:
         self._hide_tooltip()
-        for _, item, _, _ in self._swatch_items:
-            item.destroy()
-        self._swatch_items = []
-        if self._empty_label is not None:
-            self._empty_label.destroy()
-            self._empty_label = None
-
-        if not self.paints:
-            self._empty_label = ttk.Label(
-                self.inner,
-                text=NO_CITADEL_COLORS_MESSAGE,
-                anchor=tk.CENTER,
-            )
-            self._empty_label.bind("<MouseWheel>", self._on_mousewheel)
-
-        for paint in self.paints:
-            presentation = paint_swatch_presentation(paint)
-            item = ttk.Frame(
-                self.inner,
-                padding=3,
-                style="PaintSwatch.TFrame",
-            )
-            preview = tk.Canvas(
-                item,
-                width=PAINT_SWATCH_PREVIEW_SIZE,
-                height=PAINT_SWATCH_PREVIEW_SIZE,
-                background=presentation.color,
-                highlightbackground=PAINT_SWATCH_OUTLINE,
-                highlightcolor=PAINT_SWATCH_OUTLINE,
-                highlightthickness=1,
-                bd=0,
-            )
-            preview.pack(pady=(0, 3))
-            name_label = ttk.Label(
-                item,
-                text=presentation.name,
-                anchor=tk.N,
-                justify=tk.CENTER,
-                wraplength=PAINT_SWATCH_NAME_WRAP,
-            )
-            name_label.pack(fill=tk.X)
-            for widget in (item, preview, name_label):
-                widget.bind("<MouseWheel>", self._on_mousewheel)
-                widget.bind(
-                    "<Button-1>",
-                    partial(self._select_paint, paint),
-                )
-                widget.bind(
-                    "<Enter>",
-                    partial(self._schedule_tooltip, paint),
-                )
-                widget.bind("<Leave>", self._hide_tooltip)
-            self._swatch_items.append((paint, item, preview, name_label))
-
-        self._apply_selection_highlight()
         self._schedule_relayout()
 
     def _select_paint(self, paint: PaintColor, Event=None) -> None:
@@ -277,26 +206,9 @@ class PaintSwatchGrid(ttk.Frame):
         self._apply_selection_highlight()
 
     def _apply_selection_highlight(self) -> None:
-        for paint, item, preview, _ in self._swatch_items:
-            selected = paint.id == self.selected_paint_id
-            style = "Selected.PaintSwatch.TFrame" if selected else "PaintSwatch.TFrame"
-            item.configure(style=style)
-            outline = (
-                PAINT_SWATCH_SELECTED_OUTLINE if selected else PAINT_SWATCH_OUTLINE
-            )
-            preview.configure(
-                highlightbackground=outline,
-                highlightcolor=outline,
-                highlightthickness=3 if selected else 1,
-            )
-
-    def _on_inner_configure(self, Event=None) -> None:
-        bounds = self.canvas.bbox("all")
-        if bounds is not None:
-            self.canvas.configure(scrollregion=bounds)
+        self._schedule_relayout()
 
     def _on_canvas_configure(self, Event) -> None:
-        self.canvas.itemconfigure(self._inner_window, width=Event.width)
         column_count = calculate_paint_swatch_columns(Event.width)
         if column_count != self._column_count:
             self._column_count = column_count
@@ -308,31 +220,95 @@ class PaintSwatchGrid(ttk.Frame):
 
     def _relayout(self) -> None:
         self._relayout_after_id = None
-        configured_columns = max(
-            self._configured_column_count,
-            self._column_count,
-        )
-        for column in range(configured_columns):
-            weight = 1 if column < self._column_count else 0
-            self.inner.grid_columnconfigure(column, weight=weight)
+        width = self.canvas.winfo_width()
+        if width <= 1:
+            return
+        self.canvas.delete("paint")
+        self._paint_regions = []
         self._configured_column_count = self._column_count
-        if self._empty_label is not None:
-            self._empty_label.grid(
-                row=0,
-                column=0,
-                columnspan=self._column_count,
-                pady=24,
-                sticky=tk.EW,
+        if not self.paints:
+            self.canvas.create_text(
+                width / 2,
+                24,
+                text=NO_CITADEL_COLORS_MESSAGE,
+                anchor=tk.N,
+                tags="paint",
             )
-        for index, (_, item, _, _) in enumerate(self._swatch_items):
-            item.grid_forget()
-            item.grid(
-                row=index // self._column_count,
-                column=index % self._column_count,
-                padx=2,
-                pady=2,
-                sticky=tk.N,
+            self.canvas.configure(scrollregion=(0, 0, width, 64))
+            return
+
+        column_width = width / self._column_count
+        row_height = PAINT_SWATCH_PREVIEW_SIZE + 56
+        for index, paint in enumerate(self.paints):
+            row, column = divmod(index, self._column_count)
+            x1 = column * column_width + 2
+            y1 = row * row_height + 2
+            x2 = (column + 1) * column_width - 2
+            y2 = y1 + row_height - 4
+            selected = paint.id == self.selected_paint_id
+            outline = PAINT_SWATCH_SELECTED_OUTLINE if selected else ""
+            self.canvas.create_rectangle(
+                x1,
+                y1,
+                x2,
+                y2,
+                outline=outline,
+                width=3 if selected else 0,
+                tags="paint",
             )
+            preview_x1 = (x1 + x2 - PAINT_SWATCH_PREVIEW_SIZE) / 2
+            preview_y1 = y1 + 4
+            self.canvas.create_rectangle(
+                preview_x1,
+                preview_y1,
+                preview_x1 + PAINT_SWATCH_PREVIEW_SIZE,
+                preview_y1 + PAINT_SWATCH_PREVIEW_SIZE,
+                fill=paint_swatch_presentation(paint).color,
+                outline=(
+                    PAINT_SWATCH_SELECTED_OUTLINE
+                    if selected
+                    else PAINT_SWATCH_OUTLINE
+                ),
+                width=3 if selected else 1,
+                tags="paint",
+            )
+            self.canvas.create_text(
+                (x1 + x2) / 2,
+                preview_y1 + PAINT_SWATCH_PREVIEW_SIZE + 4,
+                text=paint.name,
+                width=min(PAINT_SWATCH_NAME_WRAP, max(1, x2 - x1 - 4)),
+                anchor=tk.N,
+                justify=tk.CENTER,
+                tags="paint",
+            )
+            self._paint_regions.append((paint, x1, y1, x2, y2))
+        rows = (len(self.paints) + self._column_count - 1) // self._column_count
+        self.canvas.configure(scrollregion=(0, 0, width, rows * row_height))
+
+    def _paint_at(self, x: float, y: float) -> Optional[PaintColor]:
+        canvas_y = self.canvas.canvasy(y)
+        for paint, x1, y1, x2, y2 in self._paint_regions:
+            if x1 <= x <= x2 and y1 <= canvas_y <= y2:
+                return paint
+        return None
+
+    def _on_canvas_click(self, Event) -> None:
+        paint = self._paint_at(Event.x, Event.y)
+        if paint is not None:
+            self._select_paint(paint)
+
+    def _on_canvas_motion(self, Event) -> None:
+        paint = self._paint_at(Event.x, Event.y)
+        if paint is self._hovered_paint:
+            return
+        self._hide_tooltip()
+        self._hovered_paint = paint
+        if paint is not None:
+            self._schedule_tooltip(paint, Event)
+
+    def _on_canvas_leave(self, Event=None) -> None:
+        self._hovered_paint = None
+        self._hide_tooltip()
 
     def _on_mousewheel(self, Event):
         self.canvas.yview_scroll(int(-Event.delta / 120), "units")
