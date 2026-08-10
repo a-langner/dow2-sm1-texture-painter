@@ -10,6 +10,7 @@ from src.widget import (
     COLOR_PICKER_DEFAULT_WIDTH,
     COLOR_PICKER_MIN_HEIGHT,
     COLOR_PICKER_MIN_WIDTH,
+    COLOR_PREVIEW_BORDER,
     COLOR_PICKER_GROUP_ENTRIES,
     COLOR_SPACE_MODES,
     DEFAULT_COLOR_SPACE_MODE,
@@ -507,6 +508,12 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog.color_space_selector.get(), DEFAULT_COLOR_SPACE_MODE)
         self.assertEqual(dialog.original_color_preview.options["background"], "#123456")
         self.assertEqual(dialog.current_color_preview.options["background"], "#abcdef")
+        self.assertEqual(dialog.original_color_preview_label.options["text"], "Original")
+        self.assertEqual(dialog.current_color_preview_label.options["text"], "Current")
+        for preview in (dialog.original_color_preview, dialog.current_color_preview):
+            self.assertEqual(preview.options["highlightbackground"], COLOR_PREVIEW_BORDER)
+            self.assertEqual(preview.options["highlightcolor"], COLOR_PREVIEW_BORDER)
+            self.assertEqual(preview.options["highlightthickness"], 1)
 
         dialog.select_color_space("HSL")
         dialog.set_current_color("#fedcba")
@@ -567,6 +574,68 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.set_current_color("#00ff00")
 
         self.assertEqual(dialog.hex_input.get(), "#00FF00")
+
+    def test_current_preview_follows_every_input_while_original_stays_fixed(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.original_color = "#123456"
+        dialog.current_color = "#123456"
+        dialog.color_space_mode = DEFAULT_COLOR_SPACE_MODE
+        dialog._updating_color_representations = False
+        dialog._achromatic_hue = 0.0
+        dialog.original_color_preview = FakeWidget(background="#123456")
+        dialog.current_color_preview = FakeWidget(background="#123456")
+        dialog.palette_grid = FakePaletteGrid()
+        dialog.rgb_controls = {
+            name: FakeWidget() for name in ("red", "green", "blue")
+        }
+        dialog.color_model_controls = {
+            name: FakeWidget() for name in ("hue", "saturation", "component")
+        }
+        dialog.hex_input = FakeWidget()
+        dialog._refresh_visual_picker = Mock()
+
+        dialog.select_paint(PaintColor("red", "Red", 255, 0, 0))
+        self.assertEqual(dialog.current_color_preview.options["background"], "#ff0000")
+
+        for name, value in zip(("red", "green", "blue"), ("0", "255", "0")):
+            dialog.rgb_controls[name].value = value
+        dialog._on_rgb_control_changed()
+        self.assertEqual(dialog.current_color_preview.options["background"], "#00ff00")
+
+        for name, value in zip(
+            ("hue", "saturation", "component"), ("240", "100", "100")
+        ):
+            dialog.color_model_controls[name].value = value
+        dialog._on_color_model_control_changed()
+        self.assertEqual(dialog.current_color_preview.options["background"], "#0000ff")
+
+        dialog.color_space_mode = "HSL"
+        for name, value in zip(
+            ("hue", "saturation", "component"), ("60", "100", "50")
+        ):
+            dialog.color_model_controls[name].value = value
+        dialog._on_color_model_control_changed()
+        self.assertEqual(dialog.current_color_preview.options["background"], "#ffff00")
+
+        dialog.hex_input.value = "#FFFFFF"
+        dialog._commit_hex_input()
+        self.assertEqual(dialog.current_color_preview.options["background"], "#FFFFFF")
+
+        dialog.color_space_mode = DEFAULT_COLOR_SPACE_MODE
+        dialog.hsv_color_field = Mock()
+        dialog.hsv_color_field.winfo_width.return_value = 101
+        dialog.hsv_color_field.winfo_height.return_value = 101
+        dialog._on_color_field_input(SimpleNamespace(x=100, y=100))
+        self.assertEqual(dialog.current_color_preview.options["background"], "#000000")
+
+        dialog.set_current_color("#ff0000")
+        dialog.hue_slider = Mock()
+        dialog.hue_slider.winfo_height.return_value = 101
+        dialog._on_hue_slider_input(SimpleNamespace(y=2 / 3 * 100))
+        self.assertEqual(dialog.current_color_preview.options["background"], "#0000ff")
+
+        self.assertEqual(dialog.original_color, "#123456")
+        self.assertEqual(dialog.original_color_preview.options["background"], "#123456")
 
     def test_rgb_validation_accepts_only_blank_or_values_from_zero_to_255(self):
         for accepted in ("", "0", "1", "127", "255"):

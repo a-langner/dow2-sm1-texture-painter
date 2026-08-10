@@ -82,6 +82,7 @@ PAINT_SWATCH_NAME_WRAP = 88
 PAINT_SEARCH_PLACEHOLDER = "Search Citadel colors..."
 NO_CITADEL_COLORS_MESSAGE = "No Citadel colors found."
 PAINT_TOOLTIP_DELAY_MS = 400
+COLOR_PREVIEW_BORDER = "#707070"
 
 ActionCallback = Callable[[], None]
 BooleanChangedCallback = Callable[[bool], None]
@@ -701,20 +702,32 @@ class ColorPickerDialog(tk.Toplevel):
         self.hex_input.bind("<Return>", self._on_hex_input_return)
         self.hex_input.bind("<FocusOut>", self._on_hex_input_focus_out)
 
-        ttk.Label(self.original_color_preview_area, text="Original").pack(anchor=tk.W)
+        self.original_color_preview_label = ttk.Label(
+            self.original_color_preview_area, text="Original"
+        )
+        self.original_color_preview_label.pack(anchor=tk.W)
         self.original_color_preview = tk.Canvas(
             self.original_color_preview_area,
             height=32,
             background=self.original_color,
+            bd=0,
             highlightthickness=1,
+            highlightbackground=COLOR_PREVIEW_BORDER,
+            highlightcolor=COLOR_PREVIEW_BORDER,
         )
         self.original_color_preview.pack(fill=tk.X, padx=(0, 4))
-        ttk.Label(self.current_color_preview_area, text="Current").pack(anchor=tk.W)
+        self.current_color_preview_label = ttk.Label(
+            self.current_color_preview_area, text="Current"
+        )
+        self.current_color_preview_label.pack(anchor=tk.W)
         self.current_color_preview = tk.Canvas(
             self.current_color_preview_area,
             height=32,
             background=self.current_color,
+            bd=0,
             highlightthickness=1,
+            highlightbackground=COLOR_PREVIEW_BORDER,
+            highlightcolor=COLOR_PREVIEW_BORDER,
         )
         self.current_color_preview.pack(fill=tk.X, padx=(4, 0))
         self._refresh_rgb_controls()
