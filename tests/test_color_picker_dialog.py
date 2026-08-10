@@ -132,7 +132,7 @@ class ColorPickerDialogTests(unittest.TestCase):
     @patch("src.widget.tk.Toplevel.grab_set")
     @patch("src.widget.tk.Toplevel.bind")
     @patch("src.widget.tk.Toplevel.protocol")
-    @patch.object(ColorPickerDialog, "_build_editor_placeholders")
+    @patch.object(ColorPickerDialog, "_build_color_editor")
     @patch.object(ColorPickerDialog, "_build_group_navigation")
     @patch.object(ColorPickerDialog, "_build_palette_grid")
     @patch.object(ColorPickerDialog, "_build_palette_search")
@@ -149,7 +149,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         _build_palette_search,
         _build_palette_grid,
         _build_group_navigation,
-        _build_editor_placeholders,
+        _build_color_editor,
         _protocol,
         _bind,
         grab_set,
@@ -410,7 +410,7 @@ class ColorPickerDialogTests(unittest.TestCase):
     @patch("src.widget.ttk.LabelFrame", side_effect=FakeWidget)
     @patch("src.widget.ttk.Panedwindow", side_effect=FakeWidget)
     @patch("src.widget.ttk.Frame", side_effect=FakeWidget)
-    def test_main_layout_has_three_weighted_areas_and_future_containers(
+    def test_main_layout_has_three_weighted_areas_and_editor_containers(
         self, _frame_type, _paned_type, _label_frame_type
     ):
         dialog = object.__new__(ColorPickerDialog)
@@ -523,7 +523,7 @@ class ColorPickerDialogTests(unittest.TestCase):
     @patch("src.widget.ttk.Spinbox", side_effect=FakeWidget)
     @patch("src.widget.ttk.Combobox", side_effect=FakeWidget)
     @patch("src.widget.ttk.Label", side_effect=FakeWidget)
-    def test_editor_placeholders_share_mode_and_color_state(
+    def test_color_editor_controls_share_mode_and_color_state(
         self,
         _label_type,
         _combobox_type,
@@ -549,7 +549,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         ):
             setattr(dialog, attribute, FakeWidget())
 
-        dialog._build_editor_placeholders()
+        dialog._build_color_editor()
 
         self.assertEqual(dialog.color_space_selector.options["values"], COLOR_SPACE_MODES)
         self.assertEqual(dialog.color_space_selector.options["state"], "readonly")

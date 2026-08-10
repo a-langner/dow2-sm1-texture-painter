@@ -374,7 +374,7 @@ class PaintSwatchGrid(ttk.Frame):
 
 
 class ColorPickerDialog(tk.Toplevel):
-    """Modal foundation for the future application color picker."""
+    """Modal Citadel browser and RGB/HSV/HSL color editor."""
 
     def __init__(
         self,
@@ -407,7 +407,7 @@ class ColorPickerDialog(tk.Toplevel):
         self._build_palette_search()
         self._build_palette_grid()
         self._build_group_navigation()
-        self._build_editor_placeholders()
+        self._build_color_editor()
         # Create actions last so native Tab traversal follows the visual layout.
         self._build_actions()
         self.protocol("WM_DELETE_WINDOW", self.cancel)
@@ -603,7 +603,7 @@ class ColorPickerDialog(tk.Toplevel):
             )
 
     def select_color_group(self, color_group: Optional[ColorGroup]) -> None:
-        """Select a navigation group for the future palette filter."""
+        """Select a navigation group for the palette filter."""
         self.selected_color_group = color_group
         for candidate, button in self.group_buttons.items():
             selected = candidate is color_group
@@ -633,7 +633,7 @@ class ColorPickerDialog(tk.Toplevel):
         self.set_current_color(paint_swatch_presentation(paint).color)
         self.palette_grid.set_selected_paint(paint.id)
 
-    def _build_editor_placeholders(self) -> None:
+    def _build_color_editor(self) -> None:
         ttk.Label(self.editor_color_space_area, text="Color Space:").pack(
             side=tk.LEFT, padx=(0, 6)
         )
@@ -799,7 +799,7 @@ class ColorPickerDialog(tk.Toplevel):
             self._updating_color_representations = False
 
     def _refresh_color_representations(self) -> None:
-        """Fan the canonical color out to current and future editor controls."""
+        """Fan the canonical color out to all editor controls."""
         self._refresh_rgb_controls()
         self._refresh_color_model_controls()
         self._refresh_hex_control()
