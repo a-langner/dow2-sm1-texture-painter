@@ -17,6 +17,8 @@ from src.widget import (
     DEFAULT_COLOR_SPACE_MODE,
     NO_CITADEL_COLORS_MESSAGE,
     PAINT_SEARCH_PLACEHOLDER,
+    PAINT_SWATCH_OUTLINE,
+    PAINT_SWATCH_SELECTED_OUTLINE,
     ColorPickerDialog,
     PaintSwatchGrid,
     calculate_paint_swatch_columns,
@@ -712,6 +714,12 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog.hue_slider.create_line.call_count, 2)
         self.assertEqual(dialog.hsv_color_field.coords.call_count, 4)
         self.assertEqual(dialog.hue_slider.coords.call_count, 4)
+        self.assertEqual(
+            [call.kwargs["width"] for call in dialog.hue_slider.create_line.call_args_list],
+            [4, 2],
+        )
+        for call in dialog.hue_slider.coords.call_args_list:
+            self.assertEqual(call.args[2], call.args[4])
 
     def test_unchanged_gradient_inputs_reuse_cached_images(self):
         dialog = object.__new__(ColorPickerDialog)
@@ -986,12 +994,14 @@ class ColorPickerDialogTests(unittest.TestCase):
         light = PaintColor("light", "Light", 255, 255, 255)
         dark_item = Mock()
         light_item = Mock()
+        dark_preview = Mock()
+        light_preview = Mock()
         grid = object.__new__(PaintSwatchGrid)
         grid._on_paint_selected = Mock()
         grid.selected_paint_id = None
         grid._swatch_items = (
-            (dark, dark_item, Mock(), Mock()),
-            (light, light_item, Mock(), Mock()),
+            (dark, dark_item, dark_preview, Mock()),
+            (light, light_item, light_preview, Mock()),
         )
 
         grid._select_paint(dark)
@@ -1002,6 +1012,16 @@ class ColorPickerDialogTests(unittest.TestCase):
             style="Selected.PaintSwatch.TFrame"
         )
         light_item.configure.assert_called_with(style="PaintSwatch.TFrame")
+        dark_preview.configure.assert_called_with(
+            highlightbackground=PAINT_SWATCH_SELECTED_OUTLINE,
+            highlightcolor=PAINT_SWATCH_SELECTED_OUTLINE,
+            highlightthickness=3,
+        )
+        light_preview.configure.assert_called_with(
+            highlightbackground=PAINT_SWATCH_OUTLINE,
+            highlightcolor=PAINT_SWATCH_OUTLINE,
+            highlightthickness=1,
+        )
 
     def test_name_filter_is_case_insensitive_substring_and_preserves_order(self):
         paints = (

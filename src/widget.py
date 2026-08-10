@@ -83,6 +83,8 @@ PAINT_SEARCH_PLACEHOLDER = "Search Citadel colors..."
 NO_CITADEL_COLORS_MESSAGE = "No Citadel colors found."
 PAINT_TOOLTIP_DELAY_MS = 400
 COLOR_PREVIEW_BORDER = "#707070"
+PAINT_SWATCH_OUTLINE = "#606060"
+PAINT_SWATCH_SELECTED_OUTLINE = "#2f80ed"
 COLOR_FIELD_PREFERRED_HEIGHT = 240
 VISUAL_RESIZE_DELAY_MS = 40
 
@@ -237,7 +239,8 @@ class PaintSwatchGrid(ttk.Frame):
                 width=PAINT_SWATCH_PREVIEW_SIZE,
                 height=PAINT_SWATCH_PREVIEW_SIZE,
                 background=presentation.color,
-                highlightbackground="#606060",
+                highlightbackground=PAINT_SWATCH_OUTLINE,
+                highlightcolor=PAINT_SWATCH_OUTLINE,
                 highlightthickness=1,
                 bd=0,
             )
@@ -274,13 +277,18 @@ class PaintSwatchGrid(ttk.Frame):
         self._apply_selection_highlight()
 
     def _apply_selection_highlight(self) -> None:
-        for paint, item, _, _ in self._swatch_items:
-            style = (
-                "Selected.PaintSwatch.TFrame"
-                if paint.id == self.selected_paint_id
-                else "PaintSwatch.TFrame"
-            )
+        for paint, item, preview, _ in self._swatch_items:
+            selected = paint.id == self.selected_paint_id
+            style = "Selected.PaintSwatch.TFrame" if selected else "PaintSwatch.TFrame"
             item.configure(style=style)
+            outline = (
+                PAINT_SWATCH_SELECTED_OUTLINE if selected else PAINT_SWATCH_OUTLINE
+            )
+            preview.configure(
+                highlightbackground=outline,
+                highlightcolor=outline,
+                highlightthickness=3 if selected else 1,
+            )
 
     def _on_inner_configure(self, Event=None) -> None:
         bounds = self.canvas.bbox("all")
@@ -1093,15 +1101,13 @@ class ColorPickerDialog(tk.Toplevel):
         if not self._hue_indicator_items:
             self._hue_indicator_items = tuple(
                 self.hue_slider.create_line(
-                    0, 0, 0, 0, fill=fill, width=2, tags="indicator"
+                    0, 0, 0, 0, fill=fill, width=width, tags="indicator"
                 )
-                for fill in ("black", "white")
+                for fill, width in (("black", 4), ("white", 2))
             )
         slider_width = self.hue_slider.winfo_width()
-        for item, offset in zip(self._hue_indicator_items, (2, 0)):
-            self.hue_slider.coords(
-                item, 0, slider_y + offset, slider_width, slider_y + offset
-            )
+        for item in self._hue_indicator_items:
+            self.hue_slider.coords(item, 0, slider_y, slider_width, slider_y)
 
     def _refresh_current_color_preview(self) -> None:
         preview = getattr(self, "current_color_preview", None)
