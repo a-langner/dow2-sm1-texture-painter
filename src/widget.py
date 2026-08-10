@@ -59,6 +59,7 @@ class ColorPickerDialog(tk.Toplevel):
 
         self._configure_window(parent)
         self._build_actions()
+        self._build_main_layout()
         self.protocol("WM_DELETE_WINDOW", self.cancel)
         self.bind("<Return>", self.accept)
         self.bind("<Escape>", self.cancel)
@@ -92,6 +93,68 @@ class ColorPickerDialog(tk.Toplevel):
         ttk.Button(actions, text="Cancel", command=self.cancel).pack(
             side=tk.RIGHT, padx=(0, 8)
         )
+
+    def _build_main_layout(self) -> None:
+        self.dialog_content = ttk.Frame(self, padding=(8, 8, 8, 0))
+        self.dialog_content.pack(fill=tk.BOTH, expand=True)
+
+        self.main_panes = ttk.Panedwindow(
+            self.dialog_content,
+            orient=tk.HORIZONTAL,
+        )
+        self.main_panes.pack(fill=tk.BOTH, expand=True)
+
+        self.group_navigation = ttk.LabelFrame(
+            self.main_panes,
+            text="Groups",
+            padding=8,
+            width=140,
+        )
+        self.palette_area = ttk.LabelFrame(
+            self.main_panes,
+            text="Citadel Colors",
+            padding=8,
+        )
+        self.editor_area = ttk.LabelFrame(
+            self.main_panes,
+            text="Color Editor",
+            padding=8,
+        )
+        self.main_panes.add(self.group_navigation, weight=0)
+        self.main_panes.add(self.palette_area, weight=3)
+        self.main_panes.add(self.editor_area, weight=2)
+
+        self.palette_header_area = ttk.Frame(self.palette_area)
+        self.palette_header_area.pack(fill=tk.X)
+        self.palette_search_area = ttk.Frame(self.palette_header_area)
+        self.palette_search_area.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.palette_count_area = ttk.Frame(self.palette_header_area)
+        self.palette_count_area.pack(side=tk.RIGHT)
+        self.palette_grid_area = ttk.Frame(self.palette_area)
+        self.palette_grid_area.pack(fill=tk.BOTH, expand=True, pady=(8, 0))
+
+        self.editor_color_space_area = ttk.Frame(self.editor_area)
+        self.editor_color_space_area.pack(fill=tk.X)
+        self.editor_visualization_area = ttk.Frame(self.editor_area)
+        self.editor_visualization_area.pack(fill=tk.BOTH, expand=True, pady=(8, 0))
+        self.editor_color_field_area = ttk.Frame(self.editor_visualization_area)
+        self.editor_color_field_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.editor_slider_area = ttk.Frame(self.editor_visualization_area, width=28)
+        self.editor_slider_area.pack(side=tk.RIGHT, fill=tk.Y, padx=(8, 0))
+        self.editor_numeric_area = ttk.Frame(self.editor_area)
+        self.editor_numeric_area.pack(fill=tk.X, pady=(8, 0))
+        self.editor_rgb_area = ttk.Frame(self.editor_numeric_area)
+        self.editor_rgb_area.pack(fill=tk.X)
+        self.editor_alternate_color_space_area = ttk.Frame(self.editor_numeric_area)
+        self.editor_alternate_color_space_area.pack(fill=tk.X)
+        self.editor_hex_area = ttk.Frame(self.editor_numeric_area)
+        self.editor_hex_area.pack(fill=tk.X)
+        self.editor_preview_area = ttk.Frame(self.editor_area)
+        self.editor_preview_area.pack(fill=tk.X, pady=(8, 0))
+        self.original_color_preview_area = ttk.Frame(self.editor_preview_area)
+        self.original_color_preview_area.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.current_color_preview_area = ttk.Frame(self.editor_preview_area)
+        self.current_color_preview_area.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
     def set_current_color(self, color: str) -> None:
         """Update the one working color shared by future editor controls."""

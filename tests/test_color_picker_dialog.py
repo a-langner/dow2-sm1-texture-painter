@@ -10,11 +10,26 @@ from src.widget import (
 )
 
 
+class FakeWidget:
+    def __init__(self, parent=None, **options):
+        self.parent = parent
+        self.options = options
+        self.pack_options = None
+        self.panes = []
+
+    def pack(self, **options):
+        self.pack_options = options
+
+    def add(self, child, **options):
+        self.panes.append((child, options))
+
+
 class ColorPickerDialogTests(unittest.TestCase):
     @patch("src.widget.tk.Toplevel.wait_window")
     @patch("src.widget.tk.Toplevel.grab_set")
     @patch("src.widget.tk.Toplevel.bind")
     @patch("src.widget.tk.Toplevel.protocol")
+    @patch.object(ColorPickerDialog, "_build_main_layout")
     @patch.object(ColorPickerDialog, "_build_actions")
     @patch.object(ColorPickerDialog, "_configure_window")
     @patch("src.widget.tk.Toplevel.__init__", return_value=None)
@@ -23,6 +38,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         _toplevel_init,
         _configure_window,
         _build_actions,
+        _build_main_layout,
         _protocol,
         _bind,
         grab_set,
@@ -93,6 +109,41 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.minsize.assert_called_once_with(
             COLOR_PICKER_MIN_WIDTH, COLOR_PICKER_MIN_HEIGHT
         )
+
+    @patch("src.widget.ttk.LabelFrame", side_effect=FakeWidget)
+    @patch("src.widget.ttk.Panedwindow", side_effect=FakeWidget)
+    @patch("src.widget.ttk.Frame", side_effect=FakeWidget)
+    def test_main_layout_has_three_weighted_areas_and_future_containers(
+        self, _frame_type, _paned_type, _label_frame_type
+    ):
+        dialog = object.__new__(ColorPickerDialog)
+
+        dialog._build_main_layout()
+
+        pane_names = [pane.options["text"] for pane, _ in dialog.main_panes.panes]
+        pane_weights = [options["weight"] for _, options in dialog.main_panes.panes]
+        self.assertEqual(pane_names, ["Groups", "Citadel Colors", "Color Editor"])
+        self.assertEqual(pane_weights, [0, 3, 2])
+        self.assertTrue(dialog.dialog_content.pack_options["expand"])
+        self.assertTrue(dialog.main_panes.pack_options["expand"])
+        for attribute in (
+            "palette_search_area",
+            "palette_count_area",
+            "palette_grid_area",
+            "editor_color_space_area",
+            "editor_visualization_area",
+            "editor_color_field_area",
+            "editor_slider_area",
+            "editor_numeric_area",
+            "editor_rgb_area",
+            "editor_alternate_color_space_area",
+            "editor_hex_area",
+            "editor_preview_area",
+            "original_color_preview_area",
+            "current_color_preview_area",
+        ):
+            with self.subTest(container=attribute):
+                self.assertIsInstance(getattr(dialog, attribute), FakeWidget)
 
     @patch.object(ColorPickerDialog, "get_accepted_color", return_value="#abcdef")
     @patch.object(ColorPickerDialog, "__init__", return_value=None)
