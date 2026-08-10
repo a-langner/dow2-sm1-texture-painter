@@ -15,11 +15,15 @@ from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.constant import OPEN_FILETYPES, SAVE_EXT_LIST, ColorOps
 from src.paint_catalog import PaintCatalog, PaintColor, load_citadel_catalog
 from src.color_picker_visual import (
+    hsl_field_position,
+    hsl_from_field_position,
+    hsl_to_rgb_hex,
     hsv_field_position,
     hsv_from_field_position,
     hsv_to_rgb_hex,
     hue_from_slider_position,
     hue_slider_position,
+    rgb_hex_to_hsl,
     rgb_hex_to_hsv,
 )
 from src.paint_color_analysis import (
@@ -364,6 +368,7 @@ class ColorPickerDialog(tk.Toplevel):
         self.current_color = initial_color
         self._updating_color_representations = False
         self._hsv_field_cache = None
+        self._hsl_field_cache = None
         self._hue_slider_cache = None
         self.accepted_color: Optional[str] = None
         self.color_space_mode = DEFAULT_COLOR_SPACE_MODE
@@ -627,7 +632,7 @@ class ColorPickerDialog(tk.Toplevel):
         )
         self.hue_slider.pack(fill=tk.BOTH, expand=True)
         for event_name in ("<Button-1>", "<B1-Motion>"):
-            self.hsv_color_field.bind(event_name, self._on_hsv_field_input)
+            self.hsv_color_field.bind(event_name, self._on_color_field_input)
             self.hue_slider.bind(event_name, self._on_hue_slider_input)
         self.hsv_color_field.bind("<Configure>", self._on_visualization_resized)
         self.hue_slider.bind("<Configure>", self._on_visualization_resized)
@@ -708,42 +713,53 @@ class ColorPickerDialog(tk.Toplevel):
         field = getattr(self, "hsv_color_field", None)
         slider = getattr(self, "hue_slider", None)
         if (
-            getattr(self, "color_space_mode", DEFAULT_COLOR_SPACE_MODE)
-            != DEFAULT_COLOR_SPACE_MODE
-            or field is None
+            field is None
             or slider is None
             or not hasattr(field, "winfo_width")
         ):
             return
-        hue, saturation, value = rgb_hex_to_hsv(self.current_color)
-        self._render_hsv_field(hue)
+        mode = getattr(self, "color_space_mode", DEFAULT_COLOR_SPACE_MODE)
+        if mode == DEFAULT_COLOR_SPACE_MODE:
+            hue, saturation, component = rgb_hex_to_hsv(self.current_color)
+            self._render_hsv_field(hue)
+        else:
+            hue, saturation, component = rgb_hex_to_hsl(self.current_color)
+            self._render_hsl_field(hue)
         self._render_hue_slider()
-        self._draw_hsv_indicators(hue, saturation, value)
+        self._draw_hsv_indicators(hue, saturation, component)
 
     def _on_visualization_resized(self, Event=None) -> None:
         self._hsv_field_cache = None
+        self._hsl_field_cache = None
         self._hue_slider_cache = None
         self._refresh_visual_picker()
 
+    def _on_color_field_input(self, Event) -> None:
+        width = self.hsv_color_field.winfo_width()
+        height = self.hsv_color_field.winfo_height()
+        if self.color_space_mode == DEFAULT_COLOR_SPACE_MODE:
+            hue, _, _ = rgb_hex_to_hsv(self.current_color)
+            components = hsv_from_field_position(Event.x, Event.y, width, height, hue)
+            color = hsv_to_rgb_hex(*components)
+        else:
+            hue, _, _ = rgb_hex_to_hsl(self.current_color)
+            components = hsl_from_field_position(Event.x, Event.y, width, height, hue)
+            color = hsl_to_rgb_hex(*components)
+        self.set_current_color(color)
+
     def _on_hsv_field_input(self, Event) -> None:
-        if self.color_space_mode != DEFAULT_COLOR_SPACE_MODE:
-            return
-        hue, _, _ = rgb_hex_to_hsv(self.current_color)
-        hsv = hsv_from_field_position(
-            Event.x,
-            Event.y,
-            self.hsv_color_field.winfo_width(),
-            self.hsv_color_field.winfo_height(),
-            hue,
-        )
-        self.set_current_color(hsv_to_rgb_hex(*hsv))
+        """Retain the Block 4.2 callback name as a compatibility wrapper."""
+        self._on_color_field_input(Event)
 
     def _on_hue_slider_input(self, Event) -> None:
-        if self.color_space_mode != DEFAULT_COLOR_SPACE_MODE:
-            return
-        _, saturation, value = rgb_hex_to_hsv(self.current_color)
         hue = hue_from_slider_position(Event.y, self.hue_slider.winfo_height())
-        self.set_current_color(hsv_to_rgb_hex(hue, saturation, value))
+        if self.color_space_mode == DEFAULT_COLOR_SPACE_MODE:
+            _, saturation, component = rgb_hex_to_hsv(self.current_color)
+            color = hsv_to_rgb_hex(hue, saturation, component)
+        else:
+            _, saturation, component = rgb_hex_to_hsl(self.current_color)
+            color = hsl_to_rgb_hex(hue, saturation, component)
+        self.set_current_color(color)
 
     def _render_hsv_field(self, hue: float) -> None:
         width = self.hsv_color_field.winfo_width()
@@ -772,6 +788,34 @@ class ColorPickerDialog(tk.Toplevel):
         )
         self.hsv_color_field.tag_lower("gradient")
         self._hsv_field_cache = cache_key
+
+    def _render_hsl_field(self, hue: float) -> None:
+        width = self.hsv_color_field.winfo_width()
+        height = self.hsv_color_field.winfo_height()
+        cache_key = (width, height, hue)
+        cached = self._hsl_field_cache
+        if width <= 1 or height <= 1:
+            return
+        if cached is not None and cached[:2] == cache_key[:2]:
+            hue_distance = abs(cached[2] - hue)
+            if min(hue_distance, 1.0 - hue_distance) < 1 / 1024:
+                return
+        pixels = []
+        for y in range(height):
+            lightness = 1.0 - y / (height - 1)
+            for x in range(width):
+                saturation = x / (width - 1)
+                rgb = colorsys.hls_to_rgb(hue, lightness, saturation)
+                pixels.append(tuple(round(channel * 255) for channel in rgb))
+        image = Image.new("RGB", (width, height))
+        image.putdata(pixels)
+        self._hsv_field_image = ImageTk.PhotoImage(image)
+        self.hsv_color_field.delete("gradient")
+        self.hsv_color_field.create_image(
+            0, 0, anchor=tk.NW, image=self._hsv_field_image, tags="gradient"
+        )
+        self.hsv_color_field.tag_lower("gradient")
+        self._hsl_field_cache = cache_key
 
     def _render_hue_slider(self) -> None:
         width = self.hue_slider.winfo_width()

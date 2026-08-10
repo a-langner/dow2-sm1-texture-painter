@@ -2,6 +2,9 @@ import unittest
 
 from src.color_picker_visual import (
     clamp_coordinate,
+    hsl_field_position,
+    hsl_from_field_position,
+    hsl_to_rgb_hex,
     hsv_field_position,
     hsv_from_field_position,
     hsv_to_rgb_hex,
@@ -35,6 +38,24 @@ class ColorPickerVisualTests(unittest.TestCase):
         self.assertEqual(hsv_to_rgb_hex(1 / 3, 1.0, 1.0), "#00ff00")
         self.assertEqual(hsv_to_rgb_hex(2 / 3, 1.0, 1.0), "#0000ff")
         self.assertEqual(hsv_to_rgb_hex(0.2, 0.0, 0.5), "#808080")
+
+    def test_hsl_field_mapping_and_round_trip(self):
+        self.assertEqual(
+            hsl_from_field_position(0, 0, 101, 101, 0.5),
+            (0.5, 0.0, 1.0),
+        )
+        x, y = hsl_field_position(0.25, 0.75, 101, 201)
+        self.assertEqual((x, y), (25.0, 50.0))
+        self.assertEqual(
+            hsl_from_field_position(x, y, 101, 201, 0.4),
+            (0.4, 0.25, 0.75),
+        )
+
+    def test_representative_hsl_values_produce_expected_rgb(self):
+        self.assertEqual(hsl_to_rgb_hex(0.0, 1.0, 0.5), "#ff0000")
+        self.assertEqual(hsl_to_rgb_hex(1 / 3, 1.0, 0.5), "#00ff00")
+        self.assertEqual(hsl_to_rgb_hex(2 / 3, 1.0, 0.5), "#0000ff")
+        self.assertEqual(hsl_to_rgb_hex(0.2, 0.0, 0.5), "#808080")
 
 
 if __name__ == "__main__":

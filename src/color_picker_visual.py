@@ -64,3 +64,42 @@ def hsv_to_rgb_hex(hue: float, saturation: float, value: float) -> str:
     )
     channels = (round(channel * 255.0) for channel in (red, green, blue))
     return "#{:02x}{:02x}{:02x}".format(*channels)
+
+
+def hsl_from_field_position(
+    x: float, y: float, width: int, height: int, hue: float
+) -> tuple[float, float, float]:
+    """Map field position to hue, saturation and lightness."""
+    return hue % 1.0, coordinate_to_unit(x, width), 1.0 - coordinate_to_unit(y, height)
+
+
+def hsl_field_position(
+    saturation: float, lightness: float, width: int, height: int
+) -> tuple[float, float]:
+    """Map saturation and lightness to a field position."""
+    return unit_to_coordinate(saturation, width), unit_to_coordinate(
+        1.0 - lightness, height
+    )
+
+
+def rgb_hex_to_hsl(color: str) -> tuple[float, float, float]:
+    """Convert a six-digit RGB color string to normalized HSL."""
+    value = color.removeprefix("#")
+    if len(value) != 6:
+        raise ValueError(f"Expected a six-digit RGB color, got {color!r}")
+    red, green, blue = (
+        int(value[index : index + 2], 16) / 255.0 for index in (0, 2, 4)
+    )
+    hue, lightness, saturation = colorsys.rgb_to_hls(red, green, blue)
+    return hue, saturation, lightness
+
+
+def hsl_to_rgb_hex(hue: float, saturation: float, lightness: float) -> str:
+    """Convert normalized HSL to a canonical lowercase RGB color string."""
+    red, green, blue = colorsys.hls_to_rgb(
+        hue % 1.0,
+        min(max(lightness, 0.0), 1.0),
+        min(max(saturation, 0.0), 1.0),
+    )
+    channels = (round(channel * 255.0) for channel in (red, green, blue))
+    return "#{:02x}{:02x}{:02x}".format(*channels)

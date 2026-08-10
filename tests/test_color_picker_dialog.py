@@ -218,6 +218,48 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog._render_hue_slider.assert_called_once_with()
         dialog._draw_hsv_indicators.assert_called_once_with(1 / 3, 1.0, 1.0)
 
+    def test_hsl_visual_interaction_updates_canonical_current_color(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.color_space_mode = "HSL"
+        dialog.current_color = "#ff0000"
+        dialog.hsv_color_field = Mock()
+        dialog.hsv_color_field.winfo_width.return_value = 101
+        dialog.hsv_color_field.winfo_height.return_value = 101
+        dialog.set_current_color = Mock()
+
+        dialog._on_color_field_input(SimpleNamespace(x=50, y=25))
+
+        dialog.set_current_color.assert_called_once_with("#df9f9f")
+
+    def test_repeated_color_space_switching_preserves_exact_rgb(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.color_space_mode = DEFAULT_COLOR_SPACE_MODE
+        dialog.current_color = "#960C09"
+        dialog.editor_mode_controls_label = FakeWidget()
+        dialog._refresh_visual_picker = Mock()
+
+        for mode in ("HSL", DEFAULT_COLOR_SPACE_MODE, "HSL", DEFAULT_COLOR_SPACE_MODE):
+            dialog.select_color_space(mode)
+            self.assertEqual(dialog.current_color, "#960C09")
+
+        self.assertEqual(dialog._refresh_visual_picker.call_count, 4)
+
+    def test_programmatic_color_change_repositions_hsl_indicators(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.color_space_mode = "HSL"
+        dialog.current_color = "#00ff00"
+        dialog.hsv_color_field = Mock()
+        dialog.hue_slider = Mock()
+        dialog._render_hsl_field = Mock()
+        dialog._render_hue_slider = Mock()
+        dialog._draw_hsv_indicators = Mock()
+
+        dialog._refresh_visual_picker()
+
+        dialog._render_hsl_field.assert_called_once_with(1 / 3)
+        dialog._render_hue_slider.assert_called_once_with()
+        dialog._draw_hsv_indicators.assert_called_once_with(1 / 3, 1.0, 0.5)
+
     def test_color_synchronization_guard_is_released_after_refresh_failure(self):
         dialog = object.__new__(ColorPickerDialog)
         dialog.current_color = "#123456"
