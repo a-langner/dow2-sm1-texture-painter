@@ -861,6 +861,24 @@ class ColorPickerDialogTests(unittest.TestCase):
         )
         self.assertEqual(dialog.original_color, "#123456")
 
+    def test_accept_after_paint_selection_returns_subsequent_manual_edit(self):
+        paint = PaintColor("first", "First", 1, 128, 255)
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.original_color = "#123456"
+        dialog.current_color = "#123456"
+        dialog.current_color_preview = FakeWidget()
+        dialog.palette_grid = FakePaletteGrid()
+        dialog.destroy = Mock()
+        dialog.accepted_color = None
+
+        dialog.select_paint(paint)
+        dialog.set_current_color("#fedcba")
+        dialog.accept()
+
+        self.assertEqual(dialog.get_accepted_color(), "#fedcba")
+        self.assertNotEqual(dialog.get_accepted_color(), "#0180ff")
+        self.assertEqual(dialog.original_color, "#123456")
+
     def test_filtering_out_selected_paint_preserves_color_and_identity(self):
         red = PaintColor("red", "Red", 255, 0, 0)
         blue = PaintColor("blue", "Blue", 0, 0, 255)

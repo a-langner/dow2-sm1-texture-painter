@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.frame_main import ArmyPainter
-from src.widget import FrameColorChooser, PatternSelection, choose_native_color
+from src.widget import ColorPickerDialog, FrameColorChooser, PatternSelection
 
 STORED_COLORS = ["#112233", "#445566", "#778899", "#aabbcc"]
 
@@ -72,11 +72,36 @@ class PatternDirtyStateTests(unittest.TestCase):
         self.assertEqual(chooser.color_boxes[1]["bg"], "#010203")
         chooser._on_color_changed.assert_called_once_with(1, "#010203")
 
-    @patch("src.widget.colorchooser.askcolor", return_value=((1, 2, 3), "#010203"))
-    def test_native_color_picker_preserves_hex_result(self, ask_color):
-        self.assertEqual(choose_native_color("#000000"), "#010203")
+    @patch.object(ColorPickerDialog, "show", return_value="#010203")
+    def test_production_picker_opens_with_current_color_and_returns_acceptance(
+        self, show
+    ):
+        chooser = object.__new__(FrameColorChooser)
 
-        ask_color.assert_called_once_with("#000000")
+        self.assertEqual(chooser._open_color_picker("#000000"), "#010203")
+
+        show.assert_called_once_with(chooser, "#000000")
+
+    @patch.object(ColorPickerDialog, "show", return_value=None)
+    def test_production_picker_returns_cancellation(self, show):
+        chooser = object.__new__(FrameColorChooser)
+
+        self.assertIsNone(chooser._open_color_picker("#112233"))
+
+        show.assert_called_once_with(chooser, "#112233")
+
+    def test_cancelled_picker_leaves_slot_and_downstream_state_unchanged(self):
+        chooser = object.__new__(FrameColorChooser)
+        chooser.color_boxes = [{"bg": "#000000"} for _ in range(4)]
+        chooser.draw_rgb_value = Mock()
+        chooser._on_color_changed = Mock()
+        chooser._color_picker = Mock(return_value=None)
+
+        FrameColorChooser.apply_color(chooser, 2)
+
+        self.assertEqual(chooser.color_boxes[2]["bg"], "#000000")
+        chooser.draw_rgb_value.assert_not_called()
+        chooser._on_color_changed.assert_not_called()
 
 
 if __name__ == "__main__":

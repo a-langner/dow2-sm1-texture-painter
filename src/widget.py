@@ -141,12 +141,6 @@ def paint_tooltip_text(paint: PaintColor) -> str:
     return f"{paint.name}\nRGB: {paint.r}, {paint.g}, {paint.b}"
 
 
-def choose_native_color(initial_color: str) -> Optional[str]:
-    """Return the native Tk picker selection as a hex value, or cancellation."""
-    _, selected_color = colorchooser.askcolor(initial_color)
-    return selected_color
-
-
 class PaintSwatchGrid(ttk.Frame):
     """Vertically scrollable paint grid that reflows existing items on resize."""
 
@@ -1179,15 +1173,21 @@ class FrameColorChooser(tk.Frame):
         cnf={},
         *,
         on_color_changed: ColorChangedCallback,
-        color_picker: ColorPickerCallback = choose_native_color,
+        color_picker: Optional[ColorPickerCallback] = None,
         **kw,
     ):
         super(FrameColorChooser, self).__init__(master=master, cnf={}, **kw)
         self._on_color_changed = on_color_changed
-        self._color_picker = color_picker
+        self._color_picker = (
+            self._open_color_picker if color_picker is None else color_picker
+        )
         self.color_boxes = []
         self.color_buttons = []
         self.initialize()
+
+    def _open_color_picker(self, initial_color: str) -> Optional[str]:
+        """Open the production custom picker with the slot's current color."""
+        return ColorPickerDialog.show(self, initial_color)
 
     def initialize(self):
         for i in range(0, 4):
