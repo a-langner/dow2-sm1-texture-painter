@@ -51,6 +51,9 @@ COLOR_PICKER_DEFAULT_HEIGHT = 720
 COLOR_PICKER_MIN_WIDTH = 900
 COLOR_PICKER_MIN_HEIGHT = 600
 COLOR_PICKER_SCREEN_MARGIN = 80
+COLOR_PICKER_GROUP_PANE_WIDTH = 140
+COLOR_PICKER_PALETTE_PANE_WIDTH = 440
+COLOR_PICKER_EDITOR_PANE_WIDTH = 500
 COLOR_PICKER_GROUP_ENTRIES = ((None, "All Colors"),) + tuple(
     (color_group, color_group.value) for color_group in VISUAL_GROUP_ORDER
 )
@@ -436,21 +439,25 @@ class ColorPickerDialog(tk.Toplevel):
             self.main_panes,
             text="Groups",
             padding=8,
-            width=140,
+            width=COLOR_PICKER_GROUP_PANE_WIDTH,
         )
         self.palette_area = ttk.LabelFrame(
             self.main_panes,
             text="Citadel Colors",
             padding=8,
+            width=COLOR_PICKER_PALETTE_PANE_WIDTH,
         )
         self.editor_area = ttk.LabelFrame(
             self.main_panes,
             text="Color Editor",
             padding=8,
+            width=COLOR_PICKER_EDITOR_PANE_WIDTH,
         )
+        self.palette_area.pack_propagate(False)
+        self.editor_area.pack_propagate(False)
         self.main_panes.add(self.group_navigation, weight=0)
-        self.main_panes.add(self.palette_area, weight=3)
-        self.main_panes.add(self.editor_area, weight=2)
+        self.main_panes.add(self.palette_area, weight=1)
+        self.main_panes.add(self.editor_area, weight=1)
 
         self.palette_header_area = ttk.Frame(self.palette_area)
         self.palette_header_area.pack(fill=tk.X)

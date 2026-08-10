@@ -7,8 +7,11 @@ from src.paint_color_analysis import ColorGroup, VISUAL_GROUP_ORDER
 from src.paint_color_analysis import get_paints_for_group, sort_paints_visually
 from src.widget import (
     COLOR_FIELD_PREFERRED_HEIGHT,
+    COLOR_PICKER_EDITOR_PANE_WIDTH,
     COLOR_PREVIEW_BORDER,
+    COLOR_PICKER_GROUP_PANE_WIDTH,
     COLOR_PICKER_GROUP_ENTRIES,
+    COLOR_PICKER_PALETTE_PANE_WIDTH,
     COLOR_SPACE_MODES,
     DEFAULT_COLOR_SPACE_MODE,
     NO_CITADEL_COLORS_MESSAGE,
@@ -37,6 +40,9 @@ class FakeWidget:
 
     def pack(self, **options):
         self.pack_options = options
+
+    def pack_propagate(self, enabled):
+        self.pack_propagate_enabled = enabled
 
     def add(self, child, **options):
         self.panes.append((child, options))
@@ -421,7 +427,17 @@ class ColorPickerDialogTests(unittest.TestCase):
         pane_names = [pane.options["text"] for pane, _ in dialog.main_panes.panes]
         pane_weights = [options["weight"] for _, options in dialog.main_panes.panes]
         self.assertEqual(pane_names, ["Groups", "Citadel Colors", "Color Editor"])
-        self.assertEqual(pane_weights, [0, 3, 2])
+        self.assertEqual(pane_weights, [0, 1, 1])
+        self.assertEqual(
+            [pane.options["width"] for pane, _ in dialog.main_panes.panes],
+            [
+                COLOR_PICKER_GROUP_PANE_WIDTH,
+                COLOR_PICKER_PALETTE_PANE_WIDTH,
+                COLOR_PICKER_EDITOR_PANE_WIDTH,
+            ],
+        )
+        self.assertFalse(dialog.palette_area.pack_propagate_enabled)
+        self.assertFalse(dialog.editor_area.pack_propagate_enabled)
         self.assertTrue(dialog.dialog_content.pack_options["expand"])
         self.assertTrue(dialog.main_panes.pack_options["expand"])
         for attribute in (
