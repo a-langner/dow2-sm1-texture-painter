@@ -352,6 +352,7 @@ class ColorPickerDialog(tk.Toplevel):
         super().__init__(parent)
         self.original_color = initial_color
         self.current_color = initial_color
+        self._updating_color_representations = False
         self.accepted_color: Optional[str] = None
         self.color_space_mode = DEFAULT_COLOR_SPACE_MODE
         self.paint_catalog = (
@@ -658,11 +659,41 @@ class ColorPickerDialog(tk.Toplevel):
         )
 
     def set_current_color(self, color: str) -> None:
-        """Update the one working color shared by future editor controls."""
+        """Set the canonical working color and synchronize every representation."""
+        if getattr(self, "_updating_color_representations", False):
+            return
+
         self.current_color = color
+        self._updating_color_representations = True
+        try:
+            self._refresh_color_representations()
+        finally:
+            self._updating_color_representations = False
+
+    def _refresh_color_representations(self) -> None:
+        """Fan the canonical color out to current and future editor controls."""
+        self._refresh_rgb_controls()
+        self._refresh_color_model_controls()
+        self._refresh_hex_control()
+        self._refresh_visual_picker()
+        self._refresh_current_color_preview()
+
+    def _refresh_rgb_controls(self) -> None:
+        """Refresh RGB controls when Job 4.4 makes them functional."""
+
+    def _refresh_color_model_controls(self) -> None:
+        """Refresh active HSV/HSL controls when Job 4.5 makes them functional."""
+
+    def _refresh_hex_control(self) -> None:
+        """Refresh the Hex control when Job 4.6 makes it functional."""
+
+    def _refresh_visual_picker(self) -> None:
+        """Refresh visual indicators when Jobs 4.2 and 4.3 implement them."""
+
+    def _refresh_current_color_preview(self) -> None:
         preview = getattr(self, "current_color_preview", None)
         if preview is not None:
-            preview.configure(background=color)
+            preview.configure(background=self.current_color)
 
     def get_accepted_color(self) -> Optional[str]:
         """Return the accepted working color, or ``None`` after cancellation."""

@@ -144,10 +144,61 @@ class ColorPickerDialogTests(unittest.TestCase):
     def test_current_color_has_one_public_update_path(self):
         dialog = object.__new__(ColorPickerDialog)
         dialog.current_color = "#123456"
+        dialog._refresh_color_representations = Mock()
 
         dialog.set_current_color("#abcdef")
 
         self.assertEqual(dialog.current_color, "#abcdef")
+        dialog._refresh_color_representations.assert_called_once_with()
+
+    def test_color_synchronization_guard_prevents_recursive_updates(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.current_color = "#123456"
+        refresh_count = 0
+
+        def refresh_representations():
+            nonlocal refresh_count
+            refresh_count += 1
+            dialog.set_current_color("#000000")
+
+        dialog._refresh_color_representations = refresh_representations
+
+        dialog.set_current_color("#abcdef")
+
+        self.assertEqual(dialog.current_color, "#abcdef")
+        self.assertEqual(refresh_count, 1)
+        self.assertFalse(dialog._updating_color_representations)
+
+    def test_setting_current_color_refreshes_every_dependent_representation(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.current_color = "#123456"
+        refreshers = (
+            "_refresh_rgb_controls",
+            "_refresh_color_model_controls",
+            "_refresh_hex_control",
+            "_refresh_visual_picker",
+            "_refresh_current_color_preview",
+        )
+        for refresher in refreshers:
+            setattr(dialog, refresher, Mock())
+
+        dialog.set_current_color("#abcdef")
+
+        for refresher in refreshers:
+            with self.subTest(refresher=refresher):
+                getattr(dialog, refresher).assert_called_once_with()
+
+    def test_color_synchronization_guard_is_released_after_refresh_failure(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.current_color = "#123456"
+        dialog._refresh_color_representations = Mock(
+            side_effect=RuntimeError("refresh failed")
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "refresh failed"):
+            dialog.set_current_color("#abcdef")
+
+        self.assertFalse(dialog._updating_color_representations)
 
     def test_window_is_resizable_and_bounded_to_available_screen(self):
         dialog = object.__new__(ColorPickerDialog)
@@ -403,6 +454,24 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog.selected_paint_id, "second")
         self.assertEqual(dialog.palette_grid.selected_paint_id, "second")
         self.assertEqual(dialog.current_color, "#fe1000")
+        self.assertEqual(dialog.original_color, "#123456")
+
+    def test_manual_edit_after_paint_selection_uses_working_color_pipeline(self):
+        paint = PaintColor("first", "First", 1, 128, 255)
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.original_color = "#123456"
+        dialog.current_color = "#123456"
+        dialog.current_color_preview = FakeWidget()
+        dialog.palette_grid = FakePaletteGrid()
+
+        dialog.select_paint(paint)
+        dialog.set_current_color("#fedcba")
+
+        self.assertEqual(dialog.selected_paint_id, "first")
+        self.assertEqual(dialog.current_color, "#fedcba")
+        self.assertEqual(
+            dialog.current_color_preview.options["background"], "#fedcba"
+        )
         self.assertEqual(dialog.original_color, "#123456")
 
     def test_filtering_out_selected_paint_preserves_color_and_identity(self):
