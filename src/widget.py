@@ -82,6 +82,7 @@ DEFAULT_COLOR_SPACE_MODE = COLOR_SPACE_MODES[0]
 PAINT_SWATCH_TARGET_WIDTH = 96
 PAINT_SWATCH_PREVIEW_SIZE = 60
 PAINT_SWATCH_NAME_WRAP = 88
+PAINT_SWATCH_CORNER_RADIUS = 5
 PAINT_SEARCH_PLACEHOLDER = "Search Citadel colors..."
 NO_CITADEL_COLORS_MESSAGE = "No Citadel colors found."
 PAINT_TOOLTIP_DELAY_MS = 400
@@ -144,6 +145,53 @@ def format_visible_paint_count(count: int) -> str:
 
 def paint_tooltip_text(paint: PaintColor) -> str:
     return f"{paint.name}\nRGB: {paint.r}, {paint.g}, {paint.b}"
+
+
+def draw_rounded_swatch(
+    canvas,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    *,
+    fill: str,
+    outline: str,
+    width: int,
+) -> int:
+    """Draw one subtly rounded canvas swatch and return its item id."""
+    radius = min(PAINT_SWATCH_CORNER_RADIUS, (x2 - x1) / 2, (y2 - y1) / 2)
+    return canvas.create_polygon(
+        x1 + radius,
+        y1,
+        x2 - radius,
+        y1,
+        x2,
+        y1,
+        x2,
+        y1 + radius,
+        x2,
+        y2 - radius,
+        x2,
+        y2,
+        x2 - radius,
+        y2,
+        x1 + radius,
+        y2,
+        x1,
+        y2,
+        x1,
+        y2 - radius,
+        x1,
+        y1 + radius,
+        x1,
+        y1,
+        fill=fill,
+        outline=outline,
+        width=width,
+        smooth=True,
+        splinesteps=12,
+        tags="paint",
+    )
 
 
 class PaintSwatchGrid(ttk.Frame):
@@ -261,7 +309,8 @@ class PaintSwatchGrid(ttk.Frame):
             )
             preview_x1 = (x1 + x2 - PAINT_SWATCH_PREVIEW_SIZE) / 2
             preview_y1 = y1 + 4
-            self.canvas.create_rectangle(
+            draw_rounded_swatch(
+                self.canvas,
                 preview_x1,
                 preview_y1,
                 preview_x1 + PAINT_SWATCH_PREVIEW_SIZE,
@@ -273,7 +322,6 @@ class PaintSwatchGrid(ttk.Frame):
                     else PAINT_SWATCH_OUTLINE
                 ),
                 width=3 if selected else 1,
-                tags="paint",
             )
             self.canvas.create_text(
                 (x1 + x2) / 2,

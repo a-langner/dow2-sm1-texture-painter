@@ -17,11 +17,13 @@ from src.widget import (
     NO_CITADEL_COLORS_MESSAGE,
     PAINT_SEARCH_PLACEHOLDER,
     PAINT_SWATCH_OUTLINE,
+    PAINT_SWATCH_CORNER_RADIUS,
     PAINT_SWATCH_PREVIEW_SIZE,
     PAINT_SWATCH_SELECTED_OUTLINE,
     ColorPickerDialog,
     PaintSwatchGrid,
     calculate_paint_swatch_columns,
+    draw_rounded_swatch,
     filter_paints_by_name,
     format_visible_paint_count,
     paint_tooltip_text,
@@ -955,11 +957,48 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         self.assertEqual(grid._configured_column_count, 2)
         self.assertEqual(len(grid._paint_regions), 2)
-        self.assertEqual(grid.canvas.create_rectangle.call_count, 4)
+        self.assertEqual(grid.canvas.create_rectangle.call_count, 2)
+        self.assertEqual(grid.canvas.create_polygon.call_count, 2)
         self.assertEqual(grid.canvas.create_text.call_count, 2)
+        selected_swatch, light_swatch = grid.canvas.create_polygon.call_args_list
+        self.assertEqual(selected_swatch.kwargs["fill"], "#ff0000")
+        self.assertEqual(selected_swatch.kwargs["outline"], PAINT_SWATCH_SELECTED_OUTLINE)
+        self.assertEqual(selected_swatch.kwargs["width"], 3)
+        self.assertEqual(light_swatch.kwargs["fill"], "#ffffff")
+        self.assertEqual(light_swatch.kwargs["outline"], PAINT_SWATCH_OUTLINE)
+        self.assertEqual(light_swatch.kwargs["width"], 1)
         grid.canvas.configure.assert_called_once_with(
             scrollregion=(0, 0, 192, PAINT_SWATCH_PREVIEW_SIZE + 56)
         )
+
+    def test_rounded_swatch_uses_subtle_corner_radius(self):
+        canvas = Mock()
+        canvas.create_polygon.return_value = 42
+
+        item = draw_rounded_swatch(
+            canvas,
+            10,
+            20,
+            70,
+            80,
+            fill="#0180ff",
+            outline=PAINT_SWATCH_OUTLINE,
+            width=1,
+        )
+
+        self.assertEqual(item, 42)
+        call = canvas.create_polygon.call_args
+        self.assertEqual(
+            call.args[:4],
+            (
+                10 + PAINT_SWATCH_CORNER_RADIUS,
+                20,
+                70 - PAINT_SWATCH_CORNER_RADIUS,
+                20,
+            ),
+        )
+        self.assertEqual(call.kwargs["fill"], "#0180ff")
+        self.assertTrue(call.kwargs["smooth"])
 
     def test_selecting_paints_updates_exact_current_color_and_identity(self):
         first = PaintColor("first", "First", 1, 128, 255)
