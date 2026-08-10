@@ -6,10 +6,6 @@ from src.paint_catalog import PaintCatalog, PaintColor
 from src.paint_color_analysis import ColorGroup, VISUAL_GROUP_ORDER
 from src.paint_color_analysis import get_paints_for_group, sort_paints_visually
 from src.widget import (
-    COLOR_PICKER_DEFAULT_HEIGHT,
-    COLOR_PICKER_DEFAULT_WIDTH,
-    COLOR_PICKER_MIN_HEIGHT,
-    COLOR_PICKER_MIN_WIDTH,
     COLOR_FIELD_PREFERRED_HEIGHT,
     COLOR_PREVIEW_BORDER,
     COLOR_PICKER_GROUP_ENTRIES,
@@ -117,6 +113,21 @@ class FakePaletteGrid:
 
 
 class ColorPickerDialogTests(unittest.TestCase):
+    def test_window_size_stays_within_a_constrained_screen(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.title = Mock()
+        dialog.transient = Mock()
+        dialog.resizable = Mock()
+        dialog.winfo_screenwidth = Mock(return_value=800)
+        dialog.winfo_screenheight = Mock(return_value=600)
+        dialog.geometry = Mock()
+        dialog.minsize = Mock()
+
+        dialog._configure_window(object())
+
+        dialog.geometry.assert_called_once_with("720x520")
+        dialog.minsize.assert_called_once_with(720, 520)
+
     @patch("src.widget.tk.Toplevel.wait_window")
     @patch("src.widget.tk.Toplevel.grab_set")
     @patch("src.widget.tk.Toplevel.bind")
@@ -377,7 +388,7 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         self.assertFalse(dialog._updating_color_representations)
 
-    def test_window_is_resizable_and_bounded_to_available_screen(self):
+    def test_window_size_keeps_palette_and_editor_usable(self):
         dialog = object.__new__(ColorPickerDialog)
         dialog.title = Mock()
         dialog.transient = Mock()
@@ -393,12 +404,8 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.title.assert_called_once_with("Select Color")
         dialog.transient.assert_called_once_with(parent)
         dialog.resizable.assert_called_once_with(True, True)
-        dialog.geometry.assert_called_once_with(
-            f"{COLOR_PICKER_DEFAULT_WIDTH}x{COLOR_PICKER_DEFAULT_HEIGHT}"
-        )
-        dialog.minsize.assert_called_once_with(
-            COLOR_PICKER_MIN_WIDTH, COLOR_PICKER_MIN_HEIGHT
-        )
+        dialog.geometry.assert_called_once_with("1100x720")
+        dialog.minsize.assert_called_once_with(900, 600)
 
     @patch("src.widget.ttk.LabelFrame", side_effect=FakeWidget)
     @patch("src.widget.ttk.Panedwindow", side_effect=FakeWidget)
