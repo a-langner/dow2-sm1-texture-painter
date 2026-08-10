@@ -175,7 +175,10 @@ class PaintSwatchGrid(ttk.Frame):
         self.canvas = tk.Canvas(
             self,
             bd=0,
-            highlightthickness=0,
+            highlightthickness=1,
+            highlightbackground="#707070",
+            highlightcolor="#2f80ed",
+            takefocus=True,
             yscrollcommand=self.vertical_scrollbar.set,
         )
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -188,7 +191,15 @@ class PaintSwatchGrid(ttk.Frame):
         self.inner.bind("<Configure>", self._on_inner_configure)
         self.canvas.bind("<Configure>", self._on_canvas_configure)
         self.canvas.bind("<MouseWheel>", self._on_mousewheel)
+        self.canvas.bind("<Up>", partial(self._on_scroll_key, -1, "units"))
+        self.canvas.bind("<Down>", partial(self._on_scroll_key, 1, "units"))
+        self.canvas.bind("<Prior>", partial(self._on_scroll_key, -1, "pages"))
+        self.canvas.bind("<Next>", partial(self._on_scroll_key, 1, "pages"))
         self.inner.bind("<MouseWheel>", self._on_mousewheel)
+
+    def _on_scroll_key(self, amount: int, what: str, Event=None) -> str:
+        self.canvas.yview_scroll(amount, what)
+        return "break"
 
     def set_paints(self, paints) -> None:
         paints = tuple(paints)
@@ -384,12 +395,13 @@ class ColorPickerDialog(tk.Toplevel):
         self.search_query = ""
 
         self._configure_window(parent)
-        self._build_actions()
         self._build_main_layout()
         self._build_palette_search()
         self._build_palette_grid()
         self._build_group_navigation()
         self._build_editor_placeholders()
+        # Create actions last so native Tab traversal follows the visual layout.
+        self._build_actions()
         self.protocol("WM_DELETE_WINDOW", self.cancel)
         self.bind("<Return>", self.accept)
         self.bind("<Escape>", self.cancel)
@@ -419,8 +431,10 @@ class ColorPickerDialog(tk.Toplevel):
     def _build_actions(self) -> None:
         actions = ttk.Frame(self, padding=8)
         actions.pack(side=tk.BOTTOM, fill=tk.X)
-        ttk.Button(actions, text="OK", command=self.accept).pack(side=tk.RIGHT)
-        ttk.Button(actions, text="Cancel", command=self.cancel).pack(
+        self.ok_button = ttk.Button(actions, text="OK", command=self.accept)
+        self.ok_button.pack(side=tk.RIGHT)
+        self.cancel_button = ttk.Button(actions, text="Cancel", command=self.cancel)
+        self.cancel_button.pack(
             side=tk.RIGHT, padx=(0, 8)
         )
 
@@ -665,7 +679,7 @@ class ColorPickerDialog(tk.Toplevel):
             control.pack(side=tk.LEFT, padx=(3, 8))
             control.bind("<KeyRelease>", self._on_rgb_control_changed)
             control.bind("<FocusOut>", self._on_rgb_control_changed)
-            control.bind("<Return>", self._on_rgb_control_changed)
+            control.bind("<Return>", self._on_rgb_control_return)
             self.rgb_controls[channel] = control
         self.editor_mode_controls_label = ttk.Label(
             self.editor_alternate_color_space_area,
@@ -706,7 +720,7 @@ class ColorPickerDialog(tk.Toplevel):
             control.pack(side=tk.LEFT, padx=(3, 8))
             control.bind("<KeyRelease>", self._on_color_model_control_changed)
             control.bind("<FocusOut>", self._on_color_model_control_changed)
-            control.bind("<Return>", self._on_color_model_control_changed)
+            control.bind("<Return>", self._on_color_model_control_return)
             self.color_model_labels[name] = component_label
             self.color_model_controls[name] = control
         ttk.Label(self.editor_hex_area, text="Hex:").pack(side=tk.LEFT)
@@ -792,8 +806,7 @@ class ColorPickerDialog(tk.Toplevel):
             ("red", "green", "blue"), rgb_hex_to_channels(self.current_color)
         ):
             control = controls[channel]
-            control.delete(0, tk.END)
-            control.insert(0, str(value))
+            self._replace_control_text(control, str(value))
 
     def _refresh_color_model_controls(self) -> None:
         controls = getattr(self, "color_model_controls", None)
@@ -814,14 +827,36 @@ class ColorPickerDialog(tk.Toplevel):
         }
         for name, value in values.items():
             control = controls[name]
-            control.delete(0, tk.END)
-            control.insert(0, str(value))
+            self._replace_control_text(control, str(value))
 
     def _refresh_hex_control(self) -> None:
         control = getattr(self, "hex_input", None)
         if control is not None:
-            control.delete(0, tk.END)
-            control.insert(0, normalize_rgb_hex(self.current_color))
+            self._replace_control_text(control, normalize_rgb_hex(self.current_color))
+
+    @staticmethod
+    def _replace_control_text(control, value: str) -> None:
+        """Replace synchronized text without stealing focus, caret, or selection."""
+        insert_index = None
+        selection = None
+        if hasattr(control, "focus_get"):
+            try:
+                if control.focus_get() is control:
+                    insert_index = int(control.index(tk.INSERT))
+                    if control.selection_present():
+                        selection = (
+                            int(control.index(tk.SEL_FIRST)),
+                            int(control.index(tk.SEL_LAST)),
+                        )
+            except tk.TclError:
+                pass
+        control.delete(0, tk.END)
+        control.insert(0, value)
+        if insert_index is not None:
+            control.icursor(min(insert_index, len(value)))
+        if selection is not None:
+            start, end = selection
+            control.selection_range(min(start, len(value)), min(end, len(value)))
 
     def _commit_hex_input(self) -> bool:
         """Commit valid Hex input or restore the canonical color display."""
@@ -863,6 +898,10 @@ class ColorPickerDialog(tk.Toplevel):
             return
         self.set_current_color(rgb_channels_to_hex(*(int(value) for value in values)))
 
+    def _on_rgb_control_return(self, Event=None) -> str:
+        self._on_rgb_control_changed(Event)
+        return "break"
+
     def _on_color_model_control_changed(self, Event=None) -> None:
         if getattr(self, "_updating_color_representations", False):
             return
@@ -885,6 +924,10 @@ class ColorPickerDialog(tk.Toplevel):
         else:
             color = hsl_to_rgb_hex(hue, saturation, component)
         self.set_current_color(color)
+
+    def _on_color_model_control_return(self, Event=None) -> str:
+        self._on_color_model_control_changed(Event)
+        return "break"
 
     def _refresh_visual_picker(self) -> None:
         """Refresh HSV gradients when needed and always reposition indicators."""

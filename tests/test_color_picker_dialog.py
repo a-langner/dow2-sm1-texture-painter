@@ -61,6 +61,35 @@ class FakeWidget:
         self.options.update(options)
 
 
+class FocusedFakeWidget(FakeWidget):
+    def __init__(self, value, insert_index, selection):
+        super().__init__()
+        self.value = value
+        self.insert_index = insert_index
+        self.selection = selection
+
+    def focus_get(self):
+        return self
+
+    def index(self, position):
+        if position == "insert":
+            return self.insert_index
+        if position == "sel.first":
+            return self.selection[0]
+        if position == "sel.last":
+            return self.selection[1]
+        raise AssertionError(position)
+
+    def selection_present(self):
+        return self.selection is not None
+
+    def icursor(self, index):
+        self.insert_index = index
+
+    def selection_range(self, start, end):
+        self.selection = (start, end)
+
+
 class FakeGroupButton:
     def __init__(self):
         self.states = []
@@ -122,6 +151,8 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertIsNone(dialog.get_accepted_color())
         grab_set.assert_called_once_with()
         wait_window.assert_called_once_with()
+        _bind.assert_any_call("<Return>", dialog.accept)
+        _bind.assert_any_call("<Escape>", dialog.cancel)
 
     def test_accept_returns_current_color_and_preserves_original(self):
         dialog = object.__new__(ColorPickerDialog)
@@ -708,6 +739,46 @@ class ColorPickerDialogTests(unittest.TestCase):
         for rejected in ("-1", "256", "1.5", "red", " 1"):
             with self.subTest(rejected=rejected):
                 self.assertFalse(ColorPickerDialog._validate_rgb_input(rejected))
+
+    def test_numeric_return_handlers_commit_without_accepting_dialog(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog._on_rgb_control_changed = Mock()
+        dialog._on_color_model_control_changed = Mock()
+        event = object()
+
+        self.assertEqual(dialog._on_rgb_control_return(event), "break")
+        self.assertEqual(dialog._on_color_model_control_return(event), "break")
+
+        dialog._on_rgb_control_changed.assert_called_once_with(event)
+        dialog._on_color_model_control_changed.assert_called_once_with(event)
+
+    def test_synchronized_text_preserves_focused_caret_and_selection(self):
+        control = FocusedFakeWidget("123", insert_index=2, selection=(1, 3))
+
+        ColorPickerDialog._replace_control_text(control, "9876")
+
+        self.assertEqual(control.get(), "9876")
+        self.assertEqual(control.insert_index, 2)
+        self.assertEqual(control.selection, (1, 3))
+
+    def test_palette_keyboard_scrolling_consumes_navigation_key(self):
+        grid = object.__new__(PaintSwatchGrid)
+        grid.canvas = Mock()
+
+        result = grid._on_scroll_key(1, "pages")
+
+        self.assertEqual(result, "break")
+        grid.canvas.yview_scroll.assert_called_once_with(1, "pages")
+
+    @patch("src.widget.ttk.Button", side_effect=FakeWidget)
+    @patch("src.widget.ttk.Frame", side_effect=FakeWidget)
+    def test_dialog_actions_are_named_focusable_controls(self, _frame, _button):
+        dialog = object.__new__(ColorPickerDialog)
+
+        dialog._build_actions()
+
+        self.assertEqual(dialog.ok_button.options["text"], "OK")
+        self.assertEqual(dialog.cancel_button.options["text"], "Cancel")
 
     def test_rgb_channel_boundaries_update_canonical_color(self):
         dialog = object.__new__(ColorPickerDialog)
