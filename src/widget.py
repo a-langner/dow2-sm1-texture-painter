@@ -83,6 +83,8 @@ PAINT_SEARCH_PLACEHOLDER = "Search Citadel colors..."
 NO_CITADEL_COLORS_MESSAGE = "No Citadel colors found."
 PAINT_TOOLTIP_DELAY_MS = 400
 COLOR_PREVIEW_BORDER = "#707070"
+COLOR_FIELD_PREFERRED_HEIGHT = 240
+VISUAL_RESIZE_DELAY_MS = 40
 
 ActionCallback = Callable[[], None]
 BooleanChangedCallback = Callable[[bool], None]
@@ -374,6 +376,9 @@ class ColorPickerDialog(tk.Toplevel):
         self._hsv_field_cache = None
         self._hsl_field_cache = None
         self._hue_slider_cache = None
+        self._visual_resize_after_id = None
+        self._field_indicator_items = ()
+        self._hue_indicator_items = ()
         self._achromatic_hue = rgb_hex_to_hsv(initial_color)[0]
         self.accepted_color: Optional[str] = None
         self.color_space_mode = DEFAULT_COLOR_SPACE_MODE
@@ -629,7 +634,10 @@ class ColorPickerDialog(tk.Toplevel):
         )
 
         self.hsv_color_field = tk.Canvas(
-            self.editor_color_field_area, highlightthickness=1, cursor="crosshair"
+            self.editor_color_field_area,
+            height=COLOR_FIELD_PREFERRED_HEIGHT,
+            highlightthickness=1,
+            cursor="crosshair",
         )
         self.hsv_color_field.pack(fill=tk.BOTH, expand=True)
         self.hue_slider = tk.Canvas(
@@ -642,12 +650,17 @@ class ColorPickerDialog(tk.Toplevel):
         self.hsv_color_field.bind("<Configure>", self._on_visualization_resized)
         self.hue_slider.bind("<Configure>", self._on_visualization_resized)
 
+        ttk.Label(self.editor_rgb_area, text="RGB:").pack(anchor=tk.W)
+        self.rgb_control_row = ttk.Frame(self.editor_rgb_area)
+        self.rgb_control_row.pack(fill=tk.X)
         self.rgb_controls = {}
         validation = (self.register(self._validate_rgb_input), "%P")
         for label, channel in (("Red", "red"), ("Green", "green"), ("Blue", "blue")):
-            ttk.Label(self.editor_rgb_area, text=f"{label}:").pack(side=tk.LEFT)
+            cell = ttk.Frame(self.rgb_control_row)
+            cell.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 6))
+            ttk.Label(cell, text=f"{label}:").pack(side=tk.LEFT)
             control = ttk.Spinbox(
-                self.editor_rgb_area,
+                cell,
                 from_=0,
                 to=255,
                 width=4,
@@ -664,7 +677,11 @@ class ColorPickerDialog(tk.Toplevel):
             self.editor_alternate_color_space_area,
             text=f"{self.color_space_mode} controls:",
         )
-        self.editor_mode_controls_label.pack(side=tk.LEFT, padx=(0, 6))
+        self.editor_mode_controls_label.pack(anchor=tk.W)
+        self.color_model_control_row = ttk.Frame(
+            self.editor_alternate_color_space_area
+        )
+        self.color_model_control_row.pack(fill=tk.X)
         self.color_model_labels = {}
         self.color_model_controls = {}
         for name, label, maximum in (
@@ -672,8 +689,10 @@ class ColorPickerDialog(tk.Toplevel):
             ("saturation", "Saturation", 100),
             ("component", "Value", 100),
         ):
+            cell = ttk.Frame(self.color_model_control_row)
+            cell.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 6))
             component_label = ttk.Label(
-                self.editor_alternate_color_space_area, text=f"{label}:"
+                cell, text=f"{label}:"
             )
             component_label.pack(side=tk.LEFT)
             validation = (
@@ -682,7 +701,7 @@ class ColorPickerDialog(tk.Toplevel):
                 str(maximum),
             )
             control = ttk.Spinbox(
-                self.editor_alternate_color_space_area,
+                cell,
                 from_=0,
                 to=maximum,
                 width=4,
@@ -900,9 +919,15 @@ class ColorPickerDialog(tk.Toplevel):
         self._draw_hsv_indicators(hue, saturation, component)
 
     def _on_visualization_resized(self, Event=None) -> None:
-        self._hsv_field_cache = None
-        self._hsl_field_cache = None
-        self._hue_slider_cache = None
+        pending = self._visual_resize_after_id
+        if pending is not None:
+            self.after_cancel(pending)
+        self._visual_resize_after_id = self.after(
+            VISUAL_RESIZE_DELAY_MS, self._refresh_visualization_after_resize
+        )
+
+    def _refresh_visualization_after_resize(self) -> None:
+        self._visual_resize_after_id = None
         self._refresh_visual_picker()
 
     def _on_color_field_input(self, Event) -> None:
@@ -1016,28 +1041,29 @@ class ColorPickerDialog(tk.Toplevel):
         width = self.hsv_color_field.winfo_width()
         height = self.hsv_color_field.winfo_height()
         x, y = hsv_field_position(saturation, value, width, height)
-        self.hsv_color_field.delete("indicator")
-        for radius, outline in ((6, "black"), (4, "white")):
-            self.hsv_color_field.create_oval(
-                x - radius,
-                y - radius,
-                x + radius,
-                y + radius,
-                outline=outline,
-                width=2,
-                tags="indicator",
+        if not self._field_indicator_items:
+            self._field_indicator_items = tuple(
+                self.hsv_color_field.create_oval(
+                    0, 0, 0, 0, outline=outline, width=2, tags="indicator"
+                )
+                for outline in ("black", "white")
+            )
+        for item, radius in zip(self._field_indicator_items, (6, 4)):
+            self.hsv_color_field.coords(
+                item, x - radius, y - radius, x + radius, y + radius
             )
         slider_y = hue_slider_position(hue, self.hue_slider.winfo_height())
-        self.hue_slider.delete("indicator")
-        for offset, fill in ((2, "black"), (0, "white")):
-            self.hue_slider.create_line(
-                0,
-                slider_y + offset,
-                self.hue_slider.winfo_width(),
-                slider_y + offset,
-                fill=fill,
-                width=2,
-                tags="indicator",
+        if not self._hue_indicator_items:
+            self._hue_indicator_items = tuple(
+                self.hue_slider.create_line(
+                    0, 0, 0, 0, fill=fill, width=2, tags="indicator"
+                )
+                for fill in ("black", "white")
+            )
+        slider_width = self.hue_slider.winfo_width()
+        for item, offset in zip(self._hue_indicator_items, (2, 0)):
+            self.hue_slider.coords(
+                item, 0, slider_y + offset, slider_width, slider_y + offset
             )
 
     def _refresh_current_color_preview(self) -> None:

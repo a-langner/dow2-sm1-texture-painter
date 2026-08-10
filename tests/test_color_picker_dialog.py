@@ -10,6 +10,7 @@ from src.widget import (
     COLOR_PICKER_DEFAULT_WIDTH,
     COLOR_PICKER_MIN_HEIGHT,
     COLOR_PICKER_MIN_WIDTH,
+    COLOR_FIELD_PREFERRED_HEIGHT,
     COLOR_PREVIEW_BORDER,
     COLOR_PICKER_GROUP_ENTRIES,
     COLOR_SPACE_MODES,
@@ -477,12 +478,19 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog._refresh_palette_display.call_count, 3)
 
     @patch("src.widget.tk.Canvas", side_effect=FakeWidget)
+    @patch("src.widget.ttk.Frame", side_effect=FakeWidget)
     @patch("src.widget.ttk.Entry", side_effect=FakeWidget)
     @patch("src.widget.ttk.Spinbox", side_effect=FakeWidget)
     @patch("src.widget.ttk.Combobox", side_effect=FakeWidget)
     @patch("src.widget.ttk.Label", side_effect=FakeWidget)
     def test_editor_placeholders_share_mode_and_color_state(
-        self, _label_type, _combobox_type, _spinbox_type, _entry_type, _canvas_type
+        self,
+        _label_type,
+        _combobox_type,
+        _spinbox_type,
+        _entry_type,
+        _frame_type,
+        _canvas_type,
     ):
         dialog = object.__new__(ColorPickerDialog)
         dialog.original_color = "#123456"
@@ -508,6 +516,9 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog.color_space_selector.get(), DEFAULT_COLOR_SPACE_MODE)
         self.assertEqual(dialog.original_color_preview.options["background"], "#123456")
         self.assertEqual(dialog.current_color_preview.options["background"], "#abcdef")
+        self.assertEqual(
+            dialog.hsv_color_field.options["height"], COLOR_FIELD_PREFERRED_HEIGHT
+        )
         self.assertEqual(dialog.original_color_preview_label.options["text"], "Original")
         self.assertEqual(dialog.current_color_preview_label.options["text"], "Current")
         for preview in (dialog.original_color_preview, dialog.current_color_preview):
@@ -636,6 +647,59 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         self.assertEqual(dialog.original_color, "#123456")
         self.assertEqual(dialog.original_color_preview.options["background"], "#123456")
+
+    def test_visual_resize_events_are_debounced(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog._visual_resize_after_id = None
+        dialog.after = Mock(return_value="first")
+        dialog.after_cancel = Mock()
+
+        dialog._on_visualization_resized()
+        dialog.after.return_value = "second"
+        dialog._on_visualization_resized()
+
+        dialog.after_cancel.assert_called_once_with("first")
+        self.assertEqual(dialog._visual_resize_after_id, "second")
+
+    def test_visual_indicators_move_without_recreating_canvas_items(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog._field_indicator_items = ()
+        dialog._hue_indicator_items = ()
+        dialog.hsv_color_field = Mock()
+        dialog.hue_slider = Mock()
+        dialog.hsv_color_field.winfo_width.return_value = 101
+        dialog.hsv_color_field.winfo_height.return_value = 101
+        dialog.hue_slider.winfo_width.return_value = 28
+        dialog.hue_slider.winfo_height.return_value = 101
+        dialog.hsv_color_field.create_oval.side_effect = (1, 2)
+        dialog.hue_slider.create_line.side_effect = (3, 4)
+
+        dialog._draw_hsv_indicators(0.0, 0.0, 1.0)
+        dialog._draw_hsv_indicators(0.5, 1.0, 0.0)
+
+        self.assertEqual(dialog.hsv_color_field.create_oval.call_count, 2)
+        self.assertEqual(dialog.hue_slider.create_line.call_count, 2)
+        self.assertEqual(dialog.hsv_color_field.coords.call_count, 4)
+        self.assertEqual(dialog.hue_slider.coords.call_count, 4)
+
+    def test_unchanged_gradient_inputs_reuse_cached_images(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.hsv_color_field = Mock()
+        dialog.hue_slider = Mock()
+        dialog.hsv_color_field.winfo_width.return_value = 101
+        dialog.hsv_color_field.winfo_height.return_value = 101
+        dialog.hue_slider.winfo_width.return_value = 28
+        dialog.hue_slider.winfo_height.return_value = 101
+        dialog._hsv_field_cache = (101, 101, 0.5)
+        dialog._hsl_field_cache = (101, 101, 0.5)
+        dialog._hue_slider_cache = (28, 101)
+
+        dialog._render_hsv_field(0.5001)
+        dialog._render_hsl_field(0.5001)
+        dialog._render_hue_slider()
+
+        dialog.hsv_color_field.delete.assert_not_called()
+        dialog.hue_slider.delete.assert_not_called()
 
     def test_rgb_validation_accepts_only_blank_or_values_from_zero_to_255(self):
         for accepted in ("", "0", "1", "127", "255"):
