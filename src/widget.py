@@ -26,6 +26,7 @@ HEADER_SEPARATOR_STARTUP_RETRIES = 3
 ActionCallback = Callable[[], None]
 BooleanChangedCallback = Callable[[bool], None]
 ColorChangedCallback = Callable[[int, str], None]
+ColorPickerCallback = Callable[[str], Optional[str]]
 LevelsChangedCallback = Callable[[float, float], None]
 StringChangedCallback = Callable[[str], None]
 
@@ -34,6 +35,12 @@ StringChangedCallback = Callable[[str], None]
 class PatternSelection:
     name: str
     is_user: bool
+
+
+def choose_native_color(initial_color: str) -> Optional[str]:
+    """Return the native Tk picker selection as a hex value, or cancellation."""
+    _, selected_color = colorchooser.askcolor(initial_color)
+    return selected_color
 
 
 def pattern_name_to_restore(preferred_name, current_name, available_names):
@@ -131,10 +138,12 @@ class FrameColorChooser(tk.Frame):
         cnf={},
         *,
         on_color_changed: ColorChangedCallback,
+        color_picker: ColorPickerCallback = choose_native_color,
         **kw,
     ):
         super(FrameColorChooser, self).__init__(master=master, cnf={}, **kw)
         self._on_color_changed = on_color_changed
+        self._color_picker = color_picker
         self.color_boxes = []
         self.color_buttons = []
         self.initialize()
@@ -169,8 +178,7 @@ class FrameColorChooser(tk.Frame):
         self.draw_rgb_value()
 
     def apply_color(self, btn_idx: int, Event=None):
-        # Color Dialog that open upon btn click
-        _, color = colorchooser.askcolor(self.color_boxes[btn_idx]["bg"])
+        color = self._color_picker(str(self.color_boxes[btn_idx]["bg"]))
         if color is not None:
             self.color_boxes[btn_idx]["bg"] = color
             self.draw_rgb_value()

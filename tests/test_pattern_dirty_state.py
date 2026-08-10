@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.frame_main import ArmyPainter
-from src.widget import FrameColorChooser, PatternSelection
+from src.widget import FrameColorChooser, PatternSelection, choose_native_color
 
 STORED_COLORS = ["#112233", "#445566", "#778899", "#aabbcc"]
 
@@ -59,17 +59,24 @@ class PatternDirtyStateTests(unittest.TestCase):
 
         self.assertFalse(ArmyPainter.is_selected_pattern_dirty(painter))
 
-    @patch("src.widget.colorchooser.askcolor", return_value=((1, 2, 3), "#010203"))
-    def test_color_picker_change_resynchronizes_actions(self, ask_color):
+    def test_color_picker_change_resynchronizes_actions(self):
         chooser = object.__new__(FrameColorChooser)
         chooser.color_boxes = [{"bg": "#000000"} for _ in range(4)]
         chooser.draw_rgb_value = Mock()
         chooser._on_color_changed = Mock()
+        chooser._color_picker = Mock(return_value="#010203")
 
         FrameColorChooser.apply_color(chooser, 1)
 
+        chooser._color_picker.assert_called_once_with("#000000")
         self.assertEqual(chooser.color_boxes[1]["bg"], "#010203")
         chooser._on_color_changed.assert_called_once_with(1, "#010203")
+
+    @patch("src.widget.colorchooser.askcolor", return_value=((1, 2, 3), "#010203"))
+    def test_native_color_picker_preserves_hex_result(self, ask_color):
+        self.assertEqual(choose_native_color("#000000"), "#010203")
+
+        ask_color.assert_called_once_with("#000000")
 
 
 if __name__ == "__main__":
