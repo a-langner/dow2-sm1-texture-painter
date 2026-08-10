@@ -11,7 +11,7 @@ from typing import Callable, Optional
 from src.color_pattern_handler import get_all_patterns, is_user_pattern
 from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.constant import OPEN_FILETYPES, SAVE_EXT_LIST, ColorOps
-from src.paint_catalog import PaintCatalog, load_citadel_catalog
+from src.paint_catalog import PaintCatalog, PaintColor, load_citadel_catalog
 from src.paint_color_analysis import (
     ColorGroup,
     VISUAL_GROUP_ORDER,
@@ -59,6 +59,9 @@ ALL_COLOR_INDICATORS = (
 )
 COLOR_SPACE_MODES = ("HSV / HSB", "HSL")
 DEFAULT_COLOR_SPACE_MODE = COLOR_SPACE_MODES[0]
+PAINT_SWATCH_TARGET_WIDTH = 96
+PAINT_SWATCH_PREVIEW_SIZE = 60
+PAINT_SWATCH_NAME_WRAP = 88
 
 ActionCallback = Callable[[], None]
 BooleanChangedCallback = Callable[[bool], None]
@@ -74,10 +77,148 @@ class PatternSelection:
     is_user: bool
 
 
+@dataclass(frozen=True)
+class PaintSwatchPresentation:
+    name: str
+    color: str
+
+
+def calculate_paint_swatch_columns(
+    available_width: int,
+    target_width: int = PAINT_SWATCH_TARGET_WIDTH,
+) -> int:
+    """Return a responsive column count without requiring horizontal scrolling."""
+    return max(1, available_width // target_width)
+
+
+def paint_swatch_presentation(paint: PaintColor) -> PaintSwatchPresentation:
+    """Preserve a paint's complete name and exact RGB display value."""
+    return PaintSwatchPresentation(
+        name=paint.name,
+        color=f"#{paint.r:02x}{paint.g:02x}{paint.b:02x}",
+    )
+
+
 def choose_native_color(initial_color: str) -> Optional[str]:
     """Return the native Tk picker selection as a hex value, or cancellation."""
     _, selected_color = colorchooser.askcolor(initial_color)
     return selected_color
+
+
+class PaintSwatchGrid(ttk.Frame):
+    """Vertically scrollable paint grid that reflows existing items on resize."""
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.paints = ()
+        self._swatch_items = []
+        self._column_count = 1
+        self._configured_column_count = 0
+        self._relayout_after_id = None
+
+        self.vertical_scrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL)
+        self.vertical_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.canvas = tk.Canvas(
+            self,
+            bd=0,
+            highlightthickness=0,
+            yscrollcommand=self.vertical_scrollbar.set,
+        )
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.vertical_scrollbar.configure(command=self.canvas.yview)
+
+        self.inner = ttk.Frame(self.canvas)
+        self._inner_window = self.canvas.create_window(
+            (0, 0), window=self.inner, anchor=tk.NW
+        )
+        self.inner.bind("<Configure>", self._on_inner_configure)
+        self.canvas.bind("<Configure>", self._on_canvas_configure)
+        self.canvas.bind("<MouseWheel>", self._on_mousewheel)
+        self.inner.bind("<MouseWheel>", self._on_mousewheel)
+
+    def set_paints(self, paints) -> None:
+        paints = tuple(paints)
+        if paints == self.paints:
+            return
+        self.paints = paints
+        self._rebuild_items()
+
+    def _rebuild_items(self) -> None:
+        for item, _, _ in self._swatch_items:
+            item.destroy()
+        self._swatch_items = []
+
+        for paint in self.paints:
+            presentation = paint_swatch_presentation(paint)
+            item = ttk.Frame(
+                self.inner,
+                padding=3,
+                relief=tk.SOLID,
+                borderwidth=1,
+            )
+            preview = tk.Canvas(
+                item,
+                width=PAINT_SWATCH_PREVIEW_SIZE,
+                height=PAINT_SWATCH_PREVIEW_SIZE,
+                background=presentation.color,
+                highlightbackground="#606060",
+                highlightthickness=1,
+                bd=0,
+            )
+            preview.pack(pady=(0, 3))
+            name_label = ttk.Label(
+                item,
+                text=presentation.name,
+                anchor=tk.N,
+                justify=tk.CENTER,
+                wraplength=PAINT_SWATCH_NAME_WRAP,
+            )
+            name_label.pack(fill=tk.X)
+            for widget in (item, preview, name_label):
+                widget.bind("<MouseWheel>", self._on_mousewheel)
+            self._swatch_items.append((item, preview, name_label))
+
+        self._schedule_relayout()
+
+    def _on_inner_configure(self, Event=None) -> None:
+        bounds = self.canvas.bbox("all")
+        if bounds is not None:
+            self.canvas.configure(scrollregion=bounds)
+
+    def _on_canvas_configure(self, Event) -> None:
+        self.canvas.itemconfigure(self._inner_window, width=Event.width)
+        column_count = calculate_paint_swatch_columns(Event.width)
+        if column_count != self._column_count:
+            self._column_count = column_count
+            self._schedule_relayout()
+
+    def _schedule_relayout(self) -> None:
+        if self._relayout_after_id is None:
+            self._relayout_after_id = self.after_idle(self._relayout)
+
+    def _relayout(self) -> None:
+        self._relayout_after_id = None
+        configured_columns = max(
+            self._configured_column_count,
+            self._column_count,
+        )
+        for column in range(configured_columns):
+            weight = 1 if column < self._column_count else 0
+            self.inner.grid_columnconfigure(column, weight=weight)
+        self._configured_column_count = self._column_count
+        for index, (item, _, _) in enumerate(self._swatch_items):
+            item.grid_forget()
+            item.grid(
+                row=index // self._column_count,
+                column=index % self._column_count,
+                padx=2,
+                pady=2,
+                sticky=tk.N,
+            )
+
+    def _on_mousewheel(self, Event):
+        self.canvas.yview_scroll(int(-Event.delta / 120), "units")
+        return "break"
 
 
 class ColorPickerDialog(tk.Toplevel):
@@ -102,6 +243,7 @@ class ColorPickerDialog(tk.Toplevel):
         self._configure_window(parent)
         self._build_actions()
         self._build_main_layout()
+        self._build_palette_grid()
         self._build_group_navigation()
         self._build_editor_placeholders()
         self.protocol("WM_DELETE_WINDOW", self.cancel)
@@ -200,6 +342,10 @@ class ColorPickerDialog(tk.Toplevel):
         self.current_color_preview_area = ttk.Frame(self.editor_preview_area)
         self.current_color_preview_area.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
+    def _build_palette_grid(self) -> None:
+        self.palette_grid = PaintSwatchGrid(self.palette_grid_area)
+        self.palette_grid.pack(fill=tk.BOTH, expand=True)
+
     def _build_group_navigation(self) -> None:
         style = ttk.Style(self)
         style.configure("ColorPickerGroup.TButton", anchor=tk.W)
@@ -269,7 +415,7 @@ class ColorPickerDialog(tk.Toplevel):
         self._refresh_palette_display()
 
     def _refresh_palette_display(self) -> None:
-        """Notify the palette view hook populated by the responsive grid job."""
+        self.palette_grid.set_paints(self.palette_paints)
         self.event_generate("<<ColorPickerPaletteChanged>>")
 
     def _build_editor_placeholders(self) -> None:

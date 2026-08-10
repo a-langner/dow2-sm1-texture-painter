@@ -13,6 +13,9 @@ from src.widget import (
     COLOR_SPACE_MODES,
     DEFAULT_COLOR_SPACE_MODE,
     ColorPickerDialog,
+    PaintSwatchGrid,
+    calculate_paint_swatch_columns,
+    paint_swatch_presentation,
 )
 
 
@@ -63,6 +66,7 @@ class ColorPickerDialogTests(unittest.TestCase):
     @patch("src.widget.tk.Toplevel.protocol")
     @patch.object(ColorPickerDialog, "_build_editor_placeholders")
     @patch.object(ColorPickerDialog, "_build_group_navigation")
+    @patch.object(ColorPickerDialog, "_build_palette_grid")
     @patch.object(ColorPickerDialog, "_build_main_layout")
     @patch.object(ColorPickerDialog, "_build_actions")
     @patch.object(ColorPickerDialog, "_configure_window")
@@ -73,6 +77,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         _configure_window,
         _build_actions,
         _build_main_layout,
+        _build_palette_grid,
         _build_group_navigation,
         _build_editor_placeholders,
         _protocol,
@@ -293,6 +298,66 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog.original_color, "#123456")
         self.assertEqual(dialog.current_color, "#fedcba")
         self.assertEqual(dialog.current_color_preview.options["background"], "#fedcba")
+
+    def test_swatch_column_count_adapts_without_horizontal_scrolling(self):
+        self.assertEqual(calculate_paint_swatch_columns(80), 1)
+        self.assertEqual(calculate_paint_swatch_columns(192), 2)
+        self.assertEqual(calculate_paint_swatch_columns(480), 5)
+        self.assertGreater(
+            calculate_paint_swatch_columns(960),
+            calculate_paint_swatch_columns(480),
+        )
+
+    def test_swatch_presentation_preserves_full_name_and_exact_rgb(self):
+        paint = PaintColor(
+            "long-name",
+            "A Complete Citadel Paint Name That Must Wrap",
+            1,
+            128,
+            255,
+        )
+
+        presentation = paint_swatch_presentation(paint)
+
+        self.assertEqual(presentation.name, paint.name)
+        self.assertNotIn("...", presentation.name)
+        self.assertEqual(presentation.color, "#0180ff")
+
+    def test_swatch_grid_retains_every_item_and_skips_identical_rebuild(self):
+        paints = (
+            PaintColor("red", "Red", 255, 0, 0),
+            PaintColor("white", "White", 255, 255, 255),
+        )
+        grid = object.__new__(PaintSwatchGrid)
+        grid.paints = ()
+        grid._rebuild_items = Mock()
+
+        grid.set_paints(paints)
+
+        self.assertEqual(grid.paints, paints)
+        grid._rebuild_items.assert_called_once_with()
+
+        grid.set_paints(paints)
+
+        grid._rebuild_items.assert_called_once_with()
+
+    def test_swatch_relayout_releases_columns_after_narrowing(self):
+        grid = object.__new__(PaintSwatchGrid)
+        grid._relayout_after_id = "pending"
+        grid._configured_column_count = 5
+        grid._column_count = 2
+        grid._swatch_items = []
+        grid.inner = Mock()
+
+        grid._relayout()
+
+        self.assertEqual(grid._configured_column_count, 2)
+        grid.inner.grid_columnconfigure.assert_any_call(0, weight=1)
+        grid.inner.grid_columnconfigure.assert_any_call(1, weight=1)
+        for obsolete_column in (2, 3, 4):
+            grid.inner.grid_columnconfigure.assert_any_call(
+                obsolete_column, weight=0
+            )
 
     @patch.object(ColorPickerDialog, "get_accepted_color", return_value="#abcdef")
     @patch.object(ColorPickerDialog, "__init__", return_value=None)
