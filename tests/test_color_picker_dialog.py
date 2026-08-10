@@ -59,6 +59,18 @@ class FakeGroupButton:
         self.text = text
 
 
+class FakePaletteGrid:
+    def __init__(self):
+        self.paints = ()
+        self.selected_paint_id = None
+
+    def set_paints(self, paints):
+        self.paints = tuple(paints)
+
+    def set_selected_paint(self, paint_id):
+        self.selected_paint_id = paint_id
+
+
 class ColorPickerDialogTests(unittest.TestCase):
     @patch("src.widget.tk.Toplevel.wait_window")
     @patch("src.widget.tk.Toplevel.grab_set")
@@ -358,6 +370,80 @@ class ColorPickerDialogTests(unittest.TestCase):
             grid.inner.grid_columnconfigure.assert_any_call(
                 obsolete_column, weight=0
             )
+
+    def test_selecting_paints_updates_exact_current_color_and_identity(self):
+        first = PaintColor("first", "First", 1, 128, 255)
+        second = PaintColor("second", "Second", 254, 16, 0)
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.original_color = "#123456"
+        dialog.current_color = "#123456"
+        dialog.current_color_preview = FakeWidget()
+        dialog.palette_grid = FakePaletteGrid()
+
+        dialog.select_paint(first)
+
+        self.assertEqual(dialog.selected_paint_id, "first")
+        self.assertEqual(dialog.palette_grid.selected_paint_id, "first")
+        self.assertEqual(dialog.current_color, "#0180ff")
+        self.assertEqual(dialog.original_color, "#123456")
+
+        dialog.select_paint(second)
+
+        self.assertEqual(dialog.selected_paint_id, "second")
+        self.assertEqual(dialog.palette_grid.selected_paint_id, "second")
+        self.assertEqual(dialog.current_color, "#fe1000")
+        self.assertEqual(dialog.original_color, "#123456")
+
+    def test_filtering_out_selected_paint_preserves_color_and_identity(self):
+        red = PaintColor("red", "Red", 255, 0, 0)
+        blue = PaintColor("blue", "Blue", 0, 0, 255)
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.original_color = "#123456"
+        dialog.current_color = "#123456"
+        dialog.paint_catalog = PaintCatalog(paints=(red, blue))
+        dialog.palette_grid = FakePaletteGrid()
+        dialog.event_generate = Mock()
+        dialog.group_buttons = {
+            color_group: FakeGroupButton()
+            for color_group, _ in COLOR_PICKER_GROUP_ENTRIES
+        }
+        dialog.group_button_labels = dict(COLOR_PICKER_GROUP_ENTRIES)
+
+        dialog.select_paint(blue)
+        dialog.select_color_group(ColorGroup.RED)
+
+        self.assertNotIn(blue, dialog.palette_grid.paints)
+        self.assertEqual(dialog.selected_paint_id, "blue")
+        self.assertEqual(dialog.palette_grid.selected_paint_id, "blue")
+        self.assertEqual(dialog.current_color, "#0000ff")
+        self.assertEqual(dialog.original_color, "#123456")
+
+        dialog.select_color_group(None)
+
+        self.assertIn(blue, dialog.palette_grid.paints)
+        self.assertEqual(dialog.palette_grid.selected_paint_id, "blue")
+
+    def test_grid_click_callback_and_highlight_track_selected_identity(self):
+        dark = PaintColor("dark", "Dark", 0, 0, 0)
+        light = PaintColor("light", "Light", 255, 255, 255)
+        dark_item = Mock()
+        light_item = Mock()
+        grid = object.__new__(PaintSwatchGrid)
+        grid._on_paint_selected = Mock()
+        grid.selected_paint_id = None
+        grid._swatch_items = (
+            (dark, dark_item, Mock(), Mock()),
+            (light, light_item, Mock(), Mock()),
+        )
+
+        grid._select_paint(dark)
+        grid.set_selected_paint("dark")
+
+        grid._on_paint_selected.assert_called_once_with(dark)
+        dark_item.configure.assert_called_with(
+            style="Selected.PaintSwatch.TFrame"
+        )
+        light_item.configure.assert_called_with(style="PaintSwatch.TFrame")
 
     @patch.object(ColorPickerDialog, "get_accepted_color", return_value="#abcdef")
     @patch.object(ColorPickerDialog, "__init__", return_value=None)

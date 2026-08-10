@@ -67,6 +67,7 @@ ActionCallback = Callable[[], None]
 BooleanChangedCallback = Callable[[bool], None]
 ColorChangedCallback = Callable[[int, str], None]
 ColorPickerCallback = Callable[[str], Optional[str]]
+PaintSelectedCallback = Callable[[PaintColor], None]
 LevelsChangedCallback = Callable[[float, float], None]
 StringChangedCallback = Callable[[str], None]
 
@@ -108,13 +109,28 @@ def choose_native_color(initial_color: str) -> Optional[str]:
 class PaintSwatchGrid(ttk.Frame):
     """Vertically scrollable paint grid that reflows existing items on resize."""
 
-    def __init__(self, parent):
+    def __init__(self, parent, *, on_paint_selected: PaintSelectedCallback):
         super().__init__(parent)
+        self._on_paint_selected = on_paint_selected
         self.paints = ()
+        self.selected_paint_id = None
         self._swatch_items = []
         self._column_count = 1
         self._configured_column_count = 0
         self._relayout_after_id = None
+
+        style = ttk.Style(self)
+        style.configure(
+            "PaintSwatch.TFrame",
+            relief=tk.SOLID,
+            borderwidth=1,
+        )
+        style.configure(
+            "Selected.PaintSwatch.TFrame",
+            background="#2f80ed",
+            relief=tk.SOLID,
+            borderwidth=3,
+        )
 
         self.vertical_scrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL)
         self.vertical_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
@@ -144,7 +160,7 @@ class PaintSwatchGrid(ttk.Frame):
         self._rebuild_items()
 
     def _rebuild_items(self) -> None:
-        for item, _, _ in self._swatch_items:
+        for _, item, _, _ in self._swatch_items:
             item.destroy()
         self._swatch_items = []
 
@@ -153,8 +169,7 @@ class PaintSwatchGrid(ttk.Frame):
             item = ttk.Frame(
                 self.inner,
                 padding=3,
-                relief=tk.SOLID,
-                borderwidth=1,
+                style="PaintSwatch.TFrame",
             )
             preview = tk.Canvas(
                 item,
@@ -176,9 +191,30 @@ class PaintSwatchGrid(ttk.Frame):
             name_label.pack(fill=tk.X)
             for widget in (item, preview, name_label):
                 widget.bind("<MouseWheel>", self._on_mousewheel)
-            self._swatch_items.append((item, preview, name_label))
+                widget.bind(
+                    "<Button-1>",
+                    partial(self._select_paint, paint),
+                )
+            self._swatch_items.append((paint, item, preview, name_label))
 
+        self._apply_selection_highlight()
         self._schedule_relayout()
+
+    def _select_paint(self, paint: PaintColor, Event=None) -> None:
+        self._on_paint_selected(paint)
+
+    def set_selected_paint(self, paint_id: Optional[str]) -> None:
+        self.selected_paint_id = paint_id
+        self._apply_selection_highlight()
+
+    def _apply_selection_highlight(self) -> None:
+        for paint, item, _, _ in self._swatch_items:
+            style = (
+                "Selected.PaintSwatch.TFrame"
+                if paint.id == self.selected_paint_id
+                else "PaintSwatch.TFrame"
+            )
+            item.configure(style=style)
 
     def _on_inner_configure(self, Event=None) -> None:
         bounds = self.canvas.bbox("all")
@@ -206,7 +242,7 @@ class PaintSwatchGrid(ttk.Frame):
             weight = 1 if column < self._column_count else 0
             self.inner.grid_columnconfigure(column, weight=weight)
         self._configured_column_count = self._column_count
-        for index, (item, _, _) in enumerate(self._swatch_items):
+        for index, (_, item, _, _) in enumerate(self._swatch_items):
             item.grid_forget()
             item.grid(
                 row=index // self._column_count,
@@ -239,6 +275,7 @@ class ColorPickerDialog(tk.Toplevel):
             load_citadel_catalog() if paint_catalog is None else paint_catalog
         )
         self.palette_paints = ()
+        self.selected_paint_id: Optional[str] = None
 
         self._configure_window(parent)
         self._build_actions()
@@ -343,7 +380,10 @@ class ColorPickerDialog(tk.Toplevel):
         self.current_color_preview_area.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
     def _build_palette_grid(self) -> None:
-        self.palette_grid = PaintSwatchGrid(self.palette_grid_area)
+        self.palette_grid = PaintSwatchGrid(
+            self.palette_grid_area,
+            on_paint_selected=self.select_paint,
+        )
         self.palette_grid.pack(fill=tk.BOTH, expand=True)
 
     def _build_group_navigation(self) -> None:
@@ -417,6 +457,12 @@ class ColorPickerDialog(tk.Toplevel):
     def _refresh_palette_display(self) -> None:
         self.palette_grid.set_paints(self.palette_paints)
         self.event_generate("<<ColorPickerPaletteChanged>>")
+
+    def select_paint(self, paint: PaintColor) -> None:
+        """Use a catalog paint as the editable color without locking it."""
+        self.selected_paint_id = paint.id
+        self.set_current_color(paint_swatch_presentation(paint).color)
+        self.palette_grid.set_selected_paint(paint.id)
 
     def _build_editor_placeholders(self) -> None:
         ttk.Label(self.editor_color_space_area, text="Color Space:").pack(
