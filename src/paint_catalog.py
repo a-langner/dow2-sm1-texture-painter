@@ -13,8 +13,8 @@ if TYPE_CHECKING:
 
 
 LOGGER = logging.getLogger(__name__)
-CITADEL_CATALOG_RESOURCE = resources.files("src.resources").joinpath(
-    "paints", "citadel.json"
+CITADEL_CATALOG_RESOURCE = (
+    resources.files("src.resources").joinpath("paints").joinpath("citadel.json")
 )
 
 
