@@ -23,6 +23,8 @@ from src.color_picker_visual import (
     hsv_to_rgb_hex,
     hue_from_slider_position,
     hue_slider_position,
+    rgb_channels_to_hex,
+    rgb_hex_to_channels,
     rgb_hex_to_hsl,
     rgb_hex_to_hsv,
 )
@@ -637,17 +639,31 @@ class ColorPickerDialog(tk.Toplevel):
         self.hsv_color_field.bind("<Configure>", self._on_visualization_resized)
         self.hue_slider.bind("<Configure>", self._on_visualization_resized)
 
-        ttk.Label(self.editor_rgb_area, text="RGB controls (coming later)").pack(
-            anchor=tk.W
-        )
+        self.rgb_controls = {}
+        validation = (self.register(self._validate_rgb_input), "%P")
+        for label, channel in (("Red", "red"), ("Green", "green"), ("Blue", "blue")):
+            ttk.Label(self.editor_rgb_area, text=f"{label}:").pack(side=tk.LEFT)
+            control = ttk.Spinbox(
+                self.editor_rgb_area,
+                from_=0,
+                to=255,
+                width=4,
+                validate="key",
+                validatecommand=validation,
+                command=self._on_rgb_control_changed,
+            )
+            control.pack(side=tk.LEFT, padx=(3, 8))
+            control.bind("<KeyRelease>", self._on_rgb_control_changed)
+            control.bind("<FocusOut>", self._on_rgb_control_changed)
+            control.bind("<Return>", self._on_rgb_control_changed)
+            self.rgb_controls[channel] = control
         self.editor_mode_controls_label = ttk.Label(
             self.editor_alternate_color_space_area,
             text=f"{self.color_space_mode} controls (coming later)",
         )
         self.editor_mode_controls_label.pack(anchor=tk.W)
-        ttk.Label(self.editor_hex_area, text="Hex input (coming later)").pack(
-            anchor=tk.W
-        )
+        self.editor_hex_label = ttk.Label(self.editor_hex_area)
+        self.editor_hex_label.pack(anchor=tk.W)
 
         ttk.Label(self.original_color_preview_area, text="Original").pack(anchor=tk.W)
         self.original_color_preview = tk.Canvas(
@@ -665,6 +681,9 @@ class ColorPickerDialog(tk.Toplevel):
             highlightthickness=1,
         )
         self.current_color_preview.pack(fill=tk.X, padx=(4, 0))
+        self._refresh_rgb_controls()
+        self._refresh_color_model_controls()
+        self._refresh_hex_control()
 
     def _on_color_space_selected(self, Event=None) -> None:
         self.select_color_space(self.color_space_selector.get())
@@ -677,6 +696,7 @@ class ColorPickerDialog(tk.Toplevel):
         self.editor_mode_controls_label.configure(
             text=f"{mode} controls (coming later)"
         )
+        self._refresh_color_model_controls()
         self._refresh_visual_picker()
 
     def set_current_color(self, color: str) -> None:
@@ -700,13 +720,54 @@ class ColorPickerDialog(tk.Toplevel):
         self._refresh_current_color_preview()
 
     def _refresh_rgb_controls(self) -> None:
-        """Refresh RGB controls when Job 4.4 makes them functional."""
+        controls = getattr(self, "rgb_controls", None)
+        if controls is None:
+            return
+        for channel, value in zip(
+            ("red", "green", "blue"), rgb_hex_to_channels(self.current_color)
+        ):
+            control = controls[channel]
+            control.delete(0, tk.END)
+            control.insert(0, str(value))
 
     def _refresh_color_model_controls(self) -> None:
-        """Refresh active HSV/HSL controls when Job 4.5 makes them functional."""
+        label = getattr(self, "editor_mode_controls_label", None)
+        if label is None:
+            return
+        if self.color_space_mode == DEFAULT_COLOR_SPACE_MODE:
+            hue, saturation, component = rgb_hex_to_hsv(self.current_color)
+            names = ("S", "V")
+        else:
+            hue, saturation, component = rgb_hex_to_hsl(self.current_color)
+            names = ("S", "L")
+        label.configure(
+            text=(
+                f"{self.color_space_mode} controls (coming later): "
+                f"H {round(hue * 360) % 360}°, {names[0]} {round(saturation * 100)}%, "
+                f"{names[1]} {round(component * 100)}%"
+            )
+        )
 
     def _refresh_hex_control(self) -> None:
-        """Refresh the Hex control when Job 4.6 makes it functional."""
+        label = getattr(self, "editor_hex_label", None)
+        if label is not None:
+            label.configure(text=f"Hex input (coming later): {self.current_color.upper()}")
+
+    @staticmethod
+    def _validate_rgb_input(proposed: str) -> bool:
+        """Allow an editable blank or a decimal RGB value in range."""
+        return proposed == "" or (proposed.isdecimal() and int(proposed) <= 255)
+
+    def _on_rgb_control_changed(self, Event=None) -> None:
+        if getattr(self, "_updating_color_representations", False):
+            return
+        values = tuple(
+            self.rgb_controls[channel].get()
+            for channel in ("red", "green", "blue")
+        )
+        if not all(value.isdecimal() and 0 <= int(value) <= 255 for value in values):
+            return
+        self.set_current_color(rgb_channels_to_hex(*(int(value) for value in values)))
 
     def _refresh_visual_picker(self) -> None:
         """Refresh HSV gradients when needed and always reposition indicators."""

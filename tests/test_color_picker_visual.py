@@ -10,6 +10,8 @@ from src.color_picker_visual import (
     hsv_to_rgb_hex,
     hue_from_slider_position,
     hue_slider_position,
+    rgb_channels_to_hex,
+    rgb_hex_to_channels,
 )
 
 
@@ -56,6 +58,16 @@ class ColorPickerVisualTests(unittest.TestCase):
         self.assertEqual(hsl_to_rgb_hex(1 / 3, 1.0, 0.5), "#00ff00")
         self.assertEqual(hsl_to_rgb_hex(2 / 3, 1.0, 0.5), "#0000ff")
         self.assertEqual(hsl_to_rgb_hex(0.2, 0.0, 0.5), "#808080")
+
+    def test_rgb_channels_and_hex_round_trip(self):
+        self.assertEqual(rgb_hex_to_channels("#0080ff"), (0, 128, 255))
+        self.assertEqual(rgb_channels_to_hex(0, 128, 255), "#0080ff")
+
+    def test_rgb_channels_reject_out_of_range_values(self):
+        for channels in ((-1, 0, 0), (0, 256, 0), (0, 0, 1.5)):
+            with self.subTest(channels=channels):
+                with self.assertRaises(ValueError):
+                    rgb_channels_to_hex(*channels)
 
 
 if __name__ == "__main__":

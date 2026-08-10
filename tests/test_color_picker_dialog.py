@@ -49,6 +49,12 @@ class FakeWidget:
     def bind(self, event, callback):
         self.bindings[event] = callback
 
+    def delete(self, first, last=None):
+        self.value = ""
+
+    def insert(self, index, value):
+        self.value = value
+
     def configure(self, **options):
         self.options.update(options)
 
@@ -406,15 +412,17 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog._refresh_palette_display.call_count, 3)
 
     @patch("src.widget.tk.Canvas", side_effect=FakeWidget)
+    @patch("src.widget.ttk.Spinbox", side_effect=FakeWidget)
     @patch("src.widget.ttk.Combobox", side_effect=FakeWidget)
     @patch("src.widget.ttk.Label", side_effect=FakeWidget)
     def test_editor_placeholders_share_mode_and_color_state(
-        self, _label_type, _combobox_type, _canvas_type
+        self, _label_type, _combobox_type, _spinbox_type, _canvas_type
     ):
         dialog = object.__new__(ColorPickerDialog)
         dialog.original_color = "#123456"
         dialog.current_color = "#abcdef"
         dialog.color_space_mode = DEFAULT_COLOR_SPACE_MODE
+        dialog.register = Mock(return_value="rgb-validation-command")
         for attribute in (
             "editor_color_space_area",
             "editor_color_field_area",
@@ -443,6 +451,64 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog.original_color, "#123456")
         self.assertEqual(dialog.current_color, "#fedcba")
         self.assertEqual(dialog.current_color_preview.options["background"], "#fedcba")
+
+    def test_rgb_validation_accepts_only_blank_or_values_from_zero_to_255(self):
+        for accepted in ("", "0", "1", "127", "255"):
+            with self.subTest(accepted=accepted):
+                self.assertTrue(ColorPickerDialog._validate_rgb_input(accepted))
+        for rejected in ("-1", "256", "1.5", "red", " 1"):
+            with self.subTest(rejected=rejected):
+                self.assertFalse(ColorPickerDialog._validate_rgb_input(rejected))
+
+    def test_rgb_channel_boundaries_update_canonical_color(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.original_color = "#123456"
+        dialog.current_color = "#123456"
+        dialog._updating_color_representations = False
+        dialog.rgb_controls = {
+            channel: FakeWidget() for channel in ("red", "green", "blue")
+        }
+        for channel, value in zip(("red", "green", "blue"), ("0", "255", "0")):
+            dialog.rgb_controls[channel].value = value
+        dialog._refresh_color_representations = Mock()
+
+        dialog._on_rgb_control_changed()
+
+        self.assertEqual(dialog.current_color, "#00ff00")
+        self.assertEqual(dialog.original_color, "#123456")
+        dialog._refresh_color_representations.assert_called_once_with()
+
+    def test_rgb_edit_refreshes_all_dependent_representations(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.original_color = "#123456"
+        dialog.current_color = "#123456"
+        dialog._updating_color_representations = False
+        dialog.rgb_controls = {
+            channel: FakeWidget() for channel in ("red", "green", "blue")
+        }
+        for channel, value in zip(("red", "green", "blue"), ("18", "52", "87")):
+            dialog.rgb_controls[channel].value = value
+        for refresher in (
+            "_refresh_rgb_controls",
+            "_refresh_color_model_controls",
+            "_refresh_hex_control",
+            "_refresh_visual_picker",
+            "_refresh_current_color_preview",
+        ):
+            setattr(dialog, refresher, Mock())
+
+        dialog._on_rgb_control_changed()
+
+        self.assertEqual(dialog.current_color, "#123457")
+        self.assertEqual(dialog.original_color, "#123456")
+        for refresher in (
+            "_refresh_rgb_controls",
+            "_refresh_color_model_controls",
+            "_refresh_hex_control",
+            "_refresh_visual_picker",
+            "_refresh_current_color_preview",
+        ):
+            getattr(dialog, refresher).assert_called_once_with()
 
     def test_swatch_column_count_adapts_without_horizontal_scrolling(self):
         self.assertEqual(calculate_paint_swatch_columns(80), 1)

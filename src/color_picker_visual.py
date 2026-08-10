@@ -5,6 +5,29 @@ from __future__ import annotations
 import colorsys
 
 
+def rgb_hex_to_channels(color: str) -> tuple[int, int, int]:
+    """Convert a six-digit RGB color string to integer channels."""
+    value = color.removeprefix("#")
+    if len(value) != 6:
+        raise ValueError(f"Expected a six-digit RGB color, got {color!r}")
+    try:
+        return (
+            int(value[0:2], 16),
+            int(value[2:4], 16),
+            int(value[4:6], 16),
+        )
+    except ValueError as exc:
+        raise ValueError(f"Expected a six-digit RGB color, got {color!r}") from exc
+
+
+def rgb_channels_to_hex(red: int, green: int, blue: int) -> str:
+    """Convert integer RGB channels to a canonical lowercase color string."""
+    channels = (red, green, blue)
+    if any(type(channel) is not int or not 0 <= channel <= 255 for channel in channels):
+        raise ValueError("RGB channels must be integers between 0 and 255")
+    return "#{:02x}{:02x}{:02x}".format(*channels)
+
+
 def clamp_coordinate(coordinate: float, extent: int) -> float:
     """Clamp a canvas coordinate to its inclusive drawable range."""
     return min(max(coordinate, 0.0), float(max(0, extent - 1)))
@@ -48,10 +71,7 @@ def hue_slider_position(hue: float, height: int) -> float:
 
 def rgb_hex_to_hsv(color: str) -> tuple[float, float, float]:
     """Convert a six-digit RGB color string to normalized HSV."""
-    value = color.removeprefix("#")
-    if len(value) != 6:
-        raise ValueError(f"Expected a six-digit RGB color, got {color!r}")
-    red, green, blue = (int(value[index : index + 2], 16) / 255.0 for index in (0, 2, 4))
+    red, green, blue = (channel / 255.0 for channel in rgb_hex_to_channels(color))
     return colorsys.rgb_to_hsv(red, green, blue)
 
 
@@ -84,12 +104,7 @@ def hsl_field_position(
 
 def rgb_hex_to_hsl(color: str) -> tuple[float, float, float]:
     """Convert a six-digit RGB color string to normalized HSL."""
-    value = color.removeprefix("#")
-    if len(value) != 6:
-        raise ValueError(f"Expected a six-digit RGB color, got {color!r}")
-    red, green, blue = (
-        int(value[index : index + 2], 16) / 255.0 for index in (0, 2, 4)
-    )
+    red, green, blue = (channel / 255.0 for channel in rgb_hex_to_channels(color))
     hue, lightness, saturation = colorsys.rgb_to_hls(red, green, blue)
     return hue, saturation, lightness
 
