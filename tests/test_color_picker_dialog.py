@@ -8,6 +8,8 @@ from src.widget import (
     COLOR_PICKER_MIN_HEIGHT,
     COLOR_PICKER_MIN_WIDTH,
     COLOR_PICKER_GROUP_ENTRIES,
+    COLOR_SPACE_MODES,
+    DEFAULT_COLOR_SPACE_MODE,
     ColorPickerDialog,
 )
 
@@ -18,12 +20,26 @@ class FakeWidget:
         self.options = options
         self.pack_options = None
         self.panes = []
+        self.value = None
+        self.bindings = {}
 
     def pack(self, **options):
         self.pack_options = options
 
     def add(self, child, **options):
         self.panes.append((child, options))
+
+    def set(self, value):
+        self.value = value
+
+    def get(self):
+        return self.value
+
+    def bind(self, event, callback):
+        self.bindings[event] = callback
+
+    def configure(self, **options):
+        self.options.update(options)
 
 
 class FakeGroupButton:
@@ -43,6 +59,7 @@ class ColorPickerDialogTests(unittest.TestCase):
     @patch("src.widget.tk.Toplevel.grab_set")
     @patch("src.widget.tk.Toplevel.bind")
     @patch("src.widget.tk.Toplevel.protocol")
+    @patch.object(ColorPickerDialog, "_build_editor_placeholders")
     @patch.object(ColorPickerDialog, "_build_group_navigation")
     @patch.object(ColorPickerDialog, "_build_main_layout")
     @patch.object(ColorPickerDialog, "_build_actions")
@@ -55,6 +72,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         _build_actions,
         _build_main_layout,
         _build_group_navigation,
+        _build_editor_placeholders,
         _protocol,
         _bind,
         grab_set,
@@ -64,6 +82,7 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         self.assertEqual(dialog.original_color, "#123456")
         self.assertEqual(dialog.current_color, "#123456")
+        self.assertEqual(dialog.color_space_mode, DEFAULT_COLOR_SPACE_MODE)
         self.assertIsNone(dialog.get_accepted_color())
         grab_set.assert_called_once_with()
         wait_window.assert_called_once_with()
@@ -188,6 +207,45 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertIs(dialog.selected_color_group, ColorGroup.BLUE)
         self.assertEqual(dialog.group_buttons[None].states, ["!selected"])
         self.assertEqual(dialog.group_buttons[ColorGroup.BLUE].states, ["selected"])
+
+    @patch("src.widget.tk.Canvas", side_effect=FakeWidget)
+    @patch("src.widget.ttk.Combobox", side_effect=FakeWidget)
+    @patch("src.widget.ttk.Label", side_effect=FakeWidget)
+    def test_editor_placeholders_share_mode_and_color_state(
+        self, _label_type, _combobox_type, _canvas_type
+    ):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.original_color = "#123456"
+        dialog.current_color = "#abcdef"
+        dialog.color_space_mode = DEFAULT_COLOR_SPACE_MODE
+        for attribute in (
+            "editor_color_space_area",
+            "editor_color_field_area",
+            "editor_slider_area",
+            "editor_rgb_area",
+            "editor_alternate_color_space_area",
+            "editor_hex_area",
+            "original_color_preview_area",
+            "current_color_preview_area",
+        ):
+            setattr(dialog, attribute, FakeWidget())
+
+        dialog._build_editor_placeholders()
+
+        self.assertEqual(dialog.color_space_selector.options["values"], COLOR_SPACE_MODES)
+        self.assertEqual(dialog.color_space_selector.options["state"], "readonly")
+        self.assertEqual(dialog.color_space_selector.get(), DEFAULT_COLOR_SPACE_MODE)
+        self.assertEqual(dialog.original_color_preview.options["background"], "#123456")
+        self.assertEqual(dialog.current_color_preview.options["background"], "#abcdef")
+
+        dialog.select_color_space("HSL")
+        dialog.set_current_color("#fedcba")
+
+        self.assertEqual(dialog.color_space_mode, "HSL")
+        self.assertIn("HSL controls", dialog.editor_mode_controls_label.options["text"])
+        self.assertEqual(dialog.original_color, "#123456")
+        self.assertEqual(dialog.current_color, "#fedcba")
+        self.assertEqual(dialog.current_color_preview.options["background"], "#fedcba")
 
     @patch.object(ColorPickerDialog, "get_accepted_color", return_value="#abcdef")
     @patch.object(ColorPickerDialog, "__init__", return_value=None)

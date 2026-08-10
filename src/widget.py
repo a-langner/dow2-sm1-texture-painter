@@ -51,6 +51,8 @@ ALL_COLOR_INDICATORS = (
     "#1976d2",
     "#7b1fa2",
 )
+COLOR_SPACE_MODES = ("HSV / HSB", "HSL")
+DEFAULT_COLOR_SPACE_MODE = COLOR_SPACE_MODES[0]
 
 ActionCallback = Callable[[], None]
 BooleanChangedCallback = Callable[[bool], None]
@@ -80,11 +82,13 @@ class ColorPickerDialog(tk.Toplevel):
         self.original_color = initial_color
         self.current_color = initial_color
         self.accepted_color: Optional[str] = None
+        self.color_space_mode = DEFAULT_COLOR_SPACE_MODE
 
         self._configure_window(parent)
         self._build_actions()
         self._build_main_layout()
         self._build_group_navigation()
+        self._build_editor_placeholders()
         self.protocol("WM_DELETE_WINDOW", self.cancel)
         self.bind("<Return>", self.accept)
         self.bind("<Escape>", self.cancel)
@@ -241,9 +245,80 @@ class ColorPickerDialog(tk.Toplevel):
             marker = "▸ " if selected else "  "
             button.configure(text=f"{marker}{self.group_button_labels[candidate]}")
 
+    def _build_editor_placeholders(self) -> None:
+        ttk.Label(self.editor_color_space_area, text="Color Space:").pack(
+            side=tk.LEFT, padx=(0, 6)
+        )
+        self.color_space_selector = ttk.Combobox(
+            self.editor_color_space_area,
+            values=COLOR_SPACE_MODES,
+            state="readonly",
+            width=12,
+        )
+        self.color_space_selector.set(self.color_space_mode)
+        self.color_space_selector.pack(side=tk.LEFT)
+        self.color_space_selector.bind(
+            "<<ComboboxSelected>>", self._on_color_space_selected
+        )
+
+        ttk.Label(
+            self.editor_color_field_area,
+            text="2D color field\n(coming later)",
+            anchor=tk.CENTER,
+        ).pack(fill=tk.BOTH, expand=True)
+        ttk.Label(
+            self.editor_slider_area,
+            text="Slider",
+            anchor=tk.CENTER,
+        ).pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(self.editor_rgb_area, text="RGB controls (coming later)").pack(
+            anchor=tk.W
+        )
+        self.editor_mode_controls_label = ttk.Label(
+            self.editor_alternate_color_space_area,
+            text=f"{self.color_space_mode} controls (coming later)",
+        )
+        self.editor_mode_controls_label.pack(anchor=tk.W)
+        ttk.Label(self.editor_hex_area, text="Hex input (coming later)").pack(
+            anchor=tk.W
+        )
+
+        ttk.Label(self.original_color_preview_area, text="Original").pack(anchor=tk.W)
+        self.original_color_preview = tk.Canvas(
+            self.original_color_preview_area,
+            height=32,
+            background=self.original_color,
+            highlightthickness=1,
+        )
+        self.original_color_preview.pack(fill=tk.X, padx=(0, 4))
+        ttk.Label(self.current_color_preview_area, text="Current").pack(anchor=tk.W)
+        self.current_color_preview = tk.Canvas(
+            self.current_color_preview_area,
+            height=32,
+            background=self.current_color,
+            highlightthickness=1,
+        )
+        self.current_color_preview.pack(fill=tk.X, padx=(4, 0))
+
+    def _on_color_space_selected(self, Event=None) -> None:
+        self.select_color_space(self.color_space_selector.get())
+
+    def select_color_space(self, mode: str) -> None:
+        """Update structural editor mode without creating a second color state."""
+        if mode not in COLOR_SPACE_MODES:
+            raise ValueError(f"Unsupported color space: {mode}")
+        self.color_space_mode = mode
+        self.editor_mode_controls_label.configure(
+            text=f"{mode} controls (coming later)"
+        )
+
     def set_current_color(self, color: str) -> None:
         """Update the one working color shared by future editor controls."""
         self.current_color = color
+        preview = getattr(self, "current_color_preview", None)
+        if preview is not None:
+            preview.configure(background=color)
 
     def get_accepted_color(self) -> Optional[str]:
         """Return the accepted working color, or ``None`` after cancellation."""
