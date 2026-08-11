@@ -1263,6 +1263,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         )
 
         self.assertEqual(presentation.text, "Mephiston Red")
+        self.assertEqual(presentation.foreground, "#ffffff")
         self.assertEqual(
             presentation.tooltip,
             "Mephiston Red\n#960C09\nRGB: 150, 12, 9",
@@ -1278,7 +1279,16 @@ class ColorPickerDialogTests(unittest.TestCase):
         )
 
         self.assertEqual(presentation.text, "#970C09")
+        self.assertEqual(presentation.foreground, "#ffffff")
         self.assertIsNone(presentation.tooltip)
+
+    def test_light_hex_slot_uses_dark_text(self):
+        presentation = color_slot_presentation(
+            "#ffff00", PaintCatalog(()), 200, lambda text: len(text) * 5
+        )
+
+        self.assertEqual(presentation.text, "#FFFF00")
+        self.assertEqual(presentation.foreground, "#000000")
 
     def test_modified_color_can_match_another_catalog_paint(self):
         second = PaintColor("second", "Second Paint", 1, 2, 3)

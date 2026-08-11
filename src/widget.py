@@ -15,6 +15,7 @@ from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.constant import OPEN_FILETYPES, SAVE_EXT_LIST, ColorOps
 from src.paint_catalog import PaintCatalog, PaintColor, load_citadel_catalog
 from src.color_picker_visual import (
+    contrasting_text_color,
     hsl_field_position,
     hsl_from_field_position,
     hsl_to_rgb_hex,
@@ -117,6 +118,7 @@ class PaintSwatchPresentation:
 @dataclass(frozen=True)
 class ColorSlotPresentation:
     text: str
+    foreground: str
     tooltip: Optional[str]
 
 
@@ -212,9 +214,14 @@ def color_slot_presentation(
     channels = rgb_hex_to_channels(normalized)
     paint = paint_catalog.find_exact_rgb(channels)
     if paint is None:
-        return ColorSlotPresentation(text=normalized, tooltip=None)
+        return ColorSlotPresentation(
+            text=normalized,
+            foreground=contrasting_text_color(normalized),
+            tooltip=None,
+        )
     return ColorSlotPresentation(
         text=format_paint_name_for_swatch(paint.name, max_width, measure),
+        foreground=contrasting_text_color(normalized),
         tooltip=(
             f"{paint.name}\n{normalized}\n"
             f"RGB: {channels[0]}, {channels[1]}, {channels[2]}"
@@ -1440,6 +1447,7 @@ class FrameColorChooser(tk.Frame):
                 COLOR_BOX_SIZE / 2,
                 COLOR_BOX_SIZE / 2,
                 text=presentation.text,
+                fill=presentation.foreground,
                 font=self._color_text_font,
                 justify=tk.CENTER,
             )

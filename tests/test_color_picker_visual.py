@@ -2,6 +2,8 @@ import unittest
 
 from src.color_picker_visual import (
     clamp_coordinate,
+    contrast_ratio,
+    contrasting_text_color,
     hsl_field_position,
     hsl_from_field_position,
     hsl_to_rgb_hex,
@@ -11,6 +13,7 @@ from src.color_picker_visual import (
     hue_from_slider_position,
     hue_slider_position,
     normalize_rgb_hex,
+    relative_luminance,
     rgb_channels_to_hex,
     rgb_hex_to_channels,
 )
@@ -80,6 +83,39 @@ class ColorPickerVisualTests(unittest.TestCase):
             with self.subTest(value=value):
                 with self.assertRaises(ValueError):
                     normalize_rgb_hex(value)
+
+    def test_relative_luminance_uses_wcag_srgb_conversion(self):
+        self.assertEqual(relative_luminance("#000000"), 0.0)
+        self.assertEqual(relative_luminance("#ffffff"), 1.0)
+        self.assertAlmostEqual(relative_luminance("#ff0000"), 0.2126)
+
+    def test_contrasting_text_covers_representative_backgrounds(self):
+        expected_colors = {
+            "#000000": "#ffffff",
+            "#ffffff": "#000000",
+            "#808080": "#000000",
+            "#001060": "#ffffff",
+            "#600000": "#ffffff",
+            "#ffff00": "#000000",
+            "#00ff00": "#000000",
+            "#960c09": "#ffffff",  # Mephiston Red
+            "#dbd1b2": "#000000",  # Wraithbone
+        }
+        for background, expected in expected_colors.items():
+            with self.subTest(background=background):
+                self.assertEqual(contrasting_text_color(background), expected)
+
+    def test_contrasting_text_selects_the_greater_contrast_ratio(self):
+        for background in ("#000000", "#ffffff", "#808080", "#960c09", "#dbd1b2"):
+            with self.subTest(background=background):
+                luminance = relative_luminance(background)
+                chosen = contrasting_text_color(background)
+                chosen_luminance = 1.0 if chosen == "#ffffff" else 0.0
+                other_luminance = 0.0 if chosen == "#ffffff" else 1.0
+                self.assertGreaterEqual(
+                    contrast_ratio(chosen_luminance, luminance),
+                    contrast_ratio(other_luminance, luminance),
+                )
 
 
 if __name__ == "__main__":

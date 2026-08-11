@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 import colorsys
+import math
+
+
+DARK_TEXT_COLOR = "#000000"
+LIGHT_TEXT_COLOR = "#ffffff"
 
 
 def normalize_rgb_hex(color: str) -> str:
@@ -25,6 +30,38 @@ def rgb_hex_to_channels(color: str) -> tuple[int, int, int]:
         int(value[2:4], 16),
         int(value[4:6], 16),
     )
+
+
+def _linearize_srgb_channel(channel: int) -> float:
+    value = channel / 255.0
+    if value <= 0.04045:
+        return value / 12.92
+    return math.pow((value + 0.055) / 1.055, 2.4)
+
+
+def relative_luminance(color: str) -> float:
+    """Return WCAG relative luminance for a six-digit RGB color."""
+    red, green, blue = (
+        _linearize_srgb_channel(channel) for channel in rgb_hex_to_channels(color)
+    )
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+
+
+def contrast_ratio(first_luminance: float, second_luminance: float) -> float:
+    """Return the WCAG contrast ratio between two relative luminances."""
+    lighter = max(first_luminance, second_luminance)
+    darker = min(first_luminance, second_luminance)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def contrasting_text_color(background: str) -> str:
+    """Choose black or white text with the greater WCAG contrast ratio."""
+    luminance = relative_luminance(background)
+    white_contrast = contrast_ratio(1.0, luminance)
+    black_contrast = contrast_ratio(0.0, luminance)
+    if white_contrast >= black_contrast:
+        return LIGHT_TEXT_COLOR
+    return DARK_TEXT_COLOR
 
 
 def rgb_channels_to_hex(red: int, green: int, blue: int) -> str:
