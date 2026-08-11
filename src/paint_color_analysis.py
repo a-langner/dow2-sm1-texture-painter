@@ -10,7 +10,11 @@ import math
 from src.paint_catalog import PaintColor
 
 
+DARK_NEUTRAL_MAX_LIGHTNESS = 0.25
+DARK_NEUTRAL_MAX_CHROMA = 0.015
 NEUTRAL_MAX_CHROMA = 0.025
+LIGHT_NEUTRAL_MIN_LIGHTNESS = 0.85
+LIGHT_NEUTRAL_MAX_CHROMA = 0.035
 BROWN_MIN_HUE = 35.0
 BROWN_MAX_HUE = 100.0
 BROWN_MIN_LIGHTNESS = 0.25
@@ -100,8 +104,17 @@ def analyze_perceptual_color(paint: PaintColor) -> PerceptualColorAnalysis:
     )
 
 
+def _neutral_chroma_limit(lightness: float) -> float:
+    """Return a conservative chroma limit for dark, middle, or light colours."""
+    if lightness <= DARK_NEUTRAL_MAX_LIGHTNESS:
+        return DARK_NEUTRAL_MAX_CHROMA
+    if lightness >= LIGHT_NEUTRAL_MIN_LIGHTNESS:
+        return LIGHT_NEUTRAL_MAX_CHROMA
+    return NEUTRAL_MAX_CHROMA
+
+
 def _is_neutral(analysis: PerceptualColorAnalysis) -> bool:
-    return analysis.chroma <= NEUTRAL_MAX_CHROMA
+    return analysis.chroma <= _neutral_chroma_limit(analysis.lightness)
 
 
 def _is_brown(analysis: PerceptualColorAnalysis) -> bool:

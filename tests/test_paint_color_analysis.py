@@ -46,6 +46,43 @@ class PaintColorClassificationTests(unittest.TestCase):
             with self.subTest(color=sample.id):
                 self.assertIs(classify_paint_color(sample), ColorGroup.NEUTRAL)
 
+    def test_near_black_and_charcoal_are_neutral(self):
+        for sample in (
+            paint("warm-near-black", 23, 19, 20),
+            paint("charcoal", 35, 35, 35),
+        ):
+            with self.subTest(color=sample.id):
+                self.assertIs(classify_paint_color(sample), ColorGroup.NEUTRAL)
+
+    def test_dark_chromatic_colors_remain_chromatic(self):
+        dark_colors = {
+            ColorGroup.RED: paint("dark-red", 80, 0, 0),
+            ColorGroup.BLUE: paint("dark-blue", 0, 16, 80),
+            ColorGroup.GREEN: paint("dark-green", 0, 60, 20),
+            ColorGroup.PURPLE: paint("dark-purple", 45, 14, 66),
+        }
+
+        for expected_group, sample in dark_colors.items():
+            with self.subTest(color=sample.id):
+                self.assertIs(classify_paint_color(sample), expected_group)
+
+    def test_lightness_aware_limit_recognizes_subtly_tinted_light_grey(self):
+        light_grey = paint("subtly-tinted-light-grey", 196, 221, 213)
+
+        self.assertIs(classify_paint_color(light_grey), ColorGroup.NEUTRAL)
+
+    def test_known_near_black_catalog_paints_are_neutral(self):
+        paints_by_name = {
+            sample.name: sample for sample in load_citadel_catalog().paints
+        }
+
+        for name in ("Corvus Black", "Mordant Earth"):
+            with self.subTest(name=name):
+                self.assertIs(
+                    classify_paint_color(paints_by_name[name]),
+                    ColorGroup.NEUTRAL,
+                )
+
     def test_low_saturation_colors_are_consistently_neutral(self):
         low_saturation_samples = (
             paint("warm-near-grey", 120, 115, 110),
