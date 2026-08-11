@@ -300,5 +300,102 @@ class PaintColorSortingTests(unittest.TestCase):
         self.assertEqual(Counter(grouped_paints), Counter(self.paints))
 
 
+class CitadelCatalogClassificationSanityTests(unittest.TestCase):
+    def setUp(self):
+        self.paints = load_citadel_catalog().paints
+
+    def test_every_catalog_paint_belongs_to_exactly_one_filtered_group(self):
+        grouped = {
+            color_group: get_paints_for_group(self.paints, color_group)
+            for color_group in ColorGroup
+        }
+        memberships = {
+            sample: sum(
+                sample in grouped[color_group] for color_group in ColorGroup
+            )
+            for sample in self.paints
+        }
+        grouped_paints = tuple(
+            sample
+            for color_group in ColorGroup
+            for sample in grouped[color_group]
+        )
+
+        self.assertTrue(all(count == 1 for count in memberships.values()))
+        self.assertEqual(len(grouped_paints), len(self.paints))
+        self.assertEqual(Counter(grouped_paints), Counter(self.paints))
+
+    def test_real_catalog_classification_and_sorting_are_deterministic(self):
+        expected_groups = tuple(classify_paint_color(sample) for sample in self.paints)
+        repeated_groups = tuple(classify_paint_color(sample) for sample in self.paints)
+
+        self.assertEqual(repeated_groups, expected_groups)
+        self.assertEqual(
+            sort_paints_visually(self.paints),
+            sort_paints_visually(reversed(self.paints)),
+        )
+
+    def test_catalog_rgb_values_remain_unchanged_after_analysis(self):
+        before = tuple((sample.r, sample.g, sample.b) for sample in self.paints)
+
+        for sample in self.paints:
+            classify_paint_color(sample)
+        for color_group in ColorGroup:
+            sort_paints_visually(get_paints_for_group(self.paints, color_group))
+        sort_paints_visually(self.paints)
+
+        self.assertEqual(
+            tuple((sample.r, sample.g, sample.b) for sample in self.paints),
+            before,
+        )
+
+    def test_very_low_chroma_catalog_paints_do_not_leak_into_chromatic_groups(self):
+        very_low_chroma = tuple(
+            sample
+            for sample in self.paints
+            if analyze_perceptual_color(sample).chroma <= 0.01
+        )
+
+        self.assertGreater(len(very_low_chroma), 0)
+        self.assertTrue(
+            all(
+                classify_paint_color(sample) is ColorGroup.NEUTRAL
+                for sample in very_low_chroma
+            )
+        )
+
+    def test_clearly_chromatic_dark_catalog_paints_remain_non_neutral(self):
+        chromatic_dark_paints = tuple(
+            sample
+            for sample in self.paints
+            if analyze_perceptual_color(sample).lightness <= 0.35
+            and analyze_perceptual_color(sample).chroma >= 0.08
+        )
+
+        self.assertGreater(len(chromatic_dark_paints), 0)
+        self.assertTrue(
+            all(
+                classify_paint_color(sample) is not ColorGroup.NEUTRAL
+                for sample in chromatic_dark_paints
+            )
+        )
+
+    def test_curated_catalog_classification_regressions(self):
+        paints_by_name = {sample.name: sample for sample in self.paints}
+        expected_groups = {
+            "Corvus Black": ColorGroup.NEUTRAL,
+            "Mordant Earth": ColorGroup.NEUTRAL,
+            "Mournfang Brown": ColorGroup.BROWN,
+            "Camo Green": ColorGroup.GREEN,
+        }
+
+        for name, expected_group in expected_groups.items():
+            with self.subTest(name=name):
+                self.assertIs(
+                    classify_paint_color(paints_by_name[name]),
+                    expected_group,
+                )
+
+
 if __name__ == "__main__":
     unittest.main()
