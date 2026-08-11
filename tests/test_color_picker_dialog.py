@@ -23,6 +23,7 @@ from src.widget import (
     ColorPickerDialog,
     PaintSwatchGrid,
     calculate_paint_swatch_columns,
+    color_slot_presentation,
     draw_rounded_swatch,
     filter_paints_by_name,
     format_paint_name_for_swatch,
@@ -1253,6 +1254,64 @@ class ColorPickerDialogTests(unittest.TestCase):
             "Mephiston Red\nRGB: 150, 12, 9",
         )
 
+    def test_exact_catalog_color_uses_paint_name_and_detailed_tooltip(self):
+        paint = PaintColor("mephiston", "Mephiston Red", 150, 12, 9)
+        catalog = PaintCatalog((paint,))
+
+        presentation = color_slot_presentation(
+            "#960c09", catalog, 200, lambda text: len(text) * 5
+        )
+
+        self.assertEqual(presentation.text, "Mephiston Red")
+        self.assertEqual(
+            presentation.tooltip,
+            "Mephiston Red\n#960C09\nRGB: 150, 12, 9",
+        )
+
+    def test_modified_catalog_color_returns_to_hex_display(self):
+        catalog = PaintCatalog(
+            (PaintColor("mephiston", "Mephiston Red", 150, 12, 9),)
+        )
+
+        presentation = color_slot_presentation(
+            "#970c09", catalog, 200, lambda text: len(text) * 5
+        )
+
+        self.assertEqual(presentation.text, "#970C09")
+        self.assertIsNone(presentation.tooltip)
+
+    def test_modified_color_can_match_another_catalog_paint(self):
+        second = PaintColor("second", "Second Paint", 1, 2, 3)
+        catalog = PaintCatalog(
+            (
+                PaintColor("mephiston", "Mephiston Red", 150, 12, 9),
+                second,
+            )
+        )
+
+        presentation = color_slot_presentation(
+            "#010203", catalog, 200, lambda text: len(text) * 5
+        )
+
+        self.assertEqual(presentation.text, "Second Paint")
+
+    def test_long_slot_name_uses_ellipsis_but_tooltip_keeps_full_name(self):
+        paint = PaintColor(
+            "long",
+            "A Complete Citadel Paint Name",
+            1,
+            2,
+            3,
+        )
+
+        presentation = color_slot_presentation(
+            "#010203", PaintCatalog((paint,)), 40, lambda text: len(text) * 5
+        )
+
+        self.assertTrue(presentation.text.endswith("…"))
+        self.assertLessEqual(len(presentation.text.splitlines()), 2)
+        self.assertTrue(presentation.tooltip.startswith(paint.name))
+
     @patch.object(ColorPickerDialog, "get_accepted_color", return_value="#abcdef")
     @patch.object(ColorPickerDialog, "__init__", return_value=None)
     def test_show_returns_the_dialog_result(self, initialize, get_accepted_color):
@@ -1261,7 +1320,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         result = ColorPickerDialog.show(parent, "#123456")
 
         self.assertEqual(result, "#abcdef")
-        initialize.assert_called_once_with(parent, "#123456")
+        initialize.assert_called_once_with(parent, "#123456", None)
         get_accepted_color.assert_called_once_with()
 
 

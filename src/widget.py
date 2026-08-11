@@ -114,6 +114,12 @@ class PaintSwatchPresentation:
     color: str
 
 
+@dataclass(frozen=True)
+class ColorSlotPresentation:
+    text: str
+    tooltip: Optional[str]
+
+
 def calculate_paint_swatch_columns(
     available_width: int,
     target_width: int = PAINT_SWATCH_TARGET_WIDTH,
@@ -193,6 +199,27 @@ def format_paint_name_for_swatch(
         remainder, available_width, measure
     ).rstrip()
     return f"{first_line}\n{second_line}{PAINT_NAME_ELLIPSIS}"
+
+
+def color_slot_presentation(
+    color: str,
+    paint_catalog: PaintCatalog,
+    max_width: float,
+    measure: Callable[[str], int],
+) -> ColorSlotPresentation:
+    """Return main-window text and exact-match details for one colour slot."""
+    normalized = normalize_rgb_hex(color)
+    channels = rgb_hex_to_channels(normalized)
+    paint = paint_catalog.find_exact_rgb(channels)
+    if paint is None:
+        return ColorSlotPresentation(text=normalized, tooltip=None)
+    return ColorSlotPresentation(
+        text=format_paint_name_for_swatch(paint.name, max_width, measure),
+        tooltip=(
+            f"{paint.name}\n{normalized}\n"
+            f"RGB: {channels[0]}, {channels[1]}, {channels[2]}"
+        ),
+    )
 
 
 def draw_rounded_swatch(
@@ -505,9 +532,14 @@ class ColorPickerDialog(tk.Toplevel):
         self.wait_window()
 
     @classmethod
-    def show(cls, parent: tk.Misc, initial_color: str) -> Optional[str]:
+    def show(
+        cls,
+        parent: tk.Misc,
+        initial_color: str,
+        paint_catalog: Optional[PaintCatalog] = None,
+    ) -> Optional[str]:
         """Show the modal dialog and return its accepted color or cancellation."""
-        return cls(parent, initial_color).get_accepted_color()
+        return cls(parent, initial_color, paint_catalog).get_accepted_color()
 
     def _configure_window(self, parent: tk.Misc) -> None:
         self.title("Select Color")
@@ -1328,6 +1360,7 @@ class FrameColorChooser(tk.Frame):
         *,
         on_color_changed: ColorChangedCallback,
         color_picker: Optional[ColorPickerCallback] = None,
+        paint_catalog: Optional[PaintCatalog] = None,
         **kw,
     ):
         super(FrameColorChooser, self).__init__(master=master, cnf={}, **kw)
@@ -1335,13 +1368,22 @@ class FrameColorChooser(tk.Frame):
         self._color_picker = (
             self._open_color_picker if color_picker is None else color_picker
         )
+        self.paint_catalog = (
+            load_citadel_catalog() if paint_catalog is None else paint_catalog
+        )
+        self._color_text_font = tkfont.Font(
+            root=self,
+            font=("Arial", 10, "bold"),
+        )
+        self._color_tooltips = [None] * 4
+        self._color_tooltip_window = None
         self.color_boxes = []
         self.color_buttons = []
         self.initialize()
 
     def _open_color_picker(self, initial_color: str) -> Optional[str]:
         """Open the production custom picker with the slot's current color."""
-        return ColorPickerDialog.show(self, initial_color)
+        return ColorPickerDialog.show(self, initial_color, self.paint_catalog)
 
     def initialize(self):
         for i in range(0, 4):
@@ -1356,6 +1398,10 @@ class FrameColorChooser(tk.Frame):
                 )
             )
             self.color_boxes[i].bind("<Button-1>", partial(self.apply_color, i))
+            self.color_boxes[i].bind(
+                "<Enter>", partial(self._show_color_tooltip, i)
+            )
+            self.color_boxes[i].bind("<Leave>", self._hide_color_tooltip)
             self.color_boxes[i].place(
                 anchor=tk.NW, x=COLOR_BOX_SIZE * i, y=COLOR_BTN_HEIGHT
             )
@@ -1380,15 +1426,51 @@ class FrameColorChooser(tk.Frame):
             self._on_color_changed(btn_idx, color)
 
     def draw_rgb_value(self):
-        for color_box in self.color_boxes:
+        for index, color_box in enumerate(self.color_boxes):
             color = str(color_box["bg"])
+            presentation = color_slot_presentation(
+                color,
+                self.paint_catalog,
+                COLOR_BOX_SIZE - 8,
+                self._color_text_font.measure,
+            )
+            self._color_tooltips[index] = presentation.tooltip
             color_box.delete("all")
             color_box.create_text(
                 COLOR_BOX_SIZE / 2,
                 COLOR_BOX_SIZE / 2,
-                text=color,
-                font=("Arial", 10, "bold"),
+                text=presentation.text,
+                font=self._color_text_font,
+                justify=tk.CENTER,
             )
+
+    def _show_color_tooltip(self, index: int, Event) -> None:
+        self._hide_color_tooltip()
+        text = self._color_tooltips[index]
+        if text is None:
+            return
+        tooltip = tk.Toplevel(self)
+        tooltip.wm_overrideredirect(True)
+        tooltip.wm_geometry(
+            f"+{Event.widget.winfo_rootx() + 12}"
+            f"+{Event.widget.winfo_rooty() + Event.widget.winfo_height() + 4}"
+        )
+        tk.Label(
+            tooltip,
+            text=text,
+            justify=tk.LEFT,
+            background="#ffffe0",
+            relief=tk.SOLID,
+            borderwidth=1,
+            padx=5,
+            pady=3,
+        ).pack()
+        self._color_tooltip_window = tooltip
+
+    def _hide_color_tooltip(self, Event=None) -> None:
+        if self._color_tooltip_window is not None:
+            self._color_tooltip_window.destroy()
+            self._color_tooltip_window = None
 
 
 class FrameSlider(tk.Frame):

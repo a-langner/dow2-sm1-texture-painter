@@ -77,18 +77,20 @@ class PatternDirtyStateTests(unittest.TestCase):
         self, show
     ):
         chooser = object.__new__(FrameColorChooser)
+        chooser.paint_catalog = Mock()
 
         self.assertEqual(chooser._open_color_picker("#000000"), "#010203")
 
-        show.assert_called_once_with(chooser, "#000000")
+        show.assert_called_once_with(chooser, "#000000", chooser.paint_catalog)
 
     @patch.object(ColorPickerDialog, "show", return_value=None)
     def test_production_picker_returns_cancellation(self, show):
         chooser = object.__new__(FrameColorChooser)
+        chooser.paint_catalog = Mock()
 
         self.assertIsNone(chooser._open_color_picker("#112233"))
 
-        show.assert_called_once_with(chooser, "#112233")
+        show.assert_called_once_with(chooser, "#112233", chooser.paint_catalog)
 
     def test_cancelled_picker_leaves_slot_and_downstream_state_unchanged(self):
         chooser = object.__new__(FrameColorChooser)
