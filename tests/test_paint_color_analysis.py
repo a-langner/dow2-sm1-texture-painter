@@ -1,10 +1,11 @@
 import unittest
 from collections import Counter
 
-from src.paint_catalog import PaintColor
+from src.paint_catalog import PaintColor, load_citadel_catalog
 from src.paint_color_analysis import (
     ColorGroup,
     VISUAL_GROUP_ORDER,
+    analyze_perceptual_color,
     classify_paint_color,
     get_paints_for_group,
     sort_paints_visually,
@@ -90,12 +91,68 @@ class PaintColorSortingTests(unittest.TestCase):
         self.assertEqual(len(sorted_paints), len(self.paints))
         self.assertEqual(Counter(sorted_paints), Counter(self.paints))
 
-    def test_sorting_uses_the_declared_visual_group_order(self):
-        sorted_paints = sort_paints_visually(self.paints)
-        actual_groups = [classify_paint_color(sample) for sample in sorted_paints]
-        group_indices = [VISUAL_GROUP_ORDER.index(group) for group in actual_groups]
+    def test_sorting_retains_every_real_catalog_paint_exactly_once(self):
+        catalog_paints = load_citadel_catalog().paints
 
-        self.assertEqual(group_indices, sorted(group_indices))
+        sorted_paints = sort_paints_visually(catalog_paints)
+
+        self.assertEqual(len(sorted_paints), len(catalog_paints))
+        self.assertEqual(Counter(sorted_paints), Counter(catalog_paints))
+
+    def test_all_colors_follow_a_broad_perceptual_hue_progression(self):
+        spectrum_groups = (
+            ColorGroup.RED,
+            ColorGroup.ORANGE,
+            ColorGroup.YELLOW,
+            ColorGroup.GREEN,
+            ColorGroup.TEAL_CYAN,
+            ColorGroup.BLUE,
+            ColorGroup.PURPLE,
+            ColorGroup.PINK,
+        )
+        samples = tuple(REPRESENTATIVE_PAINTS[group] for group in spectrum_groups)
+
+        sorted_paints = sort_paints_visually(reversed(samples))
+
+        self.assertEqual(
+            [classify_paint_color(sample) for sample in sorted_paints],
+            list(spectrum_groups),
+        )
+
+    def test_neutrals_are_ordered_primarily_by_perceptual_lightness(self):
+        neutrals = (
+            paint("white", 255, 255, 255),
+            paint("dark-grey", 48, 48, 48),
+            paint("light-grey", 190, 190, 190),
+            paint("black", 0, 0, 0),
+        )
+
+        sorted_paints = sort_paints_visually(neutrals)
+        lightnesses = [
+            analyze_perceptual_color(sample).lightness for sample in sorted_paints
+        ]
+
+        self.assertEqual(lightnesses, sorted(lightnesses))
+        self.assertEqual(
+            [sample.id for sample in sorted_paints],
+            ["black", "dark-grey", "light-grey", "white"],
+        )
+
+    def test_sorting_does_not_modify_paint_records_or_rgb_values(self):
+        before = tuple(
+            (sample.id, sample.name, sample.r, sample.g, sample.b)
+            for sample in self.paints
+        )
+
+        sort_paints_visually(self.paints)
+
+        self.assertEqual(
+            tuple(
+                (sample.id, sample.name, sample.r, sample.g, sample.b)
+                for sample in self.paints
+            ),
+            before,
+        )
 
     def test_grouping_loses_and_duplicates_no_paints(self):
         grouped_paints = tuple(

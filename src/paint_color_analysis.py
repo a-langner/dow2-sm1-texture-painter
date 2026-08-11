@@ -6,6 +6,7 @@ import colorsys
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
+import math
 
 from src.paint_catalog import PaintColor
 
@@ -52,9 +53,8 @@ VISUAL_GROUP_ORDER = (
     ColorGroup.BROWN,
     ColorGroup.NEUTRAL,
 )
-_GROUP_SORT_INDEX = {
-    color_group: index for index, color_group in enumerate(VISUAL_GROUP_ORDER)
-}
+PERCEPTUAL_HUE_BAND_DEGREES = 12.0
+PERCEPTUAL_SPECTRUM_START_DEGREES = 20.0
 
 
 @dataclass(frozen=True)
@@ -63,6 +63,15 @@ class PaintColorAnalysis:
     saturation: float
     value: float
     lightness: float
+
+
+@dataclass(frozen=True)
+class PerceptualColorAnalysis:
+    """OKLCH coordinates derived from an sRGB paint colour."""
+
+    lightness: float
+    chroma: float
+    hue: float
 
 
 def analyze_paint_color(paint: PaintColor) -> PaintColorAnalysis:
@@ -75,6 +84,39 @@ def analyze_paint_color(paint: PaintColor) -> PaintColorAnalysis:
         saturation=saturation,
         value=value,
         lightness=lightness,
+    )
+
+
+def _linearize_srgb(channel: int) -> float:
+    normalized = channel / 255.0
+    if normalized <= 0.04045:
+        return normalized / 12.92
+    return math.pow((normalized + 0.055) / 1.055, 2.4)
+
+
+def _cube_root(value: float) -> float:
+    return math.copysign(math.pow(abs(value), 1.0 / 3.0), value)
+
+
+def analyze_perceptual_color(paint: PaintColor) -> PerceptualColorAnalysis:
+    """Convert an sRGB paint colour to perceptually uniform OKLCH."""
+    red, green, blue = (
+        _linearize_srgb(channel) for channel in (paint.r, paint.g, paint.b)
+    )
+    l_value = 0.4122214708 * red + 0.5363325363 * green + 0.0514459929 * blue
+    m_value = 0.2119034982 * red + 0.6806995451 * green + 0.1073969566 * blue
+    s_value = 0.0883024619 * red + 0.2817188376 * green + 0.6299787005 * blue
+    l_root, m_root, s_root = (
+        _cube_root(value) for value in (l_value, m_value, s_value)
+    )
+    lightness = 0.2104542553 * l_root + 0.7936177850 * m_root - 0.0040720468 * s_root
+    a_axis = 1.9779984951 * l_root - 2.4285922050 * m_root + 0.4505937099 * s_root
+    b_axis = 0.0259040371 * l_root + 0.7827717662 * m_root - 0.8086757660 * s_root
+    hue = math.degrees(math.atan2(b_axis, a_axis)) % 360.0
+    return PerceptualColorAnalysis(
+        lightness=lightness,
+        chroma=math.hypot(a_axis, b_axis),
+        hue=hue,
     )
 
 
@@ -124,41 +166,94 @@ def get_paints_for_group(
     )
 
 
-def _visual_sort_key(
-    paint: PaintColor,
-) -> tuple[int, float, float, float, str, str, int, int, int]:
-    analysis = analyze_paint_color(paint)
-    color_group = classify_paint_color(paint)
+def _stable_paint_key(paint: PaintColor) -> tuple[str, str, int, int, int]:
+    return (paint.id, paint.name, paint.r, paint.g, paint.b)
 
+
+def _group_sort_key(
+    paint: PaintColor, color_group: ColorGroup
+) -> tuple[float, float, float, float, str, str, int, int, int]:
+    perceptual = analyze_perceptual_color(paint)
     if color_group is ColorGroup.NEUTRAL:
-        primary, secondary, tertiary = (
-            analysis.value,
-            analysis.saturation,
-            analysis.hue,
+        return (
+            perceptual.lightness,
+            perceptual.chroma,
+            0.0,
+            0.0,
+            *_stable_paint_key(paint),
         )
-    else:
-        hue = analysis.hue
-        if color_group is ColorGroup.RED and hue < RED_ORANGE_BOUNDARY:
-            hue += 360.0
-        primary, secondary, tertiary = (
-            hue,
-            analysis.value,
-            analysis.saturation,
+    if color_group is ColorGroup.BROWN:
+        return (
+            perceptual.lightness,
+            perceptual.hue,
+            perceptual.chroma,
+            0.0,
+            *_stable_paint_key(paint),
         )
-
+    hue_band = math.floor(perceptual.hue / PERCEPTUAL_HUE_BAND_DEGREES)
+    # Alternate lightness direction so adjacent hue bands meet at the same
+    # light/dark end instead of producing a large boundary jump.
+    band_lightness = (
+        perceptual.lightness if hue_band % 2 == 0 else -perceptual.lightness
+    )
     return (
-        _GROUP_SORT_INDEX[color_group],
-        primary,
-        secondary,
-        tertiary,
-        paint.id,
-        paint.name,
-        paint.r,
-        paint.g,
-        paint.b,
+        hue_band,
+        band_lightness,
+        perceptual.chroma,
+        perceptual.hue,
+        *_stable_paint_key(paint),
+    )
+
+
+def _spectrum_sort_key(
+    paint: PaintColor, color_group: ColorGroup
+) -> tuple[int, float, float, float, float, str, str, int, int, int]:
+    perceptual = analyze_perceptual_color(paint)
+    if color_group is ColorGroup.NEUTRAL:
+        return (
+            1,
+            perceptual.lightness,
+            perceptual.chroma,
+            0.0,
+            0.0,
+            *_stable_paint_key(paint),
+        )
+    spectrum_hue = (
+        perceptual.hue - PERCEPTUAL_SPECTRUM_START_DEGREES
+    ) % 360.0
+    hue_band = math.floor(spectrum_hue / PERCEPTUAL_HUE_BAND_DEGREES)
+    band_lightness = (
+        perceptual.lightness if hue_band % 2 == 0 else -perceptual.lightness
+    )
+    return (
+        0,
+        hue_band,
+        band_lightness,
+        perceptual.chroma,
+        spectrum_hue,
+        *_stable_paint_key(paint),
     )
 
 
 def sort_paints_visually(paints: Iterable[PaintColor]) -> tuple[PaintColor, ...]:
-    """Return a deterministic spectrum-oriented ordering without mutating input."""
-    return tuple(sorted(paints, key=_visual_sort_key))
+    """Return a deterministic OKLCH-based ordering without mutation."""
+    paint_items = tuple(paints)
+    classified = tuple(
+        (paint, classify_paint_color(paint)) for paint in paint_items
+    )
+    groups = {color_group for _, color_group in classified}
+    if len(groups) == 1:
+        color_group = next(iter(groups), ColorGroup.NEUTRAL)
+        return tuple(
+            sorted(
+                paint_items,
+                key=lambda paint: _group_sort_key(paint, color_group),
+            )
+        )
+    return tuple(
+        paint
+        for paint, _ in sorted(
+            classified,
+            key=lambda item: _spectrum_sort_key(*item),
+        )
+    )
