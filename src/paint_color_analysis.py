@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import colorsys
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
@@ -11,21 +10,22 @@ import math
 from src.paint_catalog import PaintColor
 
 
-NEUTRAL_MAX_SATURATION = 0.12
-BROWN_MIN_HUE = 15.0
-BROWN_MAX_HUE = 50.0
-BROWN_MIN_SATURATION = 0.20
-BROWN_MAX_VALUE = 0.75
-BROWN_MAX_LIGHTNESS = 0.55
+NEUTRAL_MAX_CHROMA = 0.025
+BROWN_MIN_HUE = 35.0
+BROWN_MAX_HUE = 100.0
+BROWN_MIN_LIGHTNESS = 0.25
+BROWN_MAX_LIGHTNESS = 0.70
+BROWN_MIN_CHROMA = 0.03
+BROWN_MAX_CHROMA = 0.15
 
-RED_ORANGE_BOUNDARY = 15.0
-ORANGE_YELLOW_BOUNDARY = 45.0
-YELLOW_GREEN_BOUNDARY = 70.0
-GREEN_TEAL_BOUNDARY = 165.0
-TEAL_BLUE_BOUNDARY = 195.0
-BLUE_PURPLE_BOUNDARY = 255.0
-PURPLE_PINK_BOUNDARY = 300.0
-PINK_RED_BOUNDARY = 345.0
+PINK_RED_BOUNDARY = 10.0
+RED_ORANGE_BOUNDARY = 35.0
+ORANGE_YELLOW_BOUNDARY = 85.0
+YELLOW_GREEN_BOUNDARY = 120.0
+GREEN_TEAL_BOUNDARY = 175.0
+TEAL_BLUE_BOUNDARY = 225.0
+BLUE_PURPLE_BOUNDARY = 285.0
+PURPLE_PINK_BOUNDARY = 325.0
 
 
 class ColorGroup(Enum):
@@ -59,33 +59,12 @@ PERCEPTUAL_SPECTRUM_START_DEGREES = 20.0
 
 
 @dataclass(frozen=True)
-class PaintColorAnalysis:
-    hue: float
-    saturation: float
-    value: float
-    lightness: float
-
-
-@dataclass(frozen=True)
 class PerceptualColorAnalysis:
     """OKLCH coordinates derived from an sRGB paint colour."""
 
     lightness: float
     chroma: float
     hue: float
-
-
-def analyze_paint_color(paint: PaintColor) -> PaintColorAnalysis:
-    """Derive normalized HSV/HSL properties from one paint's RGB channels."""
-    red, green, blue = (channel / 255.0 for channel in (paint.r, paint.g, paint.b))
-    hsv_hue, saturation, value = colorsys.rgb_to_hsv(red, green, blue)
-    _, lightness, _ = colorsys.rgb_to_hls(red, green, blue)
-    return PaintColorAnalysis(
-        hue=hsv_hue * 360.0,
-        saturation=saturation,
-        value=value,
-        lightness=lightness,
-    )
 
 
 def _linearize_srgb(channel: int) -> float:
@@ -121,24 +100,29 @@ def analyze_perceptual_color(paint: PaintColor) -> PerceptualColorAnalysis:
     )
 
 
-def _is_brown(analysis: PaintColorAnalysis) -> bool:
+def _is_neutral(analysis: PerceptualColorAnalysis) -> bool:
+    return analysis.chroma <= NEUTRAL_MAX_CHROMA
+
+
+def _is_brown(analysis: PerceptualColorAnalysis) -> bool:
     return (
         BROWN_MIN_HUE <= analysis.hue < BROWN_MAX_HUE
-        and analysis.saturation >= BROWN_MIN_SATURATION
-        and analysis.value <= BROWN_MAX_VALUE
-        and analysis.lightness <= BROWN_MAX_LIGHTNESS
+        and BROWN_MIN_LIGHTNESS <= analysis.lightness <= BROWN_MAX_LIGHTNESS
+        and BROWN_MIN_CHROMA <= analysis.chroma <= BROWN_MAX_CHROMA
     )
 
 
 def classify_paint_color(paint: PaintColor) -> ColorGroup:
-    """Classify a paint by derived color properties, independently of its name."""
-    analysis = analyze_paint_color(paint)
-    if analysis.saturation <= NEUTRAL_MAX_SATURATION:
+    """Classify RGB through an ordered OKLCH hierarchy, never by paint name."""
+    analysis = analyze_perceptual_color(paint)
+    if _is_neutral(analysis):
         return ColorGroup.NEUTRAL
     if _is_brown(analysis):
         return ColorGroup.BROWN
 
     hue = analysis.hue
+    if hue < PINK_RED_BOUNDARY:
+        return ColorGroup.PINK
     if hue < RED_ORANGE_BOUNDARY:
         return ColorGroup.RED
     if hue < ORANGE_YELLOW_BOUNDARY:
@@ -153,9 +137,7 @@ def classify_paint_color(paint: PaintColor) -> ColorGroup:
         return ColorGroup.BLUE
     if hue < PURPLE_PINK_BOUNDARY:
         return ColorGroup.PURPLE
-    if hue < PINK_RED_BOUNDARY:
-        return ColorGroup.PINK
-    return ColorGroup.RED
+    return ColorGroup.PINK
 
 
 def get_paints_for_group(

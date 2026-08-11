@@ -64,6 +64,15 @@ class PaintColorClassificationTests(unittest.TestCase):
         self.assertIs(classify_paint_color(brown), ColorGroup.BROWN)
         self.assertIs(classify_paint_color(bright_orange), ColorGroup.ORANGE)
 
+    def test_perceptual_special_cases_precede_hue_sectors(self):
+        near_black_red = paint("near-black-red", 23, 19, 20)
+        earthy_orange = paint("earthy-orange", 120, 70, 30)
+        vivid_orange = paint("vivid-orange", 255, 128, 0)
+
+        self.assertIs(classify_paint_color(near_black_red), ColorGroup.NEUTRAL)
+        self.assertIs(classify_paint_color(earthy_orange), ColorGroup.BROWN)
+        self.assertIs(classify_paint_color(vivid_orange), ColorGroup.ORANGE)
+
     def test_classification_uses_rgb_instead_of_paint_name(self):
         misleading_name = PaintColor("not-blue", "Definitely Blue", 255, 0, 0)
 
