@@ -36,12 +36,15 @@ class FakeWidget:
         self.parent = parent
         self.options = options
         self.pack_options = None
+        self.packed_children = []
         self.panes = []
         self.value = None
         self.bindings = {}
 
     def pack(self, **options):
         self.pack_options = options
+        if hasattr(self.parent, "packed_children"):
+            self.parent.packed_children.append(self)
 
     def pack_propagate(self, enabled):
         self.pack_propagate_enabled = enabled
@@ -445,7 +448,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         pane_names = [pane.options["text"] for pane, _ in dialog.main_panes.panes]
         pane_weights = [options["weight"] for _, options in dialog.main_panes.panes]
         self.assertEqual(pane_names, ["Groups", "Citadel Colors", "Color Editor"])
-        self.assertEqual(pane_weights, [0, 1, 1])
+        self.assertEqual(pane_weights, [0, 3, 1])
         self.assertEqual(
             [pane.options["width"] for pane, _ in dialog.main_panes.panes],
             [
@@ -456,6 +459,11 @@ class ColorPickerDialogTests(unittest.TestCase):
         )
         self.assertFalse(dialog.palette_area.pack_propagate_enabled)
         self.assertFalse(dialog.editor_area.pack_propagate_enabled)
+        self.assertEqual(
+            dialog.editor_visualization_area.packed_children,
+            [dialog.editor_slider_area, dialog.editor_color_field_area],
+        )
+        self.assertEqual(dialog.editor_slider_area.options["width"], 28)
         self.assertTrue(dialog.dialog_content.pack_options["expand"])
         self.assertTrue(dialog.main_panes.pack_options["expand"])
         for attribute in (

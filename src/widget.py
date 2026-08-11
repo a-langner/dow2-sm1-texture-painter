@@ -52,8 +52,8 @@ COLOR_PICKER_MIN_WIDTH = 900
 COLOR_PICKER_MIN_HEIGHT = 600
 COLOR_PICKER_SCREEN_MARGIN = 80
 COLOR_PICKER_GROUP_PANE_WIDTH = 140
-COLOR_PICKER_PALETTE_PANE_WIDTH = 440
-COLOR_PICKER_EDITOR_PANE_WIDTH = 500
+COLOR_PICKER_PALETTE_PANE_WIDTH = 540
+COLOR_PICKER_EDITOR_PANE_WIDTH = 400
 COLOR_PICKER_GROUP_ENTRIES = ((None, "All Colors"),) + tuple(
     (color_group, color_group.value) for color_group in VISUAL_GROUP_ORDER
 )
@@ -505,7 +505,7 @@ class ColorPickerDialog(tk.Toplevel):
         self.palette_area.pack_propagate(False)
         self.editor_area.pack_propagate(False)
         self.main_panes.add(self.group_navigation, weight=0)
-        self.main_panes.add(self.palette_area, weight=1)
+        self.main_panes.add(self.palette_area, weight=3)
         self.main_panes.add(self.editor_area, weight=1)
 
         self.palette_header_area = ttk.Frame(self.palette_area)
@@ -522,9 +522,9 @@ class ColorPickerDialog(tk.Toplevel):
         self.editor_visualization_area = ttk.Frame(self.editor_area)
         self.editor_visualization_area.pack(fill=tk.BOTH, expand=True, pady=(8, 0))
         self.editor_color_field_area = ttk.Frame(self.editor_visualization_area)
-        self.editor_color_field_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.editor_slider_area = ttk.Frame(self.editor_visualization_area, width=28)
         self.editor_slider_area.pack(side=tk.RIGHT, fill=tk.Y, padx=(8, 0))
+        self.editor_color_field_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.editor_numeric_area = ttk.Frame(self.editor_area)
         self.editor_numeric_area.pack(fill=tk.X, pady=(8, 0))
         self.editor_rgb_area = ttk.Frame(self.editor_numeric_area)
