@@ -15,11 +15,13 @@ DARK_NEUTRAL_MAX_CHROMA = 0.015
 NEUTRAL_MAX_CHROMA = 0.025
 LIGHT_NEUTRAL_MIN_LIGHTNESS = 0.85
 LIGHT_NEUTRAL_MAX_CHROMA = 0.035
-BROWN_MIN_HUE = 35.0
+BROWN_MIN_HUE = 15.0
+BROWN_RED_HUE_END = 35.0
 BROWN_MAX_HUE = 100.0
-BROWN_MIN_LIGHTNESS = 0.25
+BROWN_MIN_LIGHTNESS = 0.20
 BROWN_MAX_LIGHTNESS = 0.70
 BROWN_MIN_CHROMA = 0.03
+BROWN_RED_MAX_CHROMA = 0.095
 BROWN_MAX_CHROMA = 0.15
 
 PINK_RED_BOUNDARY = 10.0
@@ -118,10 +120,15 @@ def _is_neutral(analysis: PerceptualColorAnalysis) -> bool:
 
 
 def _is_brown(analysis: PerceptualColorAnalysis) -> bool:
+    max_chroma = (
+        BROWN_RED_MAX_CHROMA
+        if analysis.hue < BROWN_RED_HUE_END
+        else BROWN_MAX_CHROMA
+    )
     return (
         BROWN_MIN_HUE <= analysis.hue < BROWN_MAX_HUE
         and BROWN_MIN_LIGHTNESS <= analysis.lightness <= BROWN_MAX_LIGHTNESS
-        and BROWN_MIN_CHROMA <= analysis.chroma <= BROWN_MAX_CHROMA
+        and BROWN_MIN_CHROMA <= analysis.chroma <= max_chroma
     )
 
 

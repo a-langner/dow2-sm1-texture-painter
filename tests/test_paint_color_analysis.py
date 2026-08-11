@@ -101,6 +101,40 @@ class PaintColorClassificationTests(unittest.TestCase):
         self.assertIs(classify_paint_color(brown), ColorGroup.BROWN)
         self.assertIs(classify_paint_color(bright_orange), ColorGroup.ORANGE)
 
+    def test_brown_rule_covers_earth_tone_hue_range(self):
+        brown_samples = (
+            paint("dark-brown", 55, 30, 18),
+            paint("reddish-brown", 70, 47, 48),
+            paint("orange-brown", 120, 70, 30),
+            paint("yellow-brown", 145, 120, 55),
+        )
+
+        for sample in brown_samples:
+            with self.subTest(color=sample.id):
+                self.assertIs(classify_paint_color(sample), ColorGroup.BROWN)
+
+    def test_brown_rule_does_not_capture_vivid_chromatic_colors(self):
+        chromatic_samples = {
+            ColorGroup.RED: paint("vivid-red", 255, 0, 0),
+            ColorGroup.ORANGE: paint("vivid-orange", 255, 128, 0),
+            ColorGroup.YELLOW: paint("true-yellow", 255, 255, 0),
+        }
+
+        for expected_group, sample in chromatic_samples.items():
+            with self.subTest(color=sample.id):
+                self.assertIs(classify_paint_color(sample), expected_group)
+
+    def test_brown_rule_excludes_pale_creams_and_green_olives(self):
+        non_brown_samples = (
+            paint("beige", 220, 205, 165),
+            paint("cream", 245, 235, 200),
+            paint("olive", 90, 105, 30),
+        )
+
+        for sample in non_brown_samples:
+            with self.subTest(color=sample.id):
+                self.assertIsNot(classify_paint_color(sample), ColorGroup.BROWN)
+
     def test_perceptual_special_cases_precede_hue_sectors(self):
         near_black_red = paint("near-black-red", 23, 19, 20)
         earthy_orange = paint("earthy-orange", 120, 70, 30)
