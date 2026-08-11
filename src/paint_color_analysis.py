@@ -19,7 +19,7 @@ BROWN_MIN_HUE = 15.0
 BROWN_RED_HUE_END = 35.0
 BROWN_MAX_HUE = 100.0
 BROWN_MIN_LIGHTNESS = 0.20
-BROWN_MAX_LIGHTNESS = 0.70
+BROWN_MAX_LIGHTNESS = 0.74
 BROWN_MIN_CHROMA = 0.025
 BROWN_RED_MAX_CHROMA = 0.095
 BROWN_MAX_CHROMA = 0.15
@@ -28,6 +28,8 @@ PINK_RED_BOUNDARY = 10.0
 RED_ORANGE_BOUNDARY = 32.0
 ORANGE_YELLOW_BOUNDARY = 80.0
 YELLOW_GREEN_BOUNDARY = 112.0
+MUTED_YELLOW_GREEN_MIN_HUE = 105.0
+MUTED_YELLOW_GREEN_MAX_CHROMA = 0.10
 GREEN_TEAL_BOUNDARY = 175.0
 TEAL_BLUE_BOUNDARY = 225.0
 BLUE_PURPLE_BOUNDARY = 285.0
@@ -141,6 +143,12 @@ def classify_paint_color(paint: PaintColor) -> ColorGroup:
         return ColorGroup.BROWN
 
     hue = analysis.hue
+    # Low-chroma colours turn visibly olive before saturated yellows do.
+    if (
+        MUTED_YELLOW_GREEN_MIN_HUE <= hue < YELLOW_GREEN_BOUNDARY
+        and analysis.chroma <= MUTED_YELLOW_GREEN_MAX_CHROMA
+    ):
+        return ColorGroup.GREEN
     if hue < PINK_RED_BOUNDARY:
         return ColorGroup.PINK
     if hue < RED_ORANGE_BOUNDARY:

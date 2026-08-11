@@ -176,6 +176,20 @@ class PaintColorClassificationTests(unittest.TestCase):
             with self.subTest(color=sample.id):
                 self.assertIsNot(classify_paint_color(sample), ColorGroup.BROWN)
 
+    def test_light_earth_tone_remains_brown_without_capturing_pale_cream(self):
+        light_earth = paint("light-earth", 179, 158, 128)
+        pale_cream = paint("pale-cream", 245, 235, 200)
+
+        self.assertIs(classify_paint_color(light_earth), ColorGroup.BROWN)
+        self.assertIsNot(classify_paint_color(pale_cream), ColorGroup.BROWN)
+
+    def test_muted_olive_crosses_into_green_before_saturated_yellow(self):
+        muted_olive = paint("muted-olive", 182, 183, 136)
+        saturated_yellow = paint("saturated-yellow", 255, 242, 0)
+
+        self.assertIs(classify_paint_color(muted_olive), ColorGroup.GREEN)
+        self.assertIs(classify_paint_color(saturated_yellow), ColorGroup.YELLOW)
+
     def test_perceptual_special_cases_precede_hue_sectors(self):
         near_black_red = paint("near-black-red", 23, 19, 20)
         earthy_orange = paint("earthy-orange", 120, 70, 30)
