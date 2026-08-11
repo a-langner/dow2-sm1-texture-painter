@@ -25,6 +25,7 @@ from src.widget import (
     calculate_paint_swatch_columns,
     draw_rounded_swatch,
     filter_paints_by_name,
+    format_paint_name_for_swatch,
     format_visible_paint_count,
     paint_tooltip_text,
     paint_swatch_presentation,
@@ -960,6 +961,9 @@ class ColorPickerDialogTests(unittest.TestCase):
         grid.selected_paint_id = "red"
         grid.canvas = Mock()
         grid.canvas.winfo_width.return_value = 192
+        grid._paint_name_font = Mock()
+        grid._paint_name_font.metrics.return_value = 16
+        grid._paint_name_font.measure.side_effect = lambda text: len(text) * 6
 
         grid._relayout()
 
@@ -976,8 +980,60 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(light_swatch.kwargs["outline"], PAINT_SWATCH_OUTLINE)
         self.assertEqual(light_swatch.kwargs["width"], 1)
         grid.canvas.configure.assert_called_once_with(
-            scrollregion=(0, 0, 192, PAINT_SWATCH_PREVIEW_SIZE + 56)
+            scrollregion=(0, 0, 192, PAINT_SWATCH_PREVIEW_SIZE + 48)
         )
+
+    def test_short_paint_name_remains_on_one_line(self):
+        measure = lambda text: len(text) * 5
+
+        self.assertEqual(
+            format_paint_name_for_swatch("Mephiston", 60, measure),
+            "Mephiston",
+        )
+
+    def test_paint_name_wraps_naturally_to_two_lines(self):
+        measure = lambda text: len(text) * 5
+
+        self.assertEqual(
+            format_paint_name_for_swatch("Alpha Beta", 30, measure),
+            "Alpha\nBeta",
+        )
+
+    def test_long_paint_name_uses_measured_second_line_ellipsis(self):
+        measured = []
+
+        def measure(text):
+            measured.append(text)
+            return sum(10 if character == "W" else 5 for character in text)
+
+        display_name = format_paint_name_for_swatch(
+            "Alpha Beta WWWWWWW",
+            30,
+            measure,
+        )
+
+        self.assertEqual(display_name, "Alpha\nBeta…")
+        self.assertLessEqual(len(display_name.splitlines()), 2)
+        self.assertIn("Beta W", measured)
+
+    def test_swatch_name_formatting_preserves_full_catalog_name(self):
+        paint = PaintColor(
+            "long",
+            "A Complete Citadel Paint Name",
+            1,
+            2,
+            3,
+        )
+
+        display_name = format_paint_name_for_swatch(
+            paint.name,
+            40,
+            lambda text: len(text) * 5,
+        )
+
+        self.assertTrue(display_name.endswith("…"))
+        self.assertEqual(paint.name, "A Complete Citadel Paint Name")
+        self.assertIn(paint.name, paint_tooltip_text(paint))
 
     def test_rounded_swatch_uses_subtle_corner_radius(self):
         canvas = Mock()

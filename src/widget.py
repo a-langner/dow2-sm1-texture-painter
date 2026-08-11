@@ -83,6 +83,7 @@ PAINT_SWATCH_TARGET_WIDTH = 96
 PAINT_SWATCH_PREVIEW_SIZE = 60
 PAINT_SWATCH_NAME_WRAP = 88
 PAINT_SWATCH_CORNER_RADIUS = 20
+PAINT_NAME_ELLIPSIS = "…"
 PAINT_SEARCH_PLACEHOLDER = "Search Citadel colors..."
 NO_CITADEL_COLORS_MESSAGE = "No Citadel colors found."
 PAINT_TOOLTIP_DELAY_MS = 400
@@ -147,6 +148,53 @@ def paint_tooltip_text(paint: PaintColor) -> str:
     return f"{paint.name}\nRGB: {paint.r}, {paint.g}, {paint.b}"
 
 
+def _longest_fitting_prefix(
+    text: str, max_width: float, measure: Callable[[str], int]
+) -> str:
+    low, high = 0, len(text)
+    while low < high:
+        middle = (low + high + 1) // 2
+        if measure(text[:middle]) <= max_width:
+            low = middle
+        else:
+            high = middle - 1
+    return text[:low]
+
+
+def format_paint_name_for_swatch(
+    name: str, max_width: float, measure: Callable[[str], int]
+) -> str:
+    """Fit a paint name into at most two measured display lines."""
+    if measure(name) <= max_width:
+        return name
+
+    words = name.split()
+    first_line = ""
+    consumed_words = 0
+    for index, word in enumerate(words):
+        candidate = f"{first_line} {word}".strip()
+        if measure(candidate) > max_width:
+            break
+        first_line = candidate
+        consumed_words = index + 1
+
+    if not first_line:
+        first_line = _longest_fitting_prefix(name, max_width, measure)
+        remainder = name[len(first_line) :].lstrip()
+    else:
+        remainder = " ".join(words[consumed_words:])
+    if not remainder:
+        return first_line
+    if measure(remainder) <= max_width:
+        return f"{first_line}\n{remainder}"
+
+    available_width = max(0.0, max_width - measure(PAINT_NAME_ELLIPSIS))
+    second_line = _longest_fitting_prefix(
+        remainder, available_width, measure
+    ).rstrip()
+    return f"{first_line}\n{second_line}{PAINT_NAME_ELLIPSIS}"
+
+
 def draw_rounded_swatch(
     canvas,
     x1: float,
@@ -209,6 +257,11 @@ class PaintSwatchGrid(ttk.Frame):
         self._relayout_after_id = None
         self._tooltip_after_id = None
         self._tooltip_window = None
+        self._paint_name_font = tkfont.Font(
+            root=self,
+            name="TkDefaultFont",
+            exists=True,
+        )
 
         self.vertical_scrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL)
         self.vertical_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
@@ -289,7 +342,8 @@ class PaintSwatchGrid(ttk.Frame):
             return
 
         column_width = width / self._column_count
-        row_height = PAINT_SWATCH_PREVIEW_SIZE + 56
+        line_height = self._paint_name_font.metrics("linespace")
+        row_height = PAINT_SWATCH_PREVIEW_SIZE + 16 + 2 * line_height
         for index, paint in enumerate(self.paints):
             row, column = divmod(index, self._column_count)
             x1 = column * column_width + 2
@@ -323,11 +377,17 @@ class PaintSwatchGrid(ttk.Frame):
                 ),
                 width=3 if selected else 1,
             )
+            name_width = min(PAINT_SWATCH_NAME_WRAP, max(1, x2 - x1 - 4))
+            display_name = format_paint_name_for_swatch(
+                paint.name,
+                name_width,
+                self._paint_name_font.measure,
+            )
             self.canvas.create_text(
                 (x1 + x2) / 2,
                 preview_y1 + PAINT_SWATCH_PREVIEW_SIZE + 4,
-                text=paint.name,
-                width=min(PAINT_SWATCH_NAME_WRAP, max(1, x2 - x1 - 4)),
+                text=display_name,
+                font=self._paint_name_font,
                 anchor=tk.N,
                 justify=tk.CENTER,
                 tags="paint",
