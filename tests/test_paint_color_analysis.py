@@ -138,6 +138,20 @@ class PaintColorSortingTests(unittest.TestCase):
             ["black", "dark-grey", "light-grey", "white"],
         )
 
+    def test_filtered_chromatic_group_avoids_large_lightness_resets(self):
+        reds = (
+            paint("light-red", 255, 170, 170),
+            paint("dark-red", 55, 0, 0),
+            paint("medium-red", 160, 20, 20),
+        )
+
+        sorted_paints = sort_paints_visually(reds)
+
+        self.assertEqual(
+            [sample.id for sample in sorted_paints],
+            ["dark-red", "medium-red", "light-red"],
+        )
+
     def test_sorting_does_not_modify_paint_records_or_rgb_values(self):
         before = tuple(
             (sample.id, sample.name, sample.r, sample.g, sample.b)

@@ -54,6 +54,7 @@ VISUAL_GROUP_ORDER = (
     ColorGroup.NEUTRAL,
 )
 PERCEPTUAL_HUE_BAND_DEGREES = 12.0
+PERCEPTUAL_LIGHTNESS_BAND_SIZE = 0.08
 PERCEPTUAL_SPECTRUM_START_DEGREES = 20.0
 
 
@@ -190,17 +191,20 @@ def _group_sort_key(
             0.0,
             *_stable_paint_key(paint),
         )
-    hue_band = math.floor(perceptual.hue / PERCEPTUAL_HUE_BAND_DEGREES)
-    # Alternate lightness direction so adjacent hue bands meet at the same
-    # light/dark end instead of producing a large boundary jump.
-    band_lightness = (
-        perceptual.lightness if hue_band % 2 == 0 else -perceptual.lightness
+    lightness_band = math.floor(
+        perceptual.lightness / PERCEPTUAL_LIGHTNESS_BAND_SIZE
     )
+    group_hue = (
+        perceptual.hue - PERCEPTUAL_SPECTRUM_START_DEGREES
+    ) % 360.0
+    # Filtered chromatic groups have a narrow hue range, so lightness bands
+    # prevent isolated dark/light paints while hue and chroma organize peers.
+    band_hue = group_hue if lightness_band % 2 == 0 else -group_hue
     return (
-        hue_band,
-        band_lightness,
+        lightness_band,
+        band_hue,
         perceptual.chroma,
-        perceptual.hue,
+        perceptual.lightness,
         *_stable_paint_key(paint),
     )
 
