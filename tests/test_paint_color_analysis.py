@@ -35,6 +35,47 @@ class PaintColorClassificationTests(unittest.TestCase):
             with self.subTest(group=expected_group.value):
                 self.assertIs(classify_paint_color(sample), expected_group)
 
+    def test_chromatic_boundaries_match_visual_examples(self):
+        boundary_pairs = (
+            (
+                (ColorGroup.RED, paint("warm-red", 150, 12, 9)),
+                (ColorGroup.ORANGE, paint("red-orange", 237, 56, 20)),
+            ),
+            (
+                (ColorGroup.ORANGE, paint("orange", 241, 108, 35)),
+                (ColorGroup.YELLOW, paint("gold-yellow", 251, 184, 28)),
+            ),
+            (
+                (ColorGroup.YELLOW, paint("yellow", 255, 242, 0)),
+                (ColorGroup.GREEN, paint("olive-green", 135, 141, 82)),
+            ),
+            (
+                (ColorGroup.GREEN, paint("blue-green", 6, 155, 125)),
+                (ColorGroup.TEAL_CYAN, paint("green-cyan", 16, 132, 115)),
+            ),
+            (
+                (ColorGroup.TEAL_CYAN, paint("cyan", 0, 112, 138)),
+                (ColorGroup.BLUE, paint("cyan-blue", 6, 69, 93)),
+            ),
+            (
+                (ColorGroup.BLUE, paint("violet-blue", 44, 45, 139)),
+                (ColorGroup.PURPLE, paint("blue-purple", 65, 42, 122)),
+            ),
+            (
+                (ColorGroup.PURPLE, paint("red-purple", 143, 101, 146)),
+                (ColorGroup.PINK, paint("purple-pink", 122, 63, 110)),
+            ),
+            (
+                (ColorGroup.PINK, paint("magenta-pink", 222, 0, 123)),
+                (ColorGroup.RED, paint("cool-red", 144, 38, 61)),
+            ),
+        )
+
+        for lower_sample, upper_sample in boundary_pairs:
+            for expected_group, sample in (lower_sample, upper_sample):
+                with self.subTest(color=sample.id):
+                    self.assertIs(classify_paint_color(sample), expected_group)
+
     def test_black_white_and_grey_are_neutrals(self):
         neutral_samples = (
             paint("black", 0, 0, 0),
