@@ -82,7 +82,7 @@ DEFAULT_COLOR_SPACE_MODE = COLOR_SPACE_MODES[0]
 PAINT_SWATCH_TARGET_WIDTH = 96
 PAINT_SWATCH_PREVIEW_SIZE = 60
 PAINT_SWATCH_NAME_WRAP = 88
-PAINT_SWATCH_CORNER_RADIUS = 5
+PAINT_SWATCH_CORNER_RADIUS = 20
 PAINT_SEARCH_PLACEHOLDER = "Search Citadel colors..."
 NO_CITADEL_COLORS_MESSAGE = "No Citadel colors found."
 PAINT_TOOLTIP_DELAY_MS = 400
@@ -189,7 +189,7 @@ def draw_rounded_swatch(
         outline=outline,
         width=width,
         smooth=True,
-        splinesteps=12,
+        splinesteps=20,
         tags="paint",
     )
 
