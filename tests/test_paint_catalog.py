@@ -3,7 +3,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from src.paint_catalog import PaintCatalogError, PaintColor, load_citadel_catalog
+from src.paint_catalog import (
+    PaintCatalog,
+    PaintCatalogError,
+    PaintColor,
+    load_citadel_catalog,
+)
 
 
 VALID_DOCUMENT = {
@@ -92,6 +97,50 @@ class PaintCatalogTests(unittest.TestCase):
 
             with self.assertRaisesRegex(PaintCatalogError, "Could not read"):
                 load_citadel_catalog(missing_path)
+
+    def test_exact_rgb_lookup_returns_existing_catalog_record(self):
+        catalog = load_citadel_catalog()
+        mephiston_red = next(
+            paint for paint in catalog.paints if paint.id == "mephiston-red"
+        )
+
+        match = catalog.find_exact_rgb((150, 12, 9))
+
+        self.assertIs(match, mephiston_red)
+
+    def test_rgb_lookup_rejects_one_channel_difference(self):
+        catalog = load_citadel_catalog()
+
+        self.assertIsNone(catalog.find_exact_rgb((151, 12, 9)))
+
+    def test_rgb_lookup_rejects_arbitrary_non_catalog_color(self):
+        catalog = load_citadel_catalog()
+
+        self.assertIsNone(catalog.find_exact_rgb((1, 2, 3)))
+
+    def test_duplicate_rgb_lookup_uses_first_catalog_record(self):
+        first = PaintColor("first", "First", 10, 20, 30)
+        second = PaintColor("second", "Second", 10, 20, 30)
+        catalog = PaintCatalog((first, second))
+
+        self.assertIs(catalog.find_exact_rgb((10, 20, 30)), first)
+
+    def test_real_duplicate_rgb_uses_first_catalog_entry(self):
+        catalog = load_citadel_catalog()
+
+        match = catalog.find_exact_rgb((0, 0, 0))
+
+        self.assertIsNotNone(match)
+        self.assertEqual(match.id, "abaddon-black")
+
+    def test_rgb_lookup_index_reuses_loaded_paint_objects(self):
+        catalog = load_citadel_catalog()
+
+        for paint in catalog.paints:
+            match = catalog.find_exact_rgb((paint.r, paint.g, paint.b))
+            self.assertTrue(
+                any(match is catalog_paint for catalog_paint in catalog.paints)
+            )
 
 
 if __name__ == "__main__":

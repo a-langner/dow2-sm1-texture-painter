@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from importlib import resources
 import json
 import logging
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -13,6 +15,7 @@ if TYPE_CHECKING:
 
 
 LOGGER = logging.getLogger(__name__)
+RGBColor = tuple[int, int, int]
 CITADEL_CATALOG_RESOURCE = (
     resources.files("src.resources").joinpath("paints").joinpath("citadel.json")
 )
@@ -34,6 +37,22 @@ class PaintColor:
 @dataclass(frozen=True)
 class PaintCatalog:
     paints: tuple[PaintColor, ...]
+    _rgb_index: Mapping[RGBColor, PaintColor] = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
+
+    def __post_init__(self) -> None:
+        rgb_index: dict[RGBColor, PaintColor] = {}
+        for paint in self.paints:
+            # Catalog order is authoritative when multiple products share RGB.
+            rgb_index.setdefault((paint.r, paint.g, paint.b), paint)
+        object.__setattr__(self, "_rgb_index", MappingProxyType(rgb_index))
+
+    def find_exact_rgb(self, rgb: RGBColor) -> PaintColor | None:
+        """Return the first catalog paint with exactly matching RGB channels."""
+        return self._rgb_index.get(rgb)
 
 
 def _required_string(entry: dict[str, object], field: str, index: int) -> str:
