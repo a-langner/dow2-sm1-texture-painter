@@ -64,30 +64,18 @@ class SettingsHandler:
             for field, directory in directories.items():
                 setattr(self, field, directory)
             self.color_picker_geometry = geometry
-            self.color_picker_group = self._optional_string(
+            self.color_picker_group = self._optional_ui_string(
                 document, COLOR_PICKER_GROUP_FIELD
             )
-            self.color_picker_color_space = self._optional_string(
+            self.color_picker_color_space = self._optional_ui_string(
                 document, COLOR_PICKER_COLOR_SPACE_FIELD
             )
-            sashes = document.get(COLOR_PICKER_SASHES_FIELD)
-            if sashes is not None:
-                if (
-                    not isinstance(sashes, list)
-                    or len(sashes) != 2
-                    or any(type(position) is not int for position in sashes)
-                ):
-                    raise ValueError("Color Picker sashes must contain two integers")
-                self.color_picker_sashes = (sashes[0], sashes[1])
-            position = document.get(MAIN_WINDOW_POSITION_FIELD)
-            if position is not None:
-                if (
-                    not isinstance(position, list)
-                    or len(position) != 2
-                    or any(type(coordinate) is not int for coordinate in position)
-                ):
-                    raise ValueError("Main window position must contain two integers")
-                self.main_window_position = (position[0], position[1])
+            self.color_picker_sashes = self._optional_ui_pair(
+                document, COLOR_PICKER_SASHES_FIELD
+            )
+            self.main_window_position = self._optional_ui_pair(
+                document, MAIN_WINDOW_POSITION_FIELD
+            )
         except FileNotFoundError:
             return
         except (json.JSONDecodeError, OSError, ValueError) as exc:
@@ -111,9 +99,9 @@ class SettingsHandler:
             if directory is not None and not isinstance(directory, str):
                 raise ValueError(f"Settings field {field} must be a string")
             directories[field] = Path(directory) if directory else None
-        geometry = document.get(COLOR_PICKER_GEOMETRY_FIELD)
-        if geometry is not None and not isinstance(geometry, str):
-            raise ValueError("Color Picker geometry must be a string")
+        geometry = SettingsHandler._optional_ui_string(
+            document, COLOR_PICKER_GEOMETRY_FIELD
+        )
         return directories, geometry
 
     def _get_existing_directory(self, field: DirectoryField) -> Path:
@@ -174,11 +162,30 @@ class SettingsHandler:
         self.main_window_position = position
 
     @staticmethod
-    def _optional_string(document: dict[str, object], field: str) -> str | None:
+    def _optional_ui_string(
+        document: dict[str, object], field: str
+    ) -> str | None:
         value = document.get(field)
         if value is not None and not isinstance(value, str):
-            raise ValueError(f"Settings field {field} must be a string")
+            LOGGER.warning("Ignoring invalid optional settings field %s", field)
+            return None
         return value
+
+    @staticmethod
+    def _optional_ui_pair(
+        document: dict[str, object], field: str
+    ) -> tuple[int, int] | None:
+        value = document.get(field)
+        if value is None:
+            return None
+        if (
+            not isinstance(value, list)
+            or len(value) != 2
+            or any(type(coordinate) is not int for coordinate in value)
+        ):
+            LOGGER.warning("Ignoring invalid optional settings field %s", field)
+            return None
+        return value[0], value[1]
 
     def _set_directory(self, field: DirectoryField, directory: Path) -> None:
         if self.load_error is not None and self.path.exists():

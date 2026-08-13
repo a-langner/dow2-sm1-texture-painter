@@ -253,6 +253,36 @@ class SettingsHandlerTests(unittest.TestCase):
             self.assertEqual(document["ui_main_window_position"], [-800, 120])
             self.assertNotIn("ui_main_window_size", document)
 
+    def test_invalid_optional_ui_fields_fall_back_without_blocking_updates(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_path = root / "settings.json"
+            document = settings_document(root)
+            document.update(
+                {
+                    "ui_color_picker_geometry": [1100, 720],
+                    "ui_color_picker_group": 42,
+                    "ui_color_picker_color_space": False,
+                    "ui_color_picker_sashes": [140, "bad"],
+                    "ui_main_window_position": "offscreen",
+                }
+            )
+            settings_path.write_text(json.dumps(document), encoding="utf-8")
+
+            with self.assertLogs("src.settings_handler", level="WARNING"):
+                handler = SettingsHandler(settings_path, root)
+
+            self.assertIsNone(handler.load_error)
+            self.assertIsNone(handler.color_picker_geometry)
+            self.assertIsNone(handler.color_picker_group)
+            self.assertIsNone(handler.color_picker_color_space)
+            self.assertIsNone(handler.color_picker_sashes)
+            self.assertIsNone(handler.main_window_position)
+
+            handler.set_main_window_position((100, 80))
+            reloaded = SettingsHandler(settings_path, root)
+            self.assertEqual(reloaded.main_window_position, (100, 80))
+
     def test_atomic_write_failure_preserves_file_and_memory(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
