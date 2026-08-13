@@ -495,7 +495,7 @@ class PaintSwatchGrid(ttk.Frame):
         root_x, root_y = self._tooltip_root_position
         tooltip = tk.Toplevel(self)
         tooltip.wm_overrideredirect(True)
-        tooltip.wm_geometry(f"+{root_x + 8}+{root_y + 8}")
+        tooltip.wm_geometry(f"+{root_x + 20}+{root_y + 20}")
         tk.Label(
             tooltip,
             text=paint_tooltip_text(paint),
