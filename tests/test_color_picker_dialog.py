@@ -1,6 +1,6 @@
 import unittest
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 from src.paint_catalog import PaintCatalog, PaintColor
 from src.paint_color_analysis import ColorGroup, VISUAL_GROUP_ORDER
@@ -463,15 +463,76 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog = object.__new__(ColorPickerDialog)
         dialog.settings = Mock()
         dialog.geometry = Mock(return_value="1050x680+140+90")
+        dialog.selected_color_group = ColorGroup.BLUE
+        dialog.color_space_mode = "HSL"
+        dialog.main_panes = Mock()
+        dialog.main_panes.sashpos.side_effect = (140, 700)
         dialog.destroy = Mock()
         dialog.accepted_color = None
 
         dialog.cancel()
 
-        dialog.settings.set_color_picker_geometry.assert_called_once_with(
-            "1050x680+140+90"
+        dialog.settings.set_color_picker_ui_state.assert_called_once_with(
+            "1050x680+140+90", "Blues", "HSL", (140, 700)
         )
         dialog.destroy.assert_called_once_with()
+
+    def test_saved_picker_modes_are_validated_without_restoring_search_or_color(self):
+        settings = SimpleNamespace(
+            color_picker_group="Blues",
+            color_picker_color_space="HSL",
+        )
+        with patch("src.widget.tk.Toplevel.__init__", return_value=None), patch.object(
+            ColorPickerDialog, "_configure_window"
+        ), patch.object(ColorPickerDialog, "_build_main_layout"), patch.object(
+            ColorPickerDialog, "_build_palette_search"
+        ), patch.object(ColorPickerDialog, "_build_palette_grid"), patch.object(
+            ColorPickerDialog, "_build_group_navigation"
+        ), patch.object(ColorPickerDialog, "_build_color_editor"), patch.object(
+            ColorPickerDialog, "_build_actions"
+        ), patch.object(ColorPickerDialog, "protocol"), patch.object(
+            ColorPickerDialog, "bind"
+        ), patch.object(ColorPickerDialog, "grab_set"), patch.object(
+            ColorPickerDialog, "wait_window"
+        ):
+            dialog = ColorPickerDialog(object(), "#123456", settings=settings)
+
+        self.assertIs(dialog.selected_color_group, ColorGroup.BLUE)
+        self.assertEqual(dialog.color_space_mode, "HSL")
+        self.assertEqual(dialog.search_query, "")
+        self.assertEqual(dialog.current_color, "#123456")
+
+    def test_invalid_saved_picker_modes_use_defaults(self):
+        settings = SimpleNamespace(
+            color_picker_group="Unknown",
+            color_picker_color_space="LAB",
+        )
+        dialog = object.__new__(ColorPickerDialog)
+        saved_group = getattr(settings, "color_picker_group", None)
+        dialog.selected_color_group = next(
+            (group for group in VISUAL_GROUP_ORDER if group.value == saved_group),
+            None,
+        )
+        saved_mode = settings.color_picker_color_space
+        dialog.color_space_mode = (
+            saved_mode if saved_mode in COLOR_SPACE_MODES else DEFAULT_COLOR_SPACE_MODE
+        )
+
+        self.assertIsNone(dialog.selected_color_group)
+        self.assertEqual(dialog.color_space_mode, DEFAULT_COLOR_SPACE_MODE)
+
+    def test_valid_saved_sashes_restore_within_current_picker_width(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.settings = SimpleNamespace(color_picker_sashes=(150, 700))
+        dialog.main_panes = Mock()
+        dialog.main_panes.winfo_width.return_value = 1100
+
+        dialog._restore_pane_sashes()
+
+        self.assertEqual(
+            dialog.main_panes.sashpos.call_args_list,
+            [call(0, 150), call(1, 700)],
+        )
 
     @patch("src.widget.ttk.LabelFrame", side_effect=FakeWidget)
     @patch("src.widget.ttk.Panedwindow", side_effect=FakeWidget)

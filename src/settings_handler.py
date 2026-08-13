@@ -3,7 +3,7 @@ import logging
 import os
 from pathlib import Path
 import tempfile
-from typing import Literal
+from typing import Literal, Mapping
 
 from src.user_data import get_settings_path
 
@@ -23,6 +23,9 @@ DirectoryField = Literal[
 DirectoryValues = dict[str, Path | None]
 SettingsDocument = dict[str, object]
 COLOR_PICKER_GEOMETRY_FIELD = "ui_color_picker_geometry"
+COLOR_PICKER_GROUP_FIELD = "ui_color_picker_group"
+COLOR_PICKER_COLOR_SPACE_FIELD = "ui_color_picker_color_space"
+COLOR_PICKER_SASHES_FIELD = "ui_color_picker_sashes"
 ValidatedSettings = tuple[DirectoryValues, str | None]
 
 
@@ -44,6 +47,9 @@ class SettingsHandler:
         self.last_pattern_import_directory: Path | None = None
         self.last_pattern_export_directory: Path | None = None
         self.color_picker_geometry: str | None = None
+        self.color_picker_group: str | None = None
+        self.color_picker_color_space: str | None = None
+        self.color_picker_sashes: tuple[int, int] | None = None
         self.load_error: Exception | None = None
         self._load()
 
@@ -52,9 +58,25 @@ class SettingsHandler:
             with self.path.open("r", encoding="utf-8") as fp:
                 document: object = json.load(fp)
             directories, geometry = self._validate(document)
+            assert isinstance(document, dict)
             for field, directory in directories.items():
                 setattr(self, field, directory)
             self.color_picker_geometry = geometry
+            self.color_picker_group = self._optional_string(
+                document, COLOR_PICKER_GROUP_FIELD
+            )
+            self.color_picker_color_space = self._optional_string(
+                document, COLOR_PICKER_COLOR_SPACE_FIELD
+            )
+            sashes = document.get(COLOR_PICKER_SASHES_FIELD)
+            if sashes is not None:
+                if (
+                    not isinstance(sashes, list)
+                    or len(sashes) != 2
+                    or any(type(position) is not int for position in sashes)
+                ):
+                    raise ValueError("Color Picker sashes must contain two integers")
+                self.color_picker_sashes = (sashes[0], sashes[1])
         except FileNotFoundError:
             return
         except (json.JSONDecodeError, OSError, ValueError) as exc:
@@ -117,6 +139,32 @@ class SettingsHandler:
     def set_color_picker_geometry(self, geometry: str) -> None:
         self._update(COLOR_PICKER_GEOMETRY_FIELD, geometry)
 
+    def set_color_picker_ui_state(
+        self,
+        geometry: str,
+        group: str | None,
+        color_space: str,
+        sashes: tuple[int, int],
+    ) -> None:
+        values: dict[str, object] = {
+            COLOR_PICKER_GEOMETRY_FIELD: geometry,
+            COLOR_PICKER_GROUP_FIELD: group,
+            COLOR_PICKER_COLOR_SPACE_FIELD: color_space,
+            COLOR_PICKER_SASHES_FIELD: list(sashes),
+        }
+        self._update_values(values)
+        self.color_picker_geometry = geometry
+        self.color_picker_group = group
+        self.color_picker_color_space = color_space
+        self.color_picker_sashes = sashes
+
+    @staticmethod
+    def _optional_string(document: dict[str, object], field: str) -> str | None:
+        value = document.get(field)
+        if value is not None and not isinstance(value, str):
+            raise ValueError(f"Settings field {field} must be a string")
+        return value
+
     def _set_directory(self, field: DirectoryField, directory: Path) -> None:
         if self.load_error is not None and self.path.exists():
             raise SettingsFileError(
@@ -130,6 +178,11 @@ class SettingsHandler:
         setattr(self, field, directory)
 
     def _update(self, field: str, value: object) -> None:
+        self._update_values({field: value})
+        if field == COLOR_PICKER_GEOMETRY_FIELD:
+            self.color_picker_geometry = str(value)
+
+    def _update_values(self, updates: Mapping[str, object]) -> None:
         if self.load_error is not None and self.path.exists():
             raise SettingsFileError(
                 f"Settings file is invalid and was not overwritten: {self.path}"
@@ -140,19 +193,28 @@ class SettingsHandler:
             "version": SETTINGS_VERSION,
         }
         for name in DIRECTORY_FIELDS:
-            directory = value if name == field else getattr(self, name)
+            directory = updates.get(name, getattr(self, name))
             if directory is not None:
                 document[name] = str(directory)
-        geometry = (
-            value
-            if field == COLOR_PICKER_GEOMETRY_FIELD
-            else self.color_picker_geometry
+        persisted_ui: SettingsDocument = {
+            COLOR_PICKER_GEOMETRY_FIELD: self.color_picker_geometry,
+            COLOR_PICKER_GROUP_FIELD: self.color_picker_group,
+            COLOR_PICKER_COLOR_SPACE_FIELD: self.color_picker_color_space,
+            COLOR_PICKER_SASHES_FIELD: (
+                list(self.color_picker_sashes) if self.color_picker_sashes else None
+            ),
+        }
+        persisted_ui.update(
+            {
+                name: value
+                for name, value in updates.items()
+                if name not in DIRECTORY_FIELDS
+            }
         )
-        if geometry is not None:
-            document[COLOR_PICKER_GEOMETRY_FIELD] = geometry
+        document.update(
+            {name: value for name, value in persisted_ui.items() if value is not None}
+        )
         self._write_atomic(document)
-        if field == COLOR_PICKER_GEOMETRY_FIELD:
-            self.color_picker_geometry = str(value)
         self.load_error = None
 
     def _write_atomic(self, document: SettingsDocument) -> None:

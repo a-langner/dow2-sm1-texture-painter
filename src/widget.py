@@ -533,7 +533,15 @@ class ColorPickerDialog(tk.Toplevel):
         self._hue_indicator_items = ()
         self._achromatic_hue = rgb_hex_to_hsv(initial_color)[0]
         self.accepted_color: Optional[str] = None
-        self.color_space_mode = DEFAULT_COLOR_SPACE_MODE
+        saved_mode = getattr(settings, "color_picker_color_space", None)
+        self.color_space_mode = (
+            saved_mode if saved_mode in COLOR_SPACE_MODES else DEFAULT_COLOR_SPACE_MODE
+        )
+        saved_group = getattr(settings, "color_picker_group", None)
+        self.selected_color_group = next(
+            (group for group in VISUAL_GROUP_ORDER if group.value == saved_group),
+            None,
+        )
         self.paint_catalog = (
             load_citadel_catalog() if paint_catalog is None else paint_catalog
         )
@@ -549,6 +557,9 @@ class ColorPickerDialog(tk.Toplevel):
         self._build_color_editor()
         # Create actions last so native Tab traversal follows the visual layout.
         self._build_actions()
+        if hasattr(self, "tk"):
+            self.update_idletasks()
+            self._restore_pane_sashes()
         self.protocol("WM_DELETE_WINDOW", self.cancel)
         self.bind("<Return>", self.accept)
         self.bind("<Escape>", self.cancel)
@@ -751,7 +762,7 @@ class ColorPickerDialog(tk.Toplevel):
             self.group_buttons[color_group] = button
             self.group_button_labels[color_group] = label
 
-        self.select_color_group(None)
+        self.select_color_group(self.selected_color_group)
 
     def _draw_group_indicator(self, indicator, color_group) -> None:
         if color_group is not None:
@@ -1313,9 +1324,35 @@ class ColorPickerDialog(tk.Toplevel):
         if settings is None:
             return
         try:
-            settings.set_color_picker_geometry(self.geometry())
+            selected_group = getattr(self, "selected_color_group", None)
+            main_panes = getattr(self, "main_panes", None)
+            sashes = (
+                (main_panes.sashpos(0), main_panes.sashpos(1))
+                if main_panes is not None
+                else (0, 0)
+            )
+            settings.set_color_picker_ui_state(
+                self.geometry(),
+                (
+                    selected_group.value
+                    if selected_group is not None
+                    else None
+                ),
+                getattr(self, "color_space_mode", DEFAULT_COLOR_SPACE_MODE),
+                sashes,
+            )
         except OSError:
             LOGGER.exception("Could not save Color Picker window geometry")
+
+    def _restore_pane_sashes(self) -> None:
+        sashes = getattr(getattr(self, "settings", None), "color_picker_sashes", None)
+        if sashes is None:
+            return
+        pane_width = self.main_panes.winfo_width()
+        first, second = sashes
+        if 0 < first < second < pane_width:
+            self.main_panes.sashpos(0, first)
+            self.main_panes.sashpos(1, second)
 
 
 def pattern_name_to_restore(preferred_name, current_name, available_names):
