@@ -26,6 +26,7 @@ COLOR_PICKER_GEOMETRY_FIELD = "ui_color_picker_geometry"
 COLOR_PICKER_GROUP_FIELD = "ui_color_picker_group"
 COLOR_PICKER_COLOR_SPACE_FIELD = "ui_color_picker_color_space"
 COLOR_PICKER_SASHES_FIELD = "ui_color_picker_sashes"
+MAIN_WINDOW_POSITION_FIELD = "ui_main_window_position"
 ValidatedSettings = tuple[DirectoryValues, str | None]
 
 
@@ -50,6 +51,7 @@ class SettingsHandler:
         self.color_picker_group: str | None = None
         self.color_picker_color_space: str | None = None
         self.color_picker_sashes: tuple[int, int] | None = None
+        self.main_window_position: tuple[int, int] | None = None
         self.load_error: Exception | None = None
         self._load()
 
@@ -77,6 +79,15 @@ class SettingsHandler:
                 ):
                     raise ValueError("Color Picker sashes must contain two integers")
                 self.color_picker_sashes = (sashes[0], sashes[1])
+            position = document.get(MAIN_WINDOW_POSITION_FIELD)
+            if position is not None:
+                if (
+                    not isinstance(position, list)
+                    or len(position) != 2
+                    or any(type(coordinate) is not int for coordinate in position)
+                ):
+                    raise ValueError("Main window position must contain two integers")
+                self.main_window_position = (position[0], position[1])
         except FileNotFoundError:
             return
         except (json.JSONDecodeError, OSError, ValueError) as exc:
@@ -158,6 +169,10 @@ class SettingsHandler:
         self.color_picker_color_space = color_space
         self.color_picker_sashes = sashes
 
+    def set_main_window_position(self, position: tuple[int, int]) -> None:
+        self._update_values({MAIN_WINDOW_POSITION_FIELD: list(position)})
+        self.main_window_position = position
+
     @staticmethod
     def _optional_string(document: dict[str, object], field: str) -> str | None:
         value = document.get(field)
@@ -202,6 +217,9 @@ class SettingsHandler:
             COLOR_PICKER_COLOR_SPACE_FIELD: self.color_picker_color_space,
             COLOR_PICKER_SASHES_FIELD: (
                 list(self.color_picker_sashes) if self.color_picker_sashes else None
+            ),
+            MAIN_WINDOW_POSITION_FIELD: (
+                list(self.main_window_position) if self.main_window_position else None
             ),
         }
         persisted_ui.update(

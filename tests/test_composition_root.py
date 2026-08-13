@@ -195,6 +195,34 @@ class ArmyPainterCompositionTests(unittest.TestCase):
             wait=False, cancel_futures=True
         )
 
+    def test_exit_persists_position_only_before_shutdown(self):
+        order = []
+        painter = SimpleNamespace(
+            closing=False,
+            settings=SimpleNamespace(
+                set_main_window_position=lambda position: order.append(
+                    ("position", position)
+                )
+            ),
+            winfo_x=Mock(return_value=320),
+            winfo_y=Mock(return_value=180),
+            batch_cancel=SimpleNamespace(set=lambda: order.append(("cancel",))),
+            _shutdown_owned_background_workers=lambda: order.append(("shutdown",)),
+            destroy=lambda: order.append(("destroy",)),
+        )
+
+        ArmyPainter.on_exit(painter)
+
+        self.assertEqual(
+            order,
+            [
+                ("position", (320, 180)),
+                ("cancel",),
+                ("shutdown",),
+                ("destroy",),
+            ],
+        )
+
     @patch("src.frame_main.derive_pattern_action_state")
     @patch("src.frame_main.src.color_pattern_handler.has_user_patterns")
     @patch.object(ArmyPainter, "_apply_pattern_action_state")

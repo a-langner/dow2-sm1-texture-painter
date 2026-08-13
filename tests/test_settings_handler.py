@@ -239,6 +239,20 @@ class SettingsHandlerTests(unittest.TestCase):
             self.assertEqual(reloaded.color_picker_color_space, "HSV / HSB")
             self.assertEqual(reloaded.color_picker_sashes, (140, 690))
 
+    def test_main_window_position_persists_without_a_size(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_path = root / "settings.json"
+            handler = SettingsHandler(settings_path, root)
+
+            handler.set_main_window_position((-800, 120))
+            reloaded = SettingsHandler(settings_path, root)
+
+            self.assertEqual(reloaded.main_window_position, (-800, 120))
+            document = json.loads(settings_path.read_text(encoding="utf-8"))
+            self.assertEqual(document["ui_main_window_position"], [-800, 120])
+            self.assertNotIn("ui_main_window_size", document)
+
     def test_atomic_write_failure_preserves_file_and_memory(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

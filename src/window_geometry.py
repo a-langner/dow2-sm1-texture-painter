@@ -80,3 +80,33 @@ def safe_window_geometry(
         desktop_y + desktop_height - height,
     )
     return f"{width}x{height}{x:+d}{y:+d}"
+
+
+def safe_window_position(
+    position,
+    window_width,
+    window_height,
+    desktop_x,
+    desktop_y,
+    desktop_width,
+    desktop_height,
+):
+    """Return a saved position clamped to the current virtual desktop."""
+    if (
+        not isinstance(position, tuple)
+        or len(position) != 2
+        or any(type(coordinate) is not int for coordinate in position)
+        or desktop_width <= 0
+        or desktop_height <= 0
+    ):
+        return None
+    return (
+        min(
+            max(position[0], desktop_x),
+            max(desktop_x + desktop_width - window_width, desktop_x),
+        ),
+        min(
+            max(position[1], desktop_y),
+            max(desktop_y + desktop_height - window_height, desktop_y),
+        ),
+    )

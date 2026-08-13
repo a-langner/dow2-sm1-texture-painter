@@ -98,6 +98,7 @@ from src.window_geometry import (
     calculate_diffuse_window_size,
     calculate_initial_window_size,
     clamp_window_position,
+    safe_window_position,
 )
 from pathlib import Path
 
@@ -197,7 +198,20 @@ class ArmyPainter(tk.Tk):
             self.winfo_screenwidth(),
             self.winfo_screenheight(),
         )
-        self.geometry(f"{initial_width}x{initial_height}")
+        self.settings = SettingsHandler()
+        position = safe_window_position(
+            self.settings.main_window_position,
+            initial_width,
+            initial_height,
+            self.winfo_vrootx(),
+            self.winfo_vrooty(),
+            self.winfo_vrootwidth(),
+            self.winfo_vrootheight(),
+        )
+        geometry = f"{initial_width}x{initial_height}"
+        if position is not None:
+            geometry += f"{position[0]:+d}{position[1]:+d}"
+        self.geometry(geometry)
         icon_resource = files("src.resources").joinpath("icon_64x64.png")
         with as_file(icon_resource) as icon_path:
             self.icon_img = tk.PhotoImage(file=str(icon_path))
@@ -216,7 +230,8 @@ class ArmyPainter(tk.Tk):
         self.active_texture_set = None
         self.texture_renderer = TextureRenderer()
         self.render_settings = DEFAULT_RENDER_SETTINGS
-        self.settings = SettingsHandler()
+        if not hasattr(self, "settings"):
+            self.settings = SettingsHandler()
         self.file_selection = FileSelectionService(self.settings, self.dialogs)
         self.pattern_controller = ArmyPainter._create_pattern_controller(self)
         self.texture_loading = TextureLoadingService(self.texture_naming_profile)
@@ -1649,6 +1664,12 @@ class ArmyPainter(tk.Tk):
         if self.closing:
             return
         self.closing = True
+        try:
+            settings = getattr(self, "settings", None)
+            if settings is not None:
+                settings.set_main_window_position((self.winfo_x(), self.winfo_y()))
+        except OSError:
+            LOGGER.exception("Could not save main-window position")
         self.batch_cancel.set()
         self._shutdown_owned_background_workers()
         self.destroy()

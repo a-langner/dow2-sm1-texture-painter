@@ -13,6 +13,7 @@ from src.window_geometry import (
     calculate_initial_window_size,
     clamp_window_position,
     safe_window_geometry,
+    safe_window_position,
 )
 from src.image_process import TextureValidationError
 from src.texture_naming import DEFAULT_TEXTURE_NAMING
@@ -101,6 +102,19 @@ class InitialWindowGeometryTests(unittest.TestCase):
     def test_malformed_saved_geometry_is_rejected(self):
         self.assertIsNone(
             safe_window_geometry("not geometry", 900, 600, 0, 0, 1920, 1080)
+        )
+
+    def test_main_window_position_clamps_without_changing_startup_size(self):
+        self.assertEqual(
+            safe_window_position(
+                (-2500, 900), 1100, 720, -1920, 0, 3840, 1080
+            ),
+            (-1920, 360),
+        )
+
+    def test_invalid_main_window_position_is_ignored(self):
+        self.assertIsNone(
+            safe_window_position(None, 1100, 720, 0, 0, 1920, 1080)
         )
 
 
