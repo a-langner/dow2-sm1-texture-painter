@@ -22,6 +22,7 @@ from src.widget import (
     PAINT_SWATCH_SELECTED_OUTLINE,
     ColorPickerDialog,
     PaintSwatchGrid,
+    calculate_paint_swatch_cell_bounds,
     calculate_paint_swatch_columns,
     color_slot_presentation,
     draw_rounded_swatch,
@@ -916,6 +917,47 @@ class ColorPickerDialogTests(unittest.TestCase):
             calculate_paint_swatch_columns(960),
             calculate_paint_swatch_columns(480),
         )
+
+    def test_swatch_cells_use_integer_edges_around_column_transition(self):
+        for width in (479, 480, 575, 576, 577):
+            column_count = calculate_paint_swatch_columns(width)
+            bounds = [
+                calculate_paint_swatch_cell_bounds(width, column_count, column)
+                for column in range(column_count)
+            ]
+
+            self.assertEqual(bounds[0][0], 0)
+            self.assertEqual(bounds[-1][1], width)
+            self.assertTrue(
+                all(left[1] == right[0] for left, right in zip(bounds, bounds[1:]))
+            )
+            self.assertTrue(
+                all(isinstance(edge, int) for bound in bounds for edge in bound)
+            )
+
+    def test_swatch_preview_edges_are_integer_aligned_at_fractional_cell_width(self):
+        grid = object.__new__(PaintSwatchGrid)
+        grid._relayout_after_id = "pending"
+        grid._configured_column_count = 0
+        grid._column_count = 5
+        grid.paints = tuple(
+            PaintColor(str(index), str(index), index, index, index)
+            for index in range(5)
+        )
+        grid.selected_paint_id = None
+        grid.canvas = Mock()
+        grid.canvas.winfo_width.return_value = 577
+        grid._paint_name_font = Mock()
+        grid._paint_name_font.metrics.return_value = 16
+        grid._paint_name_font.measure.side_effect = lambda text: len(text) * 6
+
+        grid._relayout()
+
+        for call in grid.canvas.create_polygon.call_args_list:
+            coordinates = call.args
+            self.assertTrue(
+                all(isinstance(coordinate, int) for coordinate in coordinates)
+            )
 
     def test_swatch_presentation_preserves_full_name_and_exact_rgb(self):
         paint = PaintColor(

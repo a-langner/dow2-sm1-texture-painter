@@ -130,6 +130,18 @@ def calculate_paint_swatch_columns(
     return max(1, available_width // target_width)
 
 
+def calculate_paint_swatch_cell_bounds(
+    available_width: int,
+    column_count: int,
+    column: int,
+) -> tuple[int, int]:
+    """Partition a responsive row into device-aligned canvas coordinates."""
+    return (
+        column * available_width // column_count,
+        (column + 1) * available_width // column_count,
+    )
+
+
 def paint_swatch_presentation(paint: PaintColor) -> PaintSwatchPresentation:
     """Preserve a paint's complete name and exact RGB display value."""
     return PaintSwatchPresentation(
@@ -375,14 +387,16 @@ class PaintSwatchGrid(ttk.Frame):
             self.canvas.configure(scrollregion=(0, 0, width, 64))
             return
 
-        column_width = width / self._column_count
         line_height = self._paint_name_font.metrics("linespace")
         row_height = PAINT_SWATCH_PREVIEW_SIZE + 16 + 2 * line_height
         for index, paint in enumerate(self.paints):
             row, column = divmod(index, self._column_count)
-            x1 = column * column_width + 2
+            cell_x1, cell_x2 = calculate_paint_swatch_cell_bounds(
+                width, self._column_count, column
+            )
+            x1 = cell_x1 + 2
             y1 = row * row_height + 2
-            x2 = (column + 1) * column_width - 2
+            x2 = cell_x2 - 2
             y2 = y1 + row_height - 4
             selected = paint.id == self.selected_paint_id
             outline = PAINT_SWATCH_SELECTED_OUTLINE if selected else ""
@@ -395,7 +409,7 @@ class PaintSwatchGrid(ttk.Frame):
                 width=3 if selected else 0,
                 tags="paint",
             )
-            preview_x1 = (x1 + x2 - PAINT_SWATCH_PREVIEW_SIZE) / 2
+            preview_x1 = (x1 + x2 - PAINT_SWATCH_PREVIEW_SIZE) // 2
             preview_y1 = y1 + 4
             draw_rounded_swatch(
                 self.canvas,
