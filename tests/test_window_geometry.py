@@ -12,6 +12,7 @@ from src.window_geometry import (
     calculate_diffuse_window_size,
     calculate_initial_window_size,
     clamp_window_position,
+    safe_window_geometry,
 )
 from src.image_process import TextureValidationError
 from src.texture_naming import DEFAULT_TEXTURE_NAMING
@@ -82,6 +83,25 @@ class InitialWindowGeometryTests(unittest.TestCase):
         result = calculate_initial_window_size(1000, 800, 900, 700)
 
         self.assertEqual(result, (1000, 800))
+
+    def test_saved_geometry_is_clamped_to_virtual_multi_monitor_desktop(self):
+        self.assertEqual(
+            safe_window_geometry(
+                "1100x720-2500+100",
+                900,
+                600,
+                -1920,
+                0,
+                3840,
+                1080,
+            ),
+            "1100x720-1920+100",
+        )
+
+    def test_malformed_saved_geometry_is_rejected(self):
+        self.assertIsNone(
+            safe_window_geometry("not geometry", 900, 600, 0, 0, 1920, 1080)
+        )
 
 
 class DiffuseWindowGeometryTests(unittest.TestCase):

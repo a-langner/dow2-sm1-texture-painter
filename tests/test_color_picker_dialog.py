@@ -438,6 +438,41 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.geometry.assert_called_once_with("1100x720")
         dialog.minsize.assert_called_once_with(900, 600)
 
+    def test_saved_window_geometry_is_restored_before_display(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.settings = SimpleNamespace(
+            color_picker_geometry="1000x650-1800+120"
+        )
+        dialog.title = Mock()
+        dialog.transient = Mock()
+        dialog.resizable = Mock()
+        dialog.winfo_screenwidth = Mock(return_value=1920)
+        dialog.winfo_screenheight = Mock(return_value=1080)
+        dialog.winfo_vrootx = Mock(return_value=-1920)
+        dialog.winfo_vrooty = Mock(return_value=0)
+        dialog.winfo_vrootwidth = Mock(return_value=3840)
+        dialog.winfo_vrootheight = Mock(return_value=1080)
+        dialog.geometry = Mock()
+        dialog.minsize = Mock()
+
+        dialog._configure_window(object())
+
+        dialog.geometry.assert_called_once_with("1000x650-1800+120")
+
+    def test_closing_picker_saves_current_geometry(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.settings = Mock()
+        dialog.geometry = Mock(return_value="1050x680+140+90")
+        dialog.destroy = Mock()
+        dialog.accepted_color = None
+
+        dialog.cancel()
+
+        dialog.settings.set_color_picker_geometry.assert_called_once_with(
+            "1050x680+140+90"
+        )
+        dialog.destroy.assert_called_once_with()
+
     @patch("src.widget.ttk.LabelFrame", side_effect=FakeWidget)
     @patch("src.widget.ttk.Panedwindow", side_effect=FakeWidget)
     @patch("src.widget.ttk.Frame", side_effect=FakeWidget)

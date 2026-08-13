@@ -1,11 +1,16 @@
 """Pure window-size and position policy for the application GUI."""
 
+import re
+
 from src.constant import FRAME_TOOL_HEIGHT
 
 PATTERN_LIST_DEFAULT_WIDTH = 166
 WINDOW_INITIAL_SCALE = 1.4
 WINDOW_SCREEN_FRACTION = 0.9
 WINDOW_CONTENT_PADDING = 16
+TK_GEOMETRY_PATTERN = re.compile(
+    r"^(?P<width>\d+)x(?P<height>\d+)(?P<x>[+-]\d+)(?P<y>[+-]\d+)$"
+)
 
 
 def calculate_initial_window_size(min_width, min_height, screen_width, screen_height):
@@ -46,3 +51,32 @@ def clamp_window_position(
         min(max(current_x, 0), max(screen_width - window_width, 0)),
         min(max(current_y, 0), max(screen_height - window_height, 0)),
     )
+
+
+def safe_window_geometry(
+    geometry,
+    min_width,
+    min_height,
+    desktop_x,
+    desktop_y,
+    desktop_width,
+    desktop_height,
+):
+    """Return usable Tk geometry constrained to the current virtual desktop."""
+    if not isinstance(geometry, str) or desktop_width <= 0 or desktop_height <= 0:
+        return None
+    match = TK_GEOMETRY_PATTERN.fullmatch(geometry)
+    if match is None:
+        return None
+
+    width = min(max(int(match["width"]), min_width), desktop_width)
+    height = min(max(int(match["height"]), min_height), desktop_height)
+    x = min(
+        max(int(match["x"]), desktop_x),
+        desktop_x + desktop_width - width,
+    )
+    y = min(
+        max(int(match["y"]), desktop_y),
+        desktop_y + desktop_height - height,
+    )
+    return f"{width}x{height}{x:+d}{y:+d}"

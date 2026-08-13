@@ -208,6 +208,22 @@ class SettingsHandlerTests(unittest.TestCase):
                 export_directory.resolve(),
             )
 
+    def test_color_picker_geometry_persists_with_existing_settings(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_path = root / "settings.json"
+            handler = SettingsHandler(settings_path, root)
+            handler.remember_diffuse_file(root / "unit_dif.png")
+
+            handler.set_color_picker_geometry("1100x720+120+80")
+            reloaded = SettingsHandler(settings_path, root)
+
+            self.assertEqual(
+                reloaded.color_picker_geometry,
+                "1100x720+120+80",
+            )
+            self.assertEqual(reloaded.last_diffuse_directory, root.resolve())
+
     def test_atomic_write_failure_preserves_file_and_memory(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

@@ -22,6 +22,8 @@ DirectoryField = Literal[
 ]
 DirectoryValues = dict[str, Path | None]
 SettingsDocument = dict[str, object]
+COLOR_PICKER_GEOMETRY_FIELD = "ui_color_picker_geometry"
+ValidatedSettings = tuple[DirectoryValues, str | None]
 
 
 class SettingsFileError(OSError):
@@ -41,6 +43,7 @@ class SettingsHandler:
         self.last_diffuse_directory: Path | None = None
         self.last_pattern_import_directory: Path | None = None
         self.last_pattern_export_directory: Path | None = None
+        self.color_picker_geometry: str | None = None
         self.load_error: Exception | None = None
         self._load()
 
@@ -48,9 +51,10 @@ class SettingsHandler:
         try:
             with self.path.open("r", encoding="utf-8") as fp:
                 document: object = json.load(fp)
-            directories = self._validate(document)
+            directories, geometry = self._validate(document)
             for field, directory in directories.items():
                 setattr(self, field, directory)
+            self.color_picker_geometry = geometry
         except FileNotFoundError:
             return
         except (json.JSONDecodeError, OSError, ValueError) as exc:
@@ -58,7 +62,7 @@ class SettingsHandler:
             LOGGER.exception("Could not load settings file: %s", self.path)
 
     @staticmethod
-    def _validate(document: object) -> DirectoryValues:
+    def _validate(document: object) -> ValidatedSettings:
         if not isinstance(document, dict):
             raise ValueError("Settings file must contain a JSON object")
         if document.get("format") != SETTINGS_FORMAT:
@@ -74,7 +78,10 @@ class SettingsHandler:
             if directory is not None and not isinstance(directory, str):
                 raise ValueError(f"Settings field {field} must be a string")
             directories[field] = Path(directory) if directory else None
-        return directories
+        geometry = document.get(COLOR_PICKER_GEOMETRY_FIELD)
+        if geometry is not None and not isinstance(geometry, str):
+            raise ValueError("Color Picker geometry must be a string")
+        return directories, geometry
 
     def _get_existing_directory(self, field: DirectoryField) -> Path:
         if field == "last_diffuse_directory":
@@ -107,6 +114,9 @@ class SettingsHandler:
     def set_last_pattern_export_directory(self, directory: Path) -> None:
         self._set_directory("last_pattern_export_directory", directory)
 
+    def set_color_picker_geometry(self, geometry: str) -> None:
+        self._update(COLOR_PICKER_GEOMETRY_FIELD, geometry)
+
     def _set_directory(self, field: DirectoryField, directory: Path) -> None:
         if self.load_error is not None and self.path.exists():
             raise SettingsFileError(
@@ -116,19 +126,33 @@ class SettingsHandler:
         directory = Path(directory).resolve()
         if not directory.is_dir():
             raise SettingsFileError(f"Settings directory does not exist: {directory}")
-        values: DirectoryValues = {
-            name: getattr(self, name) for name in DIRECTORY_FIELDS
-        }
-        values[field] = directory
+        self._update(field, directory)
+        setattr(self, field, directory)
+
+    def _update(self, field: str, value: object) -> None:
+        if self.load_error is not None and self.path.exists():
+            raise SettingsFileError(
+                f"Settings file is invalid and was not overwritten: {self.path}"
+            ) from self.load_error
+
         document: SettingsDocument = {
             "format": SETTINGS_FORMAT,
             "version": SETTINGS_VERSION,
         }
-        document.update(
-            {name: str(value) for name, value in values.items() if value is not None}
+        for name in DIRECTORY_FIELDS:
+            directory = value if name == field else getattr(self, name)
+            if directory is not None:
+                document[name] = str(directory)
+        geometry = (
+            value
+            if field == COLOR_PICKER_GEOMETRY_FIELD
+            else self.color_picker_geometry
         )
+        if geometry is not None:
+            document[COLOR_PICKER_GEOMETRY_FIELD] = geometry
         self._write_atomic(document)
-        setattr(self, field, directory)
+        if field == COLOR_PICKER_GEOMETRY_FIELD:
+            self.color_picker_geometry = str(value)
         self.load_error = None
 
     def _write_atomic(self, document: SettingsDocument) -> None:

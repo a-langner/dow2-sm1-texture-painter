@@ -1,4 +1,5 @@
 import tkinter as tk
+import logging
 from tkinter.constants import HORIZONTAL
 from tkinter import ttk
 from tkinter import font as tkfont
@@ -42,6 +43,7 @@ from src.render_settings import (
     MIN_BRIGHTNESS,
     MIN_CONTRAST,
 )
+from src.window_geometry import safe_window_geometry
 
 COLOR_BOX_SIZE = 90
 COLOR_BTN_HEIGHT = 26
@@ -101,6 +103,7 @@ ColorPickerCallback = Callable[[str], Optional[str]]
 PaintSelectedCallback = Callable[[PaintColor], None]
 LevelsChangedCallback = Callable[[float, float], None]
 StringChangedCallback = Callable[[str], None]
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -514,8 +517,10 @@ class ColorPickerDialog(tk.Toplevel):
         parent: tk.Misc,
         initial_color: str,
         paint_catalog: Optional[PaintCatalog] = None,
+        settings=None,
     ):
         super().__init__(parent)
+        self.settings = settings
         self.original_color = initial_color
         self.current_color = initial_color
         self._updating_color_representations = False
@@ -556,9 +561,14 @@ class ColorPickerDialog(tk.Toplevel):
         parent: tk.Misc,
         initial_color: str,
         paint_catalog: Optional[PaintCatalog] = None,
+        settings=None,
     ) -> Optional[str]:
         """Show the modal dialog and return its accepted color or cancellation."""
-        return cls(parent, initial_color, paint_catalog).get_accepted_color()
+        if settings is None:
+            dialog = cls(parent, initial_color, paint_catalog)
+        else:
+            dialog = cls(parent, initial_color, paint_catalog, settings)
+        return dialog.get_accepted_color()
 
     def _configure_window(self, parent: tk.Misc) -> None:
         self.title("Select Color")
@@ -569,7 +579,21 @@ class ColorPickerDialog(tk.Toplevel):
         available_height = max(1, self.winfo_screenheight() - COLOR_PICKER_SCREEN_MARGIN)
         width = min(COLOR_PICKER_DEFAULT_WIDTH, available_width)
         height = min(COLOR_PICKER_DEFAULT_HEIGHT, available_height)
-        self.geometry(f"{width}x{height}")
+        geometry = None
+        saved_geometry = getattr(
+            getattr(self, "settings", None), "color_picker_geometry", None
+        )
+        if saved_geometry is not None:
+            geometry = safe_window_geometry(
+                saved_geometry,
+                min(COLOR_PICKER_MIN_WIDTH, width),
+                min(COLOR_PICKER_MIN_HEIGHT, height),
+                self.winfo_vrootx(),
+                self.winfo_vrooty(),
+                self.winfo_vrootwidth(),
+                self.winfo_vrootheight(),
+            )
+        self.geometry(geometry or f"{width}x{height}")
         self.minsize(
             min(COLOR_PICKER_MIN_WIDTH, width),
             min(COLOR_PICKER_MIN_HEIGHT, height),
@@ -1276,11 +1300,22 @@ class ColorPickerDialog(tk.Toplevel):
 
     def accept(self, Event=None) -> None:
         self.accepted_color = self.current_color
+        self._save_geometry()
         self.destroy()
 
     def cancel(self, Event=None) -> None:
         self.accepted_color = None
+        self._save_geometry()
         self.destroy()
+
+    def _save_geometry(self) -> None:
+        settings = getattr(self, "settings", None)
+        if settings is None:
+            return
+        try:
+            settings.set_color_picker_geometry(self.geometry())
+        except OSError:
+            LOGGER.exception("Could not save Color Picker window geometry")
 
 
 def pattern_name_to_restore(preferred_name, current_name, available_names):
@@ -1380,6 +1415,7 @@ class FrameColorChooser(tk.Frame):
         on_color_changed: ColorChangedCallback,
         color_picker: Optional[ColorPickerCallback] = None,
         paint_catalog: Optional[PaintCatalog] = None,
+        settings=None,
         **kw,
     ):
         super(FrameColorChooser, self).__init__(master=master, cnf={}, **kw)
@@ -1390,6 +1426,7 @@ class FrameColorChooser(tk.Frame):
         self.paint_catalog = (
             load_citadel_catalog() if paint_catalog is None else paint_catalog
         )
+        self.settings = settings
         self._color_text_font = tkfont.Font(
             root=self,
             font=("Arial", 10, "bold"),
@@ -1402,7 +1439,10 @@ class FrameColorChooser(tk.Frame):
 
     def _open_color_picker(self, initial_color: str) -> Optional[str]:
         """Open the production custom picker with the slot's current color."""
-        return ColorPickerDialog.show(self, initial_color, self.paint_catalog)
+        settings = getattr(self, "settings", None)
+        if settings is None:
+            return ColorPickerDialog.show(self, initial_color, self.paint_catalog)
+        return ColorPickerDialog.show(self, initial_color, self.paint_catalog, settings)
 
     def initialize(self):
         for i in range(0, 4):

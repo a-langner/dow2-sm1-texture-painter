@@ -319,6 +319,7 @@ class ArmyPainter(tk.Tk):
         self.frame_color_chooser = FrameColorChooser(
             self.frame_img_tools,
             on_color_changed=self.on_color_changed,
+            settings=self.settings,
             width=COLOR_BOX_SIZE * 4 + 12,
             height=COLOR_BOX_SIZE + COLOR_BTN_HEIGHT,
             bd=0,
