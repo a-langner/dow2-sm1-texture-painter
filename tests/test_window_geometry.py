@@ -1,9 +1,10 @@
 import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock
+from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
-from src.constant import FRAME_TOOL_HEIGHT
+from src.constant import DEFAULT_IMG_SIZE, FRAME_TOOL_HEIGHT
 from src.frame_main import ArmyPainter
 from src.window_geometry import (
     PATTERN_LIST_DEFAULT_WIDTH,
@@ -115,6 +116,64 @@ class InitialWindowGeometryTests(unittest.TestCase):
     def test_invalid_main_window_position_is_ignored(self):
         self.assertIsNone(
             safe_window_position(None, 1100, 720, 0, 0, 1920, 1080)
+        )
+
+    def test_main_window_restores_position_with_fresh_startup_size(self):
+        painter = self._main_window_painter()
+        settings = SimpleNamespace(main_window_position=(320, 180))
+
+        with patch("src.frame_main.SettingsHandler", return_value=settings), patch(
+            "src.frame_main.files"
+        ) as resources, patch("src.frame_main.as_file") as as_file, patch(
+            "src.frame_main.tk.PhotoImage", return_value="icon"
+        ):
+            resources.return_value.joinpath.return_value = "icon-resource"
+            as_file.return_value.__enter__.return_value = "icon.png"
+            ArmyPainter._configure_main_window(painter)
+
+        expected_size = calculate_initial_window_size(
+            678, DEFAULT_IMG_SIZE + FRAME_TOOL_HEIGHT, 1920, 1080
+        )
+        painter.geometry.assert_called_once_with(
+            f"{expected_size[0]}x{expected_size[1]}+320+180"
+        )
+        self.assertIs(painter.settings, settings)
+
+    def test_main_window_without_saved_position_uses_default_geometry(self):
+        painter = self._main_window_painter()
+        settings = SimpleNamespace(main_window_position=None)
+
+        with patch("src.frame_main.SettingsHandler", return_value=settings), patch(
+            "src.frame_main.files"
+        ) as resources, patch("src.frame_main.as_file") as as_file, patch(
+            "src.frame_main.tk.PhotoImage", return_value="icon"
+        ):
+            resources.return_value.joinpath.return_value = "icon-resource"
+            as_file.return_value.__enter__.return_value = "icon.png"
+            ArmyPainter._configure_main_window(painter)
+
+        expected_size = calculate_initial_window_size(
+            678, DEFAULT_IMG_SIZE + FRAME_TOOL_HEIGHT, 1920, 1080
+        )
+        painter.geometry.assert_called_once_with(
+            f"{expected_size[0]}x{expected_size[1]}"
+        )
+
+    @staticmethod
+    def _main_window_painter():
+        return SimpleNamespace(
+            winfo_screenwidth=Mock(return_value=1920),
+            winfo_screenheight=Mock(return_value=1080),
+            winfo_vrootx=Mock(return_value=0),
+            winfo_vrooty=Mock(return_value=0),
+            winfo_vrootwidth=Mock(return_value=1920),
+            winfo_vrootheight=Mock(return_value=1080),
+            geometry=Mock(),
+            iconphoto=Mock(),
+            minsize=Mock(),
+            title=Mock(),
+            protocol=Mock(),
+            on_exit=Mock(),
         )
 
 
