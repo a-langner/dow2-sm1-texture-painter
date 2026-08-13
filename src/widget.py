@@ -300,7 +300,9 @@ class PaintSwatchGrid(ttk.Frame):
         self.paints = ()
         self.selected_paint_id = None
         self._paint_regions = []
+        self._truncated_paint_ids = set()
         self._hovered_paint = None
+        self._tooltip_root_position = (0, 0)
         self._column_count = 1
         self._configured_column_count = 0
         self._relayout_after_id = None
@@ -378,6 +380,7 @@ class PaintSwatchGrid(ttk.Frame):
             return
         self.canvas.delete("paint")
         self._paint_regions = []
+        self._truncated_paint_ids = set()
         self._configured_column_count = self._column_count
         if not self.paints:
             self.canvas.create_text(
@@ -434,6 +437,8 @@ class PaintSwatchGrid(ttk.Frame):
                 name_width,
                 self._paint_name_font.measure,
             )
+            if PAINT_NAME_ELLIPSIS in display_name:
+                self._truncated_paint_ids.add(paint.id)
             self.canvas.create_text(
                 (x1 + x2) / 2,
                 preview_y1 + PAINT_SWATCH_PREVIEW_SIZE + 4,
@@ -461,11 +466,12 @@ class PaintSwatchGrid(ttk.Frame):
 
     def _on_canvas_motion(self, Event) -> None:
         paint = self._paint_at(Event.x, Event.y)
+        self._tooltip_root_position = (Event.x_root, Event.y_root)
         if paint is self._hovered_paint:
             return
         self._hide_tooltip()
         self._hovered_paint = paint
-        if paint is not None:
+        if paint is not None and paint.id in self._truncated_paint_ids:
             self._schedule_tooltip(paint, Event)
 
     def _on_canvas_leave(self, Event=None) -> None:
@@ -478,16 +484,18 @@ class PaintSwatchGrid(ttk.Frame):
 
     def _schedule_tooltip(self, paint: PaintColor, Event) -> None:
         self._hide_tooltip()
+        self._tooltip_root_position = (Event.x_root, Event.y_root)
         self._tooltip_after_id = self.after(
             PAINT_TOOLTIP_DELAY_MS,
-            partial(self._show_tooltip, paint, Event.x_root, Event.y_root),
+            partial(self._show_tooltip, paint),
         )
 
-    def _show_tooltip(self, paint: PaintColor, root_x: int, root_y: int) -> None:
+    def _show_tooltip(self, paint: PaintColor) -> None:
         self._tooltip_after_id = None
+        root_x, root_y = self._tooltip_root_position
         tooltip = tk.Toplevel(self)
         tooltip.wm_overrideredirect(True)
-        tooltip.wm_geometry(f"+{root_x + 12}+{root_y + 16}")
+        tooltip.wm_geometry(f"+{root_x + 8}+{root_y + 8}")
         tk.Label(
             tooltip,
             text=paint_tooltip_text(paint),

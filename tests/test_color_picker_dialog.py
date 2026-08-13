@@ -1412,7 +1412,44 @@ class ColorPickerDialogTests(unittest.TestCase):
         ):
             callback()
 
-        toplevel_type.return_value.wm_geometry.assert_called_once_with("+652+376")
+        toplevel_type.return_value.wm_geometry.assert_called_once_with("+648+368")
+
+    def test_palette_tooltip_uses_latest_pointer_position_before_delay(self):
+        paint = PaintColor("long", "A Truncated Paint Name", 12, 34, 56)
+        grid = object.__new__(PaintSwatchGrid)
+        grid._tooltip_after_id = None
+        grid._tooltip_window = None
+        grid._tooltip_root_position = (0, 0)
+        grid.after = Mock(return_value="tooltip-after")
+        grid.after_cancel = Mock()
+
+        grid._schedule_tooltip(paint, SimpleNamespace(x_root=100, y_root=100))
+        callback = grid.after.call_args.args[1]
+        grid._tooltip_root_position = (140, 125)
+        with patch("src.widget.tk.Toplevel") as toplevel_type, patch(
+            "src.widget.tk.Label"
+        ):
+            callback()
+
+        toplevel_type.return_value.wm_geometry.assert_called_once_with("+148+133")
+
+    def test_palette_schedules_tooltip_only_for_truncated_names(self):
+        short = PaintColor("short", "Short", 1, 2, 3)
+        truncated = PaintColor("long", "A Very Long Truncated Name", 4, 5, 6)
+        grid = object.__new__(PaintSwatchGrid)
+        grid._hovered_paint = None
+        grid._truncated_paint_ids = {truncated.id}
+        grid._paint_at = Mock(side_effect=(short, truncated))
+        grid._hide_tooltip = Mock()
+        grid._schedule_tooltip = Mock()
+
+        first_event = SimpleNamespace(x=10, y=10, x_root=100, y_root=100)
+        grid._on_canvas_motion(first_event)
+        grid._schedule_tooltip.assert_not_called()
+
+        second_event = SimpleNamespace(x=20, y=20, x_root=120, y_root=120)
+        grid._on_canvas_motion(second_event)
+        grid._schedule_tooltip.assert_called_once_with(truncated, second_event)
 
     def test_exact_catalog_color_uses_paint_name_and_detailed_tooltip(self):
         paint = PaintColor("mephiston", "Mephiston Red", 150, 12, 9)
