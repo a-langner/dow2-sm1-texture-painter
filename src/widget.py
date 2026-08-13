@@ -477,16 +477,14 @@ class PaintSwatchGrid(ttk.Frame):
         self._hide_tooltip()
         self._tooltip_after_id = self.after(
             PAINT_TOOLTIP_DELAY_MS,
-            partial(self._show_tooltip, paint, Event.widget),
+            partial(self._show_tooltip, paint, Event.x_root, Event.y_root),
         )
 
-    def _show_tooltip(self, paint: PaintColor, widget) -> None:
+    def _show_tooltip(self, paint: PaintColor, root_x: int, root_y: int) -> None:
         self._tooltip_after_id = None
         tooltip = tk.Toplevel(self)
         tooltip.wm_overrideredirect(True)
-        tooltip.wm_geometry(
-            f"+{widget.winfo_rootx() + 12}+{widget.winfo_rooty() + widget.winfo_height() + 4}"
-        )
+        tooltip.wm_geometry(f"+{root_x + 12}+{root_y + 16}")
         tk.Label(
             tooltip,
             text=paint_tooltip_text(paint),

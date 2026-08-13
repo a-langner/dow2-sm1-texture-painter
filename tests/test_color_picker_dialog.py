@@ -1296,6 +1296,28 @@ class ColorPickerDialogTests(unittest.TestCase):
             "Mephiston Red\nRGB: 150, 12, 9",
         )
 
+    def test_palette_tooltip_uses_hover_screen_coordinates(self):
+        paint = PaintColor("complete", "Complete Name", 12, 34, 56)
+        grid = object.__new__(PaintSwatchGrid)
+        grid._tooltip_after_id = None
+        grid._tooltip_window = None
+        grid.after = Mock(return_value="tooltip-after")
+        grid.after_cancel = Mock()
+
+        grid._schedule_tooltip(
+            paint,
+            SimpleNamespace(x_root=640, y_root=360),
+        )
+
+        self.assertEqual(grid._tooltip_after_id, "tooltip-after")
+        callback = grid.after.call_args.args[1]
+        with patch("src.widget.tk.Toplevel") as toplevel_type, patch(
+            "src.widget.tk.Label"
+        ):
+            callback()
+
+        toplevel_type.return_value.wm_geometry.assert_called_once_with("+652+376")
+
     def test_exact_catalog_color_uses_paint_name_and_detailed_tooltip(self):
         paint = PaintColor("mephiston", "Mephiston Red", 150, 12, 9)
         catalog = PaintCatalog((paint,))
