@@ -1469,6 +1469,56 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog._render_classic_value_slider(0.0, 1.0)
         self.assertEqual(photo_image_type.call_count, 2)
 
+    def test_classic_field_and_value_interactions_update_canonical_color(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.current_color = "#ff0000"
+        dialog._achromatic_hue = 0.0
+        dialog.classic_color_field = Mock()
+        dialog.classic_value_slider = Mock()
+        dialog.classic_color_field.winfo_width.return_value = 101
+        dialog.classic_color_field.winfo_height.return_value = 101
+        dialog.classic_value_slider.winfo_height.return_value = 101
+        dialog.set_current_color = Mock()
+
+        dialog._on_classic_field_input(SimpleNamespace(x=2 / 3 * 101, y=-50))
+        dialog.set_current_color.assert_called_once_with("#0000ff")
+
+        dialog.set_current_color.reset_mock()
+        dialog._on_classic_value_slider_input(SimpleNamespace(y=500))
+        dialog.set_current_color.assert_called_once_with("#000000")
+
+    def test_programmatic_color_change_moves_classic_markers_without_changing_original(
+        self,
+    ):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.original_color = "#123456"
+        dialog.current_color = "#ff0000"
+        dialog.color_space_mode = "Classic"
+        dialog._updating_color_representations = False
+        dialog._achromatic_hue = 0.0
+        dialog.classic_color_field = Mock()
+        dialog.classic_value_slider = Mock()
+        dialog.classic_color_field.winfo_width.return_value = 101
+        dialog.classic_color_field.winfo_height.return_value = 101
+        dialog.classic_value_slider.winfo_width.return_value = 28
+        dialog.classic_value_slider.winfo_height.return_value = 101
+        dialog.classic_color_field.create_oval.side_effect = (1, 2)
+        dialog.classic_value_slider.create_line.side_effect = (3, 4)
+        dialog._classic_field_indicator_items = ()
+        dialog._classic_value_indicator_items = ()
+        dialog._render_classic_field = Mock()
+        dialog._render_classic_value_slider = Mock()
+
+        dialog.set_current_color("#00ff00")
+        dialog.set_current_color("#000080")
+
+        self.assertEqual(dialog.current_color, "#000080")
+        self.assertEqual(dialog.original_color, "#123456")
+        self.assertEqual(dialog.classic_color_field.create_oval.call_count, 2)
+        self.assertEqual(dialog.classic_value_slider.create_line.call_count, 2)
+        self.assertEqual(dialog.classic_color_field.coords.call_count, 4)
+        self.assertEqual(dialog.classic_value_slider.coords.call_count, 4)
+
     def test_rgb_validation_accepts_only_blank_or_values_from_zero_to_255(self):
         for accepted in ("", "0", "1", "127", "255"):
             with self.subTest(accepted=accepted):

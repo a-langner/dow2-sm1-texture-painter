@@ -8,6 +8,10 @@ from src.color_picker_visual import (
     color_wheel_hue_position,
     color_wheel_sv_from_position,
     color_wheel_sv_position,
+    classic_hs_from_position,
+    classic_hs_position,
+    classic_value_from_position,
+    classic_value_position,
     contrast_ratio,
     contrasting_text_color,
     hsl_field_position,
@@ -72,6 +76,24 @@ class ColorPickerVisualTests(unittest.TestCase):
             color_wheel_sv_position(-1.0, 2.0, geometry),
             (geometry.field_left, geometry.field_top),
         )
+
+    def test_classic_field_mapping_round_trips_and_clamps(self):
+        for hue, saturation in ((0.0, 1.0), (0.25, 0.75), (0.75, 0.0)):
+            position = classic_hs_position(hue, saturation, 101, 201)
+            mapped = classic_hs_from_position(*position, 101, 201)
+            self.assertAlmostEqual(mapped[0], hue)
+            self.assertAlmostEqual(mapped[1], saturation)
+        self.assertEqual(classic_hs_from_position(-10, 500, 101, 201), (0.0, 0.0))
+        right_hue, _ = classic_hs_from_position(100, 0, 101, 201)
+        self.assertLess(right_hue, 1.0)
+        self.assertGreater(right_hue, 0.99)
+
+    def test_classic_value_mapping_round_trips_and_clamps(self):
+        for value in (0.0, 0.25, 1.0):
+            position = classic_value_position(value, 101)
+            self.assertAlmostEqual(classic_value_from_position(position, 101), value)
+        self.assertEqual(classic_value_from_position(-10, 101), 1.0)
+        self.assertEqual(classic_value_from_position(500, 101), 0.0)
 
     def test_visualization_modes_define_shared_numeric_model_semantics(self):
         self.assertFalse(ColorVisualizationMode.HSV_HSB.uses_hsl_model)

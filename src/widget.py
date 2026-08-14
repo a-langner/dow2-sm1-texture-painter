@@ -23,6 +23,10 @@ from src.color_picker_visual import (
     color_wheel_hue_position,
     color_wheel_sv_from_position,
     color_wheel_sv_position,
+    classic_hs_from_position,
+    classic_hs_position,
+    classic_value_from_position,
+    classic_value_position,
     contrasting_text_color,
     hsl_field_position,
     hsl_from_field_position,
@@ -693,6 +697,8 @@ class ColorPickerDialog(tk.Toplevel):
         self._color_wheel_cache = None
         self._classic_field_cache = None
         self._classic_value_slider_cache = None
+        self._classic_field_indicator_items = ()
+        self._classic_value_indicator_items = ()
         self._color_wheel_drag_target = None
         self._color_wheel_hue_indicator_items = ()
         self._color_wheel_sv_indicator_items = ()
@@ -1093,6 +1099,11 @@ class ColorPickerDialog(tk.Toplevel):
         self.color_wheel_canvas.bind("<ButtonRelease-1>", self._on_color_wheel_release)
         self.classic_color_field.bind("<Configure>", self._on_visualization_resized)
         self.classic_value_slider.bind("<Configure>", self._on_visualization_resized)
+        for event_name in ("<Button-1>", "<B1-Motion>"):
+            self.classic_color_field.bind(event_name, self._on_classic_field_input)
+            self.classic_value_slider.bind(
+                event_name, self._on_classic_value_slider_input
+            )
 
         self.rgb_controls = {}
         self.rgb_control_labels = {}
@@ -1468,6 +1479,7 @@ class ColorPickerDialog(tk.Toplevel):
                 hue = getattr(self, "_achromatic_hue", 0.0)
             self._render_classic_field(value)
             self._render_classic_value_slider(hue, saturation)
+            self._draw_classic_indicators(hue, saturation, value)
             return
         field = getattr(self, "hsv_color_field", None)
         slider = getattr(self, "hue_slider", None)
@@ -1565,7 +1577,7 @@ class ColorPickerDialog(tk.Toplevel):
         for y in range(height):
             saturation = 1.0 - y / (height - 1)
             for x in range(width):
-                hue = x / (width - 1)
+                hue = x / width
                 rgb = colorsys.hsv_to_rgb(hue, saturation, value)
                 pixels.append(tuple(round(channel * 255) for channel in rgb))
         image = Image.new("RGB", (width, height))
@@ -1612,6 +1624,64 @@ class ColorPickerDialog(tk.Toplevel):
         )
         self.classic_value_slider.tag_lower("gradient")
         self._classic_value_slider_cache = cache_key
+
+    def _on_classic_field_input(self, Event) -> None:
+        hue, saturation = classic_hs_from_position(
+            Event.x,
+            Event.y,
+            self.classic_color_field.winfo_width(),
+            self.classic_color_field.winfo_height(),
+        )
+        self._achromatic_hue = hue
+        _, _, value = rgb_hex_to_hsv(self.current_color)
+        self.set_current_color(hsv_to_rgb_hex(hue, saturation, value))
+
+    def _on_classic_value_slider_input(self, Event) -> None:
+        hue, saturation, _ = rgb_hex_to_hsv(self.current_color)
+        if saturation == 0.0:
+            hue = getattr(self, "_achromatic_hue", 0.0)
+        value = classic_value_from_position(
+            Event.y, self.classic_value_slider.winfo_height()
+        )
+        self.set_current_color(hsv_to_rgb_hex(hue, saturation, value))
+
+    def _draw_classic_indicators(
+        self, hue: float, saturation: float, value: float
+    ) -> None:
+        field_x, field_y = classic_hs_position(
+            hue,
+            saturation,
+            self.classic_color_field.winfo_width(),
+            self.classic_color_field.winfo_height(),
+        )
+        slider_y = classic_value_position(
+            value, self.classic_value_slider.winfo_height()
+        )
+        if not getattr(self, "_classic_field_indicator_items", ()):
+            self._classic_field_indicator_items = tuple(
+                self.classic_color_field.create_oval(
+                    0, 0, 0, 0, outline=outline, width=2, tags="indicator"
+                )
+                for outline in ("black", "white")
+            )
+        if not getattr(self, "_classic_value_indicator_items", ()):
+            self._classic_value_indicator_items = tuple(
+                self.classic_value_slider.create_line(
+                    0, 0, 0, 0, fill=fill, width=width, tags="indicator"
+                )
+                for fill, width in (("black", 4), ("white", 2))
+            )
+        for item, radius in zip(self._classic_field_indicator_items, (6, 4)):
+            self.classic_color_field.coords(
+                item,
+                field_x - radius,
+                field_y - radius,
+                field_x + radius,
+                field_y + radius,
+            )
+        slider_width = self.classic_value_slider.winfo_width()
+        for item in self._classic_value_indicator_items:
+            self.classic_value_slider.coords(item, 0, slider_y, slider_width, slider_y)
 
     def _on_color_wheel_press(self, Event) -> None:
         geometry = color_wheel_geometry(

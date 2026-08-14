@@ -127,6 +127,32 @@ def color_wheel_sv_position(
     )
 
 
+def classic_hs_from_position(
+    x: float, y: float, width: int, height: int
+) -> tuple[float, float]:
+    """Map Classic field coordinates to hue and saturation."""
+    hue = clamp_coordinate(x, width) / width if width > 0 else 0.0
+    return hue, 1.0 - coordinate_to_unit(y, height)
+
+
+def classic_hs_position(
+    hue: float, saturation: float, width: int, height: int
+) -> tuple[float, float]:
+    """Map hue and saturation to clamped Classic field coordinates."""
+    hue_x = clamp_coordinate((hue % 1.0) * width, width)
+    return hue_x, unit_to_coordinate(1.0 - saturation, height)
+
+
+def classic_value_from_position(y: float, height: int) -> float:
+    """Map a Classic slider coordinate to Value, bright at the top."""
+    return 1.0 - coordinate_to_unit(y, height)
+
+
+def classic_value_position(value: float, height: int) -> float:
+    """Map Value to a clamped Classic slider coordinate."""
+    return unit_to_coordinate(1.0 - value, height)
+
+
 def normalize_rgb_hex(color: str) -> str:
     """Validate six-digit RGB input and return uppercase ``#RRGGBB``."""
     value = color.strip().removeprefix("#")
