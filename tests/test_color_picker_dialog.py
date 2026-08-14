@@ -387,7 +387,7 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         dialog.set_current_color.assert_called_once_with("#df9f9f")
 
-    def test_repeated_color_space_switching_preserves_exact_rgb(self):
+    def test_color_space_switch_updates_component_label_and_preserves_exact_rgb(self):
         colors = (
             "#2A7FD4",
             "#000000",
@@ -396,7 +396,10 @@ class ColorPickerDialogTests(unittest.TestCase):
             "#FF0000",
             "#960C09",  # Citadel Mephiston Red
         )
-        modes = ("HSL", DEFAULT_COLOR_SPACE_MODE, "HSL", DEFAULT_COLOR_SPACE_MODE)
+        transitions = (
+            ("HSL", "Lightness:"),
+            (DEFAULT_COLOR_SPACE_MODE, "Value:"),
+        )
         for color in colors:
             with self.subTest(color=color):
                 dialog = object.__new__(ColorPickerDialog)
@@ -409,14 +412,23 @@ class ColorPickerDialogTests(unittest.TestCase):
                 dialog._refresh_color_model_controls = Mock()
                 dialog._refresh_visual_picker = Mock()
 
-                for mode in modes:
+                dialog.color_model_labels["component"].configure(text="Value:")
+                self.assertEqual(
+                    dialog.color_model_labels["component"].options["text"],
+                    "Value:",
+                )
+                for mode, expected_label in transitions:
                     dialog.select_color_space(mode)
                     self.assertEqual(dialog.color_space_mode, mode)
                     self.assertEqual(dialog.color_space_selector.get(), mode)
+                    self.assertEqual(
+                        dialog.color_model_labels["component"].options["text"],
+                        expected_label,
+                    )
                     self.assertEqual(dialog.current_color, color)
 
-                self.assertEqual(dialog._refresh_color_model_controls.call_count, 4)
-                self.assertEqual(dialog._refresh_visual_picker.call_count, 4)
+                self.assertEqual(dialog._refresh_color_model_controls.call_count, 2)
+                self.assertEqual(dialog._refresh_visual_picker.call_count, 2)
 
     def test_color_model_validation_enforces_hue_and_percent_boundaries(self):
         for proposed, maximum in (("0", "359"), ("359", "359"), ("100", "100")):
