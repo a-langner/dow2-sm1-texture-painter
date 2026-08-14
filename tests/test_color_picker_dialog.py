@@ -2,6 +2,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, call, patch
 
+from src.color_picker_visual import rgb_hex_to_hsl, rgb_hex_to_hsv
 from src.paint_catalog import PaintCatalog, PaintColor
 from src.paint_color_analysis import ColorGroup, VISUAL_GROUP_ORDER
 from src.paint_color_analysis import get_paints_for_group, sort_paints_visually
@@ -251,6 +252,51 @@ class ColorPickerDialogTests(unittest.TestCase):
             ((138, 31, 39), (150, 12, 9))
         )
         self.assertEqual(dialog.recent_colors[0], (138, 31, 39))
+
+    def test_live_editor_interactions_never_write_recent_history(self):
+        settings = Mock()
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.settings = settings
+        dialog.current_color = "#ff0000"
+        dialog.color_space_mode = DEFAULT_COLOR_SPACE_MODE
+        dialog._updating_color_representations = False
+        dialog._achromatic_hue = 0.0
+        dialog.set_current_color = Mock()
+        dialog.hsv_color_field = Mock()
+        dialog.hsv_color_field.winfo_width.return_value = 101
+        dialog.hsv_color_field.winfo_height.return_value = 101
+        dialog.hue_slider = Mock()
+        dialog.hue_slider.winfo_height.return_value = 101
+        dialog.rgb_controls = {
+            name: FakeWidget() for name in ("red", "green", "blue")
+        }
+        for name, value in zip(("red", "green", "blue"), ("1", "2", "3")):
+            dialog.rgb_controls[name].value = value
+        dialog.palette_grid = FakePaletteGrid()
+
+        dialog._on_color_field_input(SimpleNamespace(x=50, y=25))
+        dialog._on_hue_slider_input(SimpleNamespace(y=50))
+        dialog._on_rgb_control_changed()
+        dialog.select_paint(PaintColor("paint", "Paint", 150, 12, 9))
+
+        self.assertEqual(dialog.set_current_color.call_count, 4)
+        settings.set_color_picker_recent_colors.assert_not_called()
+
+    def test_duplicate_confirmation_moves_one_color_to_front(self):
+        settings = Mock()
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.settings = settings
+        dialog.current_color = "#8A1F27"
+        dialog.accepted_color = None
+        dialog.recent_colors = ((1, 2, 3), (138, 31, 39), (4, 5, 6))
+        dialog._save_geometry = Mock()
+        dialog.destroy = Mock()
+
+        dialog.accept()
+
+        settings.set_color_picker_recent_colors.assert_called_once_with(
+            ((138, 31, 39), (1, 2, 3), (4, 5, 6))
+        )
 
     def test_current_color_has_one_public_update_path(self):
         dialog = object.__new__(ColorPickerDialog)
@@ -1385,6 +1431,60 @@ class ColorPickerDialogTests(unittest.TestCase):
         row._on_color_selected.assert_called_once_with("#8a1f27")
         self.assertEqual(row.colors, ((150, 12, 9), (138, 31, 39)))
 
+    def test_recent_color_click_synchronizes_rgb_model_hex_and_preview(self):
+        for mode, converter in (
+            (DEFAULT_COLOR_SPACE_MODE, rgb_hex_to_hsv),
+            ("HSL", rgb_hex_to_hsl),
+        ):
+            with self.subTest(mode=mode):
+                dialog = object.__new__(ColorPickerDialog)
+                dialog.current_color = "#000000"
+                dialog.color_space_mode = mode
+                dialog._updating_color_representations = False
+                dialog._achromatic_hue = 0.0
+                dialog.rgb_controls = {
+                    name: FakeWidget() for name in ("red", "green", "blue")
+                }
+                dialog.color_model_controls = {
+                    name: FakeWidget()
+                    for name in ("hue", "saturation", "component")
+                }
+                dialog.hex_input = FakeWidget()
+                dialog.current_color_preview = FakeWidget()
+                dialog._refresh_visual_picker = Mock()
+                row = object.__new__(RecentColorSwatchRow)
+                row.colors = ((138, 31, 39),)
+                row._regions = [(1, 1, 25, 25)]
+                row._on_color_selected = dialog.set_current_color
+
+                row._on_click(SimpleNamespace(x=12, y=12))
+
+                hue, saturation, component = converter("#8A1F27")
+                self.assertEqual(dialog.current_color, "#8a1f27")
+                self.assertEqual(
+                    tuple(
+                        dialog.rgb_controls[name].get()
+                        for name in ("red", "green", "blue")
+                    ),
+                    ("138", "31", "39"),
+                )
+                self.assertEqual(
+                    tuple(
+                        dialog.color_model_controls[name].get()
+                        for name in ("hue", "saturation", "component")
+                    ),
+                    (
+                        str(round(hue * 360) % 360),
+                        str(round(saturation * 100)),
+                        str(round(component * 100)),
+                    ),
+                )
+                self.assertEqual(dialog.hex_input.get(), "#8A1F27")
+                self.assertEqual(
+                    dialog.current_color_preview.options["background"],
+                    "#8a1f27",
+                )
+
     @patch("src.widget.tk.Canvas")
     @patch("src.widget.ttk.Label")
     @patch("src.widget.ttk.Frame.__init__", return_value=None)
@@ -1654,7 +1754,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         ):
             callback()
 
-        toplevel_type.return_value.wm_geometry.assert_called_once_with("+648+368")
+        toplevel_type.return_value.wm_geometry.assert_called_once_with("+660+380")
 
     def test_palette_tooltip_uses_latest_pointer_position_before_delay(self):
         paint = PaintColor("long", "A Truncated Paint Name", 12, 34, 56)
@@ -1673,7 +1773,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         ):
             callback()
 
-        toplevel_type.return_value.wm_geometry.assert_called_once_with("+148+133")
+        toplevel_type.return_value.wm_geometry.assert_called_once_with("+160+145")
 
     def test_palette_schedules_tooltip_only_for_truncated_names(self):
         short = PaintColor("short", "Short", 1, 2, 3)
