@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import colorsys
 import math
+from dataclasses import dataclass
 from enum import Enum
 
 
@@ -36,6 +37,42 @@ class ColorVisualizationMode(str, Enum):
 
     def __str__(self) -> str:
         return self.value
+
+
+@dataclass(frozen=True)
+class ColorWheelGeometry:
+    """Pixel geometry shared by wheel rendering and later interaction mapping."""
+
+    center_x: float
+    center_y: float
+    outer_radius: float
+    ring_inner_radius: float
+    field_left: float
+    field_top: float
+    field_right: float
+    field_bottom: float
+
+
+def color_wheel_geometry(width: int, height: int) -> ColorWheelGeometry:
+    """Return centered, unclipped hue-ring and inner-square geometry."""
+    center_x = max(0, width - 1) / 2.0
+    center_y = max(0, height - 1) / 2.0
+    extent = max(0.0, float(min(width, height) - 1))
+    padding = max(2.0, extent * 0.025)
+    outer_radius = max(0.0, extent / 2.0 - padding)
+    ring_width = min(outer_radius, max(8.0, outer_radius * 0.18))
+    ring_inner_radius = max(0.0, outer_radius - ring_width)
+    field_half_extent = max(0.0, ring_inner_radius * 0.64)
+    return ColorWheelGeometry(
+        center_x=center_x,
+        center_y=center_y,
+        outer_radius=outer_radius,
+        ring_inner_radius=ring_inner_radius,
+        field_left=center_x - field_half_extent,
+        field_top=center_y - field_half_extent,
+        field_right=center_x + field_half_extent,
+        field_bottom=center_y + field_half_extent,
+    )
 
 
 def normalize_rgb_hex(color: str) -> str:

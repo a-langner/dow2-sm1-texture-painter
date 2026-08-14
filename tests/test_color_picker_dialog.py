@@ -59,6 +59,11 @@ class FakeWidget:
         if hasattr(self.parent, "packed_children"):
             self.parent.packed_children.append(self)
 
+    def pack_forget(self):
+        self.pack_options = None
+        if hasattr(self.parent, "packed_children") and self in self.parent.packed_children:
+            self.parent.packed_children.remove(self)
+
     def pack_propagate(self, enabled):
         self.pack_propagate_enabled = enabled
 
@@ -938,6 +943,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.register = Mock(return_value="rgb-validation-command")
         for attribute in (
             "editor_color_space_area",
+            "editor_visualization_area",
             "editor_color_field_area",
             "editor_slider_area",
             "editor_rgb_area",
@@ -1111,6 +1117,7 @@ class ColorPickerDialogTests(unittest.TestCase):
                 dialog.register = Mock(return_value="validation-command")
                 for attribute in (
                     "editor_color_space_area",
+                    "editor_visualization_area",
                     "editor_color_field_area",
                     "editor_slider_area",
                     "editor_rgb_area",
@@ -1341,6 +1348,34 @@ class ColorPickerDialogTests(unittest.TestCase):
         image_new.assert_called_once_with("RGB", (2, 2))
         dialog.hsv_color_field.delete.assert_called_once_with("gradient")
         self.assertEqual(dialog._displayed_field_mode, DEFAULT_COLOR_SPACE_MODE)
+
+    @patch("src.widget.ImageTk.PhotoImage", side_effect=lambda image: image)
+    def test_color_wheel_renders_clockwise_ring_and_hsv_inner_square(
+        self, photo_image_type
+    ):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.color_wheel_canvas = Mock()
+        dialog.color_wheel_canvas.winfo_width.return_value = 101
+        dialog.color_wheel_canvas.winfo_height.return_value = 101
+        dialog._color_wheel_cache = None
+
+        dialog._render_color_wheel(0.0)
+        rendered = photo_image_type.call_args.args[0]
+
+        top = rendered.getpixel((50, 5))
+        right = rendered.getpixel((95, 50))
+        inner_top_left = rendered.getpixel((27, 27))
+        inner_top_right = rendered.getpixel((73, 27))
+        inner_bottom = rendered.getpixel((50, 73))
+        self.assertGreater(top[0], 240)
+        self.assertLess(max(top[1], top[2]), 40)
+        self.assertGreater(right[1], right[0])
+        self.assertGreater(inner_top_left[0], 200)
+        self.assertLess(inner_top_right[1], inner_top_left[1])
+        self.assertLess(max(inner_bottom[:3]), 40)
+
+        dialog._render_color_wheel(0.0)
+        photo_image_type.assert_called_once()
 
     def test_rgb_validation_accepts_only_blank_or_values_from_zero_to_255(self):
         for accepted in ("", "0", "1", "127", "255"):

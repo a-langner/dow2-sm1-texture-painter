@@ -5,6 +5,7 @@ from tkinter import ttk
 from tkinter import font as tkfont
 from tkinter.ttk import Progressbar
 import os
+import math
 from dataclasses import dataclass
 import colorsys
 from tkinter import filedialog
@@ -17,6 +18,7 @@ from src.constant import OPEN_FILETYPES, SAVE_EXT_LIST, ColorOps
 from src.paint_catalog import PaintCatalog, PaintColor, load_citadel_catalog
 from src.color_picker_visual import (
     ColorVisualizationMode,
+    color_wheel_geometry,
     contrasting_text_color,
     hsl_field_position,
     hsl_from_field_position,
@@ -683,6 +685,7 @@ class ColorPickerDialog(tk.Toplevel):
         self._hsl_field_cache = None
         self._displayed_field_mode = None
         self._hue_slider_cache = None
+        self._color_wheel_cache = None
         self._visual_resize_after_id = None
         self._field_indicator_items = ()
         self._hue_indicator_items = ()
@@ -1047,11 +1050,17 @@ class ColorPickerDialog(tk.Toplevel):
             self.editor_slider_area, width=28, highlightthickness=1, cursor="sb_v_double_arrow"
         )
         self.hue_slider.pack(fill=tk.BOTH, expand=True)
+        self.color_wheel_canvas = tk.Canvas(
+            self.editor_visualization_area,
+            height=COLOR_FIELD_PREFERRED_HEIGHT,
+            highlightthickness=1,
+        )
         for event_name in ("<Button-1>", "<B1-Motion>"):
             self.hsv_color_field.bind(event_name, self._on_color_field_input)
             self.hue_slider.bind(event_name, self._on_hue_slider_input)
         self.hsv_color_field.bind("<Configure>", self._on_visualization_resized)
         self.hue_slider.bind("<Configure>", self._on_visualization_resized)
+        self.color_wheel_canvas.bind("<Configure>", self._on_visualization_resized)
 
         self.rgb_controls = {}
         self.rgb_control_labels = {}
@@ -1201,8 +1210,29 @@ class ColorPickerDialog(tk.Toplevel):
         self.color_model_labels["component"].configure(
             text=visualization_mode.component_label
         )
+        self._show_visualization_mode(visualization_mode)
         self._refresh_color_model_controls()
         self._refresh_visual_picker()
+
+    def _show_visualization_mode(self, mode: ColorVisualizationMode) -> None:
+        """Show only the canvas arrangement owned by the selected visualization."""
+        field_area = getattr(self, "editor_color_field_area", None)
+        slider_area = getattr(self, "editor_slider_area", None)
+        wheel = getattr(self, "color_wheel_canvas", None)
+        if field_area is None or slider_area is None or wheel is None:
+            return
+        if mode is ColorVisualizationMode.COLOR_WHEEL:
+            field_area.pack_forget()
+            slider_area.pack_forget()
+            wheel.pack(fill=tk.BOTH, expand=True)
+            return
+        wheel.pack_forget()
+        slider_area.pack(
+            side=tk.RIGHT,
+            fill=tk.Y,
+            padx=(COLOR_EDITOR_SECTION_GAP, 0),
+        )
+        field_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
     def set_current_color(self, color: str) -> None:
         """Set the canonical working color and synchronize every representation."""
@@ -1363,6 +1393,18 @@ class ColorPickerDialog(tk.Toplevel):
 
     def _refresh_visual_picker(self) -> None:
         """Refresh HSV gradients when needed and always reposition indicators."""
+        mode = self._visualization_mode()
+        if mode is ColorVisualizationMode.COLOR_WHEEL:
+            wheel = getattr(self, "color_wheel_canvas", None)
+            if wheel is None or not hasattr(wheel, "winfo_width"):
+                return
+            hue, saturation, _ = rgb_hex_to_hsv(self.current_color)
+            if saturation > 0.0:
+                self._achromatic_hue = hue
+            else:
+                hue = getattr(self, "_achromatic_hue", 0.0)
+            self._render_color_wheel(hue)
+            return
         field = getattr(self, "hsv_color_field", None)
         slider = getattr(self, "hue_slider", None)
         if (
@@ -1371,7 +1413,6 @@ class ColorPickerDialog(tk.Toplevel):
             or not hasattr(field, "winfo_width")
         ):
             return
-        mode = self._visualization_mode()
         if mode.uses_hsl_model:
             hue, saturation, component = rgb_hex_to_hsl(self.current_color)
         else:
@@ -1386,6 +1427,60 @@ class ColorPickerDialog(tk.Toplevel):
             self._render_hsv_field(hue)
         self._render_hue_slider()
         self._draw_hsv_indicators(hue, saturation, component)
+
+    def _render_color_wheel(self, hue: float) -> None:
+        """Render a clockwise hue ring and an HSV saturation/value square."""
+        width = self.color_wheel_canvas.winfo_width()
+        height = self.color_wheel_canvas.winfo_height()
+        cache_key = (width, height, hue)
+        cached = self._color_wheel_cache
+        if width <= 1 or height <= 1:
+            return
+        if cached is not None and cached[:2] == cache_key[:2]:
+            hue_distance = abs(cached[2] - hue)
+            if min(hue_distance, 1.0 - hue_distance) < 1 / 1024:
+                return
+
+        scale = 2
+        render_width = width * scale
+        render_height = height * scale
+        geometry = color_wheel_geometry(render_width, render_height)
+        field_width = max(1.0, geometry.field_right - geometry.field_left)
+        field_height = max(1.0, geometry.field_bottom - geometry.field_top)
+        pixels = []
+        for y in range(render_height):
+            dy = y - geometry.center_y
+            for x in range(render_width):
+                dx = x - geometry.center_x
+                radius = (dx * dx + dy * dy) ** 0.5
+                if geometry.ring_inner_radius <= radius <= geometry.outer_radius:
+                    ring_hue = (math.atan2(dx, -dy) / (2.0 * math.pi)) % 1.0
+                    rgb = colorsys.hsv_to_rgb(ring_hue, 1.0, 1.0)
+                    pixels.append(
+                        tuple(round(channel * 255) for channel in rgb) + (255,)
+                    )
+                elif (
+                    geometry.field_left <= x <= geometry.field_right
+                    and geometry.field_top <= y <= geometry.field_bottom
+                ):
+                    saturation = (x - geometry.field_left) / field_width
+                    value = 1.0 - (y - geometry.field_top) / field_height
+                    rgb = colorsys.hsv_to_rgb(hue, saturation, value)
+                    pixels.append(
+                        tuple(round(channel * 255) for channel in rgb) + (255,)
+                    )
+                else:
+                    pixels.append((0, 0, 0, 0))
+        image = Image.new("RGBA", (render_width, render_height))
+        image.putdata(pixels)
+        image = image.resize((width, height), Image.Resampling.LANCZOS)
+        self._color_wheel_image = ImageTk.PhotoImage(image)
+        self.color_wheel_canvas.delete("gradient")
+        self.color_wheel_canvas.create_image(
+            0, 0, anchor=tk.NW, image=self._color_wheel_image, tags="gradient"
+        )
+        self.color_wheel_canvas.tag_lower("gradient")
+        self._color_wheel_cache = cache_key
 
     def _on_visualization_resized(self, Event=None) -> None:
         pending = self._visual_resize_after_id

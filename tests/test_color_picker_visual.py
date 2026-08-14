@@ -3,6 +3,7 @@ import unittest
 from src.color_picker_visual import (
     ColorVisualizationMode,
     clamp_coordinate,
+    color_wheel_geometry,
     contrast_ratio,
     contrasting_text_color,
     hsl_field_position,
@@ -21,6 +22,18 @@ from src.color_picker_visual import (
 
 
 class ColorPickerVisualTests(unittest.TestCase):
+    def test_color_wheel_geometry_is_centered_square_and_unclipped(self):
+        geometry = color_wheel_geometry(401, 301)
+        self.assertEqual((geometry.center_x, geometry.center_y), (200.0, 150.0))
+        self.assertGreater(geometry.ring_inner_radius, 0.0)
+        self.assertLess(geometry.outer_radius, 150.0)
+        self.assertEqual(
+            geometry.field_right - geometry.field_left,
+            geometry.field_bottom - geometry.field_top,
+        )
+        self.assertGreaterEqual(geometry.field_left, 0.0)
+        self.assertLessEqual(geometry.field_right, 400.0)
+
     def test_visualization_modes_define_shared_numeric_model_semantics(self):
         self.assertFalse(ColorVisualizationMode.HSV_HSB.uses_hsl_model)
         self.assertTrue(ColorVisualizationMode.HSL.uses_hsl_model)
