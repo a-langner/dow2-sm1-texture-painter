@@ -5,6 +5,7 @@ from pathlib import Path
 import tempfile
 from typing import Literal, Mapping
 
+from src.recent_colors import RecentColors, validate_recent_colors
 from src.user_data import get_settings_path
 
 SETTINGS_FORMAT = "sm1-dow2-texture-painter-settings"
@@ -26,6 +27,7 @@ COLOR_PICKER_GEOMETRY_FIELD = "ui_color_picker_geometry"
 COLOR_PICKER_GROUP_FIELD = "ui_color_picker_group"
 COLOR_PICKER_COLOR_SPACE_FIELD = "ui_color_picker_color_space"
 COLOR_PICKER_SASHES_FIELD = "ui_color_picker_sashes"
+COLOR_PICKER_RECENT_COLORS_FIELD = "ui_color_picker_recent_colors"
 MAIN_WINDOW_POSITION_FIELD = "ui_main_window_position"
 ValidatedSettings = tuple[DirectoryValues, str | None]
 
@@ -51,6 +53,7 @@ class SettingsHandler:
         self.color_picker_group: str | None = None
         self.color_picker_color_space: str | None = None
         self.color_picker_sashes: tuple[int, int] | None = None
+        self.color_picker_recent_colors: RecentColors = ()
         self.main_window_position: tuple[int, int] | None = None
         self.load_error: Exception | None = None
         self._load()
@@ -72,6 +75,9 @@ class SettingsHandler:
             )
             self.color_picker_sashes = self._optional_ui_pair(
                 document, COLOR_PICKER_SASHES_FIELD
+            )
+            self.color_picker_recent_colors = validate_recent_colors(
+                document.get(COLOR_PICKER_RECENT_COLORS_FIELD)
             )
             self.main_window_position = self._optional_ui_pair(
                 document, MAIN_WINDOW_POSITION_FIELD
@@ -161,6 +167,11 @@ class SettingsHandler:
         self._update_values({MAIN_WINDOW_POSITION_FIELD: list(position)})
         self.main_window_position = position
 
+    def set_color_picker_recent_colors(self, colors: RecentColors) -> None:
+        serialized = [list(color) for color in colors]
+        self._update_values({COLOR_PICKER_RECENT_COLORS_FIELD: serialized})
+        self.color_picker_recent_colors = colors
+
     @staticmethod
     def _optional_ui_string(
         document: dict[str, object], field: str
@@ -224,6 +235,11 @@ class SettingsHandler:
             COLOR_PICKER_COLOR_SPACE_FIELD: self.color_picker_color_space,
             COLOR_PICKER_SASHES_FIELD: (
                 list(self.color_picker_sashes) if self.color_picker_sashes else None
+            ),
+            COLOR_PICKER_RECENT_COLORS_FIELD: (
+                [list(color) for color in self.color_picker_recent_colors]
+                if self.color_picker_recent_colors
+                else None
             ),
             MAIN_WINDOW_POSITION_FIELD: (
                 list(self.main_window_position) if self.main_window_position else None

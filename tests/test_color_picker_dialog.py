@@ -219,6 +219,30 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertIsNone(dialog.get_accepted_color())
         dialog.destroy.assert_called_once_with()
 
+    def test_only_accept_records_the_final_color_in_recent_history(self):
+        settings = Mock()
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.settings = settings
+        dialog.current_color = "#8A1F27"
+        dialog.accepted_color = None
+        dialog.recent_colors = ((150, 12, 9),)
+        dialog.destroy = Mock()
+        dialog._refresh_color_representations = Mock()
+        dialog._save_geometry = Mock()
+
+        dialog.set_current_color("#123456")
+        settings.set_color_picker_recent_colors.assert_not_called()
+        dialog.cancel()
+        settings.set_color_picker_recent_colors.assert_not_called()
+
+        dialog.current_color = "#8A1F27"
+        dialog.accept()
+
+        settings.set_color_picker_recent_colors.assert_called_once_with(
+            ((138, 31, 39), (150, 12, 9))
+        )
+        self.assertEqual(dialog.recent_colors[0], (138, 31, 39))
+
     def test_current_color_has_one_public_update_path(self):
         dialog = object.__new__(ColorPickerDialog)
         dialog.current_color = "#123456"

@@ -253,6 +253,27 @@ class SettingsHandlerTests(unittest.TestCase):
             self.assertEqual(document["ui_main_window_position"], [-800, 120])
             self.assertNotIn("ui_main_window_size", document)
 
+    def test_confirmed_recent_colors_persist_as_ordered_rgb_values(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_path = root / "settings.json"
+            handler = SettingsHandler(settings_path, root)
+
+            handler.set_color_picker_recent_colors(
+                ((150, 12, 9), (138, 31, 39))
+            )
+            reloaded = SettingsHandler(settings_path, root)
+
+            self.assertEqual(
+                reloaded.color_picker_recent_colors,
+                ((150, 12, 9), (138, 31, 39)),
+            )
+            document = json.loads(settings_path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                document["ui_color_picker_recent_colors"],
+                [[150, 12, 9], [138, 31, 39]],
+            )
+
     def test_invalid_optional_ui_fields_fall_back_without_blocking_updates(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

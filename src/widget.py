@@ -37,6 +37,7 @@ from src.paint_color_analysis import (
     get_paints_for_group,
     sort_paints_visually,
 )
+from src.recent_colors import RecentColors, add_recent_color
 from src.render_settings import (
     MAX_BRIGHTNESS,
     MAX_CONTRAST,
@@ -543,6 +544,9 @@ class ColorPickerDialog(tk.Toplevel):
         self._hue_indicator_items = ()
         self._achromatic_hue = rgb_hex_to_hsv(initial_color)[0]
         self.accepted_color: Optional[str] = None
+        self.recent_colors: RecentColors = getattr(
+            settings, "color_picker_recent_colors", ()
+        )
         saved_mode = getattr(settings, "color_picker_color_space", None)
         self.color_space_mode = (
             saved_mode if saved_mode in COLOR_SPACE_MODES else DEFAULT_COLOR_SPACE_MODE
@@ -1380,6 +1384,7 @@ class ColorPickerDialog(tk.Toplevel):
 
     def accept(self, Event=None) -> None:
         self.accepted_color = self.current_color
+        self._remember_accepted_color()
         self._save_geometry()
         self.destroy()
 
@@ -1387,6 +1392,21 @@ class ColorPickerDialog(tk.Toplevel):
         self.accepted_color = None
         self._save_geometry()
         self.destroy()
+
+    def _remember_accepted_color(self) -> None:
+        settings = getattr(self, "settings", None)
+        if settings is None:
+            return
+        recent_colors = add_recent_color(
+            getattr(self, "recent_colors", ()),
+            rgb_hex_to_channels(self.current_color),
+        )
+        try:
+            settings.set_color_picker_recent_colors(recent_colors)
+        except OSError:
+            LOGGER.exception("Could not save confirmed recent colour")
+            return
+        self.recent_colors = recent_colors
 
     def _save_geometry(self) -> None:
         settings = getattr(self, "settings", None)
