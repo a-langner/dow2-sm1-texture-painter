@@ -767,9 +767,9 @@ class ColorPickerDialog(tk.Toplevel):
         actions = ttk.Frame(self, padding=COLOR_EDITOR_SECTION_GAP)
         actions.pack(side=tk.BOTTOM, fill=tk.X)
         self.ok_button = ttk.Button(actions, text="OK", command=self.accept)
-        self.ok_button.pack(side=tk.RIGHT)
         self.cancel_button = ttk.Button(actions, text="Cancel", command=self.cancel)
-        self.cancel_button.pack(
+        self.cancel_button.pack(side=tk.RIGHT)
+        self.ok_button.pack(
             side=tk.RIGHT, padx=(0, COLOR_EDITOR_SECTION_GAP)
         )
 

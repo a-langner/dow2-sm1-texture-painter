@@ -1344,6 +1344,17 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         self.assertEqual(dialog.ok_button.options["text"], "OK")
         self.assertEqual(dialog.cancel_button.options["text"], "Cancel")
+        self.assertIs(dialog.ok_button.options["command"].__self__, dialog)
+        self.assertIs(dialog.cancel_button.options["command"].__self__, dialog)
+        self.assertEqual(
+            dialog.ok_button.parent.packed_children,
+            [dialog.cancel_button, dialog.ok_button],
+        )
+        self.assertEqual(dialog.cancel_button.pack_options, {"side": "right"})
+        self.assertEqual(
+            dialog.ok_button.pack_options,
+            {"side": "right", "padx": (0, COLOR_EDITOR_SECTION_GAP)},
+        )
 
     def test_rgb_channel_boundaries_update_canonical_color(self):
         dialog = object.__new__(ColorPickerDialog)
