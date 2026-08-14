@@ -4,10 +4,38 @@ from __future__ import annotations
 
 import colorsys
 import math
+from enum import Enum
 
 
 DARK_TEXT_COLOR = "#000000"
 LIGHT_TEXT_COLOR = "#ffffff"
+
+
+class ColorVisualizationMode(str, Enum):
+    """Identify a picker visualization without introducing another colour state."""
+
+    HSV_HSB = "HSV / HSB"
+    HSL = "HSL"
+    COLOR_WHEEL = "Color Wheel"
+    CLASSIC = "Classic"
+
+    @property
+    def uses_hsl_model(self) -> bool:
+        """Return whether numeric controls and the shared field use HSL semantics."""
+        return self is ColorVisualizationMode.HSL
+
+    @property
+    def numeric_model_title(self) -> str:
+        """Return the model title shown above the shared numeric controls."""
+        return "HSL" if self.uses_hsl_model else "HSV / HSB"
+
+    @property
+    def component_label(self) -> str:
+        """Return the third shared numeric component label."""
+        return "Lightness:" if self.uses_hsl_model else "Value:"
+
+    def __str__(self) -> str:
+        return self.value
 
 
 def normalize_rgb_hex(color: str) -> str:

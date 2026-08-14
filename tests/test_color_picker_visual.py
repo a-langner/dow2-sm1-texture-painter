@@ -1,6 +1,7 @@
 import unittest
 
 from src.color_picker_visual import (
+    ColorVisualizationMode,
     clamp_coordinate,
     contrast_ratio,
     contrasting_text_color,
@@ -20,6 +21,14 @@ from src.color_picker_visual import (
 
 
 class ColorPickerVisualTests(unittest.TestCase):
+    def test_visualization_modes_define_shared_numeric_model_semantics(self):
+        self.assertFalse(ColorVisualizationMode.HSV_HSB.uses_hsl_model)
+        self.assertTrue(ColorVisualizationMode.HSL.uses_hsl_model)
+        self.assertFalse(ColorVisualizationMode.COLOR_WHEEL.uses_hsl_model)
+        self.assertFalse(ColorVisualizationMode.CLASSIC.uses_hsl_model)
+        self.assertEqual(ColorVisualizationMode.HSL.numeric_model_title, "HSL")
+        self.assertEqual(ColorVisualizationMode.COLOR_WHEEL.component_label, "Value:")
+
     def test_field_edges_map_saturation_and_value(self):
         self.assertEqual(hsv_from_field_position(0, 0, 101, 101, 0.5), (0.5, 0.0, 1.0))
         self.assertEqual(hsv_from_field_position(100, 100, 101, 101, 0.5), (0.5, 1.0, 0.0))

@@ -16,6 +16,7 @@ from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.constant import OPEN_FILETYPES, SAVE_EXT_LIST, ColorOps
 from src.paint_catalog import PaintCatalog, PaintColor, load_citadel_catalog
 from src.color_picker_visual import (
+    ColorVisualizationMode,
     contrasting_text_color,
     hsl_field_position,
     hsl_from_field_position,
@@ -81,7 +82,10 @@ ALL_COLOR_INDICATORS = (
     "#1976d2",
     "#7b1fa2",
 )
-COLOR_SPACE_MODES = ("HSV / HSB", "HSL")
+COLOR_SPACE_MODES = (
+    ColorVisualizationMode.HSV_HSB.value,
+    ColorVisualizationMode.HSL.value,
+)
 DEFAULT_COLOR_SPACE_MODE = COLOR_SPACE_MODES[0]
 PAINT_SWATCH_TARGET_WIDTH = 96
 PAINT_SWATCH_PREVIEW_SIZE = 60
@@ -687,7 +691,7 @@ class ColorPickerDialog(tk.Toplevel):
             settings, "color_picker_recent_colors", ()
         )
         saved_mode = getattr(settings, "color_picker_color_space", None)
-        self.color_space_mode = (
+        self.color_space_mode = ColorVisualizationMode(
             saved_mode if saved_mode in COLOR_SPACE_MODES else DEFAULT_COLOR_SPACE_MODE
         )
         saved_group = getattr(settings, "color_picker_group", None)
@@ -1180,15 +1184,21 @@ class ColorPickerDialog(tk.Toplevel):
 
     def select_color_space(self, mode: str) -> None:
         """Update structural editor mode without creating a second color state."""
-        if mode not in COLOR_SPACE_MODES:
+        try:
+            visualization_mode = ColorVisualizationMode(mode)
+        except ValueError:
             raise ValueError(f"Unsupported color space: {mode}")
-        self.color_space_mode = mode
+        if visualization_mode.value not in COLOR_SPACE_MODES:
+            raise ValueError(f"Unsupported color space: {mode}")
+        self.color_space_mode = visualization_mode
         selector = getattr(self, "color_space_selector", None)
-        if selector is not None and selector.get() != mode:
-            selector.set(mode)
-        self.editor_alternate_color_space_area.configure(text=mode)
+        if selector is not None and selector.get() != visualization_mode.value:
+            selector.set(visualization_mode.value)
+        self.editor_alternate_color_space_area.configure(
+            text=visualization_mode.numeric_model_title
+        )
         self.color_model_labels["component"].configure(
-            text="Value:" if mode == DEFAULT_COLOR_SPACE_MODE else "Lightness:"
+            text=visualization_mode.component_label
         )
         self._refresh_color_model_controls()
         self._refresh_visual_picker()
@@ -1227,10 +1237,10 @@ class ColorPickerDialog(tk.Toplevel):
         controls = getattr(self, "color_model_controls", None)
         if controls is None:
             return
-        if self.color_space_mode == DEFAULT_COLOR_SPACE_MODE:
-            hue, saturation, component = rgb_hex_to_hsv(self.current_color)
-        else:
+        if self._visualization_mode().uses_hsl_model:
             hue, saturation, component = rgb_hex_to_hsl(self.current_color)
+        else:
+            hue, saturation, component = rgb_hex_to_hsv(self.current_color)
         if saturation > 0.0:
             self._achromatic_hue = hue
         else:
@@ -1334,11 +1344,17 @@ class ColorPickerDialog(tk.Toplevel):
         saturation = int(values[1]) / 100.0
         component = int(values[2]) / 100.0
         self._achromatic_hue = hue
-        if self.color_space_mode == DEFAULT_COLOR_SPACE_MODE:
-            color = hsv_to_rgb_hex(hue, saturation, component)
-        else:
+        if self._visualization_mode().uses_hsl_model:
             color = hsl_to_rgb_hex(hue, saturation, component)
+        else:
+            color = hsv_to_rgb_hex(hue, saturation, component)
         self.set_current_color(color)
+
+    def _visualization_mode(self) -> ColorVisualizationMode:
+        """Return the active typed mode, including for narrow test doubles."""
+        return ColorVisualizationMode(
+            getattr(self, "color_space_mode", DEFAULT_COLOR_SPACE_MODE)
+        )
 
     def _on_color_model_control_return(self, Event=None) -> str:
         self._on_color_model_control_changed(Event)
@@ -1354,19 +1370,19 @@ class ColorPickerDialog(tk.Toplevel):
             or not hasattr(field, "winfo_width")
         ):
             return
-        mode = getattr(self, "color_space_mode", DEFAULT_COLOR_SPACE_MODE)
-        if mode == DEFAULT_COLOR_SPACE_MODE:
-            hue, saturation, component = rgb_hex_to_hsv(self.current_color)
-        else:
+        mode = self._visualization_mode()
+        if mode.uses_hsl_model:
             hue, saturation, component = rgb_hex_to_hsl(self.current_color)
+        else:
+            hue, saturation, component = rgb_hex_to_hsv(self.current_color)
         if saturation > 0.0:
             self._achromatic_hue = hue
         else:
             hue = getattr(self, "_achromatic_hue", 0.0)
-        if mode == DEFAULT_COLOR_SPACE_MODE:
-            self._render_hsv_field(hue)
-        else:
+        if mode.uses_hsl_model:
             self._render_hsl_field(hue)
+        else:
+            self._render_hsv_field(hue)
         self._render_hue_slider()
         self._draw_hsv_indicators(hue, saturation, component)
 
@@ -1385,18 +1401,18 @@ class ColorPickerDialog(tk.Toplevel):
     def _on_color_field_input(self, Event) -> None:
         width = self.hsv_color_field.winfo_width()
         height = self.hsv_color_field.winfo_height()
-        if self.color_space_mode == DEFAULT_COLOR_SPACE_MODE:
-            hue, saturation, _ = rgb_hex_to_hsv(self.current_color)
-            if saturation == 0.0:
-                hue = getattr(self, "_achromatic_hue", 0.0)
-            components = hsv_from_field_position(Event.x, Event.y, width, height, hue)
-            color = hsv_to_rgb_hex(*components)
-        else:
+        if self._visualization_mode().uses_hsl_model:
             hue, saturation, _ = rgb_hex_to_hsl(self.current_color)
             if saturation == 0.0:
                 hue = getattr(self, "_achromatic_hue", 0.0)
             components = hsl_from_field_position(Event.x, Event.y, width, height, hue)
             color = hsl_to_rgb_hex(*components)
+        else:
+            hue, saturation, _ = rgb_hex_to_hsv(self.current_color)
+            if saturation == 0.0:
+                hue = getattr(self, "_achromatic_hue", 0.0)
+            components = hsv_from_field_position(Event.x, Event.y, width, height, hue)
+            color = hsv_to_rgb_hex(*components)
         self.set_current_color(color)
 
     def _on_hsv_field_input(self, Event) -> None:
@@ -1406,12 +1422,12 @@ class ColorPickerDialog(tk.Toplevel):
     def _on_hue_slider_input(self, Event) -> None:
         hue = hue_from_slider_position(Event.y, self.hue_slider.winfo_height())
         self._achromatic_hue = hue
-        if self.color_space_mode == DEFAULT_COLOR_SPACE_MODE:
-            _, saturation, component = rgb_hex_to_hsv(self.current_color)
-            color = hsv_to_rgb_hex(hue, saturation, component)
-        else:
+        if self._visualization_mode().uses_hsl_model:
             _, saturation, component = rgb_hex_to_hsl(self.current_color)
             color = hsl_to_rgb_hex(hue, saturation, component)
+        else:
+            _, saturation, component = rgb_hex_to_hsv(self.current_color)
+            color = hsv_to_rgb_hex(hue, saturation, component)
         self.set_current_color(color)
 
     def _render_hsv_field(self, hue: float) -> None:
