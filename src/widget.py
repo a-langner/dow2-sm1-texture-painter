@@ -849,9 +849,9 @@ class ColorPickerDialog(tk.Toplevel):
         )
         self.editor_hex_area = ttk.Frame(self.editor_alternate_color_space_area)
         self.editor_hex_area.grid(
-            row=1,
+            row=2,
             column=0,
-            columnspan=6,
+            columnspan=3,
             sticky=tk.EW,
             pady=(COLOR_EDITOR_SECTION_GAP, 0),
         )
@@ -1079,10 +1079,8 @@ class ColorPickerDialog(tk.Toplevel):
                 ("component", "Value", 100),
             )
         ):
-            label_column = index * 2
-            control_column = label_column + 1
             self.editor_alternate_color_space_area.grid_columnconfigure(
-                control_column,
+                index,
                 weight=1,
                 uniform="color-model-control",
             )
@@ -1092,9 +1090,9 @@ class ColorPickerDialog(tk.Toplevel):
             )
             component_label.grid(
                 row=0,
-                column=label_column,
+                column=index,
                 sticky=tk.W,
-                padx=(0, 4),
+                pady=(0, 3),
             )
             validation = (
                 self.register(self._validate_model_input),
@@ -1105,16 +1103,15 @@ class ColorPickerDialog(tk.Toplevel):
                 self.editor_alternate_color_space_area,
                 from_=0,
                 to=maximum,
-                width=4,
+                width=3,
                 validate="key",
                 validatecommand=validation,
                 command=self._on_color_model_control_changed,
             )
             control.grid(
-                row=0,
-                column=control_column,
+                row=1,
+                column=index,
                 sticky=tk.W,
-                padx=(0, 12 if index < 2 else 0),
             )
             control.bind("<KeyRelease>", self._on_color_model_control_changed)
             control.bind("<FocusOut>", self._on_color_model_control_changed)

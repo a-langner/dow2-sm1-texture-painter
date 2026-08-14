@@ -663,9 +663,9 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(
             dialog.editor_hex_area.grid_options,
             {
-                "row": 1,
+                "row": 2,
                 "column": 0,
-                "columnspan": 6,
+                "columnspan": 3,
                 "sticky": "ew",
                 "pady": (COLOR_EDITOR_SECTION_GAP, 0),
             },
@@ -892,9 +892,9 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(
             dialog.editor_alternate_color_space_area.grid_columns,
             {
+                0: {"weight": 1, "uniform": "color-model-control"},
                 1: {"weight": 1, "uniform": "color-model-control"},
-                3: {"weight": 1, "uniform": "color-model-control"},
-                5: {"weight": 1, "uniform": "color-model-control"},
+                2: {"weight": 1, "uniform": "color-model-control"},
             },
         )
         for index, (name, label, maximum) in enumerate(
@@ -909,20 +909,19 @@ class ColorPickerDialogTests(unittest.TestCase):
                 dialog.color_model_labels[name].grid_options,
                 {
                     "row": 0,
-                    "column": index * 2,
+                    "column": index,
                     "sticky": "w",
-                    "padx": (0, 4),
+                    "pady": (0, 3),
                 },
             )
-            self.assertEqual(dialog.color_model_controls[name].options["width"], 4)
+            self.assertEqual(dialog.color_model_controls[name].options["width"], 3)
             self.assertEqual(dialog.color_model_controls[name].options["to"], maximum)
             self.assertEqual(
                 dialog.color_model_controls[name].grid_options,
                 {
-                    "row": 0,
-                    "column": index * 2 + 1,
+                    "row": 1,
+                    "column": index,
                     "sticky": "w",
-                    "padx": (0, 12 if index < 2 else 0),
                 },
             )
         self.assertEqual(dialog.hex_input_label.options["text"], "Hex:")
