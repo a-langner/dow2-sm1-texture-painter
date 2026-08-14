@@ -724,13 +724,17 @@ class ColorPickerDialog(tk.Toplevel):
             (group for group in VISUAL_GROUP_ORDER if group.value == saved_group),
             None,
         )
+        saved_sort_mode = getattr(settings, "color_picker_sort_mode", None)
+        self.palette_sort_mode = next(
+            (mode for mode in PaletteSortMode if mode.value == saved_sort_mode),
+            PaletteSortMode.COLOR,
+        )
         self.paint_catalog = (
             load_citadel_catalog() if paint_catalog is None else paint_catalog
         )
         self.palette_paints = ()
         self.selected_paint_id: Optional[str] = None
         self.search_query = ""
-        self.palette_sort_mode = PaletteSortMode.COLOR
 
         self._configure_window(parent)
         self._build_main_layout()
@@ -2075,6 +2079,7 @@ class ColorPickerDialog(tk.Toplevel):
                     else None
                 ),
                 getattr(self, "color_space_mode", DEFAULT_COLOR_SPACE_MODE),
+                getattr(self, "palette_sort_mode", PaletteSortMode.COLOR).value,
                 sashes,
             )
         except OSError:

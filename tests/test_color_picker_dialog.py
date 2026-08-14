@@ -210,6 +210,7 @@ class ColorPickerDialogTests(unittest.TestCase):
             ((150, 12, 9), (138, 31, 39)),
         )
         self.assertEqual(dialog.color_space_mode, DEFAULT_COLOR_SPACE_MODE)
+        self.assertIs(dialog.palette_sort_mode, PaletteSortMode.COLOR)
         self.assertEqual(dialog.search_query, "")
         self.assertIsNone(dialog.get_accepted_color())
         grab_set.assert_called_once_with()
@@ -757,6 +758,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.geometry = Mock(return_value="1050x680+140+90")
         dialog.selected_color_group = ColorGroup.BLUE
         dialog.color_space_mode = "HSL"
+        dialog.palette_sort_mode = PaletteSortMode.ALPHABETICAL
         dialog.main_panes = Mock()
         dialog.main_panes.sashpos.side_effect = (140, 700)
         dialog.destroy = Mock()
@@ -765,7 +767,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.cancel()
 
         dialog.settings.set_color_picker_ui_state.assert_called_once_with(
-            "1050x680+140+90", "Blues", "HSL", (140, 700)
+            "1050x680+140+90", "Blues", "HSL", "alphabetical", (140, 700)
         )
         dialog.destroy.assert_called_once_with()
 
@@ -773,6 +775,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         settings = SimpleNamespace(
             color_picker_group="Blues",
             color_picker_color_space="HSL",
+            color_picker_sort_mode="alphabetical",
         )
         with patch("src.widget.tk.Toplevel.__init__", return_value=None), patch.object(
             ColorPickerDialog, "_configure_window"
@@ -791,6 +794,7 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         self.assertIs(dialog.selected_color_group, ColorGroup.BLUE)
         self.assertEqual(dialog.color_space_mode, "HSL")
+        self.assertIs(dialog.palette_sort_mode, PaletteSortMode.ALPHABETICAL)
         self.assertEqual(dialog.search_query, "")
         self.assertEqual(dialog.current_color, "#123456")
 
@@ -821,6 +825,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         settings = SimpleNamespace(
             color_picker_group="Unknown",
             color_picker_color_space="LAB",
+            color_picker_sort_mode="obsolete",
         )
         dialog = object.__new__(ColorPickerDialog)
         saved_group = getattr(settings, "color_picker_group", None)
@@ -835,6 +840,13 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         self.assertIsNone(dialog.selected_color_group)
         self.assertEqual(dialog.color_space_mode, DEFAULT_COLOR_SPACE_MODE)
+
+        saved_sort_mode = settings.color_picker_sort_mode
+        dialog.palette_sort_mode = next(
+            (mode for mode in PaletteSortMode if mode.value == saved_sort_mode),
+            PaletteSortMode.COLOR,
+        )
+        self.assertIs(dialog.palette_sort_mode, PaletteSortMode.COLOR)
 
     def test_valid_saved_sashes_restore_within_current_picker_width(self):
         dialog = object.__new__(ColorPickerDialog)

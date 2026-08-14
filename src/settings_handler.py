@@ -26,6 +26,7 @@ SettingsDocument = dict[str, object]
 COLOR_PICKER_GEOMETRY_FIELD = "ui_color_picker_geometry"
 COLOR_PICKER_GROUP_FIELD = "ui_color_picker_group"
 COLOR_PICKER_COLOR_SPACE_FIELD = "ui_color_picker_color_space"
+COLOR_PICKER_SORT_MODE_FIELD = "ui_color_picker_sort_mode"
 COLOR_PICKER_SASHES_FIELD = "ui_color_picker_sashes"
 COLOR_PICKER_RECENT_COLORS_FIELD = "ui_color_picker_recent_colors"
 MAIN_WINDOW_POSITION_FIELD = "ui_main_window_position"
@@ -52,6 +53,7 @@ class SettingsHandler:
         self.color_picker_geometry: str | None = None
         self.color_picker_group: str | None = None
         self.color_picker_color_space: str | None = None
+        self.color_picker_sort_mode: str | None = None
         self.color_picker_sashes: tuple[int, int] | None = None
         self.color_picker_recent_colors: RecentColors = ()
         self.main_window_position: tuple[int, int] | None = None
@@ -72,6 +74,9 @@ class SettingsHandler:
             )
             self.color_picker_color_space = self._optional_ui_string(
                 document, COLOR_PICKER_COLOR_SPACE_FIELD
+            )
+            self.color_picker_sort_mode = self._optional_ui_string(
+                document, COLOR_PICKER_SORT_MODE_FIELD
             )
             self.color_picker_sashes = self._optional_ui_pair(
                 document, COLOR_PICKER_SASHES_FIELD
@@ -149,18 +154,21 @@ class SettingsHandler:
         geometry: str,
         group: str | None,
         color_space: str,
+        sort_mode: str,
         sashes: tuple[int, int],
     ) -> None:
         values: dict[str, object] = {
             COLOR_PICKER_GEOMETRY_FIELD: geometry,
             COLOR_PICKER_GROUP_FIELD: group,
             COLOR_PICKER_COLOR_SPACE_FIELD: color_space,
+            COLOR_PICKER_SORT_MODE_FIELD: sort_mode,
             COLOR_PICKER_SASHES_FIELD: list(sashes),
         }
         self._update_values(values)
         self.color_picker_geometry = geometry
         self.color_picker_group = group
         self.color_picker_color_space = color_space
+        self.color_picker_sort_mode = sort_mode
         self.color_picker_sashes = sashes
 
     def set_main_window_position(self, position: tuple[int, int]) -> None:
@@ -234,6 +242,7 @@ class SettingsHandler:
             COLOR_PICKER_GEOMETRY_FIELD: self.color_picker_geometry,
             COLOR_PICKER_GROUP_FIELD: self.color_picker_group,
             COLOR_PICKER_COLOR_SPACE_FIELD: self.color_picker_color_space,
+            COLOR_PICKER_SORT_MODE_FIELD: self.color_picker_sort_mode,
             COLOR_PICKER_SASHES_FIELD: (
                 list(self.color_picker_sashes) if self.color_picker_sashes else None
             ),

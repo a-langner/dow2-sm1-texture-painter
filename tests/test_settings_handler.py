@@ -231,13 +231,20 @@ class SettingsHandlerTests(unittest.TestCase):
             handler = SettingsHandler(settings_path, root)
 
             handler.set_color_picker_ui_state(
-                "1100x720+120+80", "Browns", "HSV / HSB", (140, 690)
+                "1100x720+120+80",
+                "Browns",
+                "HSV / HSB",
+                "alphabetical",
+                (140, 690),
             )
             reloaded = SettingsHandler(settings_path, root)
 
             self.assertEqual(reloaded.color_picker_group, "Browns")
             self.assertEqual(reloaded.color_picker_color_space, "HSV / HSB")
+            self.assertEqual(reloaded.color_picker_sort_mode, "alphabetical")
             self.assertEqual(reloaded.color_picker_sashes, (140, 690))
+            document = json.loads(settings_path.read_text(encoding="utf-8"))
+            self.assertEqual(document["ui_color_picker_sort_mode"], "alphabetical")
 
     def test_main_window_position_persists_without_a_size(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -318,6 +325,7 @@ class SettingsHandlerTests(unittest.TestCase):
                     "ui_color_picker_geometry": [1100, 720],
                     "ui_color_picker_group": 42,
                     "ui_color_picker_color_space": False,
+                    "ui_color_picker_sort_mode": ["alphabetical"],
                     "ui_color_picker_sashes": [140, "bad"],
                     "ui_main_window_position": "offscreen",
                 }
@@ -331,6 +339,7 @@ class SettingsHandlerTests(unittest.TestCase):
             self.assertIsNone(handler.color_picker_geometry)
             self.assertIsNone(handler.color_picker_group)
             self.assertIsNone(handler.color_picker_color_space)
+            self.assertIsNone(handler.color_picker_sort_mode)
             self.assertIsNone(handler.color_picker_sashes)
             self.assertIsNone(handler.main_window_position)
 
