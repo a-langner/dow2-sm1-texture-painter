@@ -19,6 +19,10 @@ from src.paint_catalog import PaintCatalog, PaintColor, load_citadel_catalog
 from src.color_picker_visual import (
     ColorVisualizationMode,
     color_wheel_geometry,
+    color_wheel_hue_from_position,
+    color_wheel_hue_position,
+    color_wheel_sv_from_position,
+    color_wheel_sv_position,
     contrasting_text_color,
     hsl_field_position,
     hsl_from_field_position,
@@ -686,6 +690,9 @@ class ColorPickerDialog(tk.Toplevel):
         self._displayed_field_mode = None
         self._hue_slider_cache = None
         self._color_wheel_cache = None
+        self._color_wheel_drag_target = None
+        self._color_wheel_hue_indicator_items = ()
+        self._color_wheel_sv_indicator_items = ()
         self._visual_resize_after_id = None
         self._field_indicator_items = ()
         self._hue_indicator_items = ()
@@ -1061,6 +1068,9 @@ class ColorPickerDialog(tk.Toplevel):
         self.hsv_color_field.bind("<Configure>", self._on_visualization_resized)
         self.hue_slider.bind("<Configure>", self._on_visualization_resized)
         self.color_wheel_canvas.bind("<Configure>", self._on_visualization_resized)
+        self.color_wheel_canvas.bind("<Button-1>", self._on_color_wheel_press)
+        self.color_wheel_canvas.bind("<B1-Motion>", self._on_color_wheel_drag)
+        self.color_wheel_canvas.bind("<ButtonRelease-1>", self._on_color_wheel_release)
 
         self.rgb_controls = {}
         self.rgb_control_labels = {}
@@ -1398,12 +1408,13 @@ class ColorPickerDialog(tk.Toplevel):
             wheel = getattr(self, "color_wheel_canvas", None)
             if wheel is None or not hasattr(wheel, "winfo_width"):
                 return
-            hue, saturation, _ = rgb_hex_to_hsv(self.current_color)
+            hue, saturation, value = rgb_hex_to_hsv(self.current_color)
             if saturation > 0.0:
                 self._achromatic_hue = hue
             else:
                 hue = getattr(self, "_achromatic_hue", 0.0)
             self._render_color_wheel(hue)
+            self._draw_color_wheel_indicators(hue, saturation, value)
             return
         field = getattr(self, "hsv_color_field", None)
         slider = getattr(self, "hue_slider", None)
@@ -1444,27 +1455,31 @@ class ColorPickerDialog(tk.Toplevel):
         scale = 2
         render_width = width * scale
         render_height = height * scale
-        geometry = color_wheel_geometry(render_width, render_height)
+        geometry = color_wheel_geometry(width, height)
         field_width = max(1.0, geometry.field_right - geometry.field_left)
         field_height = max(1.0, geometry.field_bottom - geometry.field_top)
         pixels = []
         for y in range(render_height):
-            dy = y - geometry.center_y
+            canvas_y = y / scale
+            dy = canvas_y - geometry.center_y
             for x in range(render_width):
-                dx = x - geometry.center_x
+                canvas_x = x / scale
+                dx = canvas_x - geometry.center_x
                 radius = (dx * dx + dy * dy) ** 0.5
                 if geometry.ring_inner_radius <= radius <= geometry.outer_radius:
-                    ring_hue = (math.atan2(dx, -dy) / (2.0 * math.pi)) % 1.0
+                    ring_hue = color_wheel_hue_from_position(
+                        canvas_x, canvas_y, geometry
+                    )
                     rgb = colorsys.hsv_to_rgb(ring_hue, 1.0, 1.0)
                     pixels.append(
                         tuple(round(channel * 255) for channel in rgb) + (255,)
                     )
                 elif (
-                    geometry.field_left <= x <= geometry.field_right
-                    and geometry.field_top <= y <= geometry.field_bottom
+                    geometry.field_left <= canvas_x <= geometry.field_right
+                    and geometry.field_top <= canvas_y <= geometry.field_bottom
                 ):
-                    saturation = (x - geometry.field_left) / field_width
-                    value = 1.0 - (y - geometry.field_top) / field_height
+                    saturation = (canvas_x - geometry.field_left) / field_width
+                    value = 1.0 - (canvas_y - geometry.field_top) / field_height
                     rgb = colorsys.hsv_to_rgb(hue, saturation, value)
                     pixels.append(
                         tuple(round(channel * 255) for channel in rgb) + (255,)
@@ -1481,6 +1496,82 @@ class ColorPickerDialog(tk.Toplevel):
         )
         self.color_wheel_canvas.tag_lower("gradient")
         self._color_wheel_cache = cache_key
+
+    def _on_color_wheel_press(self, Event) -> None:
+        geometry = color_wheel_geometry(
+            self.color_wheel_canvas.winfo_width(),
+            self.color_wheel_canvas.winfo_height(),
+        )
+        radius = math.hypot(Event.x - geometry.center_x, Event.y - geometry.center_y)
+        if geometry.ring_inner_radius <= radius <= geometry.outer_radius:
+            self._color_wheel_drag_target = "hue"
+        elif (
+            geometry.field_left <= Event.x <= geometry.field_right
+            and geometry.field_top <= Event.y <= geometry.field_bottom
+        ):
+            self._color_wheel_drag_target = "sv"
+        else:
+            self._color_wheel_drag_target = None
+            return
+        self._apply_color_wheel_input(Event)
+
+    def _on_color_wheel_drag(self, Event) -> None:
+        if getattr(self, "_color_wheel_drag_target", None) is not None:
+            self._apply_color_wheel_input(Event)
+
+    def _on_color_wheel_release(self, Event=None) -> None:
+        self._color_wheel_drag_target = None
+
+    def _apply_color_wheel_input(self, Event) -> None:
+        geometry = color_wheel_geometry(
+            self.color_wheel_canvas.winfo_width(),
+            self.color_wheel_canvas.winfo_height(),
+        )
+        hue, saturation, value = rgb_hex_to_hsv(self.current_color)
+        if saturation == 0.0:
+            hue = getattr(self, "_achromatic_hue", 0.0)
+        if self._color_wheel_drag_target == "hue":
+            hue = color_wheel_hue_from_position(Event.x, Event.y, geometry)
+            self._achromatic_hue = hue
+        elif self._color_wheel_drag_target == "sv":
+            saturation, value = color_wheel_sv_from_position(
+                Event.x, Event.y, geometry
+            )
+        else:
+            return
+        self.set_current_color(hsv_to_rgb_hex(hue, saturation, value))
+
+    def _draw_color_wheel_indicators(
+        self, hue: float, saturation: float, value: float
+    ) -> None:
+        geometry = color_wheel_geometry(
+            self.color_wheel_canvas.winfo_width(),
+            self.color_wheel_canvas.winfo_height(),
+        )
+        hue_x, hue_y = color_wheel_hue_position(hue, geometry)
+        sv_x, sv_y = color_wheel_sv_position(saturation, value, geometry)
+        if not getattr(self, "_color_wheel_hue_indicator_items", ()):
+            self._color_wheel_hue_indicator_items = tuple(
+                self.color_wheel_canvas.create_oval(
+                    0, 0, 0, 0, outline=outline, width=2, tags="indicator"
+                )
+                for outline in ("black", "white")
+            )
+        if not getattr(self, "_color_wheel_sv_indicator_items", ()):
+            self._color_wheel_sv_indicator_items = tuple(
+                self.color_wheel_canvas.create_oval(
+                    0, 0, 0, 0, outline=outline, width=2, tags="indicator"
+                )
+                for outline in ("black", "white")
+            )
+        for items, x, y in (
+            (self._color_wheel_hue_indicator_items, hue_x, hue_y),
+            (self._color_wheel_sv_indicator_items, sv_x, sv_y),
+        ):
+            for item, radius in zip(items, (6, 4)):
+                self.color_wheel_canvas.coords(
+                    item, x - radius, y - radius, x + radius, y + radius
+                )
 
     def _on_visualization_resized(self, Event=None) -> None:
         pending = self._visual_resize_after_id

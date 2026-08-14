@@ -4,6 +4,10 @@ from src.color_picker_visual import (
     ColorVisualizationMode,
     clamp_coordinate,
     color_wheel_geometry,
+    color_wheel_hue_from_position,
+    color_wheel_hue_position,
+    color_wheel_sv_from_position,
+    color_wheel_sv_position,
     contrast_ratio,
     contrasting_text_color,
     hsl_field_position,
@@ -33,6 +37,41 @@ class ColorPickerVisualTests(unittest.TestCase):
         )
         self.assertGreaterEqual(geometry.field_left, 0.0)
         self.assertLessEqual(geometry.field_right, 400.0)
+
+    def test_color_wheel_hue_mapping_is_clockwise_and_round_trips(self):
+        geometry = color_wheel_geometry(301, 301)
+        positions = (
+            (0.0, (geometry.center_x, geometry.center_y - 100.0)),
+            (0.25, (geometry.center_x + 100.0, geometry.center_y)),
+            (0.5, (geometry.center_x, geometry.center_y + 100.0)),
+            (0.75, (geometry.center_x - 100.0, geometry.center_y)),
+        )
+        for expected_hue, position in positions:
+            self.assertAlmostEqual(
+                color_wheel_hue_from_position(*position, geometry), expected_hue
+            )
+        for hue in (0.0, 0.125, 0.5, 0.875):
+            self.assertAlmostEqual(
+                color_wheel_hue_from_position(
+                    *color_wheel_hue_position(hue, geometry), geometry
+                ),
+                hue,
+            )
+
+    def test_color_wheel_sv_mapping_round_trips_and_clamps(self):
+        geometry = color_wheel_geometry(301, 301)
+        for saturation, value in ((0.0, 1.0), (0.25, 0.75), (1.0, 0.0)):
+            position = color_wheel_sv_position(saturation, value, geometry)
+            mapped = color_wheel_sv_from_position(*position, geometry)
+            self.assertAlmostEqual(mapped[0], saturation)
+            self.assertAlmostEqual(mapped[1], value)
+        self.assertEqual(
+            color_wheel_sv_from_position(-1000, 1000, geometry), (0.0, 0.0)
+        )
+        self.assertEqual(
+            color_wheel_sv_position(-1.0, 2.0, geometry),
+            (geometry.field_left, geometry.field_top),
+        )
 
     def test_visualization_modes_define_shared_numeric_model_semantics(self):
         self.assertFalse(ColorVisualizationMode.HSV_HSB.uses_hsl_model)

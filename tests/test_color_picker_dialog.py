@@ -2,7 +2,12 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, call, patch
 
-from src.color_picker_visual import rgb_hex_to_hsl, rgb_hex_to_hsv
+from src.color_picker_visual import (
+    color_wheel_geometry,
+    hsv_to_rgb_hex,
+    rgb_hex_to_hsl,
+    rgb_hex_to_hsv,
+)
 from src.paint_catalog import PaintCatalog, PaintColor
 from src.paint_color_analysis import ColorGroup, VISUAL_GROUP_ORDER
 from src.paint_color_analysis import get_paints_for_group, sort_paints_visually
@@ -1376,6 +1381,47 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         dialog._render_color_wheel(0.0)
         photo_image_type.assert_called_once()
+
+    def test_color_wheel_ring_and_clamped_sv_drag_update_canonical_color(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.current_color = "#df9f9f"
+        dialog._achromatic_hue = 0.0
+        dialog._color_wheel_drag_target = None
+        dialog.color_wheel_canvas = Mock()
+        dialog.color_wheel_canvas.winfo_width.return_value = 301
+        dialog.color_wheel_canvas.winfo_height.return_value = 301
+        dialog.set_current_color = Mock()
+        geometry = color_wheel_geometry(301, 301)
+        _, saturation, value = rgb_hex_to_hsv(dialog.current_color)
+
+        dialog._on_color_wheel_press(
+            SimpleNamespace(x=geometry.center_x + 130, y=geometry.center_y)
+        )
+        dialog.set_current_color.assert_called_once_with(
+            hsv_to_rgb_hex(0.25, saturation, value)
+        )
+
+        dialog.set_current_color.reset_mock()
+        dialog._color_wheel_drag_target = "sv"
+        dialog._on_color_wheel_drag(SimpleNamespace(x=1000, y=1000))
+        dialog.set_current_color.assert_called_once_with("#000000")
+        dialog._on_color_wheel_release()
+        self.assertIsNone(dialog._color_wheel_drag_target)
+
+    def test_color_wheel_indicators_move_without_recreating_items(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.color_wheel_canvas = Mock()
+        dialog.color_wheel_canvas.winfo_width.return_value = 301
+        dialog.color_wheel_canvas.winfo_height.return_value = 301
+        dialog.color_wheel_canvas.create_oval.side_effect = (1, 2, 3, 4)
+        dialog._color_wheel_hue_indicator_items = ()
+        dialog._color_wheel_sv_indicator_items = ()
+
+        dialog._draw_color_wheel_indicators(0.0, 0.0, 1.0)
+        dialog._draw_color_wheel_indicators(0.5, 1.0, 0.0)
+
+        self.assertEqual(dialog.color_wheel_canvas.create_oval.call_count, 4)
+        self.assertEqual(dialog.color_wheel_canvas.coords.call_count, 8)
 
     def test_rgb_validation_accepts_only_blank_or_values_from_zero_to_255(self):
         for accepted in ("", "0", "1", "127", "255"):

@@ -75,6 +75,58 @@ def color_wheel_geometry(width: int, height: int) -> ColorWheelGeometry:
     )
 
 
+def color_wheel_hue_from_position(
+    x: float, y: float, geometry: ColorWheelGeometry
+) -> float:
+    """Map a wheel position to clockwise hue with red at the top."""
+    return (
+        math.atan2(x - geometry.center_x, geometry.center_y - y)
+        / (2.0 * math.pi)
+    ) % 1.0
+
+
+def color_wheel_hue_position(
+    hue: float, geometry: ColorWheelGeometry
+) -> tuple[float, float]:
+    """Return the hue-marker position midway through the ring."""
+    angle = (hue % 1.0) * 2.0 * math.pi
+    radius = (geometry.outer_radius + geometry.ring_inner_radius) / 2.0
+    return (
+        geometry.center_x + math.sin(angle) * radius,
+        geometry.center_y - math.cos(angle) * radius,
+    )
+
+
+def color_wheel_sv_from_position(
+    x: float, y: float, geometry: ColorWheelGeometry
+) -> tuple[float, float]:
+    """Map a clamped inner-square position to saturation and value."""
+    field_width = geometry.field_right - geometry.field_left
+    field_height = geometry.field_bottom - geometry.field_top
+    if field_width <= 0.0 or field_height <= 0.0:
+        return 0.0, 0.0
+    clamped_x = min(max(x, geometry.field_left), geometry.field_right)
+    clamped_y = min(max(y, geometry.field_top), geometry.field_bottom)
+    return (
+        (clamped_x - geometry.field_left) / field_width,
+        1.0 - (clamped_y - geometry.field_top) / field_height,
+    )
+
+
+def color_wheel_sv_position(
+    saturation: float, value: float, geometry: ColorWheelGeometry
+) -> tuple[float, float]:
+    """Map clamped saturation and value to an inner-square position."""
+    saturation = min(max(saturation, 0.0), 1.0)
+    value = min(max(value, 0.0), 1.0)
+    return (
+        geometry.field_left
+        + saturation * (geometry.field_right - geometry.field_left),
+        geometry.field_top
+        + (1.0 - value) * (geometry.field_bottom - geometry.field_top),
+    )
+
+
 def normalize_rgb_hex(color: str) -> str:
     """Validate six-digit RGB input and return uppercase ``#RRGGBB``."""
     value = color.strip().removeprefix("#")
