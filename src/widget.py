@@ -691,6 +691,8 @@ class ColorPickerDialog(tk.Toplevel):
         self._displayed_field_mode = None
         self._hue_slider_cache = None
         self._color_wheel_cache = None
+        self._classic_field_cache = None
+        self._classic_value_slider_cache = None
         self._color_wheel_drag_target = None
         self._color_wheel_hue_indicator_items = ()
         self._color_wheel_sv_indicator_items = ()
@@ -1063,6 +1065,23 @@ class ColorPickerDialog(tk.Toplevel):
             height=COLOR_FIELD_PREFERRED_HEIGHT,
             highlightthickness=1,
         )
+        self.classic_visualization_area = ttk.Frame(self.editor_visualization_area)
+        self.classic_color_field = tk.Canvas(
+            self.classic_visualization_area,
+            height=COLOR_FIELD_PREFERRED_HEIGHT,
+            highlightthickness=1,
+        )
+        self.classic_value_slider = tk.Canvas(
+            self.classic_visualization_area,
+            width=28,
+            highlightthickness=1,
+        )
+        self.classic_value_slider.pack(
+            side=tk.RIGHT,
+            fill=tk.Y,
+            padx=(COLOR_EDITOR_SECTION_GAP, 0),
+        )
+        self.classic_color_field.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         for event_name in ("<Button-1>", "<B1-Motion>"):
             self.hsv_color_field.bind(event_name, self._on_color_field_input)
             self.hue_slider.bind(event_name, self._on_hue_slider_input)
@@ -1072,6 +1091,8 @@ class ColorPickerDialog(tk.Toplevel):
         self.color_wheel_canvas.bind("<Button-1>", self._on_color_wheel_press)
         self.color_wheel_canvas.bind("<B1-Motion>", self._on_color_wheel_drag)
         self.color_wheel_canvas.bind("<ButtonRelease-1>", self._on_color_wheel_release)
+        self.classic_color_field.bind("<Configure>", self._on_visualization_resized)
+        self.classic_value_slider.bind("<Configure>", self._on_visualization_resized)
 
         self.rgb_controls = {}
         self.rgb_control_labels = {}
@@ -1230,14 +1251,28 @@ class ColorPickerDialog(tk.Toplevel):
         field_area = getattr(self, "editor_color_field_area", None)
         slider_area = getattr(self, "editor_slider_area", None)
         wheel = getattr(self, "color_wheel_canvas", None)
-        if field_area is None or slider_area is None or wheel is None:
+        classic = getattr(self, "classic_visualization_area", None)
+        if (
+            field_area is None
+            or slider_area is None
+            or wheel is None
+            or classic is None
+        ):
             return
         if mode is ColorVisualizationMode.COLOR_WHEEL:
             field_area.pack_forget()
             slider_area.pack_forget()
+            classic.pack_forget()
             wheel.pack(fill=tk.BOTH, expand=True)
             return
+        if mode is ColorVisualizationMode.CLASSIC:
+            field_area.pack_forget()
+            slider_area.pack_forget()
+            wheel.pack_forget()
+            classic.pack(fill=tk.BOTH, expand=True)
+            return
         wheel.pack_forget()
+        classic.pack_forget()
         slider_area.pack(
             side=tk.RIGHT,
             fill=tk.Y,
@@ -1417,6 +1452,23 @@ class ColorPickerDialog(tk.Toplevel):
             self._render_color_wheel(hue)
             self._draw_color_wheel_indicators(hue, saturation, value)
             return
+        if mode is ColorVisualizationMode.CLASSIC:
+            field = getattr(self, "classic_color_field", None)
+            slider = getattr(self, "classic_value_slider", None)
+            if (
+                field is None
+                or slider is None
+                or not hasattr(field, "winfo_width")
+            ):
+                return
+            hue, saturation, value = rgb_hex_to_hsv(self.current_color)
+            if saturation > 0.0:
+                self._achromatic_hue = hue
+            else:
+                hue = getattr(self, "_achromatic_hue", 0.0)
+            self._render_classic_field(value)
+            self._render_classic_value_slider(hue, saturation)
+            return
         field = getattr(self, "hsv_color_field", None)
         slider = getattr(self, "hue_slider", None)
         if (
@@ -1497,6 +1549,69 @@ class ColorPickerDialog(tk.Toplevel):
         )
         self.color_wheel_canvas.tag_lower("gradient")
         self._color_wheel_cache = cache_key
+
+    def _render_classic_field(self, value: float) -> None:
+        """Render Hue horizontally and Saturation vertically at current Value."""
+        width = self.classic_color_field.winfo_width()
+        height = self.classic_color_field.winfo_height()
+        cache_key = (width, height, value)
+        cached = self._classic_field_cache
+        if width <= 1 or height <= 1:
+            return
+        if cached is not None and cached[:2] == cache_key[:2]:
+            if abs(cached[2] - value) < 1 / 1024:
+                return
+        pixels = []
+        for y in range(height):
+            saturation = 1.0 - y / (height - 1)
+            for x in range(width):
+                hue = x / (width - 1)
+                rgb = colorsys.hsv_to_rgb(hue, saturation, value)
+                pixels.append(tuple(round(channel * 255) for channel in rgb))
+        image = Image.new("RGB", (width, height))
+        image.putdata(pixels)
+        self._classic_field_image = ImageTk.PhotoImage(image)
+        self.classic_color_field.delete("gradient")
+        self.classic_color_field.create_image(
+            0, 0, anchor=tk.NW, image=self._classic_field_image, tags="gradient"
+        )
+        self.classic_color_field.tag_lower("gradient")
+        self._classic_field_cache = cache_key
+
+    def _render_classic_value_slider(self, hue: float, saturation: float) -> None:
+        """Render Value from bright at top to black in the current Hue/Saturation."""
+        width = self.classic_value_slider.winfo_width()
+        height = self.classic_value_slider.winfo_height()
+        cache_key = (width, height, hue, saturation)
+        cached = self._classic_value_slider_cache
+        if width <= 1 or height <= 1:
+            return
+        if cached is not None and cached[:2] == cache_key[:2]:
+            hue_distance = abs(cached[2] - hue)
+            if (
+                min(hue_distance, 1.0 - hue_distance) < 1 / 1024
+                and abs(cached[3] - saturation) < 1 / 1024
+            ):
+                return
+        pixels = []
+        for y in range(height):
+            value = 1.0 - y / (height - 1)
+            rgb = colorsys.hsv_to_rgb(hue, saturation, value)
+            color = tuple(round(channel * 255) for channel in rgb)
+            pixels.extend((color,) * width)
+        image = Image.new("RGB", (width, height))
+        image.putdata(pixels)
+        self._classic_value_slider_image = ImageTk.PhotoImage(image)
+        self.classic_value_slider.delete("gradient")
+        self.classic_value_slider.create_image(
+            0,
+            0,
+            anchor=tk.NW,
+            image=self._classic_value_slider_image,
+            tags="gradient",
+        )
+        self.classic_value_slider.tag_lower("gradient")
+        self._classic_value_slider_cache = cache_key
 
     def _on_color_wheel_press(self, Event) -> None:
         geometry = color_wheel_geometry(

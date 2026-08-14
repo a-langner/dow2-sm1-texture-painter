@@ -1151,10 +1151,17 @@ class ColorPickerDialogTests(unittest.TestCase):
                 )
                 if restored_mode == "Color Wheel":
                     self.assertIsNotNone(dialog.color_wheel_canvas.pack_options)
+                    self.assertIsNone(dialog.classic_visualization_area.pack_options)
+                    self.assertIsNone(dialog.editor_color_field_area.pack_options)
+                    self.assertIsNone(dialog.editor_slider_area.pack_options)
+                elif restored_mode == "Classic":
+                    self.assertIsNone(dialog.color_wheel_canvas.pack_options)
+                    self.assertIsNotNone(dialog.classic_visualization_area.pack_options)
                     self.assertIsNone(dialog.editor_color_field_area.pack_options)
                     self.assertIsNone(dialog.editor_slider_area.pack_options)
                 else:
                     self.assertIsNone(dialog.color_wheel_canvas.pack_options)
+                    self.assertIsNone(dialog.classic_visualization_area.pack_options)
                     self.assertIsNotNone(dialog.editor_color_field_area.pack_options)
                     self.assertIsNotNone(dialog.editor_slider_area.pack_options)
                 self.assertEqual(dialog.current_color, initial_color)
@@ -1432,6 +1439,35 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         self.assertEqual(dialog.color_wheel_canvas.create_oval.call_count, 4)
         self.assertEqual(dialog.color_wheel_canvas.coords.call_count, 8)
+
+    @patch("src.widget.ImageTk.PhotoImage", side_effect=lambda image: image)
+    def test_classic_renders_hue_saturation_field_and_contextual_value_slider(
+        self, photo_image_type
+    ):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.classic_color_field = Mock()
+        dialog.classic_value_slider = Mock()
+        dialog.classic_color_field.winfo_width.return_value = 101
+        dialog.classic_color_field.winfo_height.return_value = 101
+        dialog.classic_value_slider.winfo_width.return_value = 12
+        dialog.classic_value_slider.winfo_height.return_value = 101
+        dialog._classic_field_cache = None
+        dialog._classic_value_slider_cache = None
+
+        dialog._render_classic_field(0.5)
+        field_image = photo_image_type.call_args.args[0]
+        dialog._render_classic_value_slider(0.0, 1.0)
+        slider_image = photo_image_type.call_args.args[0]
+
+        self.assertEqual(field_image.getpixel((0, 0)), (128, 0, 0))
+        self.assertGreater(field_image.getpixel((33, 0))[1], 120)
+        self.assertEqual(field_image.getpixel((50, 100)), (128, 128, 128))
+        self.assertEqual(slider_image.getpixel((6, 0)), (255, 0, 0))
+        self.assertEqual(slider_image.getpixel((6, 100)), (0, 0, 0))
+
+        dialog._render_classic_field(0.5)
+        dialog._render_classic_value_slider(0.0, 1.0)
+        self.assertEqual(photo_image_type.call_count, 2)
 
     def test_rgb_validation_accepts_only_blank_or_values_from_zero_to_255(self):
         for accepted in ("", "0", "1", "127", "255"):
