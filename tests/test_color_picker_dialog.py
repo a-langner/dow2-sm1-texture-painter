@@ -1520,6 +1520,10 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         dialog._render_color_wheel(0.0)
         photo_image_type.assert_called_once()
+        ring_image = dialog._color_wheel_ring_cache[2]
+        dialog._render_color_wheel(0.25)
+        self.assertIs(dialog._color_wheel_ring_cache[2], ring_image)
+        self.assertEqual(photo_image_type.call_count, 2)
 
     def test_color_wheel_ring_and_clamped_sv_drag_update_canonical_color(self):
         dialog = object.__new__(ColorPickerDialog)
@@ -1574,6 +1578,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.classic_value_slider.winfo_width.return_value = 12
         dialog.classic_value_slider.winfo_height.return_value = 101
         dialog._classic_field_cache = None
+        dialog._classic_field_base_cache = None
         dialog._classic_value_slider_cache = None
 
         dialog._render_classic_field(0.5)
@@ -1590,6 +1595,10 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog._render_classic_field(0.5)
         dialog._render_classic_value_slider(0.0, 1.0)
         self.assertEqual(photo_image_type.call_count, 2)
+        base_image = dialog._classic_field_base_cache[2]
+        dialog._render_classic_field(0.75)
+        self.assertIs(dialog._classic_field_base_cache[2], base_image)
+        self.assertEqual(photo_image_type.call_count, 3)
 
     def test_classic_field_and_value_interactions_update_canonical_color(self):
         dialog = object.__new__(ColorPickerDialog)

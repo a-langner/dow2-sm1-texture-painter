@@ -11,7 +11,7 @@ import colorsys
 from tkinter import filedialog
 from functools import partial
 from typing import Callable, Optional
-from PIL import Image, ImageTk
+from PIL import Image, ImageDraw, ImageTk
 from src.color_pattern_handler import get_all_patterns, is_user_pattern
 from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.constant import OPEN_FILETYPES, SAVE_EXT_LIST, ColorOps
@@ -695,7 +695,9 @@ class ColorPickerDialog(tk.Toplevel):
         self._displayed_field_mode = None
         self._hue_slider_cache = None
         self._color_wheel_cache = None
+        self._color_wheel_ring_cache = None
         self._classic_field_cache = None
+        self._classic_field_base_cache = None
         self._classic_value_slider_cache = None
         self._classic_field_indicator_items = ()
         self._classic_value_indicator_items = ()
@@ -1517,43 +1519,62 @@ class ColorPickerDialog(tk.Toplevel):
             if min(hue_distance, 1.0 - hue_distance) < 1 / 1024:
                 return
 
-        scale = 2
-        render_width = width * scale
-        render_height = height * scale
         geometry = color_wheel_geometry(width, height)
-        field_width = max(1.0, geometry.field_right - geometry.field_left)
-        field_height = max(1.0, geometry.field_bottom - geometry.field_top)
+        ring_cache = getattr(self, "_color_wheel_ring_cache", None)
+        if ring_cache is None or ring_cache[:2] != (width, height):
+            scale = 2
+            ring_image = Image.new(
+                "RGBA", (width * scale, height * scale), (0, 0, 0, 0)
+            )
+            draw = ImageDraw.Draw(ring_image)
+            center_x = geometry.center_x * scale
+            center_y = geometry.center_y * scale
+            radius = (
+                geometry.outer_radius + geometry.ring_inner_radius
+            ) / 2.0 * scale
+            ring_width = max(
+                1, round((geometry.outer_radius - geometry.ring_inner_radius) * scale)
+            )
+            steps = 720
+            for index in range(steps):
+                first_angle = index / steps * 2.0 * math.pi
+                second_angle = (index + 1) / steps * 2.0 * math.pi
+                color = tuple(
+                    round(channel * 255)
+                    for channel in colorsys.hsv_to_rgb(index / steps, 1.0, 1.0)
+                ) + (255,)
+                draw.line(
+                    (
+                        center_x + math.sin(first_angle) * radius,
+                        center_y - math.cos(first_angle) * radius,
+                        center_x + math.sin(second_angle) * radius,
+                        center_y - math.cos(second_angle) * radius,
+                    ),
+                    fill=color,
+                    width=ring_width,
+                )
+            ring_image = ring_image.resize(
+                (width, height), Image.Resampling.LANCZOS
+            )
+            self._color_wheel_ring_cache = (width, height, ring_image)
+        else:
+            ring_image = ring_cache[2]
+
+        image = ring_image.copy()
+        field_left = round(geometry.field_left)
+        field_top = round(geometry.field_top)
+        field_width = max(2, round(geometry.field_right) - field_left + 1)
+        field_height = max(2, round(geometry.field_bottom) - field_top + 1)
         pixels = []
-        for y in range(render_height):
-            canvas_y = y / scale
-            dy = canvas_y - geometry.center_y
-            for x in range(render_width):
-                canvas_x = x / scale
-                dx = canvas_x - geometry.center_x
-                radius = (dx * dx + dy * dy) ** 0.5
-                if geometry.ring_inner_radius <= radius <= geometry.outer_radius:
-                    ring_hue = color_wheel_hue_from_position(
-                        canvas_x, canvas_y, geometry
-                    )
-                    rgb = colorsys.hsv_to_rgb(ring_hue, 1.0, 1.0)
-                    pixels.append(
-                        tuple(round(channel * 255) for channel in rgb) + (255,)
-                    )
-                elif (
-                    geometry.field_left <= canvas_x <= geometry.field_right
-                    and geometry.field_top <= canvas_y <= geometry.field_bottom
-                ):
-                    saturation = (canvas_x - geometry.field_left) / field_width
-                    value = 1.0 - (canvas_y - geometry.field_top) / field_height
-                    rgb = colorsys.hsv_to_rgb(hue, saturation, value)
-                    pixels.append(
-                        tuple(round(channel * 255) for channel in rgb) + (255,)
-                    )
-                else:
-                    pixels.append((0, 0, 0, 0))
-        image = Image.new("RGBA", (render_width, render_height))
-        image.putdata(pixels)
-        image = image.resize((width, height), Image.Resampling.LANCZOS)
+        for y in range(field_height):
+            value = 1.0 - y / (field_height - 1)
+            for x in range(field_width):
+                saturation = x / (field_width - 1)
+                rgb = colorsys.hsv_to_rgb(hue, saturation, value)
+                pixels.append(tuple(round(channel * 255) for channel in rgb))
+        field_image = Image.new("RGB", (field_width, field_height))
+        field_image.putdata(pixels)
+        image.paste(field_image, (field_left, field_top))
         self._color_wheel_image = ImageTk.PhotoImage(image)
         self.color_wheel_canvas.delete("gradient")
         self.color_wheel_canvas.create_image(
@@ -1573,15 +1594,22 @@ class ColorPickerDialog(tk.Toplevel):
         if cached is not None and cached[:2] == cache_key[:2]:
             if abs(cached[2] - value) < 1 / 1024:
                 return
-        pixels = []
-        for y in range(height):
-            saturation = 1.0 - y / (height - 1)
-            for x in range(width):
-                hue = x / width
-                rgb = colorsys.hsv_to_rgb(hue, saturation, value)
-                pixels.append(tuple(round(channel * 255) for channel in rgb))
-        image = Image.new("RGB", (width, height))
-        image.putdata(pixels)
+        base_cache = getattr(self, "_classic_field_base_cache", None)
+        if base_cache is None or base_cache[:2] != (width, height):
+            pixels = []
+            for y in range(height):
+                saturation = 1.0 - y / (height - 1)
+                for x in range(width):
+                    hue = x / width
+                    rgb = colorsys.hsv_to_rgb(hue, saturation, 1.0)
+                    pixels.append(tuple(round(channel * 255) for channel in rgb))
+            base_image = Image.new("RGB", (width, height))
+            base_image.putdata(pixels)
+            self._classic_field_base_cache = (width, height, base_image)
+        else:
+            base_image = base_cache[2]
+        value_lut = [round(channel * value) for channel in range(256)] * 3
+        image = base_image.point(value_lut)
         self._classic_field_image = ImageTk.PhotoImage(image)
         self.classic_color_field.delete("gradient")
         self.classic_color_field.create_image(
