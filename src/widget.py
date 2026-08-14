@@ -44,9 +44,10 @@ from src.color_picker_visual import (
 )
 from src.paint_color_analysis import (
     ColorGroup,
+    PaletteSortMode,
     VISUAL_GROUP_ORDER,
     get_paints_for_group,
-    sort_paints_visually,
+    sort_palette_paints,
 )
 from src.recent_colors import MAX_RECENT_COLORS, RecentColors, add_recent_color
 from src.render_settings import (
@@ -728,6 +729,7 @@ class ColorPickerDialog(tk.Toplevel):
         self.palette_paints = ()
         self.selected_paint_id: Optional[str] = None
         self.search_query = ""
+        self.palette_sort_mode = PaletteSortMode.COLOR
 
         self._configure_window(parent)
         self._build_main_layout()
@@ -959,6 +961,15 @@ class ColorPickerDialog(tk.Toplevel):
         self.search_query = normalized_query
         self._refresh_palette_data_source()
 
+    def set_palette_sort_mode(self, mode: PaletteSortMode) -> None:
+        """Reorder visible paints without changing canonical colour state."""
+        if not isinstance(mode, PaletteSortMode):
+            raise ValueError(f"Unsupported palette sort mode: {mode!r}")
+        if mode is getattr(self, "palette_sort_mode", PaletteSortMode.COLOR):
+            return
+        self.palette_sort_mode = mode
+        self._refresh_palette_data_source()
+
     def _build_group_navigation(self) -> None:
         style = ttk.Style(self)
         style.configure("ColorPickerGroup.TButton", anchor=tk.W)
@@ -1025,8 +1036,11 @@ class ColorPickerDialog(tk.Toplevel):
         paints = self.paint_catalog.paints
         if self.selected_color_group is not None:
             paints = get_paints_for_group(paints, self.selected_color_group)
-        paints = sort_paints_visually(paints)
-        self.palette_paints = filter_paints_by_name(paints, self.search_query)
+        paints = filter_paints_by_name(paints, self.search_query)
+        self.palette_paints = sort_palette_paints(
+            paints,
+            getattr(self, "palette_sort_mode", PaletteSortMode.COLOR),
+        )
         self._refresh_palette_display()
 
     def _refresh_palette_display(self) -> None:

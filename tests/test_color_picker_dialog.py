@@ -10,7 +10,7 @@ from src.color_picker_visual import (
     rgb_hex_to_hsv,
 )
 from src.paint_catalog import PaintCatalog, PaintColor
-from src.paint_color_analysis import ColorGroup, VISUAL_GROUP_ORDER
+from src.paint_color_analysis import ColorGroup, PaletteSortMode, VISUAL_GROUP_ORDER
 from src.paint_color_analysis import get_paints_for_group, sort_paints_visually
 from src.widget import (
     COLOR_FIELD_PREFERRED_HEIGHT,
@@ -2299,6 +2299,49 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog.original_color, "#123456")
         self.assertEqual(NO_CITADEL_COLORS_MESSAGE, "No Citadel colors found.")
         self.assertEqual(PAINT_SEARCH_PLACEHOLDER, "Search Citadel colors...")
+
+    def test_palette_sort_mode_applies_after_group_and_search_without_color_change(self):
+        alpha_red = PaintColor("alpha-red", "Alpha Red", 210, 5, 5)
+        zeta_red = PaintColor("zeta-red", "zeta red", 170, 15, 15)
+        amber_red = PaintColor("amber-red", "amber Red", 190, 10, 10)
+        green = PaintColor("green", "Beta Green", 0, 180, 0)
+        paints = (zeta_red, green, amber_red, alpha_red)
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.original_color = "#123456"
+        dialog.current_color = "#abcdef"
+        dialog.paint_catalog = PaintCatalog(paints=paints)
+        dialog.palette_grid = FakePaletteGrid()
+        dialog.palette_grid.selected_paint_id = alpha_red.id
+        dialog.palette_count_label = FakeWidget()
+        dialog.event_generate = Mock()
+        dialog.search_query = ""
+        dialog.palette_sort_mode = PaletteSortMode.COLOR
+        dialog.group_buttons = {
+            color_group: FakeGroupButton()
+            for color_group, _ in COLOR_PICKER_GROUP_ENTRIES
+        }
+        dialog.group_button_labels = dict(COLOR_PICKER_GROUP_ENTRIES)
+
+        dialog.select_color_group(ColorGroup.RED)
+        expected_color_order = sort_paints_visually(
+            get_paints_for_group(paints, ColorGroup.RED)
+        )
+        self.assertEqual(dialog.palette_paints, expected_color_order)
+
+        dialog.set_palette_sort_mode(PaletteSortMode.ALPHABETICAL)
+        self.assertEqual(
+            tuple(paint.name for paint in dialog.palette_paints),
+            ("Alpha Red", "amber Red", "zeta red"),
+        )
+
+        dialog.set_paint_search("red")
+        self.assertEqual(
+            tuple(paint.name for paint in dialog.palette_paints),
+            ("Alpha Red", "amber Red", "zeta red"),
+        )
+        self.assertEqual(dialog.current_color, "#abcdef")
+        self.assertEqual(dialog.original_color, "#123456")
+        self.assertEqual(dialog.palette_grid.selected_paint_id, alpha_red.id)
 
     def test_visible_count_uses_filtered_size_and_english_pluralization(self):
         self.assertEqual(format_visible_paint_count(0), "0 colors")

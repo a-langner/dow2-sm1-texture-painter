@@ -4,10 +4,12 @@ from collections import Counter
 from src.paint_catalog import PaintColor, load_citadel_catalog
 from src.paint_color_analysis import (
     ColorGroup,
+    PaletteSortMode,
     VISUAL_GROUP_ORDER,
     analyze_perceptual_color,
     classify_paint_color,
     get_paints_for_group,
+    sort_palette_paints,
     sort_paints_visually,
 )
 
@@ -219,6 +221,30 @@ class PaintColorSortingTests(unittest.TestCase):
 
         self.assertEqual(sort_paints_visually(self.paints), expected)
         self.assertEqual(sort_paints_visually(reversed(self.paints)), expected)
+
+    def test_color_palette_mode_preserves_existing_visual_sort_exactly(self):
+        self.assertEqual(
+            sort_palette_paints(self.paints, PaletteSortMode.COLOR),
+            sort_paints_visually(self.paints),
+        )
+
+    def test_alphabetical_palette_mode_is_case_insensitive_and_deterministic(self):
+        paints = (
+            PaintColor("zulu", "zulu", 0, 0, 0),
+            PaintColor("bravo-lower", "bravo", 0, 0, 0),
+            PaintColor("alpha", "Alpha", 0, 0, 0),
+            PaintColor("bravo-upper", "Bravo", 0, 0, 0),
+        )
+
+        self.assertEqual(
+            tuple(
+                paint.id
+                for paint in sort_palette_paints(
+                    paints, PaletteSortMode.ALPHABETICAL
+                )
+            ),
+            ("alpha", "bravo-upper", "bravo-lower", "zulu"),
+        )
 
     def test_sorting_contains_exactly_the_input_paints(self):
         sorted_paints = sort_paints_visually(self.paints)

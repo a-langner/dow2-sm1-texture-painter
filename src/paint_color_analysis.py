@@ -49,6 +49,17 @@ class ColorGroup(Enum):
     NEUTRAL = "Neutrals"
 
 
+class PaletteSortMode(Enum):
+    """Stable internal identifiers for Citadel palette ordering."""
+
+    COLOR = "color"
+    ALPHABETICAL = "alphabetical"
+
+    @property
+    def display_name(self) -> str:
+        return "Color" if self is PaletteSortMode.COLOR else "Alphabetical"
+
+
 VISUAL_GROUP_ORDER = (
     ColorGroup.RED,
     ColorGroup.ORANGE,
@@ -271,3 +282,19 @@ def sort_paints_visually(paints: Iterable[PaintColor]) -> tuple[PaintColor, ...]
             key=lambda item: _spectrum_sort_key(*item),
         )
     )
+
+
+def sort_palette_paints(
+    paints: Iterable[PaintColor], mode: PaletteSortMode
+) -> tuple[PaintColor, ...]:
+    """Order paints by the selected mode without changing either algorithm."""
+    if mode is PaletteSortMode.COLOR:
+        return sort_paints_visually(paints)
+    if mode is PaletteSortMode.ALPHABETICAL:
+        return tuple(
+            sorted(
+                paints,
+                key=lambda paint: (paint.name.casefold(), paint.name, paint.id),
+            )
+        )
+    raise ValueError(f"Unsupported palette sort mode: {mode!r}")
