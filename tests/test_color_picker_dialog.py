@@ -860,6 +860,11 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog.color_space_selector.options["values"], COLOR_SPACE_MODES)
         self.assertEqual(dialog.color_space_selector.options["state"], "readonly")
         self.assertEqual(dialog.color_space_selector.get(), DEFAULT_COLOR_SPACE_MODE)
+        self.assertEqual(dialog.color_space_mode, DEFAULT_COLOR_SPACE_MODE)
+        self.assertEqual(
+            dialog.color_model_labels["component"].options["text"], "Value:"
+        )
+        self.assertEqual(dialog.current_color, "#abcdef")
         self.assertEqual(dialog.original_color_preview.options["background"], "#123456")
         self.assertEqual(dialog.current_color_preview.options["background"], "#abcdef")
         self.assertEqual(
@@ -977,6 +982,83 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog.current_color, "#fedcba")
         self.assertEqual(dialog.current_color_preview.options["background"], "#fedcba")
         self.assertEqual(dialog.hex_input.get(), "#FEDCBA")
+
+    @patch("src.widget.tk.Canvas", side_effect=FakeWidget)
+    @patch("src.widget.RecentColorSwatchRow", side_effect=FakeWidget)
+    @patch("src.widget.ttk.Frame", side_effect=FakeWidget)
+    @patch("src.widget.ttk.Entry", side_effect=FakeWidget)
+    @patch("src.widget.ttk.Spinbox", side_effect=FakeWidget)
+    @patch("src.widget.ttk.Combobox", side_effect=FakeWidget)
+    @patch("src.widget.ttk.Label", side_effect=FakeWidget)
+    def test_color_editor_applies_restored_mode_during_build(
+        self,
+        _label_type,
+        _combobox_type,
+        _spinbox_type,
+        _entry_type,
+        _frame_type,
+        _recent_color_row_type,
+        _canvas_type,
+    ):
+        initial_color = "#808080"
+        for restored_mode, expected_label in (
+            ("HSL", "Lightness:"),
+            (DEFAULT_COLOR_SPACE_MODE, "Value:"),
+        ):
+            with self.subTest(restored_mode=restored_mode):
+                dialog = object.__new__(ColorPickerDialog)
+                dialog.original_color = initial_color
+                dialog.current_color = initial_color
+                dialog.color_space_mode = restored_mode
+                dialog.recent_colors = ()
+                dialog.paint_catalog = PaintCatalog(paints=())
+                dialog.register = Mock(return_value="validation-command")
+                for attribute in (
+                    "editor_color_space_area",
+                    "editor_color_field_area",
+                    "editor_slider_area",
+                    "editor_rgb_area",
+                    "editor_alternate_color_space_area",
+                    "editor_color_model_controls_area",
+                    "editor_hex_area",
+                    "editor_recent_colors_area",
+                    "original_color_preview_area",
+                    "current_color_preview_area",
+                ):
+                    setattr(dialog, attribute, FakeWidget())
+
+                dialog._build_color_editor()
+
+                self.assertEqual(dialog.color_space_mode, restored_mode)
+                self.assertEqual(dialog.color_space_selector.get(), restored_mode)
+                self.assertEqual(
+                    dialog.editor_alternate_color_space_area.options["text"],
+                    restored_mode,
+                )
+                self.assertEqual(
+                    dialog.color_model_labels["component"].options["text"],
+                    expected_label,
+                )
+                self.assertEqual(dialog.current_color, initial_color)
+                self.assertEqual(
+                    tuple(
+                        dialog.color_model_controls[name].get()
+                        for name in ("hue", "saturation", "component")
+                    ),
+                    ("0", "0", "50"),
+                )
+
+                if restored_mode == "HSL":
+                    for mode, label in (
+                        (DEFAULT_COLOR_SPACE_MODE, "Value:"),
+                        ("HSL", "Lightness:"),
+                    ):
+                        dialog.select_color_space(mode)
+                        self.assertEqual(
+                            dialog.color_model_labels["component"].options["text"],
+                            label,
+                        )
+                        self.assertEqual(dialog.current_color, initial_color)
 
     def test_valid_hex_edit_normalizes_and_refreshes_all_representations(self):
         dialog = object.__new__(ColorPickerDialog)

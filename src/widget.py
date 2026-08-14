@@ -1163,8 +1163,8 @@ class ColorPickerDialog(tk.Toplevel):
         )
         self.current_color_preview.pack(fill=tk.X)
         self._refresh_rgb_controls()
-        self._refresh_color_model_controls()
         self._refresh_hex_control()
+        self.select_color_space(self.color_space_mode)
 
     def _on_color_space_selected(self, Event=None) -> None:
         self.select_color_space(self.color_space_selector.get())
