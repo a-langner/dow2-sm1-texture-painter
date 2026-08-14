@@ -95,6 +95,61 @@ class ColorPickerVisualTests(unittest.TestCase):
         self.assertEqual(classic_value_from_position(-10, 101), 1.0)
         self.assertEqual(classic_value_from_position(500, 101), 0.0)
 
+    def test_color_wheel_geometry_and_markers_scale_across_aspect_ratios(self):
+        canvas_sizes = (
+            (240, 180),  # constrained/minimum-like editor
+            (372, 240),  # default editor
+            (700, 360),  # wide/maximized-like editor
+            (400, 600),  # tall editor
+            (558, 360),  # default-like editor at 150% scaling
+        )
+        for width, height in canvas_sizes:
+            with self.subTest(width=width, height=height):
+                geometry = color_wheel_geometry(width, height)
+                self.assertEqual(geometry.center_x, (width - 1) / 2.0)
+                self.assertEqual(geometry.center_y, (height - 1) / 2.0)
+                self.assertGreater(geometry.outer_radius, 0.0)
+                self.assertLessEqual(
+                    geometry.center_x + geometry.outer_radius, width - 1
+                )
+                self.assertLessEqual(
+                    geometry.center_y + geometry.outer_radius, height - 1
+                )
+                self.assertAlmostEqual(
+                    geometry.field_right - geometry.field_left,
+                    geometry.field_bottom - geometry.field_top,
+                )
+                for hue in (0.0, 0.25, 0.5, 0.75):
+                    marker = color_wheel_hue_position(hue, geometry)
+                    self.assertAlmostEqual(
+                        color_wheel_hue_from_position(*marker, geometry), hue
+                    )
+                for saturation, value in ((0.0, 1.0), (0.4, 0.6), (1.0, 0.0)):
+                    marker = color_wheel_sv_position(saturation, value, geometry)
+                    mapped = color_wheel_sv_from_position(*marker, geometry)
+                    self.assertAlmostEqual(mapped[0], saturation)
+                    self.assertAlmostEqual(mapped[1], value)
+
+    def test_classic_marker_mapping_scales_across_canvas_sizes(self):
+        field_sizes = ((180, 180), (330, 240), (700, 360), (495, 360))
+        for width, height in field_sizes:
+            with self.subTest(width=width, height=height):
+                for hue, saturation in ((0.0, 1.0), (0.4, 0.6), (0.99, 0.0)):
+                    marker = classic_hs_position(hue, saturation, width, height)
+                    self.assertGreaterEqual(marker[0], 0.0)
+                    self.assertLessEqual(marker[0], width - 1)
+                    self.assertGreaterEqual(marker[1], 0.0)
+                    self.assertLessEqual(marker[1], height - 1)
+                    mapped = classic_hs_from_position(*marker, width, height)
+                    self.assertAlmostEqual(mapped[0], hue)
+                    self.assertAlmostEqual(mapped[1], saturation)
+        for height in (180, 240, 360, 540):
+            for value in (0.0, 0.5, 1.0):
+                marker = classic_value_position(value, height)
+                self.assertGreaterEqual(marker, 0.0)
+                self.assertLessEqual(marker, height - 1)
+                self.assertAlmostEqual(classic_value_from_position(marker, height), value)
+
     def test_visualization_modes_define_shared_numeric_model_semantics(self):
         self.assertFalse(ColorVisualizationMode.HSV_HSB.uses_hsl_model)
         self.assertTrue(ColorVisualizationMode.HSL.uses_hsl_model)
