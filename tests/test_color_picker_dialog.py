@@ -39,6 +39,8 @@ class FakeWidget:
         self.parent = parent
         self.options = options
         self.pack_options = None
+        self.grid_options = None
+        self.grid_columns = {}
         self.packed_children = []
         self.panes = []
         self.value = None
@@ -51,6 +53,12 @@ class FakeWidget:
 
     def pack_propagate(self, enabled):
         self.pack_propagate_enabled = enabled
+
+    def grid(self, **options):
+        self.grid_options = options
+
+    def grid_columnconfigure(self, column, **options):
+        self.grid_columns[column] = options
 
     def add(self, child, **options):
         self.panes.append((child, options))
@@ -563,6 +571,21 @@ class ColorPickerDialogTests(unittest.TestCase):
             [dialog.editor_slider_area, dialog.editor_color_field_area],
         )
         self.assertEqual(dialog.editor_slider_area.options["width"], 28)
+        self.assertEqual(
+            dialog.editor_preview_area.grid_columns,
+            {
+                0: {"weight": 1, "uniform": "preview"},
+                1: {"weight": 1, "uniform": "preview"},
+            },
+        )
+        self.assertEqual(
+            dialog.original_color_preview_area.grid_options,
+            {"row": 0, "column": 0, "sticky": "ew", "padx": (0, 4)},
+        )
+        self.assertEqual(
+            dialog.current_color_preview_area.grid_options,
+            {"row": 0, "column": 1, "sticky": "ew", "padx": (4, 0)},
+        )
         self.assertTrue(dialog.dialog_content.pack_options["expand"])
         self.assertTrue(dialog.main_panes.pack_options["expand"])
         for attribute in (
@@ -704,6 +727,8 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog.original_color_preview_label.options["text"], "Original")
         self.assertEqual(dialog.current_color_preview_label.options["text"], "Current")
         for preview in (dialog.original_color_preview, dialog.current_color_preview):
+            self.assertEqual(preview.options["height"], 32)
+            self.assertEqual(preview.pack_options, {"fill": "x"})
             self.assertEqual(preview.options["highlightbackground"], COLOR_PREVIEW_BORDER)
             self.assertEqual(preview.options["highlightcolor"], COLOR_PREVIEW_BORDER)
             self.assertEqual(preview.options["highlightthickness"], 1)

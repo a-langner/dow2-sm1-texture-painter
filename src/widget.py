@@ -689,10 +689,12 @@ class ColorPickerDialog(tk.Toplevel):
         self.editor_hex_area.pack(fill=tk.X)
         self.editor_preview_area = ttk.Frame(self.editor_area)
         self.editor_preview_area.pack(fill=tk.X, pady=(8, 0))
+        self.editor_preview_area.grid_columnconfigure(0, weight=1, uniform="preview")
+        self.editor_preview_area.grid_columnconfigure(1, weight=1, uniform="preview")
         self.original_color_preview_area = ttk.Frame(self.editor_preview_area)
-        self.original_color_preview_area.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.original_color_preview_area.grid(row=0, column=0, sticky=tk.EW, padx=(0, 4))
         self.current_color_preview_area = ttk.Frame(self.editor_preview_area)
-        self.current_color_preview_area.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.current_color_preview_area.grid(row=0, column=1, sticky=tk.EW, padx=(4, 0))
 
     def _build_palette_grid(self) -> None:
         self.palette_grid = PaintSwatchGrid(
@@ -936,7 +938,7 @@ class ColorPickerDialog(tk.Toplevel):
             highlightbackground=COLOR_PREVIEW_BORDER,
             highlightcolor=COLOR_PREVIEW_BORDER,
         )
-        self.original_color_preview.pack(fill=tk.X, padx=(0, 4))
+        self.original_color_preview.pack(fill=tk.X)
         self.current_color_preview_label = ttk.Label(
             self.current_color_preview_area, text="Current"
         )
@@ -950,7 +952,7 @@ class ColorPickerDialog(tk.Toplevel):
             highlightbackground=COLOR_PREVIEW_BORDER,
             highlightcolor=COLOR_PREVIEW_BORDER,
         )
-        self.current_color_preview.pack(fill=tk.X, padx=(4, 0))
+        self.current_color_preview.pack(fill=tk.X)
         self._refresh_rgb_controls()
         self._refresh_color_model_controls()
         self._refresh_hex_control()
