@@ -700,6 +700,24 @@ class ColorPickerDialogTests(unittest.TestCase):
                     area.pack_options["pady"],
                     (COLOR_EDITOR_SECTION_GAP, 0),
                 )
+        for area in (
+            dialog.editor_numeric_area,
+            dialog.editor_recent_colors_area,
+            dialog.editor_preview_area,
+        ):
+            with self.subTest(fixed_height_area=area):
+                self.assertEqual(area.pack_options["side"], "bottom")
+                self.assertFalse(area.pack_options.get("expand", False))
+        self.assertEqual(
+            dialog.editor_area.packed_children,
+            [
+                dialog.editor_color_space_area,
+                dialog.editor_preview_area,
+                dialog.editor_recent_colors_area,
+                dialog.editor_numeric_area,
+                dialog.editor_visualization_area,
+            ],
+        )
         self.assertEqual(
             dialog.editor_visualization_area.packed_children,
             [dialog.editor_slider_area, dialog.editor_color_field_area],

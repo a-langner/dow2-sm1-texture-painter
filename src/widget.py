@@ -819,11 +819,6 @@ class ColorPickerDialog(tk.Toplevel):
         self.editor_color_space_area = ttk.Frame(self.editor_area)
         self.editor_color_space_area.pack(fill=tk.X)
         self.editor_visualization_area = ttk.Frame(self.editor_area)
-        self.editor_visualization_area.pack(
-            fill=tk.BOTH,
-            expand=True,
-            pady=(COLOR_EDITOR_SECTION_GAP, 0),
-        )
         self.editor_color_field_area = ttk.Frame(self.editor_visualization_area)
         self.editor_slider_area = ttk.Frame(self.editor_visualization_area, width=28)
         self.editor_slider_area.pack(
@@ -833,10 +828,6 @@ class ColorPickerDialog(tk.Toplevel):
         )
         self.editor_color_field_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.editor_numeric_area = ttk.Frame(self.editor_area)
-        self.editor_numeric_area.pack(
-            fill=tk.X,
-            pady=(COLOR_EDITOR_SECTION_GAP, 0),
-        )
         self.editor_rgb_area = ttk.LabelFrame(
             self.editor_numeric_area,
             text="RGB",
@@ -868,13 +859,28 @@ class ColorPickerDialog(tk.Toplevel):
             pady=(COLOR_EDITOR_SECTION_GAP, 0),
         )
         self.editor_recent_colors_area = ttk.Frame(self.editor_area)
-        self.editor_recent_colors_area.pack(
+        self.editor_preview_area = ttk.Frame(self.editor_area)
+        # Allocate fixed-height controls from the bottom before giving the
+        # remaining vertical space to the visualization. This keeps preview
+        # canvases at their requested height when the dialog is constrained.
+        self.editor_preview_area.pack(
+            side=tk.BOTTOM,
             fill=tk.X,
             pady=(COLOR_EDITOR_SECTION_GAP, 0),
         )
-        self.editor_preview_area = ttk.Frame(self.editor_area)
-        self.editor_preview_area.pack(
+        self.editor_recent_colors_area.pack(
+            side=tk.BOTTOM,
             fill=tk.X,
+            pady=(COLOR_EDITOR_SECTION_GAP, 0),
+        )
+        self.editor_numeric_area.pack(
+            side=tk.BOTTOM,
+            fill=tk.X,
+            pady=(COLOR_EDITOR_SECTION_GAP, 0),
+        )
+        self.editor_visualization_area.pack(
+            fill=tk.BOTH,
+            expand=True,
             pady=(COLOR_EDITOR_SECTION_GAP, 0),
         )
         self.editor_preview_area.grid_columnconfigure(0, weight=1, uniform="preview")
