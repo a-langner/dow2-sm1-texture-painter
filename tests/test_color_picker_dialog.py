@@ -25,6 +25,7 @@ from src.widget import (
     PAINT_SWATCH_CORNER_RADIUS,
     PAINT_SWATCH_PREVIEW_SIZE,
     PAINT_SWATCH_SELECTED_OUTLINE,
+    RECENT_COLOR_SWATCH_CORNER_RADIUS,
     ColorPickerDialog,
     PaintSwatchGrid,
     RecentColorSwatchRow,
@@ -1621,6 +1622,42 @@ class ColorPickerDialogTests(unittest.TestCase):
         )
 
         self.assertEqual(canvas_type.call_args.kwargs["height"], 1)
+
+    @patch("src.widget.tk.Canvas")
+    @patch("src.widget.ttk.Label")
+    @patch("src.widget.ttk.Frame.__init__", return_value=None)
+    def test_recent_color_swatches_use_small_rounded_square_geometry(
+        self,
+        _frame_init,
+        _label_type,
+        canvas_type,
+    ):
+        RecentColorSwatchRow(
+            object(),
+            colors=((0, 0, 0), (255, 255, 255), (255, 0, 0)),
+            paint_catalog=PaintCatalog(paints=()),
+            on_color_selected=Mock(),
+        )
+
+        calls = canvas_type.return_value.create_polygon.call_args_list
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(
+            [call.kwargs["fill"] for call in calls],
+            ["#000000", "#ffffff", "#ff0000"],
+        )
+        first = calls[0]
+        self.assertEqual(
+            first.args[:4],
+            (
+                1 + RECENT_COLOR_SWATCH_CORNER_RADIUS,
+                1,
+                1 + 24 - RECENT_COLOR_SWATCH_CORNER_RADIUS,
+                1,
+            ),
+        )
+        self.assertEqual(first.kwargs["outline"], COLOR_PREVIEW_BORDER)
+        self.assertEqual(first.kwargs["width"], 1)
+        self.assertTrue(first.kwargs["smooth"])
 
     def test_rounded_swatch_uses_subtle_corner_radius(self):
         canvas = Mock()

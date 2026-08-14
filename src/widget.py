@@ -270,9 +270,10 @@ def draw_rounded_swatch(
     fill: str,
     outline: str,
     width: int,
+    corner_radius: float = PAINT_SWATCH_CORNER_RADIUS,
 ) -> int:
     """Draw one subtly rounded canvas swatch and return its item id."""
-    radius = min(PAINT_SWATCH_CORNER_RADIUS, (x2 - x1) / 2, (y2 - y1) / 2)
+    radius = min(corner_radius, (x2 - x1) / 2, (y2 - y1) / 2)
     return canvas.create_polygon(
         x1 + radius,
         y1,
@@ -309,6 +310,7 @@ def draw_rounded_swatch(
 
 RECENT_COLOR_SWATCH_SIZE = 24
 RECENT_COLOR_SWATCH_GAP = 4
+RECENT_COLOR_SWATCH_CORNER_RADIUS = 4
 RECENT_COLOR_ROW_HEIGHT = RECENT_COLOR_SWATCH_SIZE + RECENT_COLOR_SWATCH_GAP
 
 
@@ -368,6 +370,7 @@ class RecentColorSwatchRow(ttk.Frame):
                     else COLOR_PREVIEW_BORDER
                 ),
                 width=2 if hovered else 1,
+                corner_radius=RECENT_COLOR_SWATCH_CORNER_RADIUS,
             )
             self._regions.append((x1, y1, x2, y2))
 
