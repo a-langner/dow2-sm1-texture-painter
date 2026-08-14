@@ -10,6 +10,7 @@ from src.widget import (
     COLOR_FIELD_PREFERRED_HEIGHT,
     COLOR_EDITOR_GROUP_PADDING,
     COLOR_EDITOR_SECTION_GAP,
+    COLOR_MODEL_CONTROL_WIDTH,
     COLOR_PICKER_EDITOR_PANE_WIDTH,
     COLOR_PREVIEW_BORDER,
     COLOR_PICKER_GROUP_PANE_WIDTH,
@@ -926,7 +927,10 @@ class ColorPickerDialogTests(unittest.TestCase):
                     "pady": (0, 3),
                 },
             )
-            self.assertEqual(dialog.color_model_controls[name].options["width"], 3)
+            self.assertEqual(
+                dialog.color_model_controls[name].options["width"],
+                COLOR_MODEL_CONTROL_WIDTH,
+            )
             self.assertEqual(dialog.color_model_controls[name].options["to"], maximum)
             self.assertEqual(
                 dialog.color_model_controls[name].grid_options,
@@ -959,6 +963,20 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog.editor_alternate_color_space_area.options["text"], "HSL")
         self.assertEqual(
             dialog.color_model_labels["component"].options["text"], "Lightness:"
+        )
+        self.assertEqual(
+            {
+                dialog.color_model_labels[name].grid_options["column"]
+                for name in ("hue", "saturation", "component")
+            },
+            {0, 1, 2},
+        )
+        self.assertEqual(
+            {
+                dialog.color_model_controls[name].options["width"]
+                for name in ("hue", "saturation", "component")
+            },
+            {COLOR_MODEL_CONTROL_WIDTH},
         )
         self.assertEqual(dialog.original_color, "#123456")
         self.assertEqual(dialog.current_color, "#fedcba")

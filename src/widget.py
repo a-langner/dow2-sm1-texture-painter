@@ -94,6 +94,7 @@ PAINT_TOOLTIP_DELAY_MS = 400
 COLOR_PREVIEW_BORDER = "#707070"
 COLOR_EDITOR_SECTION_GAP = 8
 COLOR_EDITOR_GROUP_PADDING = (8, 6)
+COLOR_MODEL_CONTROL_WIDTH = 3
 PAINT_SWATCH_OUTLINE = "#606060"
 PAINT_SWATCH_SELECTED_OUTLINE = "#2f80ed"
 COLOR_FIELD_PREFERRED_HEIGHT = 240
@@ -1103,7 +1104,7 @@ class ColorPickerDialog(tk.Toplevel):
                 self.editor_alternate_color_space_area,
                 from_=0,
                 to=maximum,
-                width=3,
+                width=COLOR_MODEL_CONTROL_WIDTH,
                 validate="key",
                 validatecommand=validation,
                 command=self._on_color_model_control_changed,
