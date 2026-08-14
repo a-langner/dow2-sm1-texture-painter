@@ -37,7 +37,7 @@ from src.paint_color_analysis import (
     get_paints_for_group,
     sort_paints_visually,
 )
-from src.recent_colors import RecentColors, add_recent_color
+from src.recent_colors import MAX_RECENT_COLORS, RecentColors, add_recent_color
 from src.render_settings import (
     MAX_BRIGHTNESS,
     MAX_CONTRAST,
@@ -104,6 +104,7 @@ BooleanChangedCallback = Callable[[bool], None]
 ColorChangedCallback = Callable[[int, str], None]
 ColorPickerCallback = Callable[[str], Optional[str]]
 PaintSelectedCallback = Callable[[PaintColor], None]
+RecentColorSelectedCallback = Callable[[str], None]
 LevelsChangedCallback = Callable[[float, float], None]
 StringChangedCallback = Callable[[str], None]
 LOGGER = logging.getLogger(__name__)
@@ -172,6 +173,16 @@ def format_visible_paint_count(count: int) -> str:
 
 def paint_tooltip_text(paint: PaintColor) -> str:
     return f"{paint.name}\nRGB: {paint.r}, {paint.g}, {paint.b}"
+
+
+def recent_color_tooltip_text(color, paint_catalog: PaintCatalog) -> str:
+    """Describe an RGB history entry, including an exact catalog match."""
+    hex_color = normalize_rgb_hex(rgb_channels_to_hex(*color))
+    paint = paint_catalog.find_exact_rgb(color)
+    rgb_text = f"RGB: {color[0]}, {color[1]}, {color[2]}"
+    if paint is not None:
+        return f"{paint.name}\n{hex_color}\n{rgb_text}"
+    return f"{hex_color}\n{rgb_text}"
 
 
 def _longest_fitting_prefix(
@@ -292,6 +303,129 @@ def draw_rounded_swatch(
         splinesteps=20,
         tags="paint",
     )
+
+
+RECENT_COLOR_SWATCH_SIZE = 24
+RECENT_COLOR_SWATCH_GAP = 4
+RECENT_COLOR_ROW_HEIGHT = RECENT_COLOR_SWATCH_SIZE + RECENT_COLOR_SWATCH_GAP
+
+
+class RecentColorSwatchRow(ttk.Frame):
+    """Compact confirmed-colour history with click and tooltip interaction."""
+
+    def __init__(
+        self,
+        parent,
+        *,
+        colors: RecentColors,
+        paint_catalog: PaintCatalog,
+        on_color_selected: RecentColorSelectedCallback,
+    ) -> None:
+        super().__init__(parent)
+        self.colors = colors[:MAX_RECENT_COLORS]
+        self.paint_catalog = paint_catalog
+        self._on_color_selected = on_color_selected
+        self._regions = []
+        self._hovered_index = None
+        self._tooltip_after_id = None
+        self._tooltip_window = None
+        self._tooltip_root_position = (0, 0)
+
+        ttk.Label(self, text="Recent Colors").pack(anchor=tk.W)
+        self.canvas = tk.Canvas(
+            self,
+            height=RECENT_COLOR_ROW_HEIGHT if colors else 1,
+            bd=0,
+            highlightthickness=0,
+        )
+        self.canvas.pack(fill=tk.X)
+        self.canvas.bind("<Button-1>", self._on_click)
+        self.canvas.bind("<Motion>", self._on_motion)
+        self.canvas.bind("<Leave>", self._on_leave)
+        self._draw_swatches()
+
+    def _draw_swatches(self) -> None:
+        self.canvas.delete("all")
+        self._regions = []
+        for index, color in enumerate(self.colors):
+            x1 = index * (RECENT_COLOR_SWATCH_SIZE + RECENT_COLOR_SWATCH_GAP) + 1
+            y1 = 1
+            x2 = x1 + RECENT_COLOR_SWATCH_SIZE
+            y2 = y1 + RECENT_COLOR_SWATCH_SIZE
+            hovered = index == self._hovered_index
+            draw_rounded_swatch(
+                self.canvas,
+                x1,
+                y1,
+                x2,
+                y2,
+                fill=rgb_channels_to_hex(*color),
+                outline=(
+                    PAINT_SWATCH_SELECTED_OUTLINE
+                    if hovered
+                    else COLOR_PREVIEW_BORDER
+                ),
+                width=2 if hovered else 1,
+            )
+            self._regions.append((x1, y1, x2, y2))
+
+    def _index_at(self, x: float, y: float) -> Optional[int]:
+        for index, (x1, y1, x2, y2) in enumerate(self._regions):
+            if x1 <= x <= x2 and y1 <= y <= y2:
+                return index
+        return None
+
+    def _on_click(self, Event) -> None:
+        index = self._index_at(Event.x, Event.y)
+        if index is not None:
+            self._on_color_selected(rgb_channels_to_hex(*self.colors[index]))
+
+    def _on_motion(self, Event) -> None:
+        index = self._index_at(Event.x, Event.y)
+        self._tooltip_root_position = (Event.x_root, Event.y_root)
+        if index == self._hovered_index:
+            return
+        self._hide_tooltip()
+        self._hovered_index = index
+        self._draw_swatches()
+        self.canvas.configure(cursor="hand2" if index is not None else "")
+        if index is not None:
+            self._tooltip_after_id = self.after(
+                PAINT_TOOLTIP_DELAY_MS,
+                partial(self._show_tooltip, index),
+            )
+
+    def _on_leave(self, Event=None) -> None:
+        self._hovered_index = None
+        self.canvas.configure(cursor="")
+        self._draw_swatches()
+        self._hide_tooltip()
+
+    def _show_tooltip(self, index: int) -> None:
+        self._tooltip_after_id = None
+        root_x, root_y = self._tooltip_root_position
+        tooltip = tk.Toplevel(self)
+        tooltip.wm_overrideredirect(True)
+        tooltip.wm_geometry(f"+{root_x + 20}+{root_y + 20}")
+        tk.Label(
+            tooltip,
+            text=recent_color_tooltip_text(self.colors[index], self.paint_catalog),
+            justify=tk.LEFT,
+            background="#ffffe0",
+            relief=tk.SOLID,
+            borderwidth=1,
+            padx=5,
+            pady=3,
+        ).pack()
+        self._tooltip_window = tooltip
+
+    def _hide_tooltip(self) -> None:
+        if self._tooltip_after_id is not None:
+            self.after_cancel(self._tooltip_after_id)
+            self._tooltip_after_id = None
+        if self._tooltip_window is not None:
+            self._tooltip_window.destroy()
+            self._tooltip_window = None
 
 
 class PaintSwatchGrid(ttk.Frame):
@@ -721,6 +855,11 @@ class ColorPickerDialog(tk.Toplevel):
             sticky=tk.EW,
             pady=(COLOR_EDITOR_SECTION_GAP, 0),
         )
+        self.editor_recent_colors_area = ttk.Frame(self.editor_area)
+        self.editor_recent_colors_area.pack(
+            fill=tk.X,
+            pady=(COLOR_EDITOR_SECTION_GAP, 0),
+        )
         self.editor_preview_area = ttk.Frame(self.editor_area)
         self.editor_preview_area.pack(
             fill=tk.X,
@@ -989,6 +1128,14 @@ class ColorPickerDialog(tk.Toplevel):
         self.hex_input.grid(row=0, column=1, sticky=tk.W)
         self.hex_input.bind("<Return>", self._on_hex_input_return)
         self.hex_input.bind("<FocusOut>", self._on_hex_input_focus_out)
+
+        self.recent_color_row = RecentColorSwatchRow(
+            self.editor_recent_colors_area,
+            colors=self.recent_colors,
+            paint_catalog=self.paint_catalog,
+            on_color_selected=self.set_current_color,
+        )
+        self.recent_color_row.pack(fill=tk.X)
 
         self.original_color_preview_label = ttk.Label(
             self.original_color_preview_area, text="Original"

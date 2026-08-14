@@ -24,6 +24,7 @@ from src.widget import (
     PAINT_SWATCH_SELECTED_OUTLINE,
     ColorPickerDialog,
     PaintSwatchGrid,
+    RecentColorSwatchRow,
     calculate_paint_swatch_cell_bounds,
     calculate_paint_swatch_columns,
     color_slot_presentation,
@@ -33,6 +34,7 @@ from src.widget import (
     format_visible_paint_count,
     paint_tooltip_text,
     paint_swatch_presentation,
+    recent_color_tooltip_text,
 )
 
 
@@ -619,6 +621,7 @@ class ColorPickerDialogTests(unittest.TestCase):
             dialog.editor_visualization_area,
             dialog.editor_numeric_area,
             dialog.editor_alternate_color_space_area,
+            dialog.editor_recent_colors_area,
             dialog.editor_preview_area,
         ):
             with self.subTest(spaced_area=area):
@@ -660,6 +663,7 @@ class ColorPickerDialogTests(unittest.TestCase):
             "editor_rgb_area",
             "editor_alternate_color_space_area",
             "editor_hex_area",
+            "editor_recent_colors_area",
             "editor_preview_area",
             "original_color_preview_area",
             "current_color_preview_area",
@@ -743,6 +747,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog._refresh_palette_display.call_count, 3)
 
     @patch("src.widget.tk.Canvas", side_effect=FakeWidget)
+    @patch("src.widget.RecentColorSwatchRow", side_effect=FakeWidget)
     @patch("src.widget.ttk.Frame", side_effect=FakeWidget)
     @patch("src.widget.ttk.Entry", side_effect=FakeWidget)
     @patch("src.widget.ttk.Spinbox", side_effect=FakeWidget)
@@ -755,12 +760,15 @@ class ColorPickerDialogTests(unittest.TestCase):
         _spinbox_type,
         _entry_type,
         _frame_type,
+        _recent_color_row_type,
         _canvas_type,
     ):
         dialog = object.__new__(ColorPickerDialog)
         dialog.original_color = "#123456"
         dialog.current_color = "#abcdef"
         dialog.color_space_mode = DEFAULT_COLOR_SPACE_MODE
+        dialog.recent_colors = ((150, 12, 9),)
+        dialog.paint_catalog = PaintCatalog(paints=())
         dialog.register = Mock(return_value="rgb-validation-command")
         for attribute in (
             "editor_color_space_area",
@@ -769,6 +777,7 @@ class ColorPickerDialogTests(unittest.TestCase):
             "editor_rgb_area",
             "editor_alternate_color_space_area",
             "editor_hex_area",
+            "editor_recent_colors_area",
             "original_color_preview_area",
             "current_color_preview_area",
         ):
@@ -786,6 +795,14 @@ class ColorPickerDialogTests(unittest.TestCase):
         )
         self.assertEqual(dialog.original_color_preview_label.options["text"], "Original")
         self.assertEqual(dialog.current_color_preview_label.options["text"], "Current")
+        self.assertEqual(
+            dialog.recent_color_row.options["colors"],
+            ((150, 12, 9),),
+        )
+        self.assertIs(
+            dialog.recent_color_row.options["on_color_selected"].__self__,
+            dialog,
+        )
         self.assertEqual(
             dialog.editor_rgb_area.grid_columns,
             {
@@ -1336,6 +1353,61 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertTrue(display_name.endswith("…"))
         self.assertEqual(paint.name, "A Complete Citadel Paint Name")
         self.assertIn(paint.name, paint_tooltip_text(paint))
+
+    def test_recent_color_tooltip_uses_exact_catalog_lookup(self):
+        paint = PaintColor("mephiston-red", "Mephiston Red", 150, 12, 9)
+        catalog = PaintCatalog(paints=(paint,))
+
+        self.assertEqual(
+            recent_color_tooltip_text((150, 12, 9), catalog),
+            "Mephiston Red\n#960C09\nRGB: 150, 12, 9",
+        )
+        self.assertEqual(
+            recent_color_tooltip_text((138, 31, 39), catalog),
+            "#8A1F27\nRGB: 138, 31, 39",
+        )
+
+    def test_recent_color_click_updates_color_without_mutating_history(self):
+        row = object.__new__(RecentColorSwatchRow)
+        row.colors = ((150, 12, 9), (138, 31, 39))
+        row._regions = [(1, 1, 25, 25), (29, 1, 53, 25)]
+        row._on_color_selected = Mock()
+
+        row._on_click(SimpleNamespace(x=40, y=12))
+
+        row._on_color_selected.assert_called_once_with("#8a1f27")
+        self.assertEqual(row.colors, ((150, 12, 9), (138, 31, 39)))
+
+    @patch("src.widget.tk.Canvas")
+    @patch("src.widget.ttk.Label")
+    @patch("src.widget.ttk.Frame.__init__", return_value=None)
+    def test_recent_color_row_caps_entries_and_keeps_empty_state_compact(
+        self,
+        _frame_init,
+        _label_type,
+        canvas_type,
+    ):
+        colors = tuple((value, value, value) for value in range(15))
+
+        row = RecentColorSwatchRow(
+            object(),
+            colors=colors,
+            paint_catalog=PaintCatalog(paints=()),
+            on_color_selected=Mock(),
+        )
+
+        self.assertEqual(len(row.colors), 12)
+        self.assertEqual(canvas_type.call_args.kwargs["height"], 28)
+        self.assertEqual(len(row._regions), 12)
+
+        RecentColorSwatchRow(
+            object(),
+            colors=(),
+            paint_catalog=PaintCatalog(paints=()),
+            on_color_selected=Mock(),
+        )
+
+        self.assertEqual(canvas_type.call_args.kwargs["height"], 1)
 
     def test_rounded_swatch_uses_subtle_corner_radius(self):
         canvas = Mock()
