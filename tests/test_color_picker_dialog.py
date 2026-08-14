@@ -539,8 +539,8 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.title.assert_called_once_with("Select Color")
         dialog.transient.assert_called_once_with(parent)
         dialog.resizable.assert_called_once_with(True, True)
-        dialog.geometry.assert_called_once_with("1100x720")
-        dialog.minsize.assert_called_once_with(900, 600)
+        dialog.geometry.assert_called_once_with("1100x760")
+        dialog.minsize.assert_called_once_with(900, 760)
 
     def test_saved_window_geometry_is_restored_before_display(self):
         dialog = object.__new__(ColorPickerDialog)
@@ -561,7 +561,7 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         dialog._configure_window(object())
 
-        dialog.geometry.assert_called_once_with("1000x650-1800+120")
+        dialog.geometry.assert_called_once_with("1000x760-1800+120")
 
     def test_closing_picker_saves_current_geometry(self):
         dialog = object.__new__(ColorPickerDialog)
