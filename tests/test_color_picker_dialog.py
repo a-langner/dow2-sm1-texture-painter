@@ -2407,6 +2407,124 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog.current_color, "#abcdef")
         self.assertEqual(dialog.palette_grid.selected_paint_id, alpha_red.id)
 
+    def test_both_palette_sort_modes_preserve_every_group_and_search_membership(self):
+        paints = (
+            PaintColor("z-red", "Zulu Red Shade", 220, 10, 10),
+            PaintColor("a-red", "Alpha Red Shade", 170, 20, 20),
+            PaintColor("z-green", "Zulu Green Shade", 10, 180, 20),
+            PaintColor("a-green", "Alpha Green Shade", 20, 130, 30),
+            PaintColor("z-blue", "Zulu Blue Shade", 10, 20, 210),
+            PaintColor("a-blue", "Alpha Blue Shade", 20, 30, 150),
+            PaintColor("z-brown", "Zulu Brown Shade", 115, 65, 25),
+            PaintColor("a-brown", "Alpha Brown Shade", 85, 50, 25),
+            PaintColor("z-neutral", "Zulu Neutral Shade", 150, 150, 150),
+            PaintColor("a-neutral", "Alpha Neutral Shade", 70, 70, 70),
+        )
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.current_color = "#abcdef"
+        dialog.paint_catalog = PaintCatalog(paints=paints)
+        dialog.palette_grid = FakePaletteGrid()
+        dialog.palette_count_label = FakeWidget()
+        dialog.event_generate = Mock()
+        dialog.search_query = ""
+        dialog.palette_sort_mode = PaletteSortMode.COLOR
+        dialog.group_buttons = {
+            color_group: FakeGroupButton()
+            for color_group, _ in COLOR_PICKER_GROUP_ENTRIES
+        }
+        dialog.group_button_labels = dict(COLOR_PICKER_GROUP_ENTRIES)
+
+        for query in ("", "shade"):
+            dialog.set_paint_search(query)
+            for color_group in (
+                None,
+                ColorGroup.RED,
+                ColorGroup.GREEN,
+                ColorGroup.BLUE,
+                ColorGroup.BROWN,
+                ColorGroup.NEUTRAL,
+            ):
+                dialog.select_color_group(color_group)
+                group_members = (
+                    paints
+                    if color_group is None
+                    else get_paints_for_group(paints, color_group)
+                )
+                expected_members = {
+                    paint.id
+                    for paint in filter_paints_by_name(group_members, query)
+                }
+                self.assertTrue(expected_members)
+
+                dialog.set_palette_sort_mode(PaletteSortMode.ALPHABETICAL)
+                alphabetical = dialog.palette_paints
+                self.assertEqual(
+                    tuple(paint.name for paint in alphabetical),
+                    tuple(
+                        sorted(
+                            (paint.name for paint in alphabetical), key=str.casefold
+                        )
+                    ),
+                )
+                self.assertEqual(
+                    {paint.id for paint in alphabetical}, expected_members
+                )
+
+                dialog.set_palette_sort_mode(PaletteSortMode.COLOR)
+                self.assertEqual(
+                    dialog.palette_paints,
+                    sort_paints_visually(
+                        filter_paints_by_name(group_members, query)
+                    ),
+                )
+                self.assertEqual(
+                    {paint.id for paint in dialog.palette_paints}, expected_members
+                )
+
+        self.assertEqual(dialog.current_color, "#abcdef")
+
+    def test_palette_sorting_preserves_selected_paint_preview_and_visualization(self):
+        selected = PaintColor("selected", "Zulu Red", 210, 5, 5)
+        paints = (
+            selected,
+            PaintColor("alpha", "Alpha Red", 170, 15, 15),
+        )
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.original_color = "#123456"
+        dialog.current_color = "#123456"
+        dialog.current_color_preview = FakeWidget()
+        dialog.paint_catalog = PaintCatalog(paints=paints)
+        dialog.palette_grid = FakePaletteGrid()
+        dialog.palette_count_label = FakeWidget()
+        dialog.event_generate = Mock()
+        dialog.search_query = ""
+        dialog.palette_sort_mode = PaletteSortMode.COLOR
+        dialog.selected_color_group = None
+
+        dialog.select_paint(selected)
+        expected_color = dialog.current_color
+        expected_preview = dialog.current_color_preview.options["background"]
+        expected_match = dialog.selected_paint_id
+
+        for visualization in COLOR_SPACE_MODES:
+            dialog.color_space_mode = visualization
+            for sort_mode in (
+                PaletteSortMode.ALPHABETICAL,
+                PaletteSortMode.COLOR,
+            ):
+                dialog.set_palette_sort_mode(sort_mode)
+                self.assertEqual(dialog.color_space_mode, visualization)
+                self.assertEqual(dialog.current_color, expected_color)
+                self.assertEqual(
+                    dialog.current_color_preview.options["background"],
+                    expected_preview,
+                )
+                self.assertEqual(dialog.selected_paint_id, expected_match)
+                self.assertEqual(
+                    dialog.palette_grid.selected_paint_id, expected_match
+                )
+                self.assertIn(selected, dialog.palette_grid.paints)
+
     def test_visible_count_uses_filtered_size_and_english_pluralization(self):
         self.assertEqual(format_visible_paint_count(0), "0 colors")
         self.assertEqual(format_visible_paint_count(1), "1 color")
