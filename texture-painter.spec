@@ -6,7 +6,7 @@ from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files
 
 
-APP_NAME = "dow2-texture-painter-0.1"
+APP_NAME = "dow2-sm1-texture-painter-0.1"
 ONE_FILE = os.environ.get("TEXTURE_PAINTER_ONEFILE") == "1"
 PROJECT_ROOT = Path(SPECPATH).resolve()
 ENTRY_POINT = PROJECT_ROOT / "src" / "frame_main.py"

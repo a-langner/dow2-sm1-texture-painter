@@ -83,8 +83,8 @@ jobs:
       - name: Verify Windows application bundle
         shell: pwsh
         run: |
-          $bundle = Join-Path $PWD "dist\dow2-texture-painter-0.1"
-          $executable = Join-Path $bundle "dow2-texture-painter-0.1.exe"
+          $bundle = Join-Path $PWD "dist\dow2-sm1-texture-painter-0.1"
+          $executable = Join-Path $bundle "dow2-sm1-texture-painter-0.1.exe"
           if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
             throw "Expected executable was not created: $executable"
           }

@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-setup(name="dow2-texture-painter",
+setup(name="dow2-sm1-texture-painter",
       version='0.1',
       packages=find_packages(),
       include_package_data=True,

@@ -18,7 +18,7 @@ from src.user_data import get_user_patterns_path
 
 RESOURCE_ROOT = resources.files("src.resources")
 ARMY_PATTERN_RESOURCE = RESOURCE_ROOT.joinpath("army_pattern.json")
-USER_PATTERN_FORMAT = "sm1-dow2-texture-painter-user-patterns"
+USER_PATTERN_FORMAT = "dow2-sm1-texture-painter-user-patterns"
 USER_PATTERN_VERSION = 1
 
 color_key = [

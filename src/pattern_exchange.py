@@ -27,10 +27,10 @@ from src.color_pattern_handler import (
 )
 from src.user_data import get_settings_path, get_user_patterns_path
 
-PATTERN_EXCHANGE_FORMAT = "sm1-dow2-texture-painter-pattern"
+PATTERN_EXCHANGE_FORMAT = "dow2-sm1-texture-painter-pattern"
 PATTERN_EXCHANGE_VERSION = 1
 PATTERN_EXCHANGE_SUFFIX = ".pattern.json"
-PATTERN_COLLECTION_EXCHANGE_FORMAT = "sm1-dow2-texture-painter-pattern-collection"
+PATTERN_COLLECTION_EXCHANGE_FORMAT = "dow2-sm1-texture-painter-pattern-collection"
 PATTERN_COLLECTION_EXCHANGE_VERSION = 1
 PATTERN_COLLECTION_EXCHANGE_SUFFIX = ".pattern-collection.json"
 LOGGER = logging.getLogger(__name__)

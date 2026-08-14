@@ -34,7 +34,7 @@ class PatternExchangeFormatTests(unittest.TestCase):
         self.assertEqual(
             document,
             {
-                "format": "sm1-dow2-texture-painter-pattern",
+                "format": "dow2-sm1-texture-painter-pattern",
                 "version": 1,
                 "name": "Example Pattern",
                 "colors": self.colors,
@@ -43,7 +43,7 @@ class PatternExchangeFormatTests(unittest.TestCase):
         self.assertEqual(list(document["colors"]), color_key)
 
     def test_constants_define_version_one_json_suffix(self):
-        self.assertEqual(PATTERN_EXCHANGE_FORMAT, "sm1-dow2-texture-painter-pattern")
+        self.assertEqual(PATTERN_EXCHANGE_FORMAT, "dow2-sm1-texture-painter-pattern")
         self.assertEqual(PATTERN_EXCHANGE_VERSION, 1)
         self.assertEqual(PATTERN_EXCHANGE_SUFFIX, ".pattern.json")
 

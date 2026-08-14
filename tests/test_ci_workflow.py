@@ -98,7 +98,7 @@ class GitHubActionsWorkflowTests(unittest.TestCase):
         )
         self.assertEqual(verify_step["shell"], "pwsh")
         for expected_path_part in (
-            "dow2-texture-painter-0.1.exe",
+            "dow2-sm1-texture-painter-0.1.exe",
             "_internal\\src\\resources",
             "army_pattern.json",
             "default_pattern.ini",

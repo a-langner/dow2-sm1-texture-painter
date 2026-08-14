@@ -102,7 +102,7 @@ class PatternCollectionExchangeFormatTests(unittest.TestCase):
         self.assertEqual(
             document,
             {
-                "format": "sm1-dow2-texture-painter-pattern-collection",
+                "format": "dow2-sm1-texture-painter-pattern-collection",
                 "version": 1,
                 "name": "My Space Marine Patterns",
                 "patterns": [
@@ -120,11 +120,11 @@ class PatternCollectionExchangeFormatTests(unittest.TestCase):
     def test_collection_constants_do_not_change_single_pattern_constants(self):
         self.assertEqual(
             PATTERN_COLLECTION_EXCHANGE_FORMAT,
-            "sm1-dow2-texture-painter-pattern-collection",
+            "dow2-sm1-texture-painter-pattern-collection",
         )
         self.assertEqual(PATTERN_COLLECTION_EXCHANGE_VERSION, 1)
         self.assertEqual(PATTERN_COLLECTION_EXCHANGE_SUFFIX, ".pattern-collection.json")
-        self.assertEqual(PATTERN_EXCHANGE_FORMAT, "sm1-dow2-texture-painter-pattern")
+        self.assertEqual(PATTERN_EXCHANGE_FORMAT, "dow2-sm1-texture-painter-pattern")
         self.assertEqual(PATTERN_EXCHANGE_VERSION, 1)
         self.assertEqual(PATTERN_EXCHANGE_SUFFIX, ".pattern.json")
 

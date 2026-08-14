@@ -8,7 +8,7 @@ from typing import Literal, Mapping
 from src.recent_colors import RecentColors, validate_recent_colors
 from src.user_data import get_settings_path
 
-SETTINGS_FORMAT = "sm1-dow2-texture-painter-settings"
+SETTINGS_FORMAT = "dow2-sm1-texture-painter-settings"
 SETTINGS_VERSION = 1
 LOGGER = logging.getLogger(__name__)
 DIRECTORY_FIELDS = (
