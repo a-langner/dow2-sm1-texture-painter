@@ -681,7 +681,11 @@ class ColorPickerDialog(tk.Toplevel):
         self.editor_color_field_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.editor_numeric_area = ttk.Frame(self.editor_area)
         self.editor_numeric_area.pack(fill=tk.X, pady=(8, 0))
-        self.editor_rgb_area = ttk.Frame(self.editor_numeric_area)
+        self.editor_rgb_area = ttk.LabelFrame(
+            self.editor_numeric_area,
+            text="RGB",
+            padding=(8, 6),
+        )
         self.editor_rgb_area.pack(fill=tk.X)
         self.editor_alternate_color_space_area = ttk.Frame(self.editor_numeric_area)
         self.editor_alternate_color_space_area.pack(fill=tk.X)
@@ -854,17 +858,28 @@ class ColorPickerDialog(tk.Toplevel):
         self.hsv_color_field.bind("<Configure>", self._on_visualization_resized)
         self.hue_slider.bind("<Configure>", self._on_visualization_resized)
 
-        ttk.Label(self.editor_rgb_area, text="RGB:").pack(anchor=tk.W)
-        self.rgb_control_row = ttk.Frame(self.editor_rgb_area)
-        self.rgb_control_row.pack(fill=tk.X)
         self.rgb_controls = {}
+        self.rgb_control_labels = {}
         validation = (self.register(self._validate_rgb_input), "%P")
-        for label, channel in (("Red", "red"), ("Green", "green"), ("Blue", "blue")):
-            cell = ttk.Frame(self.rgb_control_row)
-            cell.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 6))
-            ttk.Label(cell, text=f"{label}:").pack(side=tk.LEFT)
+        for index, (label, channel) in enumerate(
+            (("Red", "red"), ("Green", "green"), ("Blue", "blue"))
+        ):
+            label_column = index * 2
+            control_column = label_column + 1
+            self.editor_rgb_area.grid_columnconfigure(
+                control_column,
+                weight=1,
+                uniform="rgb-control",
+            )
+            channel_label = ttk.Label(self.editor_rgb_area, text=f"{label}:")
+            channel_label.grid(
+                row=0,
+                column=label_column,
+                sticky=tk.W,
+                padx=(0, 4),
+            )
             control = ttk.Spinbox(
-                cell,
+                self.editor_rgb_area,
                 from_=0,
                 to=255,
                 width=4,
@@ -872,10 +887,16 @@ class ColorPickerDialog(tk.Toplevel):
                 validatecommand=validation,
                 command=self._on_rgb_control_changed,
             )
-            control.pack(side=tk.LEFT, padx=(3, 8))
+            control.grid(
+                row=0,
+                column=control_column,
+                sticky=tk.W,
+                padx=(0, 12 if index < 2 else 0),
+            )
             control.bind("<KeyRelease>", self._on_rgb_control_changed)
             control.bind("<FocusOut>", self._on_rgb_control_changed)
             control.bind("<Return>", self._on_rgb_control_return)
+            self.rgb_control_labels[channel] = channel_label
             self.rgb_controls[channel] = control
         self.editor_mode_controls_label = ttk.Label(
             self.editor_alternate_color_space_area,

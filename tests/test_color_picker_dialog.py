@@ -566,6 +566,8 @@ class ColorPickerDialogTests(unittest.TestCase):
         )
         self.assertFalse(dialog.palette_area.pack_propagate_enabled)
         self.assertFalse(dialog.editor_area.pack_propagate_enabled)
+        self.assertEqual(dialog.editor_rgb_area.options["text"], "RGB")
+        self.assertEqual(dialog.editor_rgb_area.options["padding"], (8, 6))
         self.assertEqual(
             dialog.editor_visualization_area.packed_children,
             [dialog.editor_slider_area, dialog.editor_color_field_area],
@@ -726,6 +728,39 @@ class ColorPickerDialogTests(unittest.TestCase):
         )
         self.assertEqual(dialog.original_color_preview_label.options["text"], "Original")
         self.assertEqual(dialog.current_color_preview_label.options["text"], "Current")
+        self.assertEqual(
+            dialog.editor_rgb_area.grid_columns,
+            {
+                1: {"weight": 1, "uniform": "rgb-control"},
+                3: {"weight": 1, "uniform": "rgb-control"},
+                5: {"weight": 1, "uniform": "rgb-control"},
+            },
+        )
+        for index, (channel, label) in enumerate(
+            (("red", "Red:"), ("green", "Green:"), ("blue", "Blue:"))
+        ):
+            self.assertEqual(dialog.rgb_control_labels[channel].options["text"], label)
+            self.assertEqual(
+                dialog.rgb_control_labels[channel].grid_options,
+                {
+                    "row": 0,
+                    "column": index * 2,
+                    "sticky": "w",
+                    "padx": (0, 4),
+                },
+            )
+            self.assertEqual(dialog.rgb_controls[channel].options["width"], 4)
+            self.assertEqual(dialog.rgb_controls[channel].options["from_"], 0)
+            self.assertEqual(dialog.rgb_controls[channel].options["to"], 255)
+            self.assertEqual(
+                dialog.rgb_controls[channel].grid_options,
+                {
+                    "row": 0,
+                    "column": index * 2 + 1,
+                    "sticky": "w",
+                    "padx": (0, 12 if index < 2 else 0),
+                },
+            )
         for preview in (dialog.original_color_preview, dialog.current_color_preview):
             self.assertEqual(preview.options["height"], 32)
             self.assertEqual(preview.pack_options, {"fill": "x"})
