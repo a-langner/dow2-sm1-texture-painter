@@ -412,6 +412,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         transitions = (
             ("HSL", "Lightness:"),
             ("Color Wheel", "Value:"),
+            ("Classic", "Value:"),
             (DEFAULT_COLOR_SPACE_MODE, "Value:"),
         )
         for color in colors:
@@ -441,8 +442,8 @@ class ColorPickerDialogTests(unittest.TestCase):
                     )
                     self.assertEqual(dialog.current_color, color)
 
-                self.assertEqual(dialog._refresh_color_model_controls.call_count, 3)
-                self.assertEqual(dialog._refresh_visual_picker.call_count, 3)
+                self.assertEqual(dialog._refresh_color_model_controls.call_count, 4)
+                self.assertEqual(dialog._refresh_visual_picker.call_count, 4)
 
     def test_color_model_validation_enforces_hue_and_percent_boundaries(self):
         for proposed, maximum in (("0", "359"), ("359", "359"), ("100", "100")):
@@ -1110,6 +1111,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         for restored_mode, expected_title, expected_label in (
             ("HSL", "HSL", "Lightness:"),
             ("Color Wheel", "HSV / HSB", "Value:"),
+            ("Classic", "HSV / HSB", "Value:"),
             (DEFAULT_COLOR_SPACE_MODE, "HSV / HSB", "Value:"),
         ):
             with self.subTest(restored_mode=restored_mode):
@@ -1147,6 +1149,14 @@ class ColorPickerDialogTests(unittest.TestCase):
                     dialog.color_model_labels["component"].options["text"],
                     expected_label,
                 )
+                if restored_mode == "Color Wheel":
+                    self.assertIsNotNone(dialog.color_wheel_canvas.pack_options)
+                    self.assertIsNone(dialog.editor_color_field_area.pack_options)
+                    self.assertIsNone(dialog.editor_slider_area.pack_options)
+                else:
+                    self.assertIsNone(dialog.color_wheel_canvas.pack_options)
+                    self.assertIsNotNone(dialog.editor_color_field_area.pack_options)
+                    self.assertIsNotNone(dialog.editor_slider_area.pack_options)
                 self.assertEqual(dialog.current_color, initial_color)
                 self.assertEqual(
                     tuple(
