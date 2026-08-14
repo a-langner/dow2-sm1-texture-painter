@@ -85,6 +85,7 @@ ALL_COLOR_INDICATORS = (
 COLOR_SPACE_MODES = (
     ColorVisualizationMode.HSV_HSB.value,
     ColorVisualizationMode.HSL.value,
+    ColorVisualizationMode.COLOR_WHEEL.value,
 )
 DEFAULT_COLOR_SPACE_MODE = COLOR_SPACE_MODES[0]
 PAINT_SWATCH_TARGET_WIDTH = 96

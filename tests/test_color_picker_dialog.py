@@ -401,6 +401,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         )
         transitions = (
             ("HSL", "Lightness:"),
+            ("Color Wheel", "Value:"),
             (DEFAULT_COLOR_SPACE_MODE, "Value:"),
         )
         for color in colors:
@@ -430,8 +431,8 @@ class ColorPickerDialogTests(unittest.TestCase):
                     )
                     self.assertEqual(dialog.current_color, color)
 
-                self.assertEqual(dialog._refresh_color_model_controls.call_count, 2)
-                self.assertEqual(dialog._refresh_visual_picker.call_count, 2)
+                self.assertEqual(dialog._refresh_color_model_controls.call_count, 3)
+                self.assertEqual(dialog._refresh_visual_picker.call_count, 3)
 
     def test_color_model_validation_enforces_hue_and_percent_boundaries(self):
         for proposed, maximum in (("0", "359"), ("359", "359"), ("100", "100")):
@@ -657,6 +658,29 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog.color_space_mode, "HSL")
         self.assertEqual(dialog.search_query, "")
         self.assertEqual(dialog.current_color, "#123456")
+
+    def test_saved_color_wheel_mode_is_restored_for_central_application(self):
+        settings = SimpleNamespace(
+            color_picker_group=None,
+            color_picker_color_space="Color Wheel",
+        )
+        with patch("src.widget.tk.Toplevel.__init__", return_value=None), patch.object(
+            ColorPickerDialog, "_configure_window"
+        ), patch.object(ColorPickerDialog, "_build_main_layout"), patch.object(
+            ColorPickerDialog, "_build_palette_search"
+        ), patch.object(ColorPickerDialog, "_build_palette_grid"), patch.object(
+            ColorPickerDialog, "_build_group_navigation"
+        ), patch.object(ColorPickerDialog, "_build_color_editor"), patch.object(
+            ColorPickerDialog, "_build_actions"
+        ), patch.object(ColorPickerDialog, "protocol"), patch.object(
+            ColorPickerDialog, "bind"
+        ), patch.object(ColorPickerDialog, "grab_set"), patch.object(
+            ColorPickerDialog, "wait_window"
+        ):
+            dialog = ColorPickerDialog(object(), "#123456", settings=settings)
+
+        self.assertEqual(dialog.color_space_mode, "Color Wheel")
+        self.assertIn(str(dialog.color_space_mode), COLOR_SPACE_MODES)
 
     def test_invalid_saved_picker_modes_use_defaults(self):
         settings = SimpleNamespace(
@@ -1072,9 +1096,10 @@ class ColorPickerDialogTests(unittest.TestCase):
         _canvas_type,
     ):
         initial_color = "#808080"
-        for restored_mode, expected_label in (
-            ("HSL", "Lightness:"),
-            (DEFAULT_COLOR_SPACE_MODE, "Value:"),
+        for restored_mode, expected_title, expected_label in (
+            ("HSL", "HSL", "Lightness:"),
+            ("Color Wheel", "HSV / HSB", "Value:"),
+            (DEFAULT_COLOR_SPACE_MODE, "HSV / HSB", "Value:"),
         ):
             with self.subTest(restored_mode=restored_mode):
                 dialog = object.__new__(ColorPickerDialog)
@@ -1104,7 +1129,7 @@ class ColorPickerDialogTests(unittest.TestCase):
                 self.assertEqual(dialog.color_space_selector.get(), restored_mode)
                 self.assertEqual(
                     dialog.editor_alternate_color_space_area.options["text"],
-                    restored_mode,
+                    expected_title,
                 )
                 self.assertEqual(
                     dialog.color_model_labels["component"].options["text"],
