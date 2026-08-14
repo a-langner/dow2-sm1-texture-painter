@@ -7,6 +7,8 @@ from src.paint_color_analysis import ColorGroup, VISUAL_GROUP_ORDER
 from src.paint_color_analysis import get_paints_for_group, sort_paints_visually
 from src.widget import (
     COLOR_FIELD_PREFERRED_HEIGHT,
+    COLOR_EDITOR_GROUP_PADDING,
+    COLOR_EDITOR_SECTION_GAP,
     COLOR_PICKER_EDITOR_PANE_WIDTH,
     COLOR_PREVIEW_BORDER,
     COLOR_PICKER_GROUP_PANE_WIDTH,
@@ -567,14 +569,17 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertFalse(dialog.palette_area.pack_propagate_enabled)
         self.assertFalse(dialog.editor_area.pack_propagate_enabled)
         self.assertEqual(dialog.editor_rgb_area.options["text"], "RGB")
-        self.assertEqual(dialog.editor_rgb_area.options["padding"], (8, 6))
+        self.assertEqual(
+            dialog.editor_rgb_area.options["padding"],
+            COLOR_EDITOR_GROUP_PADDING,
+        )
         self.assertEqual(
             dialog.editor_alternate_color_space_area.options["text"],
             DEFAULT_COLOR_SPACE_MODE,
         )
         self.assertEqual(
             dialog.editor_alternate_color_space_area.options["padding"],
-            (8, 6),
+            COLOR_EDITOR_GROUP_PADDING,
         )
         self.assertEqual(
             dialog.editor_hex_area.grid_options,
@@ -583,9 +588,20 @@ class ColorPickerDialogTests(unittest.TestCase):
                 "column": 0,
                 "columnspan": 6,
                 "sticky": "ew",
-                "pady": (8, 0),
+                "pady": (COLOR_EDITOR_SECTION_GAP, 0),
             },
         )
+        for area in (
+            dialog.editor_visualization_area,
+            dialog.editor_numeric_area,
+            dialog.editor_alternate_color_space_area,
+            dialog.editor_preview_area,
+        ):
+            with self.subTest(spaced_area=area):
+                self.assertEqual(
+                    area.pack_options["pady"],
+                    (COLOR_EDITOR_SECTION_GAP, 0),
+                )
         self.assertEqual(
             dialog.editor_visualization_area.packed_children,
             [dialog.editor_slider_area, dialog.editor_color_field_area],

@@ -91,6 +91,8 @@ PAINT_SEARCH_PLACEHOLDER = "Search Citadel colors..."
 NO_CITADEL_COLORS_MESSAGE = "No Citadel colors found."
 PAINT_TOOLTIP_DELAY_MS = 400
 COLOR_PREVIEW_BORDER = "#707070"
+COLOR_EDITOR_SECTION_GAP = 8
+COLOR_EDITOR_GROUP_PADDING = (8, 6)
 PAINT_SWATCH_OUTLINE = "#606060"
 PAINT_SWATCH_SELECTED_OUTLINE = "#2f80ed"
 COLOR_FIELD_PREFERRED_HEIGHT = 240
@@ -619,13 +621,13 @@ class ColorPickerDialog(tk.Toplevel):
         )
 
     def _build_actions(self) -> None:
-        actions = ttk.Frame(self, padding=8)
+        actions = ttk.Frame(self, padding=COLOR_EDITOR_SECTION_GAP)
         actions.pack(side=tk.BOTTOM, fill=tk.X)
         self.ok_button = ttk.Button(actions, text="OK", command=self.accept)
         self.ok_button.pack(side=tk.RIGHT)
         self.cancel_button = ttk.Button(actions, text="Cancel", command=self.cancel)
         self.cancel_button.pack(
-            side=tk.RIGHT, padx=(0, 8)
+            side=tk.RIGHT, padx=(0, COLOR_EDITOR_SECTION_GAP)
         )
 
     def _build_main_layout(self) -> None:
@@ -674,35 +676,52 @@ class ColorPickerDialog(tk.Toplevel):
         self.editor_color_space_area = ttk.Frame(self.editor_area)
         self.editor_color_space_area.pack(fill=tk.X)
         self.editor_visualization_area = ttk.Frame(self.editor_area)
-        self.editor_visualization_area.pack(fill=tk.BOTH, expand=True, pady=(8, 0))
+        self.editor_visualization_area.pack(
+            fill=tk.BOTH,
+            expand=True,
+            pady=(COLOR_EDITOR_SECTION_GAP, 0),
+        )
         self.editor_color_field_area = ttk.Frame(self.editor_visualization_area)
         self.editor_slider_area = ttk.Frame(self.editor_visualization_area, width=28)
-        self.editor_slider_area.pack(side=tk.RIGHT, fill=tk.Y, padx=(8, 0))
+        self.editor_slider_area.pack(
+            side=tk.RIGHT,
+            fill=tk.Y,
+            padx=(COLOR_EDITOR_SECTION_GAP, 0),
+        )
         self.editor_color_field_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.editor_numeric_area = ttk.Frame(self.editor_area)
-        self.editor_numeric_area.pack(fill=tk.X, pady=(8, 0))
+        self.editor_numeric_area.pack(
+            fill=tk.X,
+            pady=(COLOR_EDITOR_SECTION_GAP, 0),
+        )
         self.editor_rgb_area = ttk.LabelFrame(
             self.editor_numeric_area,
             text="RGB",
-            padding=(8, 6),
+            padding=COLOR_EDITOR_GROUP_PADDING,
         )
         self.editor_rgb_area.pack(fill=tk.X)
         self.editor_alternate_color_space_area = ttk.LabelFrame(
             self.editor_numeric_area,
             text=getattr(self, "color_space_mode", DEFAULT_COLOR_SPACE_MODE),
-            padding=(8, 6),
+            padding=COLOR_EDITOR_GROUP_PADDING,
         )
-        self.editor_alternate_color_space_area.pack(fill=tk.X, pady=(8, 0))
+        self.editor_alternate_color_space_area.pack(
+            fill=tk.X,
+            pady=(COLOR_EDITOR_SECTION_GAP, 0),
+        )
         self.editor_hex_area = ttk.Frame(self.editor_alternate_color_space_area)
         self.editor_hex_area.grid(
             row=1,
             column=0,
             columnspan=6,
             sticky=tk.EW,
-            pady=(8, 0),
+            pady=(COLOR_EDITOR_SECTION_GAP, 0),
         )
         self.editor_preview_area = ttk.Frame(self.editor_area)
-        self.editor_preview_area.pack(fill=tk.X, pady=(8, 0))
+        self.editor_preview_area.pack(
+            fill=tk.X,
+            pady=(COLOR_EDITOR_SECTION_GAP, 0),
+        )
         self.editor_preview_area.grid_columnconfigure(0, weight=1, uniform="preview")
         self.editor_preview_area.grid_columnconfigure(1, weight=1, uniform="preview")
         self.original_color_preview_area = ttk.Frame(self.editor_preview_area)
