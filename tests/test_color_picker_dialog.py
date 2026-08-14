@@ -10,6 +10,7 @@ from src.widget import (
     COLOR_FIELD_PREFERRED_HEIGHT,
     COLOR_EDITOR_GROUP_PADDING,
     COLOR_EDITOR_SECTION_GAP,
+    COLOR_MODEL_GROUP_PADDING,
     COLOR_MODEL_CONTROL_WIDTH,
     COLOR_PICKER_EDITOR_PANE_WIDTH,
     COLOR_PREVIEW_BORDER,
@@ -671,14 +672,17 @@ class ColorPickerDialogTests(unittest.TestCase):
         )
         self.assertEqual(
             dialog.editor_alternate_color_space_area.options["padding"],
-            COLOR_EDITOR_GROUP_PADDING,
+            COLOR_MODEL_GROUP_PADDING,
+        )
+        self.assertEqual(
+            dialog.editor_color_model_controls_area.grid_options,
+            {"row": 0, "column": 0, "sticky": "ew"},
         )
         self.assertEqual(
             dialog.editor_hex_area.grid_options,
             {
-                "row": 2,
+                "row": 1,
                 "column": 0,
-                "columnspan": 3,
                 "sticky": "ew",
                 "pady": (COLOR_EDITOR_SECTION_GAP, 0),
             },
@@ -728,6 +732,7 @@ class ColorPickerDialogTests(unittest.TestCase):
             "editor_numeric_area",
             "editor_rgb_area",
             "editor_alternate_color_space_area",
+            "editor_color_model_controls_area",
             "editor_hex_area",
             "editor_recent_colors_area",
             "editor_preview_area",
@@ -842,6 +847,7 @@ class ColorPickerDialogTests(unittest.TestCase):
             "editor_slider_area",
             "editor_rgb_area",
             "editor_alternate_color_space_area",
+            "editor_color_model_controls_area",
             "editor_hex_area",
             "editor_recent_colors_area",
             "original_color_preview_area",
@@ -902,14 +908,12 @@ class ColorPickerDialogTests(unittest.TestCase):
                     "padx": (0, 12 if index < 2 else 0),
                 },
             )
-        self.assertEqual(
-            dialog.editor_alternate_color_space_area.grid_columns,
-            {
-                0: {"weight": 1, "uniform": "color-model-control"},
-                1: {"weight": 1, "uniform": "color-model-control"},
-                2: {"weight": 1, "uniform": "color-model-control"},
-            },
-        )
+        self.assertEqual(len(dialog.color_model_spacers), 2)
+        for spacer in dialog.color_model_spacers:
+            self.assertEqual(
+                spacer.pack_options,
+                {"side": "left", "fill": "x", "expand": True},
+            )
         for index, (name, label, maximum) in enumerate(
             (
                 ("hue", "Hue:", 359),
@@ -919,13 +923,8 @@ class ColorPickerDialogTests(unittest.TestCase):
         ):
             self.assertEqual(dialog.color_model_labels[name].options["text"], label)
             self.assertEqual(
-                dialog.color_model_labels[name].grid_options,
-                {
-                    "row": 0,
-                    "column": index,
-                    "sticky": "w",
-                    "pady": (0, 3),
-                },
+                dialog.color_model_labels[name].pack_options,
+                {"side": "left"},
             )
             self.assertEqual(
                 dialog.color_model_controls[name].options["width"],
@@ -933,12 +932,8 @@ class ColorPickerDialogTests(unittest.TestCase):
             )
             self.assertEqual(dialog.color_model_controls[name].options["to"], maximum)
             self.assertEqual(
-                dialog.color_model_controls[name].grid_options,
-                {
-                    "row": 1,
-                    "column": index,
-                    "sticky": "w",
-                },
+                dialog.color_model_controls[name].pack_options,
+                {"side": "left", "padx": (1, 0)},
             )
         self.assertEqual(dialog.hex_input_label.options["text"], "Hex:")
         self.assertEqual(
@@ -964,12 +959,12 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(
             dialog.color_model_labels["component"].options["text"], "Lightness:"
         )
-        self.assertEqual(
-            {
-                dialog.color_model_labels[name].grid_options["column"]
+        self.assertTrue(
+            all(
+                dialog.color_model_labels[name].parent
+                is dialog.editor_color_model_controls_area
                 for name in ("hue", "saturation", "component")
-            },
-            {0, 1, 2},
+            )
         )
         self.assertEqual(
             {

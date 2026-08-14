@@ -94,6 +94,7 @@ PAINT_TOOLTIP_DELAY_MS = 400
 COLOR_PREVIEW_BORDER = "#707070"
 COLOR_EDITOR_SECTION_GAP = 8
 COLOR_EDITOR_GROUP_PADDING = (8, 6)
+COLOR_MODEL_GROUP_PADDING = (4, 6)
 COLOR_MODEL_CONTROL_WIDTH = 3
 PAINT_SWATCH_OUTLINE = "#606060"
 PAINT_SWATCH_SELECTED_OUTLINE = "#2f80ed"
@@ -842,17 +843,24 @@ class ColorPickerDialog(tk.Toplevel):
         self.editor_alternate_color_space_area = ttk.LabelFrame(
             self.editor_numeric_area,
             text=getattr(self, "color_space_mode", DEFAULT_COLOR_SPACE_MODE),
-            padding=COLOR_EDITOR_GROUP_PADDING,
+            padding=COLOR_MODEL_GROUP_PADDING,
         )
         self.editor_alternate_color_space_area.pack(
             fill=tk.X,
             pady=(COLOR_EDITOR_SECTION_GAP, 0),
         )
+        self.editor_color_model_controls_area = ttk.Frame(
+            self.editor_alternate_color_space_area
+        )
+        self.editor_color_model_controls_area.grid(
+            row=0,
+            column=0,
+            sticky=tk.EW,
+        )
         self.editor_hex_area = ttk.Frame(self.editor_alternate_color_space_area)
         self.editor_hex_area.grid(
-            row=2,
+            row=1,
             column=0,
-            columnspan=3,
             sticky=tk.EW,
             pady=(COLOR_EDITOR_SECTION_GAP, 0),
         )
@@ -1073,6 +1081,7 @@ class ColorPickerDialog(tk.Toplevel):
             self.rgb_controls[channel] = control
         self.color_model_labels = {}
         self.color_model_controls = {}
+        self.color_model_spacers = []
         for index, (name, label, maximum) in enumerate(
             (
                 ("hue", "Hue", 359),
@@ -1080,28 +1089,18 @@ class ColorPickerDialog(tk.Toplevel):
                 ("component", "Value", 100),
             )
         ):
-            self.editor_alternate_color_space_area.grid_columnconfigure(
-                index,
-                weight=1,
-                uniform="color-model-control",
-            )
             component_label = ttk.Label(
-                self.editor_alternate_color_space_area,
+                self.editor_color_model_controls_area,
                 text=f"{label}:",
             )
-            component_label.grid(
-                row=0,
-                column=index,
-                sticky=tk.W,
-                pady=(0, 3),
-            )
+            component_label.pack(side=tk.LEFT)
             validation = (
                 self.register(self._validate_model_input),
                 "%P",
                 str(maximum),
             )
             control = ttk.Spinbox(
-                self.editor_alternate_color_space_area,
+                self.editor_color_model_controls_area,
                 from_=0,
                 to=maximum,
                 width=COLOR_MODEL_CONTROL_WIDTH,
@@ -1109,16 +1108,16 @@ class ColorPickerDialog(tk.Toplevel):
                 validatecommand=validation,
                 command=self._on_color_model_control_changed,
             )
-            control.grid(
-                row=1,
-                column=index,
-                sticky=tk.W,
-            )
+            control.pack(side=tk.LEFT, padx=(1, 0))
             control.bind("<KeyRelease>", self._on_color_model_control_changed)
             control.bind("<FocusOut>", self._on_color_model_control_changed)
             control.bind("<Return>", self._on_color_model_control_return)
             self.color_model_labels[name] = component_label
             self.color_model_controls[name] = control
+            if index < 2:
+                spacer = ttk.Frame(self.editor_color_model_controls_area)
+                spacer.pack(side=tk.LEFT, fill=tk.X, expand=True)
+                self.color_model_spacers.append(spacer)
         self.editor_hex_area.grid_columnconfigure(1, weight=1)
         self.hex_input_label = ttk.Label(self.editor_hex_area, text="Hex:")
         self.hex_input_label.grid(row=0, column=0, sticky=tk.W, padx=(0, 4))
