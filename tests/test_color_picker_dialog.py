@@ -563,6 +563,38 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         dialog.geometry.assert_called_once_with("1000x760-1800+120")
 
+    def test_saved_window_geometry_enforces_each_picker_minimum_dimension(self):
+        cases = (
+            ("1200x900+200+100", "1200x900+200+100"),
+            ("1000x600+200+100", "1000x760+200+100"),
+            ("700x900+200+100", "900x900+200+100"),
+            ("700x600+200+100", "900x760+200+100"),
+            ("1000x800+2500+1200", "1000x800+920+280"),
+            ("1100x760+120+80", "1100x760+120+80"),
+        )
+        for saved_geometry, expected_geometry in cases:
+            with self.subTest(saved_geometry=saved_geometry):
+                dialog = object.__new__(ColorPickerDialog)
+                dialog.settings = SimpleNamespace(
+                    color_picker_geometry=saved_geometry
+                )
+                dialog.title = Mock()
+                dialog.transient = Mock()
+                dialog.resizable = Mock()
+                dialog.winfo_screenwidth = Mock(return_value=1920)
+                dialog.winfo_screenheight = Mock(return_value=1080)
+                dialog.winfo_vrootx = Mock(return_value=0)
+                dialog.winfo_vrooty = Mock(return_value=0)
+                dialog.winfo_vrootwidth = Mock(return_value=1920)
+                dialog.winfo_vrootheight = Mock(return_value=1080)
+                dialog.geometry = Mock()
+                dialog.minsize = Mock()
+
+                dialog._configure_window(object())
+
+                dialog.geometry.assert_called_once_with(expected_geometry)
+                dialog.minsize.assert_called_once_with(900, 760)
+
     def test_closing_picker_saves_current_geometry(self):
         dialog = object.__new__(ColorPickerDialog)
         dialog.settings = Mock()
