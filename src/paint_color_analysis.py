@@ -59,6 +59,14 @@ class PaletteSortMode(Enum):
     def display_name(self) -> str:
         return "Color" if self is PaletteSortMode.COLOR else "Alphabetical"
 
+    @classmethod
+    def from_display_name(cls, display_name: str) -> PaletteSortMode:
+        """Resolve the exact UI label to its stable internal mode."""
+        for mode in cls:
+            if mode.display_name == display_name:
+                return mode
+        raise ValueError(f"Unsupported palette sort display name: {display_name!r}")
+
 
 VISUAL_GROUP_ORDER = (
     ColorGroup.RED,

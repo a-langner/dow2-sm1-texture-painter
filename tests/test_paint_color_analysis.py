@@ -246,6 +246,17 @@ class PaintColorSortingTests(unittest.TestCase):
             ("alpha", "bravo-upper", "bravo-lower", "zulu"),
         )
 
+    def test_palette_sort_display_names_resolve_to_internal_modes(self):
+        self.assertIs(
+            PaletteSortMode.from_display_name("Color"), PaletteSortMode.COLOR
+        )
+        self.assertIs(
+            PaletteSortMode.from_display_name("Alphabetical"),
+            PaletteSortMode.ALPHABETICAL,
+        )
+        with self.assertRaises(ValueError):
+            PaletteSortMode.from_display_name("Brightness")
+
     def test_sorting_contains_exactly_the_input_paints(self):
         sorted_paints = sort_paints_visually(self.paints)
 

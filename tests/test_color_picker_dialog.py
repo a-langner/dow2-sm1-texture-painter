@@ -27,6 +27,7 @@ from src.widget import (
     DEFAULT_COLOR_SPACE_MODE,
     NO_CITADEL_COLORS_MESSAGE,
     PAINT_SEARCH_PLACEHOLDER,
+    PALETTE_SORT_DISPLAY_NAMES,
     PAINT_SWATCH_OUTLINE,
     PAINT_SWATCH_CORNER_RADIUS,
     PAINT_SWATCH_PREVIEW_SIZE,
@@ -929,6 +930,18 @@ class ColorPickerDialogTests(unittest.TestCase):
             ],
         )
         self.assertEqual(
+            dialog.palette_header_area.packed_children,
+            [
+                dialog.palette_count_area,
+                dialog.palette_sort_area,
+                dialog.palette_search_area,
+            ],
+        )
+        self.assertEqual(
+            dialog.palette_sort_area.pack_options,
+            {"side": "right", "padx": (8, 0)},
+        )
+        self.assertEqual(
             dialog.editor_visualization_area.packed_children,
             [dialog.editor_slider_area, dialog.editor_color_field_area],
         )
@@ -952,6 +965,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertTrue(dialog.main_panes.pack_options["expand"])
         for attribute in (
             "palette_search_area",
+            "palette_sort_area",
             "palette_count_area",
             "palette_grid_area",
             "editor_color_space_area",
@@ -970,6 +984,35 @@ class ColorPickerDialogTests(unittest.TestCase):
         ):
             with self.subTest(container=attribute):
                 self.assertIsInstance(getattr(dialog, attribute), FakeWidget)
+
+    @patch("src.widget.ttk.Entry", side_effect=FakeWidget)
+    @patch("src.widget.ttk.Combobox", side_effect=FakeWidget)
+    @patch("src.widget.ttk.Label", side_effect=FakeWidget)
+    def test_palette_header_builds_compact_sort_selector_beside_search(
+        self, _label_type, _combobox_type, _entry_type
+    ):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.palette_sort_mode = PaletteSortMode.COLOR
+        dialog.palette_search_area = FakeWidget()
+        dialog.palette_sort_area = FakeWidget()
+        dialog.palette_count_area = FakeWidget()
+
+        dialog._build_palette_search()
+
+        self.assertEqual(
+            dialog.palette_sort_selector.options["values"],
+            PALETTE_SORT_DISPLAY_NAMES,
+        )
+        self.assertEqual(PALETTE_SORT_DISPLAY_NAMES, ("Color", "Alphabetical"))
+        self.assertEqual(dialog.palette_sort_selector.options["state"], "readonly")
+        self.assertEqual(dialog.palette_sort_selector.options["width"], 12)
+        self.assertEqual(dialog.palette_sort_selector.get(), "Color")
+        self.assertEqual(dialog.palette_sort_label.options["text"], "Sort:")
+        self.assertIn(
+            "<<ComboboxSelected>>", dialog.palette_sort_selector.bindings
+        )
+        self.assertTrue(dialog.search_entry.pack_options["expand"])
+        self.assertEqual(dialog.palette_count_label.options["text"], "0 colors")
 
     def test_navigation_entries_reuse_all_runtime_color_groups(self):
         groups = tuple(color_group for color_group, _ in COLOR_PICKER_GROUP_ENTRIES)
@@ -2341,6 +2384,15 @@ class ColorPickerDialogTests(unittest.TestCase):
         )
         self.assertEqual(dialog.current_color, "#abcdef")
         self.assertEqual(dialog.original_color, "#123456")
+        self.assertEqual(dialog.palette_grid.selected_paint_id, alpha_red.id)
+
+        dialog.palette_sort_selector = FakeWidget()
+        dialog.palette_sort_selector.set("Color")
+        dialog._on_palette_sort_selected()
+        self.assertIs(dialog.palette_sort_mode, PaletteSortMode.COLOR)
+        self.assertEqual(dialog.palette_paints, expected_color_order)
+        self.assertEqual(dialog.search_query, "red")
+        self.assertEqual(dialog.current_color, "#abcdef")
         self.assertEqual(dialog.palette_grid.selected_paint_id, alpha_red.id)
 
     def test_visible_count_uses_filtered_size_and_english_pluralization(self):

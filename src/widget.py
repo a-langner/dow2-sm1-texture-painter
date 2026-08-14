@@ -100,6 +100,7 @@ COLOR_SPACE_MODES = (
     ColorVisualizationMode.CLASSIC.value,
 )
 DEFAULT_COLOR_SPACE_MODE = COLOR_SPACE_MODES[0]
+PALETTE_SORT_DISPLAY_NAMES = tuple(mode.display_name for mode in PaletteSortMode)
 PAINT_SWATCH_TARGET_WIDTH = 96
 PAINT_SWATCH_PREVIEW_SIZE = 60
 PAINT_SWATCH_NAME_WRAP = 88
@@ -838,10 +839,12 @@ class ColorPickerDialog(tk.Toplevel):
 
         self.palette_header_area = ttk.Frame(self.palette_area)
         self.palette_header_area.pack(fill=tk.X)
-        self.palette_search_area = ttk.Frame(self.palette_header_area)
-        self.palette_search_area.pack(side=tk.LEFT, fill=tk.X, expand=True)
         self.palette_count_area = ttk.Frame(self.palette_header_area)
         self.palette_count_area.pack(side=tk.RIGHT)
+        self.palette_sort_area = ttk.Frame(self.palette_header_area)
+        self.palette_sort_area.pack(side=tk.RIGHT, padx=(8, 0))
+        self.palette_search_area = ttk.Frame(self.palette_header_area)
+        self.palette_search_area.pack(side=tk.LEFT, fill=tk.X, expand=True)
         self.palette_grid_area = ttk.Frame(self.palette_area)
         self.palette_grid_area.pack(fill=tk.BOTH, expand=True, pady=(8, 0))
 
@@ -933,6 +936,19 @@ class ColorPickerDialog(tk.Toplevel):
         self.search_entry.bind("<FocusIn>", self._on_search_focus_in)
         self.search_entry.bind("<FocusOut>", self._on_search_focus_out)
         self.search_entry.bind("<KeyRelease>", self._on_search_key_released)
+        self.palette_sort_label = ttk.Label(self.palette_sort_area, text="Sort:")
+        self.palette_sort_label.pack(side=tk.LEFT, padx=(0, 4))
+        self.palette_sort_selector = ttk.Combobox(
+            self.palette_sort_area,
+            values=PALETTE_SORT_DISPLAY_NAMES,
+            state="readonly",
+            width=12,
+        )
+        self.palette_sort_selector.set(self.palette_sort_mode.display_name)
+        self.palette_sort_selector.pack(side=tk.LEFT)
+        self.palette_sort_selector.bind(
+            "<<ComboboxSelected>>", self._on_palette_sort_selected
+        )
         self.palette_count_label = ttk.Label(
             self.palette_count_area,
             text=format_visible_paint_count(0),
@@ -965,10 +981,18 @@ class ColorPickerDialog(tk.Toplevel):
         """Reorder visible paints without changing canonical colour state."""
         if not isinstance(mode, PaletteSortMode):
             raise ValueError(f"Unsupported palette sort mode: {mode!r}")
+        selector = getattr(self, "palette_sort_selector", None)
+        if selector is not None and selector.get() != mode.display_name:
+            selector.set(mode.display_name)
         if mode is getattr(self, "palette_sort_mode", PaletteSortMode.COLOR):
             return
         self.palette_sort_mode = mode
         self._refresh_palette_data_source()
+
+    def _on_palette_sort_selected(self, Event=None) -> None:
+        self.set_palette_sort_mode(
+            PaletteSortMode.from_display_name(self.palette_sort_selector.get())
+        )
 
     def _build_group_navigation(self) -> None:
         style = ttk.Style(self)
