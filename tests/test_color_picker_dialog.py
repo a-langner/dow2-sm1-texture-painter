@@ -530,6 +530,43 @@ class ColorPickerDialogTests(unittest.TestCase):
                     self.assertIsNone(dialog.classic_visualization_area.pack_options)
                     self.assertIsNotNone(dialog.editor_color_field_area.pack_options)
 
+    def test_all_modes_keep_coherent_numeric_model_titles_and_field_labels(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.current_color = "#2A7FD4"
+        dialog.color_space_mode = DEFAULT_COLOR_SPACE_MODE
+        dialog.color_space_selector = FakeWidget()
+        dialog.editor_alternate_color_space_area = FakeWidget()
+        dialog.color_model_labels = {
+            "hue": FakeWidget(text="Hue:"),
+            "saturation": FakeWidget(text="Saturation:"),
+            "component": FakeWidget(text="Value:"),
+        }
+        dialog._refresh_color_model_controls = Mock()
+        dialog._refresh_visual_picker = Mock()
+
+        expected = (
+            (DEFAULT_COLOR_SPACE_MODE, "HSV / HSB", "Value:"),
+            ("HSL", "HSL", "Lightness:"),
+            ("Color Wheel", "HSV / HSB", "Value:"),
+            ("Classic", "HSV / HSB", "Value:"),
+            ("HSL", "HSL", "Lightness:"),
+            ("Classic", "HSV / HSB", "Value:"),
+        )
+        for mode, title, component_label in expected:
+            dialog.select_color_space(mode)
+            self.assertEqual(
+                dialog.editor_alternate_color_space_area.options["text"], title
+            )
+            self.assertEqual(dialog.color_model_labels["hue"].options["text"], "Hue:")
+            self.assertEqual(
+                dialog.color_model_labels["saturation"].options["text"],
+                "Saturation:",
+            )
+            self.assertEqual(
+                dialog.color_model_labels["component"].options["text"],
+                component_label,
+            )
+
     def test_color_model_validation_enforces_hue_and_percent_boundaries(self):
         for proposed, maximum in (("0", "359"), ("359", "359"), ("100", "100")):
             self.assertTrue(ColorPickerDialog._validate_model_input(proposed, maximum))
