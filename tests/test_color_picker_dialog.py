@@ -1,3 +1,4 @@
+import math
 import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, call, patch
@@ -1517,6 +1518,27 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertGreater(inner_top_left[0], 200)
         self.assertLess(inner_top_right[1], inner_top_left[1])
         self.assertLess(max(inner_bottom[:3]), 40)
+
+        geometry = color_wheel_geometry(101, 101)
+        ring_width = geometry.outer_radius - geometry.ring_inner_radius
+        for radius_fraction in (0.25, 0.5, 0.75):
+            sample_radius = geometry.ring_inner_radius + ring_width * radius_fraction
+            for degrees in range(360):
+                angle = degrees / 360.0 * 2.0 * math.pi
+                x = round(geometry.center_x + math.sin(angle) * sample_radius)
+                y = round(geometry.center_y - math.cos(angle) * sample_radius)
+                self.assertGreater(
+                    rendered.getpixel((x, y))[3],
+                    240,
+                    f"transparent seam at {degrees} degrees",
+                )
+
+        before_wrap = rendered.getpixel((50, 5))
+        after_wrap = rendered.getpixel((49, 5))
+        self.assertLess(
+            max(abs(first - second) for first, second in zip(before_wrap, after_wrap)),
+            20,
+        )
 
         dialog._render_color_wheel(0.0)
         photo_image_type.assert_called_once()

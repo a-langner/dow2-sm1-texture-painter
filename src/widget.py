@@ -11,7 +11,7 @@ import colorsys
 from tkinter import filedialog
 from functools import partial
 from typing import Callable, Optional
-from PIL import Image, ImageDraw, ImageTk
+from PIL import Image, ImageTk
 from src.color_pattern_handler import get_all_patterns, is_user_pattern
 from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.constant import OPEN_FILETYPES, SAVE_EXT_LIST, ColorOps
@@ -696,6 +696,7 @@ class ColorPickerDialog(tk.Toplevel):
         self._hue_slider_cache = None
         self._color_wheel_cache = None
         self._color_wheel_ring_cache = None
+        self._color_wheel_hue_table = None
         self._classic_field_cache = None
         self._classic_field_base_cache = None
         self._classic_value_slider_cache = None
@@ -1526,33 +1527,71 @@ class ColorPickerDialog(tk.Toplevel):
             ring_image = Image.new(
                 "RGBA", (width * scale, height * scale), (0, 0, 0, 0)
             )
-            draw = ImageDraw.Draw(ring_image)
-            center_x = geometry.center_x * scale
-            center_y = geometry.center_y * scale
-            radius = (
-                geometry.outer_radius + geometry.ring_inner_radius
-            ) / 2.0 * scale
-            ring_width = max(
-                1, round((geometry.outer_radius - geometry.ring_inner_radius) * scale)
+            ring_pixels = ring_image.load()
+            outer_radius_squared = geometry.outer_radius**2
+            inner_radius_squared = geometry.ring_inner_radius**2
+            top = max(
+                0, math.floor((geometry.center_y - geometry.outer_radius) * scale)
             )
-            steps = 720
-            for index in range(steps):
-                first_angle = index / steps * 2.0 * math.pi
-                second_angle = (index + 1) / steps * 2.0 * math.pi
-                color = tuple(
-                    round(channel * 255)
-                    for channel in colorsys.hsv_to_rgb(index / steps, 1.0, 1.0)
-                ) + (255,)
-                draw.line(
-                    (
-                        center_x + math.sin(first_angle) * radius,
-                        center_y - math.cos(first_angle) * radius,
-                        center_x + math.sin(second_angle) * radius,
-                        center_y - math.cos(second_angle) * radius,
-                    ),
-                    fill=color,
-                    width=ring_width,
+            bottom = min(
+                height * scale,
+                math.ceil((geometry.center_y + geometry.outer_radius) * scale) + 1,
+            )
+            hue_table_size = 4096
+            hue_table = getattr(self, "_color_wheel_hue_table", None)
+            if hue_table is None:
+                hue_table = tuple(
+                    tuple(
+                        round(channel * 255)
+                        for channel in colorsys.hsv_to_rgb(
+                            index / hue_table_size, 1.0, 1.0
+                        )
+                    )
+                    + (255,)
+                    for index in range(hue_table_size)
                 )
+                self._color_wheel_hue_table = hue_table
+            for pixel_y in range(top, bottom):
+                canvas_y = (pixel_y + 0.5) / scale
+                delta_y = canvas_y - geometry.center_y
+                outer_span = math.sqrt(
+                    max(0.0, outer_radius_squared - delta_y**2)
+                )
+                outer_left = max(
+                    0,
+                    math.ceil(
+                        (geometry.center_x - outer_span) * scale - 0.5
+                    ),
+                )
+                outer_right = min(
+                    width * scale - 1,
+                    math.floor(
+                        (geometry.center_x + outer_span) * scale - 0.5
+                    ),
+                )
+                pixel_ranges = ((outer_left, outer_right),)
+                if abs(delta_y) <= geometry.ring_inner_radius:
+                    inner_span = math.sqrt(
+                        max(0.0, inner_radius_squared - delta_y**2)
+                    )
+                    inner_left = math.ceil(
+                        (geometry.center_x - inner_span) * scale - 0.5
+                    )
+                    inner_right = math.floor(
+                        (geometry.center_x + inner_span) * scale - 0.5
+                    )
+                    pixel_ranges = (
+                        (outer_left, inner_left - 1),
+                        (inner_right + 1, outer_right),
+                    )
+                for range_left, range_right in pixel_ranges:
+                    for pixel_x in range(range_left, range_right + 1):
+                        canvas_x = (pixel_x + 0.5) / scale
+                        ring_hue = color_wheel_hue_from_position(
+                            canvas_x, canvas_y, geometry
+                        )
+                        color_index = round(ring_hue * hue_table_size) % hue_table_size
+                        ring_pixels[pixel_x, pixel_y] = hue_table[color_index]
             ring_image = ring_image.resize(
                 (width, height), Image.Resampling.LANCZOS
             )
