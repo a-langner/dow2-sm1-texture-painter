@@ -274,6 +274,40 @@ class SettingsHandlerTests(unittest.TestCase):
                 [[150, 12, 9], [138, 31, 39]],
             )
 
+    def test_recent_colors_load_ignores_bad_entries_and_preserves_valid_order(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_path = root / "settings.json"
+            document = settings_document(root)
+            document["ui_color_picker_recent_colors"] = [
+                [138, 31, 39],
+                [300, 0, 0],
+                [150, 12, 9],
+                [138, 31, 39],
+                "bad",
+            ]
+            settings_path.write_text(json.dumps(document), encoding="utf-8")
+
+            handler = SettingsHandler(settings_path, root)
+
+            self.assertEqual(
+                handler.color_picker_recent_colors,
+                ((138, 31, 39), (150, 12, 9)),
+            )
+            self.assertIsNone(handler.load_error)
+
+    def test_recent_color_setter_deduplicates_and_caps_before_persisting(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_path = root / "settings.json"
+            handler = SettingsHandler(settings_path, root)
+            colors = tuple((value, value, value) for value in range(15))
+
+            handler.set_color_picker_recent_colors(colors + (colors[0],))
+            reloaded = SettingsHandler(settings_path, root)
+
+            self.assertEqual(reloaded.color_picker_recent_colors, colors[:12])
+
     def test_invalid_optional_ui_fields_fall_back_without_blocking_updates(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

@@ -168,9 +168,10 @@ class SettingsHandler:
         self.main_window_position = position
 
     def set_color_picker_recent_colors(self, colors: RecentColors) -> None:
-        serialized = [list(color) for color in colors]
+        validated = validate_recent_colors([list(color) for color in colors])
+        serialized = [list(color) for color in validated]
         self._update_values({COLOR_PICKER_RECENT_COLORS_FIELD: serialized})
-        self.color_picker_recent_colors = colors
+        self.color_picker_recent_colors = validated
 
     @staticmethod
     def _optional_ui_string(

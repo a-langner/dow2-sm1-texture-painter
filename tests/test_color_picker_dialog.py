@@ -182,10 +182,17 @@ class ColorPickerDialogTests(unittest.TestCase):
         grab_set,
         wait_window,
     ):
-        dialog = ColorPickerDialog(object(), "#123456")
+        settings = SimpleNamespace(
+            color_picker_recent_colors=((150, 12, 9), (138, 31, 39))
+        )
+        dialog = ColorPickerDialog(object(), "#123456", settings=settings)
 
         self.assertEqual(dialog.original_color, "#123456")
         self.assertEqual(dialog.current_color, "#123456")
+        self.assertEqual(
+            dialog.recent_colors,
+            ((150, 12, 9), (138, 31, 39)),
+        )
         self.assertEqual(dialog.color_space_mode, DEFAULT_COLOR_SPACE_MODE)
         self.assertEqual(dialog.search_query, "")
         self.assertIsNone(dialog.get_accepted_color())
