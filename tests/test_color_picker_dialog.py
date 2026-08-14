@@ -402,18 +402,26 @@ class ColorPickerDialogTests(unittest.TestCase):
 
     def test_color_space_switch_updates_component_label_and_preserves_exact_rgb(self):
         colors = (
-            "#2A7FD4",
             "#000000",
             "#FFFFFF",
             "#808080",
             "#FF0000",
+            "#00FF00",
+            "#0000FF",
+            "#123005",
+            "#F2A6D8",
             "#960C09",  # Citadel Mephiston Red
+            "#2A7FD4",  # Custom non-Citadel colour
         )
         transitions = (
-            ("HSL", "Lightness:"),
-            ("Color Wheel", "Value:"),
-            ("Classic", "Value:"),
-            (DEFAULT_COLOR_SPACE_MODE, "Value:"),
+            (DEFAULT_COLOR_SPACE_MODE, "HSV / HSB", "Value:"),
+            ("HSL", "HSL", "Lightness:"),
+            ("Color Wheel", "HSV / HSB", "Value:"),
+            ("Classic", "HSV / HSB", "Value:"),
+            (DEFAULT_COLOR_SPACE_MODE, "HSV / HSB", "Value:"),
+            ("Color Wheel", "HSV / HSB", "Value:"),
+            ("HSL", "HSL", "Lightness:"),
+            ("Classic", "HSV / HSB", "Value:"),
         )
         for color in colors:
             with self.subTest(color=color):
@@ -432,18 +440,95 @@ class ColorPickerDialogTests(unittest.TestCase):
                     dialog.color_model_labels["component"].options["text"],
                     "Value:",
                 )
-                for mode, expected_label in transitions:
+                for mode, expected_title, expected_label in transitions:
                     dialog.select_color_space(mode)
                     self.assertEqual(dialog.color_space_mode, mode)
                     self.assertEqual(dialog.color_space_selector.get(), mode)
+                    self.assertEqual(
+                        dialog.editor_alternate_color_space_area.options["text"],
+                        expected_title,
+                    )
                     self.assertEqual(
                         dialog.color_model_labels["component"].options["text"],
                         expected_label,
                     )
                     self.assertEqual(dialog.current_color, color)
 
-                self.assertEqual(dialog._refresh_color_model_controls.call_count, 4)
-                self.assertEqual(dialog._refresh_visual_picker.call_count, 4)
+                self.assertEqual(dialog._refresh_color_model_controls.call_count, 8)
+                self.assertEqual(dialog._refresh_visual_picker.call_count, 8)
+
+    def test_each_mode_loads_its_own_visualization_and_markers_without_stale_views(
+        self,
+    ):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.current_color = "#2A7FD4"
+        dialog.color_space_mode = DEFAULT_COLOR_SPACE_MODE
+        dialog._achromatic_hue = 0.0
+        dialog.color_space_selector = FakeWidget()
+        dialog.editor_alternate_color_space_area = FakeWidget()
+        dialog.color_model_labels = {"component": FakeWidget()}
+        dialog.editor_color_field_area = FakeWidget()
+        dialog.editor_slider_area = FakeWidget()
+        dialog.color_wheel_canvas = FakeWidget()
+        dialog.classic_visualization_area = FakeWidget()
+        dialog.hsv_color_field = Mock()
+        dialog.hue_slider = Mock()
+        dialog.classic_color_field = Mock()
+        dialog.classic_value_slider = Mock()
+        for canvas in (
+            dialog.hsv_color_field,
+            dialog.hue_slider,
+            dialog.classic_color_field,
+            dialog.classic_value_slider,
+        ):
+            canvas.winfo_width.return_value = 101
+            canvas.winfo_height.return_value = 101
+        dialog.color_wheel_canvas.winfo_width = lambda: 101
+        dialog.color_wheel_canvas.winfo_height = lambda: 101
+        dialog._refresh_color_model_controls = Mock()
+        dialog._render_hsv_field = Mock()
+        dialog._render_hsl_field = Mock()
+        dialog._render_hue_slider = Mock()
+        dialog._draw_hsv_indicators = Mock()
+        dialog._render_color_wheel = Mock()
+        dialog._draw_color_wheel_indicators = Mock()
+        dialog._render_classic_field = Mock()
+        dialog._render_classic_value_slider = Mock()
+        dialog._draw_classic_indicators = Mock()
+
+        expectations = (
+            (
+                DEFAULT_COLOR_SPACE_MODE,
+                dialog._render_hsv_field,
+                dialog._draw_hsv_indicators,
+            ),
+            ("HSL", dialog._render_hsl_field, dialog._draw_hsv_indicators),
+            (
+                "Color Wheel",
+                dialog._render_color_wheel,
+                dialog._draw_color_wheel_indicators,
+            ),
+            ("Classic", dialog._render_classic_field, dialog._draw_classic_indicators),
+        )
+        for mode, renderer, marker_drawer in expectations:
+            with self.subTest(mode=mode):
+                renderer.reset_mock()
+                marker_drawer.reset_mock()
+                dialog.select_color_space(mode)
+                renderer.assert_called_once()
+                marker_drawer.assert_called_once()
+                if mode == "Color Wheel":
+                    self.assertIsNotNone(dialog.color_wheel_canvas.pack_options)
+                    self.assertIsNone(dialog.classic_visualization_area.pack_options)
+                    self.assertIsNone(dialog.editor_color_field_area.pack_options)
+                elif mode == "Classic":
+                    self.assertIsNone(dialog.color_wheel_canvas.pack_options)
+                    self.assertIsNotNone(dialog.classic_visualization_area.pack_options)
+                    self.assertIsNone(dialog.editor_color_field_area.pack_options)
+                else:
+                    self.assertIsNone(dialog.color_wheel_canvas.pack_options)
+                    self.assertIsNone(dialog.classic_visualization_area.pack_options)
+                    self.assertIsNotNone(dialog.editor_color_field_area.pack_options)
 
     def test_color_model_validation_enforces_hue_and_percent_boundaries(self):
         for proposed, maximum in (("0", "359"), ("359", "359"), ("100", "100")):
