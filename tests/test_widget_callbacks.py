@@ -35,7 +35,37 @@ class FakeScale:
         return self.value
 
 
+class FakeWidget:
+    def __init__(self, parent=None, **options):
+        self.parent = parent
+        self.options = options
+
+    def insert(self, *args):
+        pass
+
+    def pack(self, **options):
+        self.pack_options = options
+
+
 class RemainingWidgetCallbackTests(unittest.TestCase):
+    @patch("src.widget.tk.Checkbutton", side_effect=FakeWidget)
+    @patch("src.widget.tk.BooleanVar", return_value=ValueVariable(0))
+    @patch("src.widget.tk.Listbox", side_effect=FakeWidget)
+    @patch("src.widget.tk.LabelFrame.__init__", return_value=None)
+    def test_channel_selection_is_not_exported_to_other_controls(
+        self,
+        _label_frame_init,
+        listbox_type,
+        _boolean_var,
+        _checkbutton_type,
+    ):
+        frame = FrameChannelList(object(), on_alpha_changed=Mock())
+
+        listbox_type.assert_called_once()
+        self.assertIsInstance(frame.lb, FakeWidget)
+        self.assertIs(frame.lb.options["exportselection"], False)
+        self.assertEqual(frame.lb.options["selectmode"], "multiple")
+
     def test_alpha_toggle_forwards_boolean_value(self):
         frame = object.__new__(FrameChannelList)
         frame.apply_alpha = ValueVariable(1)

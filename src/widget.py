@@ -2158,7 +2158,13 @@ class FrameChannelList(tk.LabelFrame):
         self._on_alpha_changed = on_alpha_changed
 
         # Channel List Box
-        self.lb = tk.Listbox(self, selectmode=tk.MULTIPLE, height=4, width=9)
+        self.lb = tk.Listbox(
+            self,
+            selectmode=tk.MULTIPLE,
+            exportselection=False,
+            height=4,
+            width=9,
+        )
         self.lb.insert(0, "0 Red")
         self.lb.insert(1, "1 Green")
         self.lb.insert(2, "2 Blue")
