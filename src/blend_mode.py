@@ -46,12 +46,13 @@ _BLEND_MODE_DISPLAY_NAMES = {
     BlendMode.LINEAR_DODGE: "Linear Dodge (Add)",
 }
 
-# Only these modes have pixel implementations before Jobs 3-8.
+# User-facing order: retain the three original choices first, followed by the
+# modes added in the expanded blend-mode block.
 IMPLEMENTED_BLEND_MODES = (
-    BlendMode.NORMAL,
-    BlendMode.MULTIPLY,
-    BlendMode.SCREEN,
     BlendMode.OVERLAY,
+    BlendMode.SCREEN,
+    BlendMode.MULTIPLY,
+    BlendMode.NORMAL,
     BlendMode.SOFT_LIGHT,
     BlendMode.HARD_LIGHT,
     BlendMode.COLOR,

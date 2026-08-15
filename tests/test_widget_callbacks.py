@@ -111,7 +111,17 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         self.assertEqual(selector.options["state"], "readonly")
         self.assertEqual(
             selector.options["values"],
-            tuple(operation.display_name for operation in ColorOps),
+            (
+                "Overlay",
+                "Screen",
+                "Multiply",
+                "Normal",
+                "Soft Light",
+                "Hard Light",
+                "Color",
+                "Linear Burn",
+                "Linear Dodge (Add)",
+            ),
         )
         self.assertEqual(frame.var.get(), "Overlay")
         self.assertIn("<<ComboboxSelected>>", selector.bindings)

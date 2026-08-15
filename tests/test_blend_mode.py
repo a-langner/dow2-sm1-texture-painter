@@ -42,10 +42,10 @@ class BlendModeTests(unittest.TestCase):
         self.assertEqual(
             IMPLEMENTED_BLEND_MODES,
             (
-                BlendMode.NORMAL,
-                BlendMode.MULTIPLY,
-                BlendMode.SCREEN,
                 BlendMode.OVERLAY,
+                BlendMode.SCREEN,
+                BlendMode.MULTIPLY,
+                BlendMode.NORMAL,
                 BlendMode.SOFT_LIGHT,
                 BlendMode.HARD_LIGHT,
                 BlendMode.COLOR,
