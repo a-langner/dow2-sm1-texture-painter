@@ -48,7 +48,8 @@ _BLEND_MODE_DISPLAY_NAMES = {
 
 # Only these modes have pixel implementations before Jobs 3-8.
 IMPLEMENTED_BLEND_MODES = (
-    BlendMode.OVERLAY,
-    BlendMode.SCREEN,
+    BlendMode.NORMAL,
     BlendMode.MULTIPLY,
+    BlendMode.SCREEN,
+    BlendMode.OVERLAY,
 )

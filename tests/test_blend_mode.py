@@ -38,8 +38,13 @@ class BlendModeTests(unittest.TestCase):
     def test_legacy_color_ops_name_is_the_authoritative_enum(self):
         self.assertIs(ColorOps, BlendMode)
 
-    def test_only_existing_pixel_modes_are_exposed_before_implementation(self):
+    def test_only_implemented_pixel_modes_are_exposed(self):
         self.assertEqual(
             IMPLEMENTED_BLEND_MODES,
-            (BlendMode.OVERLAY, BlendMode.SCREEN, BlendMode.MULTIPLY),
+            (
+                BlendMode.NORMAL,
+                BlendMode.MULTIPLY,
+                BlendMode.SCREEN,
+                BlendMode.OVERLAY,
+            ),
         )

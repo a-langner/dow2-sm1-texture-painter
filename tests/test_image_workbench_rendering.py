@@ -259,6 +259,12 @@ class TextureRenderingBaselineTests(unittest.TestCase):
 
     def test_each_supported_color_operation(self):
         expected_by_operation = {
+            ColorOps.NORMAL.value: (
+                (204, 32, 32, 255),
+                (255, 255, 255, 255),
+                (32, 64, 96, 255),
+                (201, 83, 45, 255),
+            ),
             ColorOps.OVERLAY.value: (
                 (0, 0, 0, 255),
                 (255, 255, 255, 255),
@@ -285,6 +291,62 @@ class TextureRenderingBaselineTests(unittest.TestCase):
                 workbench.colors = [PATTERN_COLORS[0]]
                 workbench.set(color_op=operation)
                 self.assert_render_pixels(workbench, expected)
+
+    def test_normal_uses_mask_once_for_zero_full_and_partial_strength(self):
+        diffuse = image_from_pixels(
+            "RGBA",
+            (
+                (10, 20, 30, 255),
+                (10, 20, 30, 255),
+                (10, 20, 30, 255),
+                (0, 0, 0, 255),
+            ),
+        )
+        red = image_from_pixels("L", (0, 255, 128, 0))
+        empty = Image.new("L", (2, 2), 0)
+        textures = TextureSet(
+            diffuse,
+            Image.merge("RGBA", (red, empty, empty, empty)),
+        )
+        settings = RenderSettings(
+            primary_color="#6e7882",
+            brightness=100,
+            contrast=100,
+            color_op=ColorOps.NORMAL,
+            tem_selected=(0,),
+        )
+
+        self.assertEqual(
+            pixels(TextureRenderer().render(textures, settings)),
+            (
+                (10, 20, 30, 255),
+                (110, 120, 130, 255),
+                (60, 70, 80, 255),
+                (0, 0, 0, 255),
+            ),
+        )
+
+    def test_normal_keeps_established_contrast_brightness_then_alpha_order(self):
+        diffuse = Image.new("RGBA", (1, 1), (10, 20, 30, 255))
+        full = Image.new("L", (1, 1), 255)
+        empty = Image.new("L", (1, 1), 0)
+        textures = TextureSet(
+            diffuse,
+            Image.merge("RGBA", (full, empty, empty, empty)),
+        )
+        settings = RenderSettings(
+            primary_color="#6496c8",
+            brightness=50,
+            contrast=100,
+            apply_alpha=True,
+            color_op=ColorOps.NORMAL,
+            tem_selected=(0,),
+        )
+
+        self.assertEqual(
+            TextureRenderer().render(textures, settings).getpixel((0, 0)),
+            (50, 75, 100, 0),
+        )
 
     def make_optional_maps_workbench(self):
         workbench = self.make_workbench()

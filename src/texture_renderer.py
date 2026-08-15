@@ -51,7 +51,9 @@ def _apply_team_colors(
         gray_img = textures.diffuse.copy()
         color_img = Image.new("RGBA", gray_img.size, color)
 
-        if settings.color_op is ColorOps.OVERLAY:
+        if settings.color_op is ColorOps.NORMAL:
+            new_img = color_img
+        elif settings.color_op is ColorOps.OVERLAY:
             new_img = ImageChops.overlay(gray_img, color_img)
         elif settings.color_op is ColorOps.MULTIPLY:
             new_img = ImageChops.multiply(gray_img, color_img)
