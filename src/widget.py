@@ -146,16 +146,34 @@ LOGGER = logging.getLogger(__name__)
 def configure_app_selection_styles(widget: tk.Misc) -> None:
     """Apply the shared accent to explicit app text-selection surfaces."""
     style = ttk.Style(widget)
-    for style_name in (
-        APP_COMBOBOX_STYLE,
-        APP_ENTRY_STYLE,
-        APP_SPINBOX_STYLE,
-    ):
+    for style_name in (APP_ENTRY_STYLE, APP_SPINBOX_STYLE):
         style.configure(
             style_name,
             selectbackground=APP_SELECTION_BACKGROUND,
             selectforeground=APP_SELECTION_FOREGROUND,
         )
+    style.configure(
+        APP_COMBOBOX_STYLE,
+        fieldbackground=APP_SELECTION_BACKGROUND,
+        foreground=APP_SELECTION_FOREGROUND,
+        selectbackground=APP_SELECTION_BACKGROUND,
+        selectforeground=APP_SELECTION_FOREGROUND,
+    )
+    style.map(
+        APP_COMBOBOX_STYLE,
+        fieldbackground=[
+            ("readonly", APP_SELECTION_BACKGROUND),
+            ("focus", APP_SELECTION_BACKGROUND),
+        ],
+        foreground=[
+            ("readonly", APP_SELECTION_FOREGROUND),
+            ("focus", APP_SELECTION_FOREGROUND),
+        ],
+        background=[
+            ("pressed", APP_SELECTION_BACKGROUND),
+            ("active", APP_SELECTION_BACKGROUND),
+        ],
+    )
     widget.option_add(
         "*TCombobox*Listbox.selectBackground",
         APP_SELECTION_BACKGROUND,
@@ -971,7 +989,10 @@ class ColorPickerDialog(tk.Toplevel):
         self.palette_grid.pack(fill=tk.BOTH, expand=True)
 
     def _build_palette_search(self) -> None:
-        self.search_entry = ttk.Entry(self.palette_search_area)
+        self.search_entry = ttk.Entry(
+            self.palette_search_area,
+            style=APP_ENTRY_STYLE,
+        )
         self.search_entry.insert(0, PAINT_SEARCH_PLACEHOLDER)
         self.search_entry.pack(fill=tk.X, expand=True)
         self.search_entry.bind("<FocusIn>", self._on_search_focus_in)
