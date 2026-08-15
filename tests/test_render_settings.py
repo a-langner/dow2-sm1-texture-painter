@@ -7,6 +7,7 @@ from unittest.mock import Mock
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.constant import ColorOps
+from src.color_processing_settings import ColorProcessingSettings
 from src.processing_mode import ProcessingMode
 from src.render_settings import (
     DEFAULT_COLOR,
@@ -33,6 +34,11 @@ class RenderSettingsTests(unittest.TestCase):
         self.assertFalse(settings.apply_spec)
         self.assertIs(settings.color_op, ColorOps.OVERLAY)
         self.assertIs(settings.processing_mode, ProcessingMode.GLOBAL)
+        self.assertEqual(
+            settings.per_color_processing,
+            (ColorProcessingSettings(),) * 4,
+        )
+        self.assertEqual(settings.global_processing, ColorProcessingSettings())
         self.assertEqual(settings.tem_selected, ())
         self.assertEqual(settings, DEFAULT_RENDER_SETTINGS)
 
@@ -117,6 +123,53 @@ class RenderSettingsTests(unittest.TestCase):
         self.assertEqual(captured.colors, COLORS)
         self.assertEqual(captured.brightness, 75.0)
         self.assertNotEqual(captured, later)
+
+    def test_global_and_four_per_color_contexts_are_retained(self):
+        global_processing = ColorProcessingSettings(
+            blend_mode=ColorOps.OVERLAY,
+            brightness=75,
+            contrast=100,
+        )
+        per_color = (
+            ColorProcessingSettings(ColorOps.MULTIPLY, 65, 110),
+            ColorProcessingSettings(ColorOps.COLOR, 80, 95),
+            ColorProcessingSettings(ColorOps.SOFT_LIGHT, 70, 105),
+            ColorProcessingSettings(ColorOps.OVERLAY, 75, 100),
+        )
+        settings = RenderSettings(per_color_processing=per_color)
+        settings = settings.with_global_processing(global_processing)
+
+        for mode in (
+            ProcessingMode.PER_COLOR,
+            ProcessingMode.GLOBAL,
+            ProcessingMode.PER_COLOR,
+        ):
+            settings = settings.with_processing_mode(mode)
+
+        self.assertIs(settings.processing_mode, ProcessingMode.PER_COLOR)
+        self.assertEqual(settings.global_processing, global_processing)
+        self.assertEqual(settings.per_color_processing, per_color)
+
+    def test_one_per_color_context_can_change_independently(self):
+        original = RenderSettings()
+        color_two = ColorProcessingSettings(ColorOps.COLOR, 80, 95)
+
+        changed = original.with_color_processing(1, color_two)
+
+        self.assertEqual(changed.per_color_processing[1], color_two)
+        self.assertEqual(
+            changed.per_color_processing[:1] + changed.per_color_processing[2:],
+            original.per_color_processing[:1] + original.per_color_processing[2:],
+        )
+        self.assertEqual(changed.global_processing, original.global_processing)
+
+    def test_per_color_context_requires_exactly_four_typed_values(self):
+        with self.assertRaisesRegex(TypeError, "tuple of four"):
+            RenderSettings(per_color_processing=(ColorProcessingSettings(),))
+        with self.assertRaisesRegex(TypeError, "ColorProcessingSettings"):
+            RenderSettings(per_color_processing=(None, None, None, None))
+        with self.assertRaisesRegex(ValueError, "between 0 and 3"):
+            RenderSettings().with_color_processing(4, ColorProcessingSettings())
 
     def test_invalid_levels_are_rejected_without_clamping(self):
         invalid_values = (

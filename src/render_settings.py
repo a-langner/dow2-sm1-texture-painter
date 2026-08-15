@@ -1,13 +1,15 @@
 """Immutable parameters that determine texture-rendering pixels."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 import re
 
 from src.color_processing_settings import (
+    DEFAULT_COLOR_PROCESSING_SETTINGS,
     MAX_BRIGHTNESS,
     MAX_CONTRAST,
     MIN_BRIGHTNESS,
     MIN_CONTRAST,
+    ColorProcessingSettings,
     validate_processing_level,
 )
 from src.constant import ColorOps
@@ -15,6 +17,16 @@ from src.processing_mode import ProcessingMode
 
 DEFAULT_COLOR = "#808080"
 _HEX_COLOR = re.compile(r"#[0-9a-fA-F]{6}\Z")
+PerColorProcessingSettings = tuple[
+    ColorProcessingSettings,
+    ColorProcessingSettings,
+    ColorProcessingSettings,
+    ColorProcessingSettings,
+]
+
+
+def _default_per_color_processing() -> PerColorProcessingSettings:
+    return (DEFAULT_COLOR_PROCESSING_SETTINGS,) * 4
 
 
 def _validate_color(value: str, field_name: str) -> None:
@@ -38,6 +50,9 @@ class RenderSettings:
     color_op: ColorOps = ColorOps.OVERLAY
     processing_mode: ProcessingMode = ProcessingMode.GLOBAL
     tem_selected: tuple[int, ...] = ()
+    per_color_processing: PerColorProcessingSettings = field(
+        default_factory=_default_per_color_processing
+    )
 
     def __post_init__(self) -> None:
         for field_name, value in zip(
@@ -66,6 +81,19 @@ class RenderSettings:
             raise ValueError("color_op must be a ColorOps value.")
         if not isinstance(self.processing_mode, ProcessingMode):
             raise ValueError("processing_mode must be a ProcessingMode value.")
+        if not isinstance(self.per_color_processing, tuple) or len(
+            self.per_color_processing
+        ) != 4:
+            raise TypeError(
+                "per_color_processing must be a tuple of four settings values."
+            )
+        if not all(
+            isinstance(settings, ColorProcessingSettings)
+            for settings in self.per_color_processing
+        ):
+            raise TypeError(
+                "per_color_processing must contain ColorProcessingSettings values."
+            )
         if not isinstance(self.tem_selected, tuple) or not all(
             isinstance(index, int) and not isinstance(index, bool)
             for index in self.tem_selected
@@ -85,6 +113,54 @@ class RenderSettings:
             self.tint_color,
             self.extra_color,
         )
+
+    @property
+    def global_processing(self) -> ColorProcessingSettings:
+        """Return the structured form of the established global fields."""
+        return ColorProcessingSettings(
+            blend_mode=self.color_op,
+            brightness=self.brightness,
+            contrast=self.contrast,
+        )
+
+    def with_processing_mode(self, mode: ProcessingMode) -> "RenderSettings":
+        """Switch context without changing either retained settings set."""
+        return replace(self, processing_mode=mode)
+
+    def with_global_processing(
+        self, settings: ColorProcessingSettings
+    ) -> "RenderSettings":
+        """Replace the global context while retaining all per-colour values."""
+        if not isinstance(settings, ColorProcessingSettings):
+            raise TypeError("settings must be a ColorProcessingSettings value.")
+        return replace(
+            self,
+            color_op=settings.blend_mode,
+            brightness=settings.brightness,
+            contrast=settings.contrast,
+        )
+
+    def with_color_processing(
+        self,
+        slot_index: int,
+        settings: ColorProcessingSettings,
+    ) -> "RenderSettings":
+        """Replace one zero-based colour context without touching the others."""
+        if isinstance(slot_index, bool) or not isinstance(slot_index, int):
+            raise TypeError("slot_index must be an integer.")
+        if not 0 <= slot_index < 4:
+            raise ValueError("slot_index must be between 0 and 3.")
+        if not isinstance(settings, ColorProcessingSettings):
+            raise TypeError("settings must be a ColorProcessingSettings value.")
+        per_color = list(self.per_color_processing)
+        per_color[slot_index] = settings
+        updated: PerColorProcessingSettings = (
+            per_color[0],
+            per_color[1],
+            per_color[2],
+            per_color[3],
+        )
+        return replace(self, per_color_processing=updated)
 
 
 DEFAULT_RENDER_SETTINGS = RenderSettings()
