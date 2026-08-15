@@ -13,6 +13,7 @@ from src.image_process import (
 )
 from src.texture_naming import (
     DEFAULT_TEXTURE_NAMING,
+    TEXTURE_NAMING_PROFILES,
     TextureKind,
     TextureNamingProfile,
     replace_texture_suffix,
@@ -100,6 +101,24 @@ def find_companion_texture(
             return candidate
     LOGGER.debug("Companion texture is absent: %s", expected_path)
     return None
+
+
+def detect_texture_naming_profile(
+    diffuse_filepath: Path,
+    profiles: tuple[TextureNamingProfile, ...] = TEXTURE_NAMING_PROFILES,
+) -> TextureNamingProfile | None:
+    """Detect one unambiguous profile from sibling team-colour masks."""
+    matches = tuple(
+        profile
+        for profile in profiles
+        if find_companion_texture(
+            diffuse_filepath,
+            TextureKind.TEAM_COLOR,
+            profile,
+        )
+        is not None
+    )
+    return matches[0] if len(matches) == 1 else None
 
 
 class TextureLoadingService:

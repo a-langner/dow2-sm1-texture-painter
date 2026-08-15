@@ -2,7 +2,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from src.texture_loading_service import find_companion_texture
+from src.texture_loading_service import (
+    detect_texture_naming_profile,
+    find_companion_texture,
+)
 from src.texture_naming import (
     DOW2_TEXTURE_NAMING,
     SM1_TEXTURE_NAMING,
@@ -129,6 +132,30 @@ class CompanionTextureDiscoveryTests(unittest.TestCase):
 
             self.assertEqual(result, expected)
             self.assertEqual(result.parent, root)
+
+    def test_detection_selects_profile_for_one_matching_mask(self):
+        for mask_suffix, expected in (
+            ("_tem", DOW2_TEXTURE_NAMING),
+            ("_pnt", SM1_TEXTURE_NAMING),
+        ):
+            with self.subTest(mask_suffix=mask_suffix), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                diffuse = root / "unit_dif.dds"
+                diffuse.touch()
+                (root / f"unit{mask_suffix}.dds").touch()
+
+                self.assertIs(detect_texture_naming_profile(diffuse), expected)
+
+    def test_detection_refuses_both_or_neither_mask(self):
+        for mask_suffixes in ((), ("_tem", "_pnt")):
+            with self.subTest(mask_suffixes=mask_suffixes), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                diffuse = root / "unit_dif.dds"
+                diffuse.touch()
+                for mask_suffix in mask_suffixes:
+                    (root / f"unit{mask_suffix}.dds").touch()
+
+                self.assertIsNone(detect_texture_naming_profile(diffuse))
 
     def test_diffuse_is_not_a_companion_kind(self):
         with tempfile.TemporaryDirectory() as directory:

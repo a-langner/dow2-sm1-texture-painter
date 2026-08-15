@@ -94,7 +94,10 @@ from src.texture_naming import (
     texture_naming_profile_for_id,
 )
 from src.texture_renderer import TextureRenderer
-from src.texture_loading_service import TextureLoadingService
+from src.texture_loading_service import (
+    TextureLoadingService,
+    detect_texture_naming_profile,
+)
 from src.window_geometry import (
     PATTERN_LIST_DEFAULT_WIDTH,
     calculate_diffuse_window_size,
@@ -536,6 +539,7 @@ class ArmyPainter(tk.Tk):
             return
         self.texture_naming_profile = profile
         self.texture_loading = TextureLoadingService(profile)
+        self.game_profile_id.set(profile.profile_id)
 
     def define_frame_workspace(self):
         self.img_dif = ImageTk.PhotoImage(
@@ -757,6 +761,12 @@ class ArmyPainter(tk.Tk):
 
     def load_file(self, filepath: str):
         """Load one diffuse set, then perform its GUI-only follow-up actions."""
+        detected_profile = detect_texture_naming_profile(Path(filepath))
+        if (
+            detected_profile is not None
+            and detected_profile is not self.texture_naming_profile
+        ):
+            self.select_game_profile(detected_profile.profile_id)
         result = self.texture_loading.load_diffuse_and_companions(Path(filepath))
         self.preview_controller.invalidate()
         self.active_texture_set = result.texture_set
