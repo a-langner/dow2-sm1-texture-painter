@@ -55,8 +55,12 @@ def _apply_team_colors(
             new_img = ImageChops.overlay(gray_img, color_img)
         elif settings.color_op is ColorOps.MULTIPLY:
             new_img = ImageChops.multiply(gray_img, color_img)
-        else:
+        elif settings.color_op is ColorOps.SCREEN:
             new_img = ImageChops.screen(gray_img, color_img)
+        else:
+            raise ValueError(
+                f"Blend mode is not implemented yet: {settings.color_op.value}"
+            )
 
         enhancer_contrast = ImageEnhance.Contrast(new_img)
         new_img = enhancer_contrast.enhance(settings.contrast / 100)

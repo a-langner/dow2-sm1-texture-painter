@@ -837,7 +837,7 @@ class ArmyPainter(tk.Tk):
     def color_operation_update(self, color_op: str):
         self.render_settings = replace(
             self.render_settings,
-            color_op=ColorOps(color_op),
+            color_op=ColorOps.parse(color_op),
         )
         self.refresh_workspace()
 

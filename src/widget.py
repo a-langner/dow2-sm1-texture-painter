@@ -15,6 +15,7 @@ from PIL import Image, ImageTk
 from src.color_pattern_handler import get_all_patterns, is_user_pattern
 from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.constant import OPEN_FILETYPES, SAVE_EXT_LIST, ColorOps
+from src.blend_mode import IMPLEMENTED_BLEND_MODES
 from src.paint_catalog import PaintCatalog, PaintColor, load_citadel_catalog
 from src.color_picker_visual import (
     ColorVisualizationMode,
@@ -2375,14 +2376,15 @@ class FrameColorOps(tk.LabelFrame):
     ):
         super(FrameColorOps, self).__init__(master=master, cnf={}, **kw)
         self._on_operation_changed = on_operation_changed
-        self.color_operation_btn = {op.value: None for op in ColorOps}
+        self.color_operation_btn = {op.value: None for op in IMPLEMENTED_BLEND_MODES}
         self.var = tk.StringVar(value=ColorOps.OVERLAY.value)
-        for op_name, value in self.color_operation_btn.items():
+        for op_id, value in self.color_operation_btn.items():
+            operation = ColorOps(op_id)
             value = tk.Radiobutton(
                 self,
-                text=op_name,
+                text=operation.display_name,
                 variable=self.var,
-                value=op_name,
+                value=op_id,
                 command=self._notify_operation_changed,
             )
             value.pack(side=tk.LEFT)

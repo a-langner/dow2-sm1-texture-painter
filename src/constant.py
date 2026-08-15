@@ -1,10 +1,7 @@
-from enum import Enum
+from src.blend_mode import BlendMode
 
-
-class ColorOps(Enum):
-    OVERLAY = "Overlay"
-    SCREEN = "Screen"
-    MULTIPLY = "Multiply"
+# Compatibility name retained while callers migrate to blend terminology.
+ColorOps = BlendMode
 
 
 OPEN_FILETYPES = (
