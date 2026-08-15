@@ -115,6 +115,9 @@ class FileSelectionServiceTests(unittest.TestCase):
         self.assertEqual(
             self.dialogs.calls[-1][1]["initial_directory"], self.home
         )
+        self.assertEqual(
+            self.dialogs.calls[-1][1]["title"], "Open Team Color Mask"
+        )
         self.assertEqual(self.settings.last_diffuse_directory, remembered.resolve())
 
 

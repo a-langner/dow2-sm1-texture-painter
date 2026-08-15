@@ -392,7 +392,7 @@ class ArmyPainter(tk.Tk):
                 accelerator="Ctrl+O",
             )
             filemenu.add_command(
-                label="Open channel file",
+                label="Open Team Color Mask",
                 command=self.open_channel,
                 accelerator="Ctrl+A",
             )
@@ -551,7 +551,7 @@ class ArmyPainter(tk.Tk):
         self.label_img_dif.pack(side=tk.LEFT, fill=tk.Y)
 
         self.img_tem = ImageTk.PhotoImage(
-            create_placeholder_img("Select Channel Texture", "L")
+            create_placeholder_img("Select Team Color Mask", "L")
         )
         self.label_img_tem = tk.Label(
             self.frame_img, image=self.img_tem, relief=tk.RAISED
@@ -651,7 +651,7 @@ class ArmyPainter(tk.Tk):
         )
         self.label_img_dif.config(image=self.img_dif)
         self.img_tem = ImageTk.PhotoImage(
-            create_placeholder_img("Select Channel Texture", "L")
+            create_placeholder_img("Select Team Color Mask", "L")
         )
         self.label_img_tem.config(image=self.img_tem)
 

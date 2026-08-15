@@ -81,7 +81,7 @@ class FileSelectionService:
         return self.dialogs.choose_open_file(
             initial_directory=self._initial_directory(),
             filetypes=OPEN_FILETYPES,
-            title="Open channel file",
+            title="Open Team Color Mask",
         )
 
     def choose_image_save_destination(

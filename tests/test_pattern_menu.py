@@ -158,6 +158,14 @@ class PatternMenuStateTests(unittest.TestCase):
             ["dow2", "sm1"],
         )
         self.assertEqual(
+            [
+                item[1]["label"]
+                for item in cascades["File"].items
+                if item[0] == "command"
+            ][:2],
+            ["Open diffuse", "Open Team Color Mask"],
+        )
+        self.assertEqual(
             cascades["Help"].items,
             [
                 (

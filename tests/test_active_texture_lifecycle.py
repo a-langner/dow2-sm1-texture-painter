@@ -215,6 +215,10 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
         painter.label_img_tem.config.assert_called_once_with(
             image=channel_placeholder
         )
+        self.assertEqual(
+            create_placeholder.call_args_list[-1].args,
+            ("Select Team Color Mask", "L"),
+        )
 
     def test_loading_diffuse_replaces_the_authoritative_reference(self):
         replacement = Mock(spec=TextureSet)
