@@ -1,5 +1,6 @@
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
@@ -10,6 +11,7 @@ from src.render_settings import DEFAULT_RENDER_SETTINGS
 from src.widget import (
     BatchEditTopLevel,
     FrameChannelList,
+    FrameColorChooser,
     FrameColorOps,
     FrameSlider,
 )
@@ -48,14 +50,77 @@ class FakeWidget:
     def insert(self, *args):
         pass
 
+    def __getitem__(self, key):
+        return self.options[key]
+
+    def __setitem__(self, key, value):
+        self.options[key] = value
+
     def pack(self, **options):
         self.pack_options = options
+
+    def place(self, **options):
+        self.place_options = options
+
+    def configure(self, **options):
+        self.options.update(options)
+
+    config = configure
+
+    def delete(self, *args):
+        pass
+
+    def create_text(self, *args, **options):
+        pass
 
     def bind(self, event, callback):
         self.bindings[event] = callback
 
 
 class RemainingWidgetCallbackTests(unittest.TestCase):
+    @patch(
+        "src.widget.color_slot_presentation",
+        return_value=SimpleNamespace(tooltip=None, text="Gray", foreground="white"),
+    )
+    @patch("src.widget.tk.Button", side_effect=FakeWidget)
+    @patch("src.widget.tk.Canvas", side_effect=FakeWidget)
+    @patch("src.widget.tkfont.Font")
+    @patch("src.widget.tk.Frame.__init__", return_value=None)
+    def test_color_slots_select_separately_from_explicit_edit_buttons(
+        self,
+        _frame_init,
+        font_type,
+        canvas_type,
+        button_type,
+        _presentation,
+    ):
+        font_type.return_value.measure.return_value = 20
+        selected = Mock()
+        changed = Mock()
+        picker = Mock(return_value=None)
+        chooser = FrameColorChooser(
+            object(),
+            on_color_changed=changed,
+            on_slot_selected=selected,
+            color_picker=picker,
+            paint_catalog=Mock(),
+        )
+
+        self.assertEqual(canvas_type.call_count, 4)
+        self.assertEqual(button_type.call_count, 4)
+        self.assertEqual(
+            [button.options["text"] for button in chooser.color_buttons],
+            ["Edit Color 1", "Edit Color 2", "Edit Color 3", "Edit Color 4"],
+        )
+
+        chooser.color_boxes[2].bindings["<Button-1>"](object())
+        selected.assert_called_once_with(2)
+        picker.assert_not_called()
+
+        chooser.color_buttons[2].options["command"]()
+        picker.assert_called_once_with("#808080")
+        changed.assert_not_called()
+
     @patch("src.widget.tk.Checkbutton", side_effect=FakeWidget)
     @patch("src.widget.tk.BooleanVar", return_value=ValueVariable(0))
     @patch("src.widget.tk.Listbox", side_effect=FakeWidget)

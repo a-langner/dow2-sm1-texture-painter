@@ -50,6 +50,7 @@ from src.color_pattern_handler import (
     normalize_pattern_colors,
     pattern_colors_equal,
 )
+from src.color_slot import ColorSlot
 from src.image_process import (
     TextureValidationError,
     create_placeholder_img,
@@ -361,6 +362,7 @@ class ArmyPainter(tk.Tk):
         self.frame_color_chooser = FrameColorChooser(
             self.frame_img_tools,
             on_color_changed=self.on_color_changed,
+            on_slot_selected=self.on_color_slot_selected,
             settings=self.settings,
             width=COLOR_BOX_SIZE * 4 + 12,
             height=COLOR_BOX_SIZE + COLOR_BTN_HEIGHT,
@@ -743,6 +745,11 @@ class ArmyPainter(tk.Tk):
     def on_color_changed(self, slot_index: int, color: str):
         self.update_pattern_action_states()
         self.refresh_workspace()
+
+    def on_color_slot_selected(self, slot_index: int):
+        self.render_settings = self.render_settings.with_active_color_slot(
+            ColorSlot.from_index(slot_index)
+        )
 
     def save(self, Event=None):
         """Save image from current workspace

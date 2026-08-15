@@ -124,6 +124,7 @@ VISUAL_RESIZE_DELAY_MS = 40
 ActionCallback = Callable[[], None]
 BooleanChangedCallback = Callable[[bool], None]
 ColorChangedCallback = Callable[[int, str], None]
+ColorSlotSelectedCallback = Callable[[int], None]
 ColorPickerCallback = Callable[[str], Optional[str]]
 PaintSelectedCallback = Callable[[PaintColor], None]
 RecentColorSelectedCallback = Callable[[str], None]
@@ -2199,6 +2200,7 @@ class FrameColorChooser(tk.Frame):
         cnf={},
         *,
         on_color_changed: ColorChangedCallback,
+        on_slot_selected: ColorSlotSelectedCallback,
         color_picker: Optional[ColorPickerCallback] = None,
         paint_catalog: Optional[PaintCatalog] = None,
         settings=None,
@@ -2206,6 +2208,7 @@ class FrameColorChooser(tk.Frame):
     ):
         super(FrameColorChooser, self).__init__(master=master, cnf={}, **kw)
         self._on_color_changed = on_color_changed
+        self._on_slot_selected = on_slot_selected
         self._color_picker = (
             self._open_color_picker if color_picker is None else color_picker
         )
@@ -2221,6 +2224,7 @@ class FrameColorChooser(tk.Frame):
         self._color_tooltip_window = None
         self.color_boxes = []
         self.color_buttons = []
+        self.active_slot_index = 0
         self.initialize()
 
     def _open_color_picker(self, initial_color: str) -> Optional[str]:
@@ -2242,7 +2246,7 @@ class FrameColorChooser(tk.Frame):
                     width=COLOR_BOX_SIZE,
                 )
             )
-            self.color_boxes[i].bind("<Button-1>", partial(self.apply_color, i))
+            self.color_boxes[i].bind("<Button-1>", partial(self.select_slot, i))
             self.color_boxes[i].bind(
                 "<Enter>", partial(self._show_color_tooltip, i)
             )
@@ -2253,7 +2257,7 @@ class FrameColorChooser(tk.Frame):
             self.color_buttons.append(
                 tk.Button(
                     self,
-                    text=f"Choose Color {i + 1}",
+                    text=f"Edit Color {i + 1}",
                     wraplength=COLOR_BOX_SIZE,
                     relief=tk.RAISED,
                     bd=2,
@@ -2261,7 +2265,26 @@ class FrameColorChooser(tk.Frame):
                 )
             )
             self.color_buttons[i].place(anchor=tk.NW, x=COLOR_BOX_SIZE * i + i * 1, y=0)
+        self._draw_active_slot()
         self.draw_rgb_value()
+
+    def select_slot(self, slot_index: int, Event=None):
+        """Select a slot without opening its Color Picker."""
+        if not 0 <= slot_index < len(self.color_boxes):
+            raise ValueError("slot_index must identify one of the four color slots.")
+        self.active_slot_index = slot_index
+        self._draw_active_slot()
+        self._on_slot_selected(slot_index)
+
+    def _draw_active_slot(self):
+        for index, color_box in enumerate(self.color_boxes):
+            active = index == self.active_slot_index
+            color_box.configure(
+                relief=tk.SUNKEN if active else tk.RAISED,
+                bd=4 if active else 2,
+                highlightthickness=2 if active else 0,
+                highlightbackground=PAINT_SWATCH_SELECTED_OUTLINE,
+            )
 
     def apply_color(self, btn_idx: int, Event=None):
         color = self._color_picker(str(self.color_boxes[btn_idx]["bg"]))

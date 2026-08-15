@@ -3,6 +3,8 @@ from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.frame_main import ArmyPainter
+from src.color_slot import ColorSlot
+from src.render_settings import RenderSettings
 from src.widget import ColorPickerDialog, FrameColorChooser, PatternSelection
 
 STORED_COLORS = ["#112233", "#445566", "#778899", "#aabbcc"]
@@ -71,6 +73,39 @@ class PatternDirtyStateTests(unittest.TestCase):
         chooser._color_picker.assert_called_once_with("#000000")
         self.assertEqual(chooser.color_boxes[1]["bg"], "#010203")
         chooser._on_color_changed.assert_called_once_with(1, "#010203")
+
+    def test_swatch_click_selects_and_highlights_without_opening_picker(self):
+        chooser = object.__new__(FrameColorChooser)
+        chooser.color_boxes = [Mock() for _ in range(4)]
+        chooser.active_slot_index = 0
+        chooser._on_slot_selected = Mock()
+        chooser._color_picker = Mock()
+
+        FrameColorChooser.select_slot(chooser, 2)
+
+        self.assertEqual(chooser.active_slot_index, 2)
+        chooser._on_slot_selected.assert_called_once_with(2)
+        chooser._color_picker.assert_not_called()
+        self.assertEqual(
+            chooser.color_boxes[2].configure.call_args.kwargs["relief"],
+            "sunken",
+        )
+        self.assertEqual(
+            chooser.color_boxes[0].configure.call_args.kwargs["relief"],
+            "raised",
+        )
+
+    def test_slot_selection_updates_state_without_changing_color(self):
+        painter = type(
+            "Painter",
+            (),
+            {"render_settings": RenderSettings()},
+        )()
+
+        ArmyPainter.on_color_slot_selected(painter, 3)
+
+        self.assertIs(painter.render_settings.active_color_slot, ColorSlot.COLOR_4)
+        self.assertEqual(painter.render_settings.colors, RenderSettings().colors)
 
     @patch.object(ColorPickerDialog, "show", return_value="#010203")
     def test_production_picker_opens_with_current_color_and_returns_acceptance(
