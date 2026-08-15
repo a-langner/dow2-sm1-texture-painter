@@ -2364,7 +2364,7 @@ class FrameSlider(tk.Frame):
 
 
 class FrameColorOps(tk.LabelFrame):
-    """Color-operation controls that report the selected operation name."""
+    """Compact blend-mode selector that reports a stable operation ID."""
 
     def __init__(
         self,
@@ -2376,21 +2376,25 @@ class FrameColorOps(tk.LabelFrame):
     ):
         super(FrameColorOps, self).__init__(master=master, cnf={}, **kw)
         self._on_operation_changed = on_operation_changed
-        self.color_operation_btn = {op.value: None for op in IMPLEMENTED_BLEND_MODES}
-        self.var = tk.StringVar(value=ColorOps.OVERLAY.value)
-        for op_id, value in self.color_operation_btn.items():
-            operation = ColorOps(op_id)
-            value = tk.Radiobutton(
-                self,
-                text=operation.display_name,
-                variable=self.var,
-                value=op_id,
-                command=self._notify_operation_changed,
-            )
-            value.pack(side=tk.LEFT)
+        display_names = tuple(op.display_name for op in IMPLEMENTED_BLEND_MODES)
+        self.var = tk.StringVar(value=ColorOps.OVERLAY.display_name)
+        self.blend_mode_label = ttk.Label(self, text="Blend Mode:")
+        self.blend_mode_label.pack(side=tk.LEFT, padx=(4, 4), pady=4)
+        self.blend_mode_selector = ttk.Combobox(
+            self,
+            textvariable=self.var,
+            values=display_names,
+            state="readonly",
+            width=max(len(name) for name in display_names),
+        )
+        self.blend_mode_selector.pack(side=tk.LEFT, padx=(0, 4), pady=4)
+        self.blend_mode_selector.bind(
+            "<<ComboboxSelected>>",
+            self._notify_operation_changed,
+        )
 
-    def _notify_operation_changed(self):
-        self._on_operation_changed(self.var.get())
+    def _notify_operation_changed(self, Event=None):
+        self._on_operation_changed(ColorOps.parse(self.var.get()).value)
 
 
 class PatternTreeview(ttk.Treeview):

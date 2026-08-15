@@ -21,6 +21,9 @@ class ValueVariable:
     def get(self):
         return self.value
 
+    def set(self, value):
+        self.value = value
+
 
 class FakeScale:
     def __init__(self, parent, **options):
@@ -39,12 +42,16 @@ class FakeWidget:
     def __init__(self, parent=None, **options):
         self.parent = parent
         self.options = options
+        self.bindings = {}
 
     def insert(self, *args):
         pass
 
     def pack(self, **options):
         self.pack_options = options
+
+    def bind(self, event, callback):
+        self.bindings[event] = callback
 
 
 class RemainingWidgetCallbackTests(unittest.TestCase):
@@ -83,6 +90,34 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         frame._notify_operation_changed()
 
         frame._on_operation_changed.assert_called_once_with("multiply")
+
+    @patch("src.widget.ttk.Combobox", side_effect=FakeWidget)
+    @patch("src.widget.ttk.Label", side_effect=FakeWidget)
+    @patch("src.widget.tk.StringVar", side_effect=lambda value: ValueVariable(value))
+    @patch("src.widget.tk.LabelFrame.__init__", return_value=None)
+    def test_color_operation_builds_compact_readonly_selector(
+        self,
+        _label_frame_init,
+        _string_var,
+        _label_type,
+        combobox_type,
+    ):
+        callback = Mock()
+
+        frame = FrameColorOps(object(), on_operation_changed=callback)
+
+        combobox_type.assert_called_once()
+        selector = frame.blend_mode_selector
+        self.assertEqual(selector.options["state"], "readonly")
+        self.assertEqual(
+            selector.options["values"],
+            tuple(operation.display_name for operation in ColorOps),
+        )
+        self.assertEqual(frame.var.get(), "Overlay")
+        self.assertIn("<<ComboboxSelected>>", selector.bindings)
+        frame.var.set("Linear Dodge (Add)")
+        selector.bindings["<<ComboboxSelected>>"](object())
+        callback.assert_called_once_with("linear_dodge")
 
     @patch("src.widget.tk.Scale", side_effect=FakeScale)
     @patch("src.widget.tk.Frame.__init__", return_value=None)
