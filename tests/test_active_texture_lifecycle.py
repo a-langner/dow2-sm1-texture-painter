@@ -9,6 +9,7 @@ from src.frame_main import ArmyPainter
 from src.preview_controller import PreviewController
 from src.render_settings import DEFAULT_RENDER_SETTINGS
 from src.texture_set import TextureSet
+from src.team_color_mask_variant import TeamColorMaskVariant
 
 
 class ActiveTextureLifecycleTests(unittest.TestCase):
@@ -54,6 +55,8 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
     def test_loaded_texture_allows_debounced_and_immediate_previews(self):
         painter = SimpleNamespace(
             active_texture_set=Mock(spec=TextureSet),
+            available_team_color_mask_variants=(Mock(),),
+            active_team_color_mask_variant=Mock(),
             preview_controller=Mock(),
             sync_render_settings=Mock(),
         )
@@ -188,6 +191,8 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
 
         self.assertEqual(callbacks, {})
         self.assertIsNone(painter.active_texture_set)
+        self.assertEqual(painter.available_team_color_mask_variants, ())
+        self.assertIsNone(painter.active_team_color_mask_variant)
         snapshot_provider.assert_not_called()
 
     @patch("src.frame_main.ImageTk.PhotoImage", side_effect=lambda image: image)
@@ -200,6 +205,8 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
         create_placeholder.side_effect = (diffuse_placeholder, channel_placeholder)
         painter = SimpleNamespace(
             active_texture_set=Mock(spec=TextureSet),
+            available_team_color_mask_variants=(Mock(),),
+            active_team_color_mask_variant=Mock(),
             preview_controller=Mock(),
             label_img_dif=Mock(),
             label_img_tem=Mock(),
@@ -208,6 +215,8 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
         ArmyPainter.close(painter)
 
         self.assertIsNone(painter.active_texture_set)
+        self.assertEqual(painter.available_team_color_mask_variants, ())
+        self.assertIsNone(painter.active_team_color_mask_variant)
         painter.preview_controller.invalidate.assert_called_once_with()
         painter.label_img_dif.config.assert_called_once_with(
             image=diffuse_placeholder
@@ -222,8 +231,13 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
 
     def test_loading_diffuse_replaces_the_authoritative_reference(self):
         replacement = Mock(spec=TextureSet)
+        variant = TeamColorMaskVariant(None, Path("marine_tem.png"))
+        render_settings = object()
+        selected_pattern = object()
         result = SimpleNamespace(
             texture_set=replacement,
+            available_team_color_mask_variants=(variant,),
+            active_team_color_mask_variant=variant,
             team_color_mask_error=None,
             team_color_mask_path=Path("marine_tem.png"),
             warnings=(),
@@ -241,12 +255,80 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
             dialogs=Mock(),
             refresh_workspace=Mock(),
             resize_for_diffuse=Mock(),
+            render_settings=render_settings,
+            selected_pattern=selected_pattern,
         )
 
         ArmyPainter.load_file(painter, "marine_dif.png")
 
         self.assertIs(painter.active_texture_set, replacement)
+        self.assertEqual(painter.available_team_color_mask_variants, (variant,))
+        self.assertIs(painter.active_team_color_mask_variant, variant)
+        self.assertIs(painter.render_settings, render_settings)
+        self.assertIs(painter.selected_pattern, selected_pattern)
         painter.preview_controller.invalidate.assert_called_once_with()
+
+    def test_manual_mask_load_clears_discovered_variant_state(self):
+        replacement = Mock(spec=TextureSet)
+        result = SimpleNamespace(texture_set=replacement)
+        painter = SimpleNamespace(
+            active_texture_set=Mock(spec=TextureSet),
+            available_team_color_mask_variants=(Mock(), Mock()),
+            active_team_color_mask_variant=Mock(),
+            file_selection=SimpleNamespace(
+                choose_channel_file=Mock(return_value=Path("manual_mask.dds"))
+            ),
+            texture_loading=SimpleNamespace(
+                load_channel_file=Mock(return_value=result)
+            ),
+            preview_controller=Mock(),
+            select_channel=Mock(),
+            dialogs=Mock(),
+        )
+
+        ArmyPainter.open_channel(painter)
+
+        self.assertIs(painter.active_texture_set, replacement)
+        self.assertEqual(painter.available_team_color_mask_variants, ())
+        self.assertIsNone(painter.active_team_color_mask_variant)
+        painter.select_channel.assert_called_once_with()
+
+    def test_loading_diffuse_without_mask_clears_previous_variant_state(self):
+        replacement = Mock(spec=TextureSet)
+        result = SimpleNamespace(
+            texture_set=replacement,
+            available_team_color_mask_variants=(),
+            active_team_color_mask_variant=None,
+            team_color_mask_error=None,
+            team_color_mask_path=None,
+            warnings=(),
+            width=8,
+            height=4,
+        )
+        painter = SimpleNamespace(
+            texture_naming_profile=Mock(),
+            active_texture_set=Mock(spec=TextureSet),
+            available_team_color_mask_variants=(Mock(),),
+            active_team_color_mask_variant=Mock(),
+            texture_loading=SimpleNamespace(
+                load_diffuse_and_companions=Mock(return_value=result)
+            ),
+            preview_controller=Mock(),
+            select_game_profile=Mock(),
+            select_channel=Mock(),
+            open_channel=Mock(),
+            dialogs=Mock(),
+            refresh_workspace=Mock(),
+            resize_for_diffuse=Mock(),
+        )
+
+        with patch("src.frame_main.detect_texture_naming_profile", return_value=None):
+            ArmyPainter.load_file(painter, "replacement_dif.dds")
+
+        self.assertIs(painter.active_texture_set, replacement)
+        self.assertEqual(painter.available_team_color_mask_variants, ())
+        self.assertIsNone(painter.active_team_color_mask_variant)
+        painter.open_channel.assert_called_once_with()
 
     def test_no_production_image_workbench_reference_remains(self):
         source_root = Path(__file__).resolve().parents[1] / "src"

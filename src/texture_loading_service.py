@@ -46,6 +46,8 @@ class TextureLoadWarning:
 class TextureLoadResult:
     texture_set: TextureSet
     diffuse_path: Path
+    available_team_color_mask_variants: tuple[TeamColorMaskVariant, ...]
+    active_team_color_mask_variant: TeamColorMaskVariant | None
     team_color_mask_path: Path | None
     dirt_path: Path | None
     specular_path: Path | None
@@ -182,12 +184,14 @@ class TextureLoadingService:
         textures = TextureSet(diffuse=diffuse)
 
         try:
+            available_variants = discover_team_color_mask_variants(
+                diffuse_path, self.naming_profile
+            )
             companions: dict[TextureKind, Path | None] = {
                 kind: find_companion_texture(
                     diffuse_path, kind, self.naming_profile
                 )
                 for kind in (
-                    TextureKind.TEAM_COLOR,
                     TextureKind.DIRT,
                     TextureKind.SPECULAR,
                 )
@@ -197,8 +201,9 @@ class TextureLoadingService:
                 f'Could not inspect companion textures for "{diffuse_path}": {exc}'
             ) from exc
 
+        active_variant = available_variants[0] if available_variants else None
         team_color_mask_error: str | None = None
-        team_color_mask_path = companions[TextureKind.TEAM_COLOR]
+        team_color_mask_path = active_variant.path if active_variant else None
         if team_color_mask_path is not None:
             LOGGER.debug("Loading team-colour mask: %s", team_color_mask_path)
             try:
@@ -247,6 +252,8 @@ class TextureLoadingService:
         return TextureLoadResult(
             texture_set=textures,
             diffuse_path=diffuse_path,
+            available_team_color_mask_variants=available_variants,
+            active_team_color_mask_variant=active_variant,
             team_color_mask_path=team_color_mask_path,
             dirt_path=companions[TextureKind.DIRT],
             specular_path=companions[TextureKind.SPECULAR],

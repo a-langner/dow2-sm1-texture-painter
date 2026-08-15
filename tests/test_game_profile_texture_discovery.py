@@ -41,7 +41,10 @@ class GameProfileTextureDiscoveryTests(unittest.TestCase):
         self.assertIs(detected, expected_profile)
         result = TextureLoadingService(detected).load_diffuse_and_companions(diffuse)
 
-        self.assertEqual(result.team_color_mask_path, paths[mask_suffix])
+        self.assertEqual(
+            result.team_color_mask_path,
+            paths[mask_suffix].resolve(),
+        )
         self.assertEqual(result.dirt_path, paths["_drt"])
         self.assertEqual(result.specular_path, paths["_spc"])
         self.assertIsNotNone(result.texture_set.team_color)

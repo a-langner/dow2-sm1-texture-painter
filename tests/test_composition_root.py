@@ -100,6 +100,8 @@ class ArmyPainterCompositionTests(unittest.TestCase):
         create_pattern_controller.assert_called_once_with(painter)
         texture_loading_type.assert_called_once_with(painter.texture_naming_profile)
         self.assertIsNone(painter.active_texture_set)
+        self.assertEqual(painter.available_team_color_mask_variants, ())
+        self.assertIsNone(painter.active_team_color_mask_variant)
         preview_controller_type.assert_called_once_with(
             renderer=texture_renderer_type.return_value,
             snapshot_provider=painter.create_preview_request,

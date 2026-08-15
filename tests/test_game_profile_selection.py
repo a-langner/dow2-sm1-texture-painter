@@ -6,13 +6,17 @@ from unittest.mock import Mock, patch
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.frame_main import ArmyPainter
 from src.texture_naming import DOW2_TEXTURE_NAMING, SM1_TEXTURE_NAMING
+from src.team_color_mask_variant import TeamColorMaskVariant
 
 
 class GameProfileSelectionTests(unittest.TestCase):
     @staticmethod
     def _load_result():
+        variant = TeamColorMaskVariant(None, Path("unit_pnt.dds"))
         return SimpleNamespace(
             texture_set=object(),
+            available_team_color_mask_variants=(variant,),
+            active_team_color_mask_variant=variant,
             team_color_mask_error=None,
             team_color_mask_path=Path("unit_pnt.dds"),
             warnings=(),
@@ -30,6 +34,8 @@ class GameProfileSelectionTests(unittest.TestCase):
             texture_naming_profile=DOW2_TEXTURE_NAMING,
             texture_loading=Mock(),
             game_profile_id=Mock(),
+            available_team_color_mask_variants=(Mock(),),
+            active_team_color_mask_variant=Mock(),
         )
 
         ArmyPainter.select_game_profile(painter, "sm1")
@@ -41,6 +47,8 @@ class GameProfileSelectionTests(unittest.TestCase):
             SM1_TEXTURE_NAMING,
         )
         painter.game_profile_id.set.assert_called_once_with("sm1")
+        self.assertEqual(painter.available_team_color_mask_variants, ())
+        self.assertIsNone(painter.active_team_color_mask_variant)
 
     def test_unknown_profile_is_rejected_without_changing_state(self):
         settings = SimpleNamespace(
@@ -53,6 +61,8 @@ class GameProfileSelectionTests(unittest.TestCase):
             texture_naming_profile=DOW2_TEXTURE_NAMING,
             texture_loading=original_loader,
             game_profile_id=Mock(),
+            available_team_color_mask_variants=(),
+            active_team_color_mask_variant=None,
         )
 
         with self.assertRaisesRegex(ValueError, "Unknown game profile ID"):

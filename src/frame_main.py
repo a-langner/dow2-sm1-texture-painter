@@ -241,6 +241,8 @@ class ArmyPainter(tk.Tk):
         separate executor so the two workloads cannot block one another.
         """
         self.active_texture_set = None
+        self.available_team_color_mask_variants = ()
+        self.active_team_color_mask_variant = None
         self.texture_renderer = TextureRenderer()
         self.render_settings = DEFAULT_RENDER_SETTINGS
         if not hasattr(self, "settings"):
@@ -540,6 +542,8 @@ class ArmyPainter(tk.Tk):
         self.texture_naming_profile = profile
         self.texture_loading = TextureLoadingService(profile)
         self.game_profile_id.set(profile.profile_id)
+        self.available_team_color_mask_variants = ()
+        self.active_team_color_mask_variant = None
 
     def define_frame_workspace(self):
         self.img_dif = ImageTk.PhotoImage(
@@ -646,6 +650,8 @@ class ArmyPainter(tk.Tk):
     def close(self, Event=None):
         self.preview_controller.invalidate()
         self.active_texture_set = None
+        self.available_team_color_mask_variants = ()
+        self.active_team_color_mask_variant = None
         self.img_dif = ImageTk.PhotoImage(
             create_placeholder_img("Select Diffuse Texture", "RGBA")
         )
@@ -770,6 +776,12 @@ class ArmyPainter(tk.Tk):
         result = self.texture_loading.load_diffuse_and_companions(Path(filepath))
         self.preview_controller.invalidate()
         self.active_texture_set = result.texture_set
+        self.available_team_color_mask_variants = (
+            result.available_team_color_mask_variants
+        )
+        self.active_team_color_mask_variant = (
+            result.active_team_color_mask_variant
+        )
 
         if result.team_color_mask_error is not None:
             self.dialogs.show_error(
@@ -845,6 +857,8 @@ class ArmyPainter(tk.Tk):
             )
             self.preview_controller.invalidate()
             self.active_texture_set = result.texture_set
+            self.available_team_color_mask_variants = ()
+            self.active_team_color_mask_variant = None
             self.select_channel()
         except TextureValidationError as exc:
             self.dialogs.show_error(

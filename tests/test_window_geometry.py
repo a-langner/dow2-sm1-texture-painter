@@ -37,6 +37,8 @@ class FakeTextureLoading:
             raise self.error
         return SimpleNamespace(
             texture_set=object(),
+            available_team_color_mask_variants=(),
+            active_team_color_mask_variant=None,
             width=512,
             height=256,
             team_color_mask_error=None,

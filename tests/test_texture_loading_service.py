@@ -46,7 +46,16 @@ class TextureLoadingServiceTests(unittest.TestCase):
 
         self.assertEqual((result.width, result.height), (8, 4))
         self.assertEqual(result.diffuse_path, diffuse)
-        self.assertEqual(result.team_color_mask_path, team)
+        self.assertEqual(result.team_color_mask_path, team.resolve())
+        self.assertEqual(
+            [variant.filename for variant in result.available_team_color_mask_variants],
+            ["marine_tem.png"],
+        )
+        self.assertIs(
+            result.active_team_color_mask_variant,
+            result.available_team_color_mask_variants[0],
+        )
+        self.assertTrue(result.active_team_color_mask_variant.is_default)
         self.assertEqual(result.dirt_path, dirt)
         self.assertEqual(result.specular_path, specular)
         self.assertIsNone(result.team_color_mask_error)
@@ -75,6 +84,8 @@ class TextureLoadingServiceTests(unittest.TestCase):
 
         self.assertIsNone(result.team_color_mask_path)
         self.assertIsNone(result.team_color_mask_error)
+        self.assertEqual(result.available_team_color_mask_variants, ())
+        self.assertIsNone(result.active_team_color_mask_variant)
         self.assertIsNone(result.texture_set.team_color)
 
     def test_invalid_companions_return_structured_issues(self):
@@ -143,7 +154,7 @@ class TextureLoadingServiceTests(unittest.TestCase):
 
         result = self.service.load_diffuse_and_companions(diffuse)
 
-        self.assertEqual(result.team_color_mask_path, team)
+        self.assertEqual(result.team_color_mask_path, team.resolve())
 
     def test_injected_naming_profile_controls_discovery(self):
         profile = TextureNamingProfile(
@@ -161,7 +172,7 @@ class TextureLoadingServiceTests(unittest.TestCase):
 
         result = TextureLoadingService(profile).load_diffuse_and_companions(diffuse)
 
-        self.assertEqual(result.team_color_mask_path, team)
+        self.assertEqual(result.team_color_mask_path, team.resolve())
 
     def test_sm1_profile_discovers_pnt_without_changing_other_companions(self):
         diffuse = self.root / "marine_dif.png"
@@ -176,9 +187,26 @@ class TextureLoadingServiceTests(unittest.TestCase):
             SM1_TEXTURE_NAMING
         ).load_diffuse_and_companions(diffuse)
 
-        self.assertEqual(result.team_color_mask_path, sm1_team)
+        self.assertEqual(result.team_color_mask_path, sm1_team.resolve())
         self.assertEqual(result.dirt_path, dirt)
         self.assertEqual(result.specular_path, specular)
+
+    def test_lowest_numbered_variant_loads_when_default_is_absent(self):
+        diffuse = self.root / "marine_dif.png"
+        second = self.root / "marine_tem_2.png"
+        fifth = self.root / "marine_tem_5.png"
+        for path in (diffuse, fifth, second):
+            save_image(path)
+
+        result = self.service.load_diffuse_and_companions(diffuse)
+
+        self.assertEqual(
+            [variant.variant_index for variant in result.available_team_color_mask_variants],
+            [2, 5],
+        )
+        self.assertEqual(result.active_team_color_mask_variant.variant_index, 2)
+        self.assertEqual(result.team_color_mask_path, second.resolve())
+        self.assertIsNotNone(result.texture_set.team_color)
 
     def test_discovery_failure_returns_no_partial_texture_set(self):
         diffuse = self.root / "marine_dif.png"
