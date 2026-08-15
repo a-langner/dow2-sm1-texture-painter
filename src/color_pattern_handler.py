@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
 import json
 from importlib import resources
 import logging
@@ -16,7 +17,10 @@ if TYPE_CHECKING:
 
 from src.user_data import get_user_patterns_path
 from src.blend_mode import BlendMode
-from src.render_settings import DEFAULT_RENDER_SETTINGS
+from src.color_processing_settings import ColorProcessingSettings
+from src.color_slot import ColorSlot
+from src.processing_mode import ProcessingMode
+from src.render_settings import DEFAULT_RENDER_SETTINGS, PerColorProcessingSettings
 
 RESOURCE_ROOT = resources.files("src.resources")
 ARMY_PATTERN_RESOURCE = RESOURCE_ROOT.joinpath("army_pattern.json")
@@ -30,6 +34,11 @@ color_key = [
     "extra_colour_name",
 ]
 processing_key = ["blend_mode", "brightness", "contrast"]
+processing_state_key = [
+    "processing_mode",
+    "global_processing",
+    "per_color_processing",
+]
 
 COLOR_VALUE_PATTERN = re.compile(r"^#[0-9a-fA-F]{6}$")
 LOGGER = logging.getLogger(__name__)
@@ -46,10 +55,37 @@ class PatternProcessing(NamedTuple):
     contrast: float
 
 
+@dataclass(frozen=True)
+class PatternProcessingState:
+    """Complete asset-independent processing state stored by a Pattern."""
+
+    processing_mode: ProcessingMode
+    global_processing: ColorProcessingSettings
+    per_color_processing: PerColorProcessingSettings
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.processing_mode, ProcessingMode):
+            raise TypeError("processing_mode must be a ProcessingMode value")
+        if not isinstance(self.global_processing, ColorProcessingSettings):
+            raise TypeError("global_processing must be ColorProcessingSettings")
+        if not isinstance(self.per_color_processing, tuple) or len(
+            self.per_color_processing
+        ) != 4 or not all(
+            isinstance(value, ColorProcessingSettings)
+            for value in self.per_color_processing
+        ):
+            raise TypeError("per_color_processing must contain four settings")
+
+
 DEFAULT_PATTERN_PROCESSING = PatternProcessing(
     DEFAULT_RENDER_SETTINGS.color_op,
     DEFAULT_RENDER_SETTINGS.brightness,
     DEFAULT_RENDER_SETTINGS.contrast,
+)
+DEFAULT_PATTERN_PROCESSING_STATE = PatternProcessingState(
+    ProcessingMode.GLOBAL,
+    DEFAULT_RENDER_SETTINGS.global_processing,
+    (DEFAULT_RENDER_SETTINGS.global_processing,) * 4,
 )
 
 
@@ -244,12 +280,63 @@ def get_pattern_colors(name: str) -> PatternColors:
 
 def get_pattern_processing(name: str) -> PatternProcessing:
     """Return global processing, defaulting legacy or invalid stored values safely."""
+    state = get_pattern_processing_state(name)
+    settings = state.global_processing
+    return PatternProcessing(
+        settings.blend_mode, settings.brightness, settings.contrast
+    )
+
+
+def get_pattern_processing_state(name: str) -> PatternProcessingState:
+    """Return complete processing, upgrading legacy Patterns in memory."""
     normalized_name = normalize_pattern_name(name)
     pattern = get_all_patterns().get(normalized_name)
     if pattern is None:
         raise PatternNotFoundError(f"Pattern '{normalized_name}' was not found")
+    try:
+        return _parse_pattern_processing_state(pattern, strict=True)
+    except (TypeError, ValueError, KeyError):
+        LOGGER.warning(
+            "Pattern '%s' has invalid processing; using defaults",
+            normalized_name,
+        )
+        return DEFAULT_PATTERN_PROCESSING_STATE
+
+
+def _parse_processing_settings(value: object) -> ColorProcessingSettings:
+    if not isinstance(value, Mapping) or list(value) != processing_key:
+        raise ValueError("processing settings have an invalid structure")
+    brightness = value["brightness"]
+    contrast = value["contrast"]
+    if not isinstance(brightness, (int, float)) or isinstance(brightness, bool):
+        raise TypeError("brightness must be numeric")
+    if not isinstance(contrast, (int, float)) or isinstance(contrast, bool):
+        raise TypeError("contrast must be numeric")
+    return ColorProcessingSettings(
+        BlendMode.parse(value["blend_mode"]), float(brightness), float(contrast)
+    )
+
+
+def _parse_pattern_processing_state(
+    pattern: Mapping[str, object], *, strict: bool
+) -> PatternProcessingState:
+    if all(key in pattern for key in processing_state_key):
+        slots = pattern["per_color_processing"]
+        if not isinstance(slots, Mapping) or list(slots) != [
+            slot.value for slot in ColorSlot
+        ]:
+            raise ValueError("per-color processing has an invalid structure")
+        values = tuple(
+            _parse_processing_settings(slots[slot.value]) for slot in ColorSlot
+        )
+        return PatternProcessingState(
+            ProcessingMode.parse(pattern["processing_mode"]),
+            _parse_processing_settings(pattern["global_processing"]),
+            cast(PerColorProcessingSettings, values),
+        )
+
     if not all(key in pattern for key in processing_key):
-        return DEFAULT_PATTERN_PROCESSING
+        return DEFAULT_PATTERN_PROCESSING_STATE
     try:
         mode = BlendMode.parse(pattern["blend_mode"])
         stored_brightness = pattern["brightness"]
@@ -267,12 +354,11 @@ def get_pattern_processing(name: str) -> PatternProcessing:
         if not 0.0 <= brightness <= 150.0 or not 0.0 <= contrast <= 200.0:
             raise ValueError("processing level outside the supported range")
     except (TypeError, ValueError):
-        LOGGER.warning(
-            "Pattern '%s' has invalid global processing; using defaults",
-            normalized_name,
-        )
-        return DEFAULT_PATTERN_PROCESSING
-    return PatternProcessing(mode, brightness, contrast)
+        if strict:
+            raise
+        return DEFAULT_PATTERN_PROCESSING_STATE
+    settings = ColorProcessingSettings(mode, brightness, contrast)
+    return PatternProcessingState(ProcessingMode.GLOBAL, settings, (settings,) * 4)
 
 
 def pattern_colors_equal(
@@ -299,8 +385,14 @@ def _is_valid_pattern_collection(patterns: object) -> bool:
         if not isinstance(pattern, dict) or list(pattern) not in (
             color_key,
             color_key + processing_key,
+            color_key + processing_state_key,
         ):
             return False
+        if list(pattern) == color_key + processing_state_key:
+            try:
+                _parse_pattern_processing_state(pattern, strict=True)
+            except (KeyError, TypeError, ValueError):
+                return False
         if not all(
             isinstance(color, str) and COLOR_VALUE_PATTERN.fullmatch(color)
             for color in (pattern[key] for key in color_key)
@@ -357,10 +449,32 @@ def _validate_new_pattern(
 
 def _stored_pattern(
     colors: PatternColors,
-    processing: PatternProcessing | None,
+    processing: PatternProcessing | PatternProcessingState | None,
 ) -> StoredPattern:
     pattern: StoredPattern = OrderedDict(zip(color_key, colors))
-    if processing is not None:
+    if isinstance(processing, PatternProcessingState):
+        pattern.update(
+            (
+                ("processing_mode", processing.processing_mode.value),
+                (
+                    "global_processing",
+                    _stored_processing_settings(processing.global_processing),
+                ),
+                (
+                    "per_color_processing",
+                    OrderedDict(
+                        (
+                            slot.value,
+                            _stored_processing_settings(
+                                processing.per_color_processing[slot.index]
+                            ),
+                        )
+                        for slot in ColorSlot
+                    ),
+                ),
+            )
+        )
+    elif processing is not None:
         pattern.update(
             (
                 ("blend_mode", processing.blend_mode.value),
@@ -369,6 +483,18 @@ def _stored_pattern(
             )
         )
     return pattern
+
+
+def _stored_processing_settings(
+    settings: ColorProcessingSettings,
+) -> OrderedDict[str, object]:
+    return OrderedDict(
+        (
+            ("blend_mode", settings.blend_mode.value),
+            ("brightness", settings.brightness),
+            ("contrast", settings.contrast),
+        )
+    )
 
 
 def _write_user_patterns(
@@ -430,7 +556,7 @@ def save(
     colors: Iterable[object],
     pattern_path: Path | None = None,
     *,
-    processing: PatternProcessing | None = None,
+    processing: PatternProcessing | PatternProcessingState | None = None,
 ) -> None:
     normalized_name, normalized_colors = _validate_new_pattern(name, colors)
     if pattern_path is None:
@@ -486,7 +612,7 @@ def update_user_pattern(
     colors: Iterable[object],
     pattern_path: Path | None = None,
     *,
-    processing: PatternProcessing | None = None,
+    processing: PatternProcessing | PatternProcessingState | None = None,
 ) -> str:
     """Atomically replace the colors of one existing user-created Pattern."""
     normalized_name = normalize_pattern_name(name)
@@ -601,8 +727,15 @@ def replace_user_patterns(
                 f"User pattern '{normalized_name}' is missing color {exc.args[0]}"
             ) from exc
         normalized_colors = normalize_pattern_colors(colors)
-        processing = None
-        if all(key in pattern for key in processing_key):
+        processing: PatternProcessing | PatternProcessingState | None = None
+        if all(key in pattern for key in processing_state_key):
+            try:
+                processing = _parse_pattern_processing_state(
+                    pattern, strict=True
+                )
+            except (KeyError, TypeError, ValueError):
+                processing = DEFAULT_PATTERN_PROCESSING_STATE
+        elif all(key in pattern for key in processing_key):
             try:
                 processing = PatternProcessing(
                     BlendMode.parse(pattern["blend_mode"]),
