@@ -5,7 +5,9 @@ from unittest.mock import Mock, call, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.frame_main import ArmyPainter
+from src.image_process import TextureValidationError
 from src.team_color_mask_variant import TeamColorMaskVariant
+from src.texture_set import TextureSet
 
 
 class TeamColorMaskVariantSelectorTests(unittest.TestCase):
@@ -100,6 +102,73 @@ class TeamColorMaskVariantSelectorTests(unittest.TestCase):
 
         tooltip.destroy.assert_called_once_with()
         self.assertIsNone(painter._team_color_mask_variant_tooltip)
+
+    def test_selecting_variant_replaces_only_mask_state_and_refreshes(self):
+        default = TeamColorMaskVariant(None, Path("marine_tem.dds"))
+        numbered = TeamColorMaskVariant(2, Path("marine_tem_2.dds"))
+        original_textures = Mock(spec=TextureSet)
+        replacement_textures = Mock(spec=TextureSet)
+        render_settings = object()
+        selected_pattern = object()
+        painter = self.make_painter((default, numbered), default)
+        painter.team_color_mask_variant_name.get.return_value = "Variant 2"
+        painter.active_texture_set = original_textures
+        painter.texture_loading = Mock()
+        painter.texture_loading.load_channel_file.return_value = SimpleNamespace(
+            texture_set=replacement_textures
+        )
+        painter.preview_controller = Mock()
+        painter.select_channel = Mock()
+        painter.dialogs = Mock()
+        painter.render_settings = render_settings
+        painter.selected_pattern = selected_pattern
+
+        ArmyPainter.select_team_color_mask_variant(painter)
+
+        painter.texture_loading.load_channel_file.assert_called_once_with(
+            original_textures, numbered.path
+        )
+        self.assertIs(painter.active_texture_set, replacement_textures)
+        self.assertIs(painter.active_team_color_mask_variant, numbered)
+        self.assertIs(painter.render_settings, render_settings)
+        self.assertIs(painter.selected_pattern, selected_pattern)
+        painter.preview_controller.invalidate.assert_called_once_with()
+        painter.select_channel.assert_called_once_with()
+        painter.dialogs.show_error.assert_not_called()
+        painter.team_color_mask_variant_name.set.assert_called_with("Variant 2")
+        painter.team_color_mask_variant_filename.set.assert_called_with(
+            "marine_tem_2.dds"
+        )
+
+    def test_failed_variant_load_preserves_previous_state_and_reports_error(self):
+        default = TeamColorMaskVariant(None, Path("marine_tem.dds"))
+        numbered = TeamColorMaskVariant(2, Path("marine_tem_2.dds"))
+        original_textures = Mock(spec=TextureSet)
+        painter = self.make_painter((default, numbered), default)
+        painter.team_color_mask_variant_name.get.return_value = "Variant 2"
+        painter.active_texture_set = original_textures
+        painter.texture_loading = Mock()
+        painter.texture_loading.load_channel_file.side_effect = (
+            TextureValidationError("file disappeared")
+        )
+        painter.preview_controller = Mock()
+        painter.select_channel = Mock()
+        painter.dialogs = Mock()
+
+        ArmyPainter.select_team_color_mask_variant(painter)
+
+        self.assertIs(painter.active_texture_set, original_textures)
+        self.assertIs(painter.active_team_color_mask_variant, default)
+        painter.preview_controller.invalidate.assert_not_called()
+        painter.select_channel.assert_not_called()
+        painter.dialogs.show_error.assert_called_once_with(
+            title="Invalid team-colour mask",
+            message="file disappeared",
+        )
+        painter.team_color_mask_variant_name.set.assert_called_with("Default")
+        painter.team_color_mask_variant_filename.set.assert_called_with(
+            "marine_tem.dds"
+        )
 
 
 if __name__ == "__main__":

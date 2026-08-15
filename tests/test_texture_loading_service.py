@@ -128,8 +128,12 @@ class TextureLoadingServiceTests(unittest.TestCase):
     def test_separate_channel_loading_returns_dimensions(self):
         diffuse = self.root / "marine_dif.png"
         channel = self.root / "manual_tem.png"
+        dirt = self.root / "marine_drt.png"
+        specular = self.root / "marine_spc.png"
         save_image(diffuse)
         save_image(channel)
+        save_image(dirt)
+        save_image(specular)
         textures = self.service.load_diffuse_and_companions(diffuse).texture_set
 
         result = self.service.load_channel_file(textures, channel)
@@ -138,6 +142,8 @@ class TextureLoadingServiceTests(unittest.TestCase):
         self.assertEqual((result.width, result.height), (8, 4))
         self.assertIsNot(result.texture_set, textures)
         self.assertIs(result.texture_set.diffuse, textures.diffuse)
+        self.assertIs(result.texture_set.dirt, textures.dirt)
+        self.assertIs(result.texture_set.specular, textures.specular)
 
     def test_channel_loading_requires_an_active_diffuse(self):
         channel = self.root / "manual_tem.png"

@@ -406,6 +406,9 @@ class ArmyPainter(tk.Tk):
         self.team_color_mask_variant_selector.bind(
             "<Leave>", self.hide_team_color_mask_variant_tooltip
         )
+        self.team_color_mask_variant_selector.bind(
+            "<<ComboboxSelected>>", self.select_team_color_mask_variant
+        )
         ArmyPainter.sync_team_color_mask_variant_selector(self)
 
     def sync_team_color_mask_variant_selector(self):
@@ -468,6 +471,43 @@ class ArmyPainter(tk.Tk):
         if tooltip is not None:
             tooltip.destroy()
             self._team_color_mask_variant_tooltip = None
+
+    def select_team_color_mask_variant(self, Event=None):
+        """Load the mask chosen in the variant selector into the active set."""
+        selected_name = self.team_color_mask_variant_name.get()
+        selected_variant = next(
+            (
+                variant
+                for variant in self.available_team_color_mask_variants
+                if variant.display_name == selected_name
+            ),
+            None,
+        )
+        if (
+            selected_variant is None
+            or selected_variant is self.active_team_color_mask_variant
+        ):
+            ArmyPainter.sync_team_color_mask_variant_selector(self)
+            return
+
+        try:
+            result = self.texture_loading.load_channel_file(
+                self.active_texture_set,
+                selected_variant.path,
+            )
+        except TextureValidationError as exc:
+            ArmyPainter.sync_team_color_mask_variant_selector(self)
+            self.dialogs.show_error(
+                title="Invalid team-colour mask",
+                message=str(exc),
+            )
+            return
+
+        self.preview_controller.invalidate()
+        self.active_texture_set = result.texture_set
+        self.active_team_color_mask_variant = selected_variant
+        ArmyPainter.sync_team_color_mask_variant_selector(self)
+        self.select_channel()
 
     def define_menu(self):
         menubar = tk.Menu(self)
