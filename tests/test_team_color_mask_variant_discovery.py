@@ -41,15 +41,24 @@ class TeamColorMaskVariantDiscoveryTests(unittest.TestCase):
         )
 
     def test_sm1_uses_the_same_discovery_with_pnt_suffix(self):
-        self.create_files("unit_pnt.dds", "unit_pnt_4.dds", "unit_tem_2.dds")
+        self.create_files(
+            "unit_pnt.dds",
+            "unit_pnt_2.dds",
+            "unit_pnt_4.dds",
+            "unit_tem_2.dds",
+        )
 
         variants = discover_team_color_mask_variants(
             self.diffuse, SM1_TEXTURE_NAMING
         )
 
         self.assertEqual(
+            [variant.display_name for variant in variants],
+            ["Default", "Variant 2", "Variant 4"],
+        )
+        self.assertEqual(
             [variant.filename for variant in variants],
-            ["unit_pnt.dds", "unit_pnt_4.dds"],
+            ["unit_pnt.dds", "unit_pnt_2.dds", "unit_pnt_4.dds"],
         )
 
     def test_numbered_variants_are_discovered_without_default(self):
@@ -62,9 +71,49 @@ class TeamColorMaskVariantDiscoveryTests(unittest.TestCase):
             [2, 5],
         )
         self.assertTrue(all(not variant.is_default for variant in variants))
+        self.assertEqual(variants[0].display_name, "Variant 2")
         self.assertIs(
             detect_texture_naming_profile(self.diffuse),
             DOW2_TEXTURE_NAMING,
+        )
+
+    def test_numbered_variants_use_numeric_not_lexicographic_order(self):
+        self.create_files(
+            "unit_tem_20.dds",
+            "unit_tem_3.dds",
+            "unit_tem_11.dds",
+            "unit_tem_2.dds",
+        )
+
+        variants = discover_team_color_mask_variants(self.diffuse)
+
+        self.assertEqual(
+            [variant.display_name for variant in variants],
+            ["Variant 2", "Variant 3", "Variant 11", "Variant 20"],
+        )
+
+    def test_profiles_discover_only_their_own_mask_suffix(self):
+        self.create_files(
+            "unit_tem.dds",
+            "unit_tem_2.dds",
+            "unit_pnt.dds",
+            "unit_pnt_4.dds",
+        )
+
+        dow2_variants = discover_team_color_mask_variants(
+            self.diffuse, DOW2_TEXTURE_NAMING
+        )
+        sm1_variants = discover_team_color_mask_variants(
+            self.diffuse, SM1_TEXTURE_NAMING
+        )
+
+        self.assertEqual(
+            [variant.filename for variant in dow2_variants],
+            ["unit_tem.dds", "unit_tem_2.dds"],
+        )
+        self.assertEqual(
+            [variant.filename for variant in sm1_variants],
+            ["unit_pnt.dds", "unit_pnt_4.dds"],
         )
 
     def test_invalid_lookalikes_and_other_extensions_are_ignored(self):
