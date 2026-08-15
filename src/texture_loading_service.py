@@ -89,7 +89,7 @@ def find_companion_texture(
     if expected_path is None:
         LOGGER.debug(
             "Texture name does not match profile '%s': %s",
-            profile.name,
+            profile.display_name,
             diffuse_path,
         )
         return None

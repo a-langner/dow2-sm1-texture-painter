@@ -23,21 +23,24 @@ class TextureKind(Enum):
 class TextureNamingProfile:
     """Immutable mapping from texture roles to filename-stem suffixes."""
 
-    name: str
+    profile_id: str
+    display_name: str
     diffuse_suffix: str
-    team_color_suffix: str
+    team_color_mask_suffix: str
     dirt_suffix: str
     specular_suffix: str
 
     def __post_init__(self) -> None:
         suffixes = (
             self.diffuse_suffix,
-            self.team_color_suffix,
+            self.team_color_mask_suffix,
             self.dirt_suffix,
             self.specular_suffix,
         )
-        if not self.name.strip():
-            raise ValueError("Texture naming profile name cannot be empty.")
+        if not self.profile_id.strip():
+            raise ValueError("Texture naming profile ID cannot be empty.")
+        if not self.display_name.strip():
+            raise ValueError("Texture naming profile display name cannot be empty.")
         if any(
             not suffix.startswith("_") or "." in suffix or len(suffix) == 1
             for suffix in suffixes
@@ -54,19 +57,32 @@ class TextureNamingProfile:
             raise TypeError("texture_kind must be a TextureKind value.")
         return {
             TextureKind.DIFFUSE: self.diffuse_suffix,
-            TextureKind.TEAM_COLOR: self.team_color_suffix,
+            TextureKind.TEAM_COLOR: self.team_color_mask_suffix,
             TextureKind.DIRT: self.dirt_suffix,
             TextureKind.SPECULAR: self.specular_suffix,
         }[texture_kind]
 
 
-DEFAULT_TEXTURE_NAMING = TextureNamingProfile(
-    name="DoW2 / SM1",
+DOW2_TEXTURE_NAMING = TextureNamingProfile(
+    profile_id="dow2",
+    display_name="Dawn of War II",
     diffuse_suffix="_dif",
-    team_color_suffix="_tem",
+    team_color_mask_suffix="_tem",
     dirt_suffix="_drt",
     specular_suffix="_spc",
 )
+
+SM1_TEXTURE_NAMING = TextureNamingProfile(
+    profile_id="sm1",
+    display_name="Space Marine 1",
+    diffuse_suffix="_dif",
+    team_color_mask_suffix="_pnt",
+    dirt_suffix="_drt",
+    specular_suffix="_spc",
+)
+
+# Preserve existing DoW2 behavior for callers that do not select a profile.
+DEFAULT_TEXTURE_NAMING = DOW2_TEXTURE_NAMING
 
 
 def replace_texture_suffix(

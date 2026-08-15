@@ -56,9 +56,10 @@ class CompanionTextureDiscoveryTests(unittest.TestCase):
 
     def test_custom_profile_controls_expected_companion_name(self):
         profile = TextureNamingProfile(
-            name="Temporary Test Profile",
+            profile_id="temporary-test",
+            display_name="Temporary Test Profile",
             diffuse_suffix="_base",
-            team_color_suffix="_mask",
+            team_color_mask_suffix="_mask",
             dirt_suffix="_wear",
             specular_suffix="_shine",
         )

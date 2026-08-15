@@ -126,9 +126,10 @@ class BatchTextureNamingTests(unittest.TestCase):
     @staticmethod
     def _custom_profile():
         return TextureNamingProfile(
-            name="Test Profile",
+            profile_id="test",
+            display_name="Test Profile",
             diffuse_suffix="_base",
-            team_color_suffix="_mask",
+            team_color_mask_suffix="_mask",
             dirt_suffix="_wear",
             specular_suffix="_shine",
         )

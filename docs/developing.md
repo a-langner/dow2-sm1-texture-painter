@@ -39,11 +39,15 @@ carry domain values, such as color or slider values, rather than Tk widgets.
 
 ### Texture naming profiles
 
-Texture roles and the current DoW2/SM1 filename suffixes are defined in
-`src/texture_naming.py`. GUI and batch workflows must use its typed texture
-kinds and naming profile instead of embedding suffix strings. The application
-currently uses one profile, while the architecture allows future profiles to
-be passed into the same workflows.
+Texture roles and the Dawn of War II and Space Marine 1 filename profiles are
+defined in `src/texture_naming.py`. Each profile has a stable internal ID, a
+display name, and suffixes for diffuse, team-colour, dirt, and specular maps.
+GUI and batch workflows must use its typed texture kinds and naming profiles
+instead of embedding suffix strings. The application currently selects the
+DoW2 profile by default; profile selection is a separate presentation concern.
+
+Normal maps are intentionally outside the renderer and profile model. The
+existing `_drt` dirt-map workflow remains distinct and unchanged.
 
 ### Running tests
 

@@ -143,9 +143,10 @@ class TextureLoadingServiceTests(unittest.TestCase):
 
     def test_injected_naming_profile_controls_discovery(self):
         profile = TextureNamingProfile(
-            name="Test",
+            profile_id="test",
+            display_name="Test",
             diffuse_suffix="_base",
-            team_color_suffix="_mask",
+            team_color_mask_suffix="_mask",
             dirt_suffix="_wear",
             specular_suffix="_shine",
         )

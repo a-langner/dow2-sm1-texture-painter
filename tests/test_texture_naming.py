@@ -4,6 +4,8 @@ from pathlib import Path
 
 from src.texture_naming import (
     DEFAULT_TEXTURE_NAMING,
+    DOW2_TEXTURE_NAMING,
+    SM1_TEXTURE_NAMING,
     TextureKind,
     TextureNamingProfile,
     replace_texture_suffix,
@@ -12,6 +14,9 @@ from src.texture_naming import (
 
 class TextureNamingTests(unittest.TestCase):
     def test_default_profile_defines_all_four_canonical_suffixes(self):
+        self.assertIs(DEFAULT_TEXTURE_NAMING, DOW2_TEXTURE_NAMING)
+        self.assertEqual(DOW2_TEXTURE_NAMING.profile_id, "dow2")
+        self.assertEqual(DOW2_TEXTURE_NAMING.display_name, "Dawn of War II")
         self.assertEqual(
             {
                 kind: DEFAULT_TEXTURE_NAMING.suffix_for(kind)
@@ -20,6 +25,19 @@ class TextureNamingTests(unittest.TestCase):
             {
                 TextureKind.DIFFUSE: "_dif",
                 TextureKind.TEAM_COLOR: "_tem",
+                TextureKind.DIRT: "_drt",
+                TextureKind.SPECULAR: "_spc",
+            },
+        )
+
+    def test_sm1_profile_uses_the_shared_model_with_pnt_team_color(self):
+        self.assertEqual(SM1_TEXTURE_NAMING.profile_id, "sm1")
+        self.assertEqual(SM1_TEXTURE_NAMING.display_name, "Space Marine 1")
+        self.assertEqual(
+            {kind: SM1_TEXTURE_NAMING.suffix_for(kind) for kind in TextureKind},
+            {
+                TextureKind.DIFFUSE: "_dif",
+                TextureKind.TEAM_COLOR: "_pnt",
                 TextureKind.DIRT: "_drt",
                 TextureKind.SPECULAR: "_spc",
             },
@@ -100,9 +118,10 @@ class TextureNamingTests(unittest.TestCase):
 
     def test_custom_profile_is_supported_without_filesystem_access(self):
         profile = TextureNamingProfile(
-            name="Test",
+            profile_id="test",
+            display_name="Test",
             diffuse_suffix="_base",
-            team_color_suffix="_mask",
+            team_color_mask_suffix="_mask",
             dirt_suffix="_wear",
             specular_suffix="_shine",
         )
@@ -123,9 +142,10 @@ class TextureNamingTests(unittest.TestCase):
     def test_profile_rejects_noncanonical_suffixes(self):
         with self.assertRaisesRegex(ValueError, "leading underscore"):
             TextureNamingProfile(
-                name="Invalid",
+                profile_id="invalid",
+                display_name="Invalid",
                 diffuse_suffix="dif",
-                team_color_suffix="_tem.dds",
+                team_color_mask_suffix="_tem.dds",
                 dirt_suffix="_drt",
                 specular_suffix="_spc",
             )
