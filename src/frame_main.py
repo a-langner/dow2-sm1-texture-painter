@@ -51,6 +51,7 @@ from src.color_pattern_handler import (
     pattern_colors_equal,
 )
 from src.color_slot import ColorSlot
+from src.color_processing_settings import ColorProcessingSettings
 from src.image_process import (
     TextureValidationError,
     create_placeholder_img,
@@ -257,6 +258,7 @@ class ArmyPainter(tk.Tk):
         self.active_team_color_mask_variant = None
         self.texture_renderer = TextureRenderer()
         self.render_settings = DEFAULT_RENDER_SETTINGS
+        self._processing_controls_refreshing = False
         if not hasattr(self, "settings"):
             self.settings = SettingsHandler()
         self.file_selection = FileSelectionService(self.settings, self.dialogs)
@@ -740,6 +742,17 @@ class ArmyPainter(tk.Tk):
             self.frame_batch_tools = None
 
     def on_slider_update(self, brightness: float, contrast: float):
+        if getattr(self, "_processing_controls_refreshing", False):
+            return
+        if hasattr(self, "render_settings"):
+            active = self.render_settings.active_processing
+            self.render_settings = self.render_settings.with_active_processing(
+                ColorProcessingSettings(
+                    active.blend_mode,
+                    brightness,
+                    contrast,
+                )
+            )
         self.request_workspace_preview()
 
     def on_color_changed(self, slot_index: int, color: str):
@@ -747,9 +760,11 @@ class ArmyPainter(tk.Tk):
         self.refresh_workspace()
 
     def on_color_slot_selected(self, slot_index: int):
+        ArmyPainter.sync_processing_settings_from_controls(self)
         self.render_settings = self.render_settings.with_active_color_slot(
             ColorSlot.from_index(slot_index)
         )
+        ArmyPainter.refresh_processing_controls(self)
 
     def save(self, Event=None):
         """Save image from current workspace
@@ -816,16 +831,52 @@ class ArmyPainter(tk.Tk):
 
     def sync_render_settings(self) -> None:
         colors = self.get_current_pattern_colors()
+        ArmyPainter.sync_processing_settings_from_controls(self)
         self.render_settings = replace(
             self.render_settings,
             primary_color=colors[0],
             secondary_color=colors[1],
             tint_color=colors[2],
             extra_color=colors[3],
-            brightness=float(self.frame_sliders.brightness_slider.get()),
-            contrast=float(self.frame_sliders.contrast_slider.get()),
             tem_selected=tuple(self.frame_channel_select.lb.curselection()),
         )
+
+    def get_processing_settings_from_controls(self) -> ColorProcessingSettings:
+        """Read the processing controls, falling back to current state."""
+        current = self.render_settings.active_processing
+        blend_mode = current.blend_mode
+        brightness = current.brightness
+        contrast = current.contrast
+        if hasattr(self, "frame_color_op_option"):
+            blend_mode = ColorOps.parse(self.frame_color_op_option.var.get())
+        if hasattr(self, "frame_sliders"):
+            brightness = float(self.frame_sliders.brightness_slider.get())
+            contrast = float(self.frame_sliders.contrast_slider.get())
+        return ColorProcessingSettings(blend_mode, brightness, contrast)
+
+    def sync_processing_settings_from_controls(self) -> None:
+        """Store visible values in Global or the active Color Slot."""
+        if not hasattr(self, "render_settings") or getattr(
+            self, "_processing_controls_refreshing", False
+        ):
+            return
+        processing = ArmyPainter.get_processing_settings_from_controls(self)
+        self.render_settings = self.render_settings.with_active_processing(processing)
+
+    def refresh_processing_controls(self) -> None:
+        """Display the active context without treating the refresh as an edit."""
+        if not hasattr(self, "render_settings"):
+            return
+        processing = self.render_settings.active_processing
+        self._processing_controls_refreshing = True
+        try:
+            if hasattr(self, "frame_color_op_option"):
+                self.frame_color_op_option.var.set(processing.blend_mode.display_name)
+            if hasattr(self, "frame_sliders"):
+                self.frame_sliders.brightness_slider.set(processing.brightness)
+                self.frame_sliders.contrast_slider.set(processing.contrast)
+        finally:
+            self._processing_controls_refreshing = False
 
     def request_workspace_preview(self, *, immediate=False):
         """Schedule a preview only when an active texture can be snapshotted."""
@@ -854,16 +905,24 @@ class ArmyPainter(tk.Tk):
         self.dialogs.show_error(title="Preview error", message=str(error))
 
     def color_operation_update(self, color_op: str):
-        self.render_settings = replace(
-            self.render_settings,
-            color_op=ColorOps.parse(color_op),
+        if getattr(self, "_processing_controls_refreshing", False):
+            return
+        current = self.render_settings.active_processing
+        self.render_settings = self.render_settings.with_active_processing(
+            ColorProcessingSettings(
+                ColorOps.parse(color_op),
+                current.brightness,
+                current.contrast,
+            )
         )
         self.refresh_workspace()
 
     def processing_mode_update(self, processing_mode: str):
+        ArmyPainter.sync_processing_settings_from_controls(self)
         self.render_settings = self.render_settings.with_processing_mode(
             ProcessingMode.parse(processing_mode)
         )
+        ArmyPainter.refresh_processing_controls(self)
         self.refresh_workspace()
 
     def on_apply_alpha_toggle(self, apply_alpha: bool):
@@ -925,13 +984,7 @@ class ArmyPainter(tk.Tk):
                     brightness=processing.brightness,
                     contrast=processing.contrast,
                 )
-                if hasattr(self, "frame_color_op_option"):
-                    self.frame_color_op_option.var.set(
-                        processing.blend_mode.display_name
-                    )
-                if hasattr(self, "frame_sliders"):
-                    self.frame_sliders.brightness_slider.set(processing.brightness)
-                    self.frame_sliders.contrast_slider.set(processing.contrast)
+                ArmyPainter.refresh_processing_controls(self)
         self.update_pattern_action_states(selection)
         self.refresh_workspace()
 

@@ -220,6 +220,28 @@ class RenderSettingsTests(unittest.TestCase):
         )
         self.assertEqual(changed.global_processing, original.global_processing)
 
+    def test_active_processing_routes_to_global_or_selected_slot(self):
+        global_processing = ColorProcessingSettings(ColorOps.OVERLAY, 75, 100)
+        color_three = ColorProcessingSettings(ColorOps.COLOR, 80, 95)
+        settings = RenderSettings().with_global_processing(global_processing)
+
+        global_changed = settings.with_active_processing(
+            ColorProcessingSettings(ColorOps.MULTIPLY, 60, 90)
+        )
+        self.assertEqual(
+            global_changed.active_processing,
+            ColorProcessingSettings(ColorOps.MULTIPLY, 60, 90),
+        )
+        self.assertFalse(global_changed.per_color_processing_initialized)
+
+        per_color = settings.with_processing_mode(ProcessingMode.PER_COLOR)
+        per_color = per_color.with_active_color_slot(ColorSlot.COLOR_3)
+        per_color = per_color.with_active_processing(color_three)
+
+        self.assertEqual(per_color.active_processing, color_three)
+        self.assertEqual(per_color.per_color_processing[2], color_three)
+        self.assertEqual(per_color.global_processing, global_processing)
+
     def test_per_color_context_requires_exactly_four_typed_values(self):
         with self.assertRaisesRegex(TypeError, "tuple of four"):
             RenderSettings(per_color_processing=(ColorProcessingSettings(),))

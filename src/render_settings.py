@@ -140,6 +140,13 @@ class RenderSettings:
         """Report whether the lazy per-colour values have been established."""
         return self._per_color_processing_initialized
 
+    @property
+    def active_processing(self) -> ColorProcessingSettings:
+        """Return the processing context currently edited by the controls."""
+        if self.processing_mode is ProcessingMode.PER_COLOR:
+            return self.per_color_processing[self.active_color_slot.index]
+        return self.global_processing
+
     def initialize_per_color_processing(self) -> "RenderSettings":
         """Copy current Global values to all slots exactly once."""
         if self._per_color_processing_initialized:
@@ -176,6 +183,14 @@ class RenderSettings:
             brightness=settings.brightness,
             contrast=settings.contrast,
         )
+
+    def with_active_processing(
+        self, settings: ColorProcessingSettings
+    ) -> "RenderSettings":
+        """Replace Global or the active per-colour context as appropriate."""
+        if self.processing_mode is ProcessingMode.PER_COLOR:
+            return self.with_color_processing(self.active_color_slot.index, settings)
+        return self.with_global_processing(settings)
 
     def with_color_processing(
         self,

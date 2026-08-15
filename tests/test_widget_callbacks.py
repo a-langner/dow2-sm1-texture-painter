@@ -5,6 +5,8 @@ from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.constant import ColorOps
+from src.color_processing_settings import ColorProcessingSettings
+from src.color_slot import ColorSlot
 from src.frame_main import ArmyPainter
 from src.processing_mode import ProcessingMode
 from src.render_settings import DEFAULT_RENDER_SETTINGS
@@ -296,6 +298,58 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
 
         ArmyPainter.on_slider_update(painter, 75.0, 100.0)
 
+        painter.request_workspace_preview.assert_called_once_with()
+
+    def test_processing_controls_follow_mode_and_active_slot_without_leakage(self):
+        global_processing = ColorProcessingSettings(ColorOps.OVERLAY, 75, 100)
+        color_two = ColorProcessingSettings(ColorOps.COLOR, 80, 95)
+        settings = DEFAULT_RENDER_SETTINGS.with_global_processing(global_processing)
+        settings = settings.with_processing_mode(ProcessingMode.PER_COLOR)
+        settings = settings.with_active_color_slot(ColorSlot.COLOR_2)
+        settings = settings.with_active_processing(color_two)
+        settings = settings.with_processing_mode(ProcessingMode.GLOBAL)
+        settings = settings.with_active_color_slot(ColorSlot.COLOR_1)
+        painter = SimpleNamespace(
+            render_settings=settings,
+            frame_color_op_option=SimpleNamespace(
+                var=ValueVariable("Overlay"),
+            ),
+            frame_sliders=SimpleNamespace(
+                brightness_slider=ValueVariable(75),
+                contrast_slider=ValueVariable(100),
+            ),
+            refresh_workspace=Mock(),
+            request_workspace_preview=Mock(),
+            _processing_controls_refreshing=False,
+        )
+
+        ArmyPainter.processing_mode_update(painter, "per_color")
+        ArmyPainter.on_color_slot_selected(painter, 1)
+
+        self.assertEqual(painter.frame_color_op_option.var.get(), "Color")
+        self.assertEqual(painter.frame_sliders.brightness_slider.get(), 80)
+        self.assertEqual(painter.frame_sliders.contrast_slider.get(), 95)
+
+        painter.frame_color_op_option.var.set("Hard Light")
+        ArmyPainter.color_operation_update(painter, "hard_light")
+        painter.frame_sliders.brightness_slider.set(55)
+        painter.frame_sliders.contrast_slider.set(130)
+        ArmyPainter.on_slider_update(painter, 55, 130)
+        ArmyPainter.on_color_slot_selected(painter, 0)
+
+        self.assertEqual(painter.frame_color_op_option.var.get(), "Overlay")
+        self.assertEqual(painter.frame_sliders.brightness_slider.get(), 75)
+        self.assertEqual(painter.frame_sliders.contrast_slider.get(), 100)
+        self.assertEqual(
+            painter.render_settings.per_color_processing[1],
+            ColorProcessingSettings(ColorOps.HARD_LIGHT, 55, 130),
+        )
+        self.assertEqual(
+            painter.render_settings.per_color_processing[0],
+            global_processing,
+        )
+        self.assertEqual(painter.render_settings.global_processing, global_processing)
+        self.assertEqual(painter.refresh_workspace.call_count, 2)
         painter.request_workspace_preview.assert_called_once_with()
 
     def test_widget_module_has_no_implicit_controller_lookup(self):
