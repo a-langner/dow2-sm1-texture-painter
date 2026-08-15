@@ -307,6 +307,12 @@ class TextureRenderingBaselineTests(unittest.TestCase):
                 (32, 64, 96, 255),
                 (187, 75, 37, 255),
             ),
+            ColorOps.LINEAR_DODGE.value: (
+                (204, 32, 32, 255),
+                (255, 255, 255, 255),
+                (32, 64, 96, 255),
+                (214, 108, 58, 255),
+            ),
         }
 
         for operation, expected in expected_by_operation.items():
@@ -565,6 +571,43 @@ class TextureRenderingBaselineTests(unittest.TestCase):
 
         self.assertEqual(burn, (45, 45, 45, 255))
         self.assertTrue(all(burn[index] < multiply[index] for index in range(3)))
+
+    def test_linear_dodge_uses_clamped_base_plus_blend(self):
+        diffuse = Image.new("RGBA", (1, 1), (0, 200, 128, 255))
+        full = Image.new("L", (1, 1), 255)
+        empty = Image.new("L", (1, 1), 0)
+        textures = TextureSet(
+            diffuse,
+            Image.merge("RGBA", (full, empty, empty, empty)),
+        )
+        settings = RenderSettings(
+            primary_color="#0064c8",
+            brightness=100,
+            contrast=100,
+            color_op=ColorOps.LINEAR_DODGE,
+        )
+
+        result = TextureRenderer().render(textures, settings).getpixel((0, 0))
+        self.assertEqual(result, (0, 255, 255, 255))
+        self.assertTrue(all(0 <= channel <= 255 for channel in result))
+
+    def test_linear_dodge_brightens_without_changing_zero_blend_channels(self):
+        diffuse = Image.new("RGBA", (1, 1), (40, 80, 120, 255))
+        full = Image.new("L", (1, 1), 255)
+        empty = Image.new("L", (1, 1), 0)
+        textures = TextureSet(
+            diffuse,
+            Image.merge("RGBA", (full, empty, empty, empty)),
+        )
+        settings = RenderSettings(
+            primary_color="#002040",
+            brightness=100,
+            contrast=100,
+            color_op=ColorOps.LINEAR_DODGE,
+        )
+
+        result = TextureRenderer().render(textures, settings).getpixel((0, 0))
+        self.assertEqual(result, (40, 112, 184, 255))
 
     def make_optional_maps_workbench(self):
         workbench = self.make_workbench()

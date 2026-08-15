@@ -50,5 +50,6 @@ class BlendModeTests(unittest.TestCase):
                 BlendMode.HARD_LIGHT,
                 BlendMode.COLOR,
                 BlendMode.LINEAR_BURN,
+                BlendMode.LINEAR_DODGE,
             ),
         )
