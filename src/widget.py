@@ -2223,6 +2223,7 @@ class FrameColorChooser(tk.Frame):
         )
         self._color_tooltips = [None] * 4
         self._color_tooltip_window = None
+        self.color_slots = []
         self.color_boxes = []
         self.color_buttons = []
         self.active_slot_index = 0
@@ -2237,14 +2238,29 @@ class FrameColorChooser(tk.Frame):
 
     def initialize(self):
         for i in range(0, 4):
+            slot = tk.Frame(
+                self,
+                width=COLOR_BOX_SIZE,
+                height=COLOR_BOX_SIZE + COLOR_BTN_HEIGHT,
+                bd=0,
+                highlightthickness=0,
+            )
+            slot.place(
+                anchor=tk.NW,
+                x=(COLOR_BOX_SIZE + 3) * i,
+                y=0,
+            )
+            slot.pack_propagate(False)
+            slot.grid_propagate(False)
+            self.color_slots.append(slot)
             self.color_boxes.append(
                 tk.Canvas(
-                    self,
+                    slot,
                     bg="#808080",
                     relief=tk.RAISED,
                     bd=2,
-                    height=COLOR_BOX_SIZE,
-                    width=COLOR_BOX_SIZE,
+                    highlightthickness=2,
+                    highlightbackground=slot.cget("bg"),
                 )
             )
             self.color_boxes[i].bind("<Button-1>", partial(self.select_slot, i))
@@ -2253,11 +2269,15 @@ class FrameColorChooser(tk.Frame):
             )
             self.color_boxes[i].bind("<Leave>", self._hide_color_tooltip)
             self.color_boxes[i].place(
-                anchor=tk.NW, x=COLOR_BOX_SIZE * i, y=COLOR_BTN_HEIGHT
+                anchor=tk.NW,
+                x=0,
+                y=COLOR_BTN_HEIGHT,
+                width=COLOR_BOX_SIZE,
+                height=COLOR_BOX_SIZE,
             )
             self.color_buttons.append(
                 tk.Button(
-                    self,
+                    slot,
                     text=f"Edit Color {i + 1}",
                     wraplength=COLOR_BOX_SIZE,
                     relief=tk.RAISED,
@@ -2265,7 +2285,13 @@ class FrameColorChooser(tk.Frame):
                     command=partial(self.apply_color, i),
                 )
             )
-            self.color_buttons[i].place(anchor=tk.NW, x=COLOR_BOX_SIZE * i + i * 1, y=0)
+            self.color_buttons[i].place(
+                anchor=tk.NW,
+                x=0,
+                y=0,
+                width=COLOR_BOX_SIZE,
+                height=COLOR_BTN_HEIGHT,
+            )
         self._draw_active_slot()
         self.draw_rgb_value()
 
@@ -2282,9 +2308,18 @@ class FrameColorChooser(tk.Frame):
             active = index == self.active_slot_index
             color_box.configure(
                 relief=tk.SUNKEN if active else tk.RAISED,
-                bd=4 if active else 2,
-                highlightthickness=2 if active else 0,
-                highlightbackground=PAINT_SWATCH_SELECTED_OUTLINE,
+                bd=2,
+                highlightthickness=2,
+                highlightbackground=(
+                    PAINT_SWATCH_SELECTED_OUTLINE
+                    if active
+                    else self.color_slots[index].cget("bg")
+                ),
+                highlightcolor=(
+                    PAINT_SWATCH_SELECTED_OUTLINE
+                    if active
+                    else self.color_slots[index].cget("bg")
+                ),
             )
 
     def apply_color(self, btn_idx: int, Event=None):
