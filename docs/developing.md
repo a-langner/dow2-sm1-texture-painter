@@ -44,7 +44,8 @@ defined in `src/texture_naming.py`. Each profile has a stable internal ID, a
 display name, and suffixes for diffuse, team-colour, dirt, and specular maps.
 GUI and batch workflows must use its typed texture kinds and naming profiles
 instead of embedding suffix strings. The application currently selects the
-DoW2 profile by default; profile selection is a separate presentation concern.
+DoW2 profile by default. The Game menu selects either supported profile and
+persists its stable ID in `settings.json` for the next application start.
 
 Normal maps are intentionally outside the renderer and profile model. The
 existing `_drt` dirt-map workflow remains distinct and unchanged.

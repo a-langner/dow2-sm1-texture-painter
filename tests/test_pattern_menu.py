@@ -18,6 +18,7 @@ from src.frame_main import (
     PATTERN_UPDATE_MENU_LABEL,
     ArmyPainter,
 )
+from src.texture_naming import DOW2_TEXTURE_NAMING
 from src.widget import (
     FramePatternList,
     PatternSelection,
@@ -78,6 +79,9 @@ class FakeBuildMenu:
     def add_checkbutton(self, **options):
         self.items.append(("checkbutton", options))
 
+    def add_radiobutton(self, **options):
+        self.items.append(("radiobutton", options))
+
     def add_cascade(self, **options):
         self.items.append(("cascade", options))
 
@@ -94,8 +98,11 @@ class FakePainter:
 
 class PatternMenuStateTests(unittest.TestCase):
     @patch("src.frame_main.tk.BooleanVar", return_value=Mock())
+    @patch("src.frame_main.tk.StringVar", return_value=Mock())
     @patch("src.frame_main.tk.Menu", side_effect=FakeBuildMenu)
-    def test_patterns_menu_layout_and_handlers(self, menu_type, boolean_var):
+    def test_patterns_menu_layout_and_handlers(
+        self, menu_type, string_var, boolean_var
+    ):
         handlers = {
             name: Mock(name=name)
             for name in (
@@ -120,6 +127,7 @@ class PatternMenuStateTests(unittest.TestCase):
                 "open_batch_edit_tools",
                 "open_log_folder",
                 "batch_edit",
+                "select_game_profile",
             )
         }
         painter = SimpleNamespace(
@@ -127,6 +135,7 @@ class PatternMenuStateTests(unittest.TestCase):
             config=Mock(),
             bind=Mock(),
             update_pattern_action_states=Mock(),
+            texture_naming_profile=DOW2_TEXTURE_NAMING,
         )
 
         ArmyPainter.define_menu(painter)
@@ -137,7 +146,17 @@ class PatternMenuStateTests(unittest.TestCase):
             for item_type, options in menubar.items
             if item_type == "cascade"
         }
-        self.assertEqual(list(cascades), ["File", "Edit", "Patterns", "Tools", "Help"])
+        self.assertEqual(
+            list(cascades), ["File", "Edit", "Game", "Patterns", "Tools", "Help"]
+        )
+        self.assertEqual(
+            [item[1]["label"] for item in cascades["Game"].items],
+            ["Dawn of War II", "Space Marine 1"],
+        )
+        self.assertEqual(
+            [item[1]["value"] for item in cascades["Game"].items],
+            ["dow2", "sm1"],
+        )
         self.assertEqual(
             cascades["Help"].items,
             [

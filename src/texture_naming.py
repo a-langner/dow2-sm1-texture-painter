@@ -83,6 +83,19 @@ SM1_TEXTURE_NAMING = TextureNamingProfile(
 
 # Preserve existing DoW2 behavior for callers that do not select a profile.
 DEFAULT_TEXTURE_NAMING = DOW2_TEXTURE_NAMING
+TEXTURE_NAMING_PROFILES = (DOW2_TEXTURE_NAMING, SM1_TEXTURE_NAMING)
+
+
+def texture_naming_profile_for_id(profile_id: str) -> TextureNamingProfile | None:
+    """Return the supported profile with ``profile_id``, if one exists."""
+    return next(
+        (
+            profile
+            for profile in TEXTURE_NAMING_PROFILES
+            if profile.profile_id == profile_id
+        ),
+        None,
+    )
 
 
 def replace_texture_suffix(

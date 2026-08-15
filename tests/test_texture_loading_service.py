@@ -12,7 +12,11 @@ from src.texture_loading_service import (
     TextureLoadingService,
     UnsupportedTextureError,
 )
-from src.texture_naming import TextureKind, TextureNamingProfile
+from src.texture_naming import (
+    SM1_TEXTURE_NAMING,
+    TextureKind,
+    TextureNamingProfile,
+)
 
 
 def save_image(path, size=(8, 4), mode="RGBA", color=None):
@@ -158,6 +162,23 @@ class TextureLoadingServiceTests(unittest.TestCase):
         result = TextureLoadingService(profile).load_diffuse_and_companions(diffuse)
 
         self.assertEqual(result.team_color_path, team)
+
+    def test_sm1_profile_discovers_pnt_without_changing_other_companions(self):
+        diffuse = self.root / "marine_dif.png"
+        dow2_team = self.root / "marine_tem.png"
+        sm1_team = self.root / "marine_pnt.png"
+        dirt = self.root / "marine_drt.png"
+        specular = self.root / "marine_spc.png"
+        for path in (diffuse, dow2_team, sm1_team, dirt, specular):
+            save_image(path)
+
+        result = TextureLoadingService(
+            SM1_TEXTURE_NAMING
+        ).load_diffuse_and_companions(diffuse)
+
+        self.assertEqual(result.team_color_path, sm1_team)
+        self.assertEqual(result.dirt_path, dirt)
+        self.assertEqual(result.specular_path, specular)
 
     def test_discovery_failure_returns_no_partial_texture_set(self):
         diffuse = self.root / "marine_dif.png"

@@ -9,6 +9,7 @@ from src.texture_naming import (
     TextureKind,
     TextureNamingProfile,
     replace_texture_suffix,
+    texture_naming_profile_for_id,
 )
 
 
@@ -42,6 +43,8 @@ class TextureNamingTests(unittest.TestCase):
                 TextureKind.SPECULAR: "_spc",
             },
         )
+        self.assertIs(texture_naming_profile_for_id("sm1"), SM1_TEXTURE_NAMING)
+        self.assertIsNone(texture_naming_profile_for_id("unknown"))
 
     def test_diffuse_suffix_replacements(self):
         source = Path("marine_dif.dds")

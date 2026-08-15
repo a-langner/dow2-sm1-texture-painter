@@ -260,6 +260,42 @@ class SettingsHandlerTests(unittest.TestCase):
             self.assertEqual(document["ui_main_window_position"], [-800, 120])
             self.assertNotIn("ui_main_window_size", document)
 
+    def test_game_profile_defaults_to_dow2_and_persists_stable_sm1_id(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_path = root / "settings.json"
+            handler = SettingsHandler(settings_path, root)
+
+            self.assertEqual(handler.game_profile_id, "dow2")
+            handler.set_game_profile_id("sm1")
+
+            reloaded = SettingsHandler(settings_path, root)
+            document = json.loads(settings_path.read_text(encoding="utf-8"))
+            self.assertEqual(reloaded.game_profile_id, "sm1")
+            self.assertEqual(document["game_profile_id"], "sm1")
+
+    def test_unknown_persisted_game_profile_falls_back_to_dow2(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_path = root / "settings.json"
+            document = settings_document(root)
+            document["game_profile_id"] = "renamed-display-value"
+            settings_path.write_text(json.dumps(document), encoding="utf-8")
+
+            with self.assertLogs("src.settings_handler", level="WARNING"):
+                handler = SettingsHandler(settings_path, root)
+
+            self.assertEqual(handler.game_profile_id, "dow2")
+            self.assertIsNone(handler.load_error)
+
+    def test_unknown_game_profile_cannot_be_persisted(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            handler = SettingsHandler(root / "settings.json", root)
+
+            with self.assertRaisesRegex(ValueError, "Unknown game profile ID"):
+                handler.set_game_profile_id("unknown")
+
     def test_confirmed_recent_colors_persist_as_ordered_rgb_values(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

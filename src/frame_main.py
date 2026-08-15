@@ -89,7 +89,9 @@ from src.render_settings import DEFAULT_RENDER_SETTINGS
 from src.settings_handler import SettingsHandler
 from src.texture_naming import (
     DEFAULT_TEXTURE_NAMING,
+    TEXTURE_NAMING_PROFILES,
     TextureKind,
+    texture_naming_profile_for_id,
 )
 from src.texture_renderer import TextureRenderer
 from src.texture_loading_service import TextureLoadingService
@@ -199,6 +201,14 @@ class ArmyPainter(tk.Tk):
             self.winfo_screenheight(),
         )
         self.settings = SettingsHandler()
+        restored_profile = texture_naming_profile_for_id(
+            getattr(
+                self.settings,
+                "game_profile_id",
+                DEFAULT_TEXTURE_NAMING.profile_id,
+            )
+        )
+        self.texture_naming_profile = restored_profile or DEFAULT_TEXTURE_NAMING
         position = safe_window_position(
             self.settings.main_window_position,
             initial_width,
@@ -466,6 +476,22 @@ class ArmyPainter(tk.Tk):
             menubar.add_cascade(label="Patterns", menu=self.pattern_menu)
             self.update_pattern_action_states()
 
+        def define_gamemenu():
+            gamemenu = tk.Menu(menubar, tearoff=0)
+            self.game_profile_id = tk.StringVar(
+                value=self.texture_naming_profile.profile_id
+            )
+            for profile in TEXTURE_NAMING_PROFILES:
+                gamemenu.add_radiobutton(
+                    label=profile.display_name,
+                    variable=self.game_profile_id,
+                    value=profile.profile_id,
+                    command=lambda profile_id=profile.profile_id: self.select_game_profile(
+                        profile_id
+                    ),
+                )
+            menubar.add_cascade(label="Game", menu=gamemenu)
+
         def define_toolmenu():
             toolmenu = tk.Menu(menubar, tearoff=0)
             toolmenu.add_command(
@@ -484,6 +510,7 @@ class ArmyPainter(tk.Tk):
 
         define_filemenu()
         define_editmenu()
+        define_gamemenu()
         define_patternmenu()
         define_toolmenu()
         define_helpmenu()
@@ -495,6 +522,20 @@ class ArmyPainter(tk.Tk):
         self.bind("<Control-e>", self.close)
         self.bind("<Control-d>", self.batch_edit)
         self.bind("<Control-r>", self.reset_workspace)
+
+    def select_game_profile(self, profile_id: str):
+        """Persist and activate the naming policy selected in the Game menu."""
+        profile = texture_naming_profile_for_id(profile_id)
+        if profile is None:
+            raise ValueError(f"Unknown game profile ID: {profile_id}")
+        try:
+            self.settings.set_game_profile_id(profile.profile_id)
+        except OSError:
+            LOGGER.exception("Could not update settings file: %s", self.settings.path)
+            self.game_profile_id.set(self.texture_naming_profile.profile_id)
+            return
+        self.texture_naming_profile = profile
+        self.texture_loading = TextureLoadingService(profile)
 
     def define_frame_workspace(self):
         self.img_dif = ImageTk.PhotoImage(

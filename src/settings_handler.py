@@ -6,6 +6,7 @@ import tempfile
 from typing import Literal, Mapping
 
 from src.recent_colors import RecentColors, validate_recent_colors
+from src.texture_naming import DEFAULT_TEXTURE_NAMING, texture_naming_profile_for_id
 from src.user_data import get_settings_path
 
 SETTINGS_FORMAT = "dow2-sm1-texture-painter-settings"
@@ -30,6 +31,7 @@ COLOR_PICKER_SORT_MODE_FIELD = "ui_color_picker_sort_mode"
 COLOR_PICKER_SASHES_FIELD = "ui_color_picker_sashes"
 COLOR_PICKER_RECENT_COLORS_FIELD = "ui_color_picker_recent_colors"
 MAIN_WINDOW_POSITION_FIELD = "ui_main_window_position"
+GAME_PROFILE_FIELD = "game_profile_id"
 ValidatedSettings = tuple[DirectoryValues, str | None]
 
 
@@ -57,6 +59,7 @@ class SettingsHandler:
         self.color_picker_sashes: tuple[int, int] | None = None
         self.color_picker_recent_colors: RecentColors = ()
         self.main_window_position: tuple[int, int] | None = None
+        self.game_profile_id = DEFAULT_TEXTURE_NAMING.profile_id
         self.load_error: Exception | None = None
         self._load()
 
@@ -87,6 +90,12 @@ class SettingsHandler:
             self.main_window_position = self._optional_ui_pair(
                 document, MAIN_WINDOW_POSITION_FIELD
             )
+            profile_id = self._optional_ui_string(document, GAME_PROFILE_FIELD)
+            if profile_id is not None:
+                if texture_naming_profile_for_id(profile_id) is None:
+                    LOGGER.warning("Ignoring unknown game profile ID %s", profile_id)
+                else:
+                    self.game_profile_id = profile_id
         except FileNotFoundError:
             return
         except (json.JSONDecodeError, OSError, ValueError) as exc:
@@ -175,6 +184,12 @@ class SettingsHandler:
         self._update_values({MAIN_WINDOW_POSITION_FIELD: list(position)})
         self.main_window_position = position
 
+    def set_game_profile_id(self, profile_id: str) -> None:
+        if texture_naming_profile_for_id(profile_id) is None:
+            raise ValueError(f"Unknown game profile ID: {profile_id}")
+        self._update_values({GAME_PROFILE_FIELD: profile_id})
+        self.game_profile_id = profile_id
+
     def set_color_picker_recent_colors(self, colors: RecentColors) -> None:
         validated = validate_recent_colors([list(color) for color in colors])
         serialized = [list(color) for color in validated]
@@ -254,6 +269,7 @@ class SettingsHandler:
             MAIN_WINDOW_POSITION_FIELD: (
                 list(self.main_window_position) if self.main_window_position else None
             ),
+            GAME_PROFILE_FIELD: self.game_profile_id,
         }
         persisted_ui.update(
             {
