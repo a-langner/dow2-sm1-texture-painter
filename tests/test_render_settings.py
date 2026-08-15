@@ -8,6 +8,7 @@ from unittest.mock import Mock
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.constant import ColorOps
 from src.color_processing_settings import ColorProcessingSettings
+from src.color_slot import ColorSlot
 from src.processing_mode import ProcessingMode
 from src.render_settings import (
     DEFAULT_COLOR,
@@ -34,6 +35,7 @@ class RenderSettingsTests(unittest.TestCase):
         self.assertFalse(settings.apply_spec)
         self.assertIs(settings.color_op, ColorOps.OVERLAY)
         self.assertIs(settings.processing_mode, ProcessingMode.GLOBAL)
+        self.assertIs(settings.active_color_slot, ColorSlot.COLOR_1)
         self.assertEqual(
             settings.per_color_processing,
             (ColorProcessingSettings(),) * 4,
@@ -59,6 +61,24 @@ class RenderSettingsTests(unittest.TestCase):
 
         self.assertEqual(settings.colors, COLORS)
         self.assertIsInstance(settings.colors, tuple)
+
+    def test_active_slot_is_independent_of_actual_color_values(self):
+        original = RenderSettings(
+            primary_color=COLORS[0],
+            secondary_color=COLORS[1],
+            tint_color=COLORS[2],
+            extra_color=COLORS[3],
+        )
+
+        changed = original.with_active_color_slot(ColorSlot.COLOR_3)
+
+        self.assertIs(changed.active_color_slot, ColorSlot.COLOR_3)
+        self.assertEqual(changed.colors, original.colors)
+        self.assertEqual(changed.global_processing, original.global_processing)
+        self.assertEqual(
+            changed.per_color_processing,
+            original.per_color_processing,
+        )
 
     def test_brightness_accepts_gui_range_boundaries(self):
         self.assertEqual(
@@ -227,6 +247,8 @@ class RenderSettingsTests(unittest.TestCase):
             RenderSettings(color_op="Overlay")
         with self.assertRaisesRegex(ValueError, "ProcessingMode"):
             RenderSettings(processing_mode="global")
+        with self.assertRaisesRegex(ValueError, "ColorSlot"):
+            RenderSettings(active_color_slot=0)
         with self.assertRaisesRegex(TypeError, "tuple of integer"):
             RenderSettings(tem_selected=[0, 1])
         with self.assertRaisesRegex(ValueError, "cannot be negative"):

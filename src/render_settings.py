@@ -12,6 +12,7 @@ from src.color_processing_settings import (
     ColorProcessingSettings,
     validate_processing_level,
 )
+from src.color_slot import ColorSlot
 from src.constant import ColorOps
 from src.processing_mode import ProcessingMode
 
@@ -49,6 +50,7 @@ class RenderSettings:
     apply_spec: bool = False
     color_op: ColorOps = ColorOps.OVERLAY
     processing_mode: ProcessingMode = ProcessingMode.GLOBAL
+    active_color_slot: ColorSlot = ColorSlot.COLOR_1
     tem_selected: tuple[int, ...] = ()
     per_color_processing: PerColorProcessingSettings = field(
         default_factory=_default_per_color_processing
@@ -85,6 +87,8 @@ class RenderSettings:
             raise ValueError("color_op must be a ColorOps value.")
         if not isinstance(self.processing_mode, ProcessingMode):
             raise ValueError("processing_mode must be a ProcessingMode value.")
+        if not isinstance(self.active_color_slot, ColorSlot):
+            raise ValueError("active_color_slot must be a ColorSlot value.")
         if not isinstance(self.per_color_processing, tuple) or len(
             self.per_color_processing
         ) != 4:
@@ -153,6 +157,12 @@ class RenderSettings:
         if mode is ProcessingMode.PER_COLOR:
             settings = settings.initialize_per_color_processing()
         return replace(settings, processing_mode=mode)
+
+    def with_active_color_slot(self, slot: ColorSlot) -> "RenderSettings":
+        """Select an editing slot without changing colours or processing."""
+        if not isinstance(slot, ColorSlot):
+            raise TypeError("slot must be a ColorSlot value.")
+        return replace(self, active_color_slot=slot)
 
     def with_global_processing(
         self, settings: ColorProcessingSettings
