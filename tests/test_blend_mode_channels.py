@@ -4,6 +4,8 @@ from PIL import Image
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.blend_mode import BlendMode
+from src.color_processing_settings import ColorProcessingSettings
+from src.processing_mode import ProcessingMode
 from src.render_settings import DEFAULT_COLOR, RenderSettings
 from src.texture_renderer import TextureRenderer
 from src.texture_set import TextureSet
@@ -86,3 +88,76 @@ class BlendModeChannelAndAlphaTests(unittest.TestCase):
                         ).getpixel((0, 0)),
                         255,
                     )
+
+    def test_per_color_mode_maps_independent_processing_to_rgba_channels(self):
+        diffuse = Image.new("RGBA", (4, 1), (*BASE, 255))
+        channels = []
+        for channel_index in range(4):
+            channel = Image.new("L", (4, 1), 0)
+            channel.putpixel((channel_index, 0), 255)
+            channels.append(channel)
+        textures = TextureSet(diffuse, Image.merge("RGBA", tuple(channels)))
+        colors = ("#c85028", "#2878c8", "#d0b020", "#40b060")
+        processing = (
+            ColorProcessingSettings(BlendMode.MULTIPLY, 60, 90),
+            ColorProcessingSettings(BlendMode.COLOR, 80, 110),
+            ColorProcessingSettings(BlendMode.SOFT_LIGHT, 70, 105),
+            ColorProcessingSettings(BlendMode.LINEAR_BURN, 65, 100),
+        )
+        common = dict(
+            primary_color=colors[0],
+            secondary_color=colors[1],
+            tint_color=colors[2],
+            extra_color=colors[3],
+        )
+        per_color_settings = RenderSettings(
+            **common,
+            processing_mode=ProcessingMode.PER_COLOR,
+            per_color_processing=processing,
+        )
+
+        result = TextureRenderer().render(textures, per_color_settings)
+        expected_pixels = []
+        for channel_index, context in enumerate(processing):
+            global_settings = RenderSettings(
+                **common,
+                color_op=context.blend_mode,
+                brightness=context.brightness,
+                contrast=context.contrast,
+            )
+            global_result = TextureRenderer().render(textures, global_settings)
+            expected_pixels.append(global_result.getpixel((channel_index, 0)))
+
+        self.assertEqual(
+            [result.getpixel((index, 0)) for index in range(4)],
+            expected_pixels,
+        )
+        self.assertEqual(len(set(expected_pixels)), 4)
+
+    def test_global_mode_ignores_retained_per_color_values(self):
+        textures = textures_for_channel(0)
+        legacy_global = settings_for_channel(BlendMode.OVERLAY, 0, True)
+        distinct_per_color = (
+            ColorProcessingSettings(BlendMode.NORMAL, 20, 20),
+            ColorProcessingSettings(BlendMode.SCREEN, 40, 60),
+            ColorProcessingSettings(BlendMode.COLOR, 80, 120),
+            ColorProcessingSettings(BlendMode.LINEAR_DODGE, 140, 180),
+        )
+        retained = RenderSettings(
+            primary_color=legacy_global.primary_color,
+            secondary_color=legacy_global.secondary_color,
+            tint_color=legacy_global.tint_color,
+            extra_color=legacy_global.extra_color,
+            brightness=legacy_global.brightness,
+            contrast=legacy_global.contrast,
+            color_op=legacy_global.color_op,
+            apply_alpha=legacy_global.apply_alpha,
+            tem_selected=legacy_global.tem_selected,
+            processing_mode=ProcessingMode.GLOBAL,
+            per_color_processing=distinct_per_color,
+        )
+
+        self.assertEqual(
+            TextureRenderer().render(textures, retained).tobytes(),
+            TextureRenderer().render(textures, legacy_global).tobytes(),
+        )

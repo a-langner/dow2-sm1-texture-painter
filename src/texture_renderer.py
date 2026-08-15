@@ -2,7 +2,9 @@
 
 from PIL import Image, ImageChops, ImageColor, ImageEnhance
 
+from src.color_processing_settings import ColorProcessingSettings
 from src.constant import ColorOps
+from src.processing_mode import ProcessingMode
 from src.render_settings import RenderSettings
 from src.texture_set import TextureSet
 
@@ -96,7 +98,16 @@ def _apply_team_colors(
     settings: RenderSettings,
 ) -> Image.Image:
     workspace = textures.diffuse.copy()
-    for color, channel in zip(settings.colors, _team_channels(textures)):
+    processing_by_channel: tuple[ColorProcessingSettings, ...]
+    if settings.processing_mode is ProcessingMode.PER_COLOR:
+        processing_by_channel = settings.per_color_processing
+    else:
+        processing_by_channel = (settings.global_processing,) * 4
+    for color, channel, processing in zip(
+        settings.colors,
+        _team_channels(textures),
+        processing_by_channel,
+    ):
         rgb = ImageColor.getrgb(color)
 
         # Neutral grey is the established no-colour sentinel.
@@ -128,33 +139,34 @@ def _apply_team_colors(
         gray_img = textures.diffuse.copy()
         color_img = Image.new("RGBA", gray_img.size, color)
 
-        if settings.color_op is ColorOps.NORMAL:
+        if processing.blend_mode is ColorOps.NORMAL:
             new_img = color_img
-        elif settings.color_op is ColorOps.OVERLAY:
+        elif processing.blend_mode is ColorOps.OVERLAY:
             new_img = ImageChops.overlay(gray_img, color_img)
-        elif settings.color_op is ColorOps.MULTIPLY:
+        elif processing.blend_mode is ColorOps.MULTIPLY:
             new_img = ImageChops.multiply(gray_img, color_img)
-        elif settings.color_op is ColorOps.SCREEN:
+        elif processing.blend_mode is ColorOps.SCREEN:
             new_img = ImageChops.screen(gray_img, color_img)
-        elif settings.color_op is ColorOps.SOFT_LIGHT:
+        elif processing.blend_mode is ColorOps.SOFT_LIGHT:
             new_img = ImageChops.soft_light(gray_img, color_img)
-        elif settings.color_op is ColorOps.HARD_LIGHT:
+        elif processing.blend_mode is ColorOps.HARD_LIGHT:
             new_img = ImageChops.hard_light(gray_img, color_img)
-        elif settings.color_op is ColorOps.COLOR:
+        elif processing.blend_mode is ColorOps.COLOR:
             new_img = _color_blend(gray_img, (rgb[0], rgb[1], rgb[2]))
-        elif settings.color_op is ColorOps.LINEAR_BURN:
+        elif processing.blend_mode is ColorOps.LINEAR_BURN:
             new_img = ImageChops.add(gray_img, color_img, offset=-255)
-        elif settings.color_op is ColorOps.LINEAR_DODGE:
+        elif processing.blend_mode is ColorOps.LINEAR_DODGE:
             new_img = ImageChops.add(gray_img, color_img)
         else:
             raise ValueError(
-                f"Blend mode is not implemented yet: {settings.color_op.value}"
+                "Blend mode is not implemented yet: "
+                f"{processing.blend_mode.value}"
             )
 
         enhancer_contrast = ImageEnhance.Contrast(new_img)
-        new_img = enhancer_contrast.enhance(settings.contrast / 100)
+        new_img = enhancer_contrast.enhance(processing.contrast / 100)
         enhancer_brightness = ImageEnhance.Brightness(new_img)
-        new_img = enhancer_brightness.enhance(settings.brightness / 100)
+        new_img = enhancer_brightness.enhance(processing.brightness / 100)
 
         # Apply the team-colour channel exactly once.
         workspace.paste(new_img, mask=channel)
