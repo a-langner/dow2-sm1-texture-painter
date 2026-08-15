@@ -169,6 +169,16 @@ def configure_app_selection_styles(widget: tk.Misc) -> None:
             ("readonly", APP_SELECTION_FOREGROUND),
             ("focus", APP_SELECTION_FOREGROUND),
         ],
+        selectbackground=[
+            ("readonly focus", APP_SELECTION_BACKGROUND),
+            ("focus", APP_SELECTION_BACKGROUND),
+            ("readonly", APP_SELECTION_BACKGROUND),
+        ],
+        selectforeground=[
+            ("readonly focus", APP_SELECTION_FOREGROUND),
+            ("focus", APP_SELECTION_FOREGROUND),
+            ("readonly", APP_SELECTION_FOREGROUND),
+        ],
         background=[
             ("pressed", APP_SELECTION_BACKGROUND),
             ("active", APP_SELECTION_BACKGROUND),
