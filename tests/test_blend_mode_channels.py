@@ -99,8 +99,8 @@ class BlendModeChannelAndAlphaTests(unittest.TestCase):
         textures = TextureSet(diffuse, Image.merge("RGBA", tuple(channels)))
         colors = ("#c85028", "#2878c8", "#d0b020", "#40b060")
         processing = (
-            ColorProcessingSettings(BlendMode.MULTIPLY, 60, 90),
-            ColorProcessingSettings(BlendMode.COLOR, 80, 110),
+            ColorProcessingSettings(BlendMode.MULTIPLY, 60, 110),
+            ColorProcessingSettings(BlendMode.COLOR, 80, 95),
             ColorProcessingSettings(BlendMode.SOFT_LIGHT, 70, 105),
             ColorProcessingSettings(BlendMode.LINEAR_BURN, 65, 100),
         )
