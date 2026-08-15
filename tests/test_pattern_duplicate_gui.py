@@ -102,7 +102,7 @@ class PatternDuplicateGuiTests(unittest.TestCase):
         save.assert_called_once_with(
             "Duplicate",
             STORED_COLORS,
-            processing=pattern_handler.DEFAULT_PATTERN_PROCESSING,
+            processing=pattern_handler.DEFAULT_PATTERN_PROCESSING_STATE,
         )
         self.assertEqual(painter.frame_army_pattern.load_calls, ["Duplicate"])
         self.assertEqual(

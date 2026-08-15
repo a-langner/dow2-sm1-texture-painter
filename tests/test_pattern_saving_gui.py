@@ -122,7 +122,7 @@ class PatternSavingGuiTests(unittest.TestCase):
         save.assert_called_once_with(
             name="Custom Pattern",
             colors=colors_before,
-            processing=pattern_handler.DEFAULT_PATTERN_PROCESSING,
+            processing=pattern_handler.DEFAULT_PATTERN_PROCESSING_STATE,
         )
         showerror.assert_not_called()
         self.assertEqual(painter.frame_army_pattern.load_count, 1)

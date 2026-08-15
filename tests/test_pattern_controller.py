@@ -10,7 +10,10 @@ import src.color_pattern_handler as pattern_handler
 from src.color_pattern_handler import (
     BuiltinPatternModificationError,
     PatternAlreadyExistsError,
+    PatternProcessingState,
 )
+from src.color_processing_settings import ColorProcessingSettings
+from src.constant import ColorOps
 from src.pattern_controller import PatternController, PatternOperationResult
 from src.pattern_exchange import (
     ImportedPattern,
@@ -18,6 +21,7 @@ from src.pattern_exchange import (
     import_analyzed_pattern_collection,
     import_pattern,
 )
+from src.processing_mode import ProcessingMode
 
 COLORS = ("#112233", "#445566", "#778899", "#aabbcc")
 NEW_COLORS = ("#010203", "#141516", "#272829", "#3a3b3c")
@@ -71,6 +75,7 @@ class PatternControllerTests(unittest.TestCase):
         self.store = PathStore(self.user_path)
         self.controller = PatternController(
             store=self.store,
+            get_processing=pattern_handler.get_pattern_processing_state,
             persist_single_import=lambda pattern, **options: import_pattern(
                 pattern, pattern_path=self.user_path, **options
             ),
@@ -113,6 +118,65 @@ class PatternControllerTests(unittest.TestCase):
             tuple(pattern_handler.user_color_patterns["User"].values()),
             NEW_COLORS,
         )
+
+    def test_per_color_save_update_restart_and_reload_preserve_all_slots(self):
+        original = PatternProcessingState(
+            ProcessingMode.PER_COLOR,
+            ColorProcessingSettings(ColorOps.SCREEN, 80, 120),
+            (
+                ColorProcessingSettings(ColorOps.OVERLAY, 10, 20),
+                ColorProcessingSettings(ColorOps.MULTIPLY, 30, 40),
+                ColorProcessingSettings(ColorOps.COLOR, 50, 60),
+                ColorProcessingSettings(ColorOps.HARD_LIGHT, 70, 80),
+            ),
+        )
+        updated = PatternProcessingState(
+            ProcessingMode.PER_COLOR,
+            original.global_processing,
+            (
+                original.per_color_processing[0],
+                ColorProcessingSettings(ColorOps.LINEAR_DODGE, 90, 100),
+                original.per_color_processing[2],
+                original.per_color_processing[3],
+            ),
+        )
+
+        self.controller.save_new_pattern("Per Color", COLORS, original)
+        self.controller.update_pattern("Per Color", NEW_COLORS, updated)
+
+        reloaded = pattern_handler.load_user_patterns(self.user_path)
+        pattern_handler.user_color_patterns.clear()
+        pattern_handler.user_color_patterns.update(reloaded)
+        pattern_handler.army_color_pattern.clear()
+        pattern_handler.army_color_pattern.update(
+            pattern_handler.builtin_color_patterns
+        )
+        pattern_handler.army_color_pattern.update(reloaded)
+
+        self.assertEqual(
+            pattern_handler.get_pattern_processing_state("Per Color"),
+            updated,
+        )
+        self.assertEqual(
+            pattern_handler.get_pattern_colors("Per Color"),
+            list(NEW_COLORS),
+        )
+
+    def test_rename_preserves_full_processing_and_delete_still_removes_it(self):
+        state = PatternProcessingState(
+            ProcessingMode.PER_COLOR,
+            ColorProcessingSettings(ColorOps.SCREEN, 80, 120),
+            (ColorProcessingSettings(),) * 4,
+        )
+        self.controller.save_new_pattern("Original", COLORS, state)
+
+        self.controller.rename_pattern("Original", "Renamed")
+
+        self.assertEqual(
+            pattern_handler.get_pattern_processing_state("Renamed"), state
+        )
+        self.controller.delete_pattern("Renamed")
+        self.assertNotIn("Renamed", pattern_handler.user_color_patterns)
 
     def test_update_builtin_is_rejected(self):
         builtin_name = next(iter(pattern_handler.builtin_color_patterns))

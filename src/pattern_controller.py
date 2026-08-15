@@ -9,7 +9,7 @@ import src.color_pattern_handler as pattern_store
 from src.color_pattern_handler import (
     InvalidPatternError,
     PatternColors,
-    PatternProcessing,
+    PatternProcessingState,
     get_pattern_colors,
     normalize_pattern_name,
     pattern_colors_equal,
@@ -39,14 +39,14 @@ class PatternStore(Protocol):
         name: str,
         colors: PatternColors,
         *,
-        processing: PatternProcessing | None = None,
+        processing: PatternProcessingState | None = None,
     ) -> None: ...
     def update_user_pattern(
         self,
         name: str,
         colors: PatternColors,
         *,
-        processing: PatternProcessing | None = None,
+        processing: PatternProcessingState | None = None,
     ) -> str: ...
     def rename_user_pattern(self, old_name: str, new_name: str) -> str: ...
     def delete(self, name: str) -> None: ...
@@ -116,7 +116,7 @@ class PatternController:
         file_selection: PatternDirectoryRecorder | None = None,
         store: PatternStore = pattern_store,
         get_colors: Callable[[str], PatternColors] = get_pattern_colors,
-        get_processing: Callable[[str], PatternProcessing] | None = None,
+        get_processing: Callable[[str], PatternProcessingState] | None = None,
         read_single: Callable[[Path], ImportedPattern] = read_pattern_file,
         persist_single_import: PersistSingleImport = import_pattern,
         export_single: Callable[[str, Path], None] = export_pattern,
@@ -149,7 +149,7 @@ class PatternController:
         self,
         name: str,
         current_colors: PatternColors,
-        processing: PatternProcessing | None = None,
+        processing: PatternProcessingState | None = None,
     ) -> PatternOperationResult:
         normalized_name = normalize_pattern_name(name)
         if processing is None:
@@ -171,7 +171,7 @@ class PatternController:
         self,
         pattern_name: str,
         current_colors: PatternColors,
-        processing: PatternProcessing | None = None,
+        processing: PatternProcessingState | None = None,
     ) -> PatternOperationResult:
         stored_colors = self.get_colors(pattern_name)
         processing_matches = (
@@ -199,7 +199,7 @@ class PatternController:
         self,
         pattern_name: str,
         current_colors: PatternColors,
-        processing: PatternProcessing | None = None,
+        processing: PatternProcessingState | None = None,
     ) -> bool:
         colors_changed = not pattern_colors_equal(
             current_colors, self.get_colors(pattern_name)

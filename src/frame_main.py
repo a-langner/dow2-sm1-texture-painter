@@ -43,10 +43,9 @@ from src.color_pattern_handler import (
     InvalidPatternError,
     PatternError,
     PatternNotFoundError,
-    PatternProcessing,
+    PatternProcessingState,
     UserPatternPersistenceError,
     get_pattern_colors,
-    get_pattern_processing,
     get_pattern_processing_state,
     normalize_pattern_colors,
     pattern_colors_equal,
@@ -117,11 +116,11 @@ from pathlib import Path
 from importlib.resources import as_file, files
 
 
-def _get_pattern_processing_or_default(name: str) -> PatternProcessing:
+def _get_pattern_processing_or_default(name: str) -> PatternProcessingState:
     try:
-        return get_pattern_processing(name)
+        return get_pattern_processing_state(name)
     except PatternNotFoundError:
-        return src.color_pattern_handler.DEFAULT_PATTERN_PROCESSING
+        return src.color_pattern_handler.DEFAULT_PATTERN_PROCESSING_STATE
 
 VERSION = "0.1"
 PREVIEW_DEBOUNCE_MS = 120
@@ -1310,16 +1309,15 @@ class ArmyPainter(tk.Tk):
             color["bg"] for color in self.frame_color_chooser.color_boxes
         )
 
-    def get_current_pattern_processing(self) -> PatternProcessing:
-        """Return current global Pattern processing settings."""
-        if not hasattr(self, "frame_color_op_option") or not hasattr(
-            self, "frame_sliders"
-        ):
-            return src.color_pattern_handler.DEFAULT_PATTERN_PROCESSING
-        return PatternProcessing(
-            ColorOps.parse(self.frame_color_op_option.var.get()),
-            float(self.frame_sliders.brightness_slider.get()),
-            float(self.frame_sliders.contrast_slider.get()),
+    def get_current_pattern_processing(self) -> PatternProcessingState:
+        """Return both retained processing contexts for Pattern persistence."""
+        if not hasattr(self, "render_settings"):
+            return src.color_pattern_handler.DEFAULT_PATTERN_PROCESSING_STATE
+        ArmyPainter.sync_processing_settings_from_controls(self)
+        return PatternProcessingState(
+            self.render_settings.processing_mode,
+            self.render_settings.global_processing,
+            self.render_settings.per_color_processing,
         )
 
     def update_selected_pattern(self):

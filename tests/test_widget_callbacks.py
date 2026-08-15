@@ -371,6 +371,33 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         self.assertEqual(painter.refresh_workspace.call_count, 2)
         painter.request_workspace_preview.assert_called_once_with()
 
+    def test_current_pattern_processing_contains_global_and_every_color_slot(self):
+        global_processing = ColorProcessingSettings(ColorOps.SCREEN, 80, 120)
+        per_color = (
+            ColorProcessingSettings(ColorOps.OVERLAY, 10, 20),
+            ColorProcessingSettings(ColorOps.MULTIPLY, 30, 40),
+            ColorProcessingSettings(ColorOps.COLOR, 50, 60),
+            ColorProcessingSettings(ColorOps.HARD_LIGHT, 70, 80),
+        )
+        settings = DEFAULT_RENDER_SETTINGS.with_processing_state(
+            ProcessingMode.PER_COLOR, global_processing, per_color
+        ).with_active_color_slot(ColorSlot.COLOR_3)
+        painter = SimpleNamespace(
+            render_settings=settings,
+            frame_color_op_option=SimpleNamespace(var=ValueVariable("Color")),
+            frame_sliders=SimpleNamespace(
+                brightness_slider=ValueVariable(50),
+                contrast_slider=ValueVariable(60),
+            ),
+            _processing_controls_refreshing=False,
+        )
+
+        state = ArmyPainter.get_current_pattern_processing(painter)
+
+        self.assertIs(state.processing_mode, ProcessingMode.PER_COLOR)
+        self.assertEqual(state.global_processing, global_processing)
+        self.assertEqual(state.per_color_processing, per_color)
+
     def test_widget_module_has_no_implicit_controller_lookup(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "widget.py").read_text(
             encoding="utf-8"

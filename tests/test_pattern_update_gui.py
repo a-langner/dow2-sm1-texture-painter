@@ -109,7 +109,7 @@ class PatternUpdateGuiTests(unittest.TestCase):
         update.assert_called_once_with(
             "Custom",
             UPDATED_COLORS,
-            processing=pattern_handler.DEFAULT_PATTERN_PROCESSING,
+            processing=pattern_handler.DEFAULT_PATTERN_PROCESSING_STATE,
         )
         self.assertIs(painter.frame_army_pattern.selection, selection)
         self.assertEqual(
