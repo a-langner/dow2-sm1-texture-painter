@@ -391,6 +391,8 @@ class ArmyPainter(tk.Tk):
         )
         self.label_team_color_mask_variant.pack(side=tk.LEFT, padx=(0, 4))
         self.team_color_mask_variant_name = tk.StringVar(master=self)
+        self.team_color_mask_variant_filename = tk.StringVar(master=self)
+        self._team_color_mask_variant_tooltip = None
         self.team_color_mask_variant_selector = ttk.Combobox(
             self.frame_team_color_mask_variant,
             textvariable=self.team_color_mask_variant_name,
@@ -398,6 +400,12 @@ class ArmyPainter(tk.Tk):
             width=12,
         )
         self.team_color_mask_variant_selector.pack(side=tk.LEFT)
+        self.team_color_mask_variant_selector.bind(
+            "<Enter>", self.show_team_color_mask_variant_tooltip
+        )
+        self.team_color_mask_variant_selector.bind(
+            "<Leave>", self.hide_team_color_mask_variant_tooltip
+        )
         ArmyPainter.sync_team_color_mask_variant_selector(self)
 
     def sync_team_color_mask_variant_selector(self):
@@ -412,6 +420,10 @@ class ArmyPainter(tk.Tk):
         self.team_color_mask_variant_name.set(
             active_variant.display_name if active_variant is not None else ""
         )
+        self.team_color_mask_variant_filename.set(
+            active_variant.filename if active_variant is not None else ""
+        )
+        ArmyPainter.hide_team_color_mask_variant_tooltip(self)
         if len(variants) >= 2:
             self.frame_team_color_mask_variant.pack(
                 side=tk.RIGHT,
@@ -420,6 +432,42 @@ class ArmyPainter(tk.Tk):
             )
         else:
             self.frame_team_color_mask_variant.pack_forget()
+
+    def show_team_color_mask_variant_tooltip(self, Event=None):
+        """Show the active mask's real filename without widening the toolbar."""
+        filename = self.team_color_mask_variant_filename.get()
+        if not filename:
+            return
+        ArmyPainter.hide_team_color_mask_variant_tooltip(self)
+        tooltip = tk.Toplevel(self)
+        tooltip.wm_overrideredirect(True)
+        if Event is None:
+            root_x = self.team_color_mask_variant_selector.winfo_rootx()
+            root_y = (
+                self.team_color_mask_variant_selector.winfo_rooty()
+                + self.team_color_mask_variant_selector.winfo_height()
+            )
+        else:
+            root_x = Event.x_root
+            root_y = Event.y_root
+        tooltip.wm_geometry(f"+{root_x + 12}+{root_y + 12}")
+        tk.Label(
+            tooltip,
+            text=filename,
+            justify=tk.LEFT,
+            relief=tk.SOLID,
+            borderwidth=1,
+            padx=6,
+            pady=3,
+        ).pack()
+        self._team_color_mask_variant_tooltip = tooltip
+
+    def hide_team_color_mask_variant_tooltip(self, Event=None):
+        """Remove the active-mask filename tooltip if it is visible."""
+        tooltip = getattr(self, "_team_color_mask_variant_tooltip", None)
+        if tooltip is not None:
+            tooltip.destroy()
+            self._team_color_mask_variant_tooltip = None
 
     def define_menu(self):
         menubar = tk.Menu(self)
@@ -600,6 +648,12 @@ class ArmyPainter(tk.Tk):
             self.frame_img, image=self.img_tem, relief=tk.RAISED
         )
         self.label_img_tem.pack(side=tk.LEFT, fill=tk.Y)
+        self.label_img_tem.bind(
+            "<Enter>", self.show_team_color_mask_variant_tooltip
+        )
+        self.label_img_tem.bind(
+            "<Leave>", self.hide_team_color_mask_variant_tooltip
+        )
 
     def open_batch_edit_tools(self, Event=None):
         if self.frame_batch_tools is not None and self.frame_batch_tools.winfo_exists():
