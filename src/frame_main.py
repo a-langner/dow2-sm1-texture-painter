@@ -43,8 +43,10 @@ from src.color_pattern_handler import (
     InvalidPatternError,
     PatternError,
     PatternNotFoundError,
+    PatternProcessing,
     UserPatternPersistenceError,
     get_pattern_colors,
+    get_pattern_processing,
     normalize_pattern_colors,
     pattern_colors_equal,
 )
@@ -109,6 +111,13 @@ from src.window_geometry import (
 from pathlib import Path
 
 from importlib.resources import as_file, files
+
+
+def _get_pattern_processing_or_default(name: str) -> PatternProcessing:
+    try:
+        return get_pattern_processing(name)
+    except PatternNotFoundError:
+        return src.color_pattern_handler.DEFAULT_PATTERN_PROCESSING
 
 VERSION = "0.1"
 PREVIEW_DEBOUNCE_MS = 120
@@ -316,6 +325,7 @@ class ArmyPainter(tk.Tk):
             file_selection=getattr(self, "file_selection", None),
             store=src.color_pattern_handler,
             get_colors=lambda name: get_pattern_colors(name),
+            get_processing=_get_pattern_processing_or_default,
             read_single=lambda path: read_pattern_file(path),
             persist_single_import=lambda pattern, **options: (
                 persist_imported_pattern(pattern, **options)
@@ -884,10 +894,29 @@ class ArmyPainter(tk.Tk):
         return True
 
     def _apply_pattern_colors(self, color_list, selection=None):
-        """Apply controller-provided colors while retaining GUI ownership."""
+        """Apply controller-provided colours and global processing."""
         for color, color_box in zip(color_list, self.frame_color_chooser.color_boxes):
             color_box["bg"] = color
         self.frame_color_chooser.draw_rgb_value()
+        if selection is not None:
+            try:
+                processing = get_pattern_processing(selection.name)
+            except PatternNotFoundError:
+                processing = None
+            if processing is not None:
+                self.render_settings = replace(
+                    self.render_settings,
+                    color_op=processing.blend_mode,
+                    brightness=processing.brightness,
+                    contrast=processing.contrast,
+                )
+                if hasattr(self, "frame_color_op_option"):
+                    self.frame_color_op_option.var.set(
+                        processing.blend_mode.display_name
+                    )
+                if hasattr(self, "frame_sliders"):
+                    self.frame_sliders.brightness_slider.set(processing.brightness)
+                    self.frame_sliders.contrast_slider.set(processing.contrast)
         self.update_pattern_action_states(selection)
         self.refresh_workspace()
 
@@ -1183,7 +1212,9 @@ class ArmyPainter(tk.Tk):
 
         try:
             result = ArmyPainter._pattern_workflows(self).save_new_pattern(
-                pattern_name, self.get_current_pattern_colors()
+                pattern_name,
+                self.get_current_pattern_colors(),
+                ArmyPainter.get_current_pattern_processing(self),
             )
         except PatternError as exc:
             self.dialogs.show_error(title="Cannot Save Pattern", message=str(exc))
@@ -1206,6 +1237,18 @@ class ArmyPainter(tk.Tk):
             color["bg"] for color in self.frame_color_chooser.color_boxes
         )
 
+    def get_current_pattern_processing(self) -> PatternProcessing:
+        """Return current global Pattern processing settings."""
+        if not hasattr(self, "frame_color_op_option") or not hasattr(
+            self, "frame_sliders"
+        ):
+            return src.color_pattern_handler.DEFAULT_PATTERN_PROCESSING
+        return PatternProcessing(
+            ColorOps.parse(self.frame_color_op_option.var.get()),
+            float(self.frame_sliders.brightness_slider.get()),
+            float(self.frame_sliders.contrast_slider.get()),
+        )
+
     def update_selected_pattern(self):
         """Replace the selected user Pattern with the current GUI colors."""
         selection = self.frame_army_pattern.get_selected_pattern()
@@ -1219,7 +1262,9 @@ class ArmyPainter(tk.Tk):
         try:
             current_colors = self.get_current_pattern_colors()
             colors_match = not ArmyPainter._pattern_workflows(self).pattern_is_modified(
-                pattern_name, current_colors
+                pattern_name,
+                current_colors,
+                ArmyPainter.get_current_pattern_processing(self),
             )
         except PatternError as exc:
             LOGGER.debug(
@@ -1245,7 +1290,9 @@ class ArmyPainter(tk.Tk):
 
         try:
             ArmyPainter._pattern_workflows(self).update_pattern(
-                pattern_name, current_colors
+                pattern_name,
+                current_colors,
+                ArmyPainter.get_current_pattern_processing(self),
             )
         except UserPatternPersistenceError as exc:
             LOGGER.exception("Could not update user Pattern '%s'", pattern_name)
@@ -1473,7 +1520,12 @@ class ArmyPainter(tk.Tk):
         try:
             current_colors = self.get_current_pattern_colors()
             stored_colors = get_pattern_colors(selection.name)
-            return not pattern_colors_equal(current_colors, stored_colors)
+            colors_changed = not pattern_colors_equal(current_colors, stored_colors)
+            processing_changed = (
+                ArmyPainter.get_current_pattern_processing(self)
+                != _get_pattern_processing_or_default(selection.name)
+            )
+            return colors_changed or processing_changed
         except PatternError:
             return False
 

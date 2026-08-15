@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
+import src.color_pattern_handler as pattern_handler
 from fake_dialog_gateway import make_dialog_gateway
 from src.color_pattern_handler import (
     PatternAlreadyExistsError,
@@ -98,7 +99,11 @@ class PatternDuplicateGuiTests(unittest.TestCase):
 
         ArmyPainter.duplicate_selected_pattern(painter)
 
-        save.assert_called_once_with("Duplicate", STORED_COLORS)
+        save.assert_called_once_with(
+            "Duplicate",
+            STORED_COLORS,
+            processing=pattern_handler.DEFAULT_PATTERN_PROCESSING,
+        )
         self.assertEqual(painter.frame_army_pattern.load_calls, ["Duplicate"])
         self.assertEqual(
             painter.frame_army_pattern.selection,

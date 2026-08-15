@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
+import src.color_pattern_handler as pattern_handler
 from fake_dialog_gateway import make_dialog_gateway
 from src.color_pattern_handler import (
     PatternNotFoundError,
@@ -105,7 +106,11 @@ class PatternUpdateGuiTests(unittest.TestCase):
 
         ArmyPainter.update_selected_pattern(painter)
 
-        update.assert_called_once_with("Custom", UPDATED_COLORS)
+        update.assert_called_once_with(
+            "Custom",
+            UPDATED_COLORS,
+            processing=pattern_handler.DEFAULT_PATTERN_PROCESSING,
+        )
         self.assertIs(painter.frame_army_pattern.selection, selection)
         self.assertEqual(
             [box["bg"] for box in painter.frame_color_chooser.color_boxes],

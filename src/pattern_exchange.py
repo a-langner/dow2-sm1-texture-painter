@@ -6,7 +6,7 @@ import re
 import tempfile
 from collections import OrderedDict
 from collections.abc import Iterable, Mapping
-from typing import NamedTuple, TypedDict
+from typing import NamedTuple, TypedDict, cast
 
 from src.color_pattern_handler import (
     ARMY_PATTERN_RESOURCE,
@@ -607,7 +607,8 @@ def export_pattern(name: str, destination: Path) -> None:
     if pattern is None:
         raise PatternNotFoundError(f"Pattern '{name}' does not exist")
 
-    document = create_pattern_exchange_document(name, pattern)
+    colors = {key: cast(str, pattern[key]) for key in color_key}
+    document = create_pattern_exchange_document(name, colors)
     _write_exchange_document(document, destination)
 
 
@@ -622,7 +623,7 @@ def export_user_pattern_collection(
         raise InvalidPatternCollectionNameError(str(exc)) from exc
 
     user_patterns = [
-        (name, pattern)
+        (name, {key: cast(str, pattern[key]) for key in color_key})
         for name, pattern in get_all_patterns().items()
         if is_user_pattern(name)
     ]

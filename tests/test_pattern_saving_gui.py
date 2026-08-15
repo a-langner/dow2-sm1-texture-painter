@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
+import src.color_pattern_handler as pattern_handler
 from fake_dialog_gateway import make_dialog_gateway
 from src.color_pattern_handler import (
     InvalidPatternError,
@@ -119,7 +120,9 @@ class PatternSavingGuiTests(unittest.TestCase):
         ArmyPainter.save_pattern(painter)
 
         save.assert_called_once_with(
-            name="Custom Pattern", colors=colors_before
+            name="Custom Pattern",
+            colors=colors_before,
+            processing=pattern_handler.DEFAULT_PATTERN_PROCESSING,
         )
         showerror.assert_not_called()
         self.assertEqual(painter.frame_army_pattern.load_count, 1)

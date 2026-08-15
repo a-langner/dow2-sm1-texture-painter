@@ -15,6 +15,8 @@ if TYPE_CHECKING:
     from importlib.resources.abc import Traversable
 
 from src.user_data import get_user_patterns_path
+from src.blend_mode import BlendMode
+from src.render_settings import DEFAULT_RENDER_SETTINGS
 
 RESOURCE_ROOT = resources.files("src.resources")
 ARMY_PATTERN_RESOURCE = RESOURCE_ROOT.joinpath("army_pattern.json")
@@ -27,14 +29,28 @@ color_key = [
     "tint_colour_name",
     "extra_colour_name",
 ]
+processing_key = ["blend_mode", "brightness", "contrast"]
 
 COLOR_VALUE_PATTERN = re.compile(r"^#[0-9a-fA-F]{6}$")
 LOGGER = logging.getLogger(__name__)
 
 PatternColors = list[str]
-StoredPattern = OrderedDict[str, str]
+StoredPattern = OrderedDict[str, object]
 PatternCollection = OrderedDict[str, StoredPattern]
-PatternInput = Mapping[str, str]
+PatternInput = Mapping[str, object]
+
+
+class PatternProcessing(NamedTuple):
+    blend_mode: BlendMode
+    brightness: float
+    contrast: float
+
+
+DEFAULT_PATTERN_PROCESSING = PatternProcessing(
+    DEFAULT_RENDER_SETTINGS.color_op,
+    DEFAULT_RENDER_SETTINGS.brightness,
+    DEFAULT_RENDER_SETTINGS.contrast,
+)
 
 
 class PatternError(ValueError):
@@ -226,6 +242,39 @@ def get_pattern_colors(name: str) -> PatternColors:
     return normalize_pattern_colors(colors)
 
 
+def get_pattern_processing(name: str) -> PatternProcessing:
+    """Return global processing, defaulting legacy or invalid stored values safely."""
+    normalized_name = normalize_pattern_name(name)
+    pattern = get_all_patterns().get(normalized_name)
+    if pattern is None:
+        raise PatternNotFoundError(f"Pattern '{normalized_name}' was not found")
+    if not all(key in pattern for key in processing_key):
+        return DEFAULT_PATTERN_PROCESSING
+    try:
+        mode = BlendMode.parse(pattern["blend_mode"])
+        stored_brightness = pattern["brightness"]
+        stored_contrast = pattern["contrast"]
+        if isinstance(stored_brightness, bool) or not isinstance(
+            stored_brightness, (int, float)
+        ):
+            raise ValueError("invalid brightness")
+        if isinstance(stored_contrast, bool) or not isinstance(
+            stored_contrast, (int, float)
+        ):
+            raise ValueError("invalid contrast")
+        brightness = float(stored_brightness)
+        contrast = float(stored_contrast)
+        if not 0.0 <= brightness <= 150.0 or not 0.0 <= contrast <= 200.0:
+            raise ValueError("processing level outside the supported range")
+    except (TypeError, ValueError):
+        LOGGER.warning(
+            "Pattern '%s' has invalid global processing; using defaults",
+            normalized_name,
+        )
+        return DEFAULT_PATTERN_PROCESSING
+    return PatternProcessing(mode, brightness, contrast)
+
+
 def pattern_colors_equal(
     first: Iterable[str],
     second: Iterable[str],
@@ -247,11 +296,14 @@ def _is_valid_pattern_collection(patterns: object) -> bool:
     for name, pattern in patterns.items():
         if not isinstance(name, str) or not name.strip():
             return False
-        if not isinstance(pattern, dict) or list(pattern) != color_key:
+        if not isinstance(pattern, dict) or list(pattern) not in (
+            color_key,
+            color_key + processing_key,
+        ):
             return False
         if not all(
             isinstance(color, str) and COLOR_VALUE_PATTERN.fullmatch(color)
-            for color in pattern.values()
+            for color in (pattern[key] for key in color_key)
         ):
             return False
 
@@ -301,6 +353,22 @@ def _validate_new_pattern(
         )
 
     return normalized_name, normalized_colors
+
+
+def _stored_pattern(
+    colors: PatternColors,
+    processing: PatternProcessing | None,
+) -> StoredPattern:
+    pattern: StoredPattern = OrderedDict(zip(color_key, colors))
+    if processing is not None:
+        pattern.update(
+            (
+                ("blend_mode", processing.blend_mode.value),
+                ("brightness", processing.brightness),
+                ("contrast", processing.contrast),
+            )
+        )
+    return pattern
 
 
 def _write_user_patterns(
@@ -361,6 +429,8 @@ def save(
     name: str,
     colors: Iterable[object],
     pattern_path: Path | None = None,
+    *,
+    processing: PatternProcessing | None = None,
 ) -> None:
     normalized_name, normalized_colors = _validate_new_pattern(name, colors)
     if pattern_path is None:
@@ -368,7 +438,7 @@ def save(
     pattern_path = Path(pattern_path)
     _ensure_user_pattern_file_is_writable(pattern_path)
 
-    pattern = OrderedDict(zip(color_key, normalized_colors))
+    pattern = _stored_pattern(normalized_colors, processing)
     updated_user_patterns = OrderedDict(user_color_patterns)
     updated_user_patterns[normalized_name] = pattern
 
@@ -401,7 +471,7 @@ def save_imported_pattern(
     pattern_path = Path(pattern_path)
     _ensure_user_pattern_file_is_writable(pattern_path)
 
-    pattern = OrderedDict(zip(color_key, normalized_colors))
+    pattern = _stored_pattern(normalized_colors, None)
     updated_user_patterns = OrderedDict(user_color_patterns)
     updated_user_patterns[normalized_name] = pattern
     _write_user_patterns(updated_user_patterns, pattern_path)
@@ -415,6 +485,8 @@ def update_user_pattern(
     name: str,
     colors: Iterable[object],
     pattern_path: Path | None = None,
+    *,
+    processing: PatternProcessing | None = None,
 ) -> str:
     """Atomically replace the colors of one existing user-created Pattern."""
     normalized_name = normalize_pattern_name(name)
@@ -433,7 +505,7 @@ def update_user_pattern(
     pattern_path = Path(pattern_path)
     _ensure_user_pattern_file_is_writable(pattern_path)
 
-    updated_pattern = OrderedDict(zip(color_key, normalized_colors))
+    updated_pattern = _stored_pattern(normalized_colors, processing)
     updated_user_patterns = OrderedDict(user_color_patterns)
     updated_user_patterns[normalized_name] = updated_pattern
     try:
@@ -507,7 +579,7 @@ def replace_user_patterns(
     pattern_path: Path | None = None,
 ) -> None:
     """Atomically replace the complete user collection after batch validation."""
-    normalized_patterns = OrderedDict()
+    normalized_patterns: PatternCollection = OrderedDict()
     for name, pattern in patterns.items():
         normalized_name = normalize_pattern_name(name)
         if normalized_name in builtin_color_patterns:
@@ -529,8 +601,19 @@ def replace_user_patterns(
                 f"User pattern '{normalized_name}' is missing color {exc.args[0]}"
             ) from exc
         normalized_colors = normalize_pattern_colors(colors)
-        normalized_patterns[normalized_name] = OrderedDict(
-            zip(color_key, normalized_colors)
+        processing = None
+        if all(key in pattern for key in processing_key):
+            try:
+                processing = PatternProcessing(
+                    BlendMode.parse(pattern["blend_mode"]),
+                    float(cast(int | float, pattern["brightness"])),
+                    float(cast(int | float, pattern["contrast"])),
+                )
+            except (TypeError, ValueError):
+                processing = DEFAULT_PATTERN_PROCESSING
+        normalized_patterns[normalized_name] = _stored_pattern(
+            normalized_colors,
+            processing,
         )
 
     if pattern_path is None:

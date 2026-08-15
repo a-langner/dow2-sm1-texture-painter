@@ -18,12 +18,16 @@ from src.color_pattern_handler import (
     UserPatternLoadIssue,
     USER_PATTERN_FORMAT,
     USER_PATTERN_VERSION,
+    DEFAULT_PATTERN_PROCESSING,
+    PatternProcessing,
     color_key,
     get_all_patterns,
     load_builtin_patterns,
     load_user_patterns,
     load_user_patterns_for_startup,
+    get_pattern_processing,
 )
+from src.blend_mode import BlendMode
 
 
 def pattern(primary="#111111"):
@@ -369,6 +373,49 @@ class ColorPatternSavingTests(unittest.TestCase):
             pattern_handler.ARMY_PATTERN_RESOURCE.read_bytes(),
             packaged_before,
         )
+
+    def test_all_blend_modes_and_global_levels_round_trip(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            for index, mode in enumerate(BlendMode):
+                processing = PatternProcessing(mode, 25.0 + index, 125.0 + index)
+                name = f"Mode {index}"
+                pattern_handler.save(
+                    name,
+                    self.colors(),
+                    pattern_path,
+                    processing=processing,
+                )
+
+            reloaded = load_user_patterns(pattern_path)
+            with patch.object(pattern_handler, "user_color_patterns", reloaded), patch.object(
+                pattern_handler,
+                "army_color_pattern",
+                OrderedDict(
+                    (*pattern_handler.builtin_color_patterns.items(), *reloaded.items())
+                ),
+            ):
+                for index, mode in enumerate(BlendMode):
+                    self.assertEqual(
+                        get_pattern_processing(f"Mode {index}"),
+                        PatternProcessing(mode, 25.0 + index, 125.0 + index),
+                    )
+
+    def test_legacy_and_invalid_processing_use_safe_defaults(self):
+        legacy = pattern()
+        invalid = pattern("#aaaaaa")
+        invalid.update(
+            (("blend_mode", "Difference"), ("brightness", 75), ("contrast", 100))
+        )
+        patterns = OrderedDict((("Legacy", legacy), ("Invalid", invalid)))
+        with patch.object(pattern_handler, "builtin_color_patterns", OrderedDict()), patch.object(
+            pattern_handler, "user_color_patterns", patterns
+        ):
+            self.assertEqual(get_pattern_processing("Legacy"), DEFAULT_PATTERN_PROCESSING)
+            with self.assertLogs(pattern_handler.LOGGER, level="WARNING"):
+                self.assertEqual(
+                    get_pattern_processing("Invalid"), DEFAULT_PATTERN_PROCESSING
+                )
 
 
 class ColorPatternDeletionTests(unittest.TestCase):

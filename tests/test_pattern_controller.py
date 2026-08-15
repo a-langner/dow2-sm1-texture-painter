@@ -31,11 +31,21 @@ class PathStore:
     def __init__(self, path):
         self.path = path
 
-    def save(self, name, colors):
-        return pattern_handler.save(name, colors, pattern_path=self.path)
+    def save(self, name, colors, *, processing=None):
+        return pattern_handler.save(
+            name,
+            colors,
+            pattern_path=self.path,
+            processing=processing,
+        )
 
-    def update_user_pattern(self, name, colors):
-        return pattern_handler.update_user_pattern(name, colors, pattern_path=self.path)
+    def update_user_pattern(self, name, colors, *, processing=None):
+        return pattern_handler.update_user_pattern(
+            name,
+            colors,
+            pattern_path=self.path,
+            processing=processing,
+        )
 
     def rename_user_pattern(self, old_name, new_name):
         return pattern_handler.rename_user_pattern(
