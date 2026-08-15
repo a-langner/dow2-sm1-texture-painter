@@ -238,6 +238,27 @@ class RenderSettingsTests(unittest.TestCase):
         )
         self.assertEqual(changed.global_processing, original.global_processing)
 
+    def test_distinct_slots_survive_per_color_global_per_color_switch(self):
+        color_one = ColorProcessingSettings(ColorOps.MULTIPLY, 60, 90)
+        color_two = ColorProcessingSettings(ColorOps.COLOR, 80, 110)
+        changed_color_one = ColorProcessingSettings(ColorOps.SCREEN, 65, 95)
+        settings = RenderSettings().with_processing_mode(
+            ProcessingMode.PER_COLOR
+        )
+        settings = settings.with_color_processing(0, color_one)
+        settings = settings.with_color_processing(1, color_two)
+
+        settings = settings.with_color_processing(0, changed_color_one)
+        settings = settings.with_processing_mode(ProcessingMode.GLOBAL)
+        settings = settings.with_processing_mode(ProcessingMode.PER_COLOR)
+
+        self.assertEqual(settings.per_color_processing[0], changed_color_one)
+        self.assertEqual(settings.per_color_processing[1], color_two)
+        self.assertEqual(
+            settings.per_color_processing[2:],
+            (ColorProcessingSettings(),) * 2,
+        )
+
     def test_active_processing_routes_to_global_or_selected_slot(self):
         global_processing = ColorProcessingSettings(ColorOps.OVERLAY, 75, 100)
         color_three = ColorProcessingSettings(ColorOps.COLOR, 80, 95)
