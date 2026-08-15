@@ -7,6 +7,83 @@ from src.render_settings import RenderSettings
 from src.texture_set import TextureSet
 
 
+def _luminosity(color: tuple[float, float, float]) -> float:
+    return 0.3 * color[0] + 0.59 * color[1] + 0.11 * color[2]
+
+
+def _clip_color(color: tuple[float, float, float]) -> tuple[float, float, float]:
+    luminosity = _luminosity(color)
+    minimum = min(color)
+    maximum = max(color)
+    clipped: tuple[float, float, float] = color
+    if minimum < 0.0:
+        clipped = (
+            luminosity
+            + ((clipped[0] - luminosity) * luminosity) / (luminosity - minimum),
+            luminosity
+            + ((clipped[1] - luminosity) * luminosity) / (luminosity - minimum),
+            luminosity
+            + ((clipped[2] - luminosity) * luminosity) / (luminosity - minimum),
+        )
+    maximum = max(clipped)
+    if maximum > 1.0:
+        clipped = (
+            luminosity
+            + ((clipped[0] - luminosity) * (1.0 - luminosity))
+            / (maximum - luminosity),
+            luminosity
+            + ((clipped[1] - luminosity) * (1.0 - luminosity))
+            / (maximum - luminosity),
+            luminosity
+            + ((clipped[2] - luminosity) * (1.0 - luminosity))
+            / (maximum - luminosity),
+        )
+    return (
+        max(0.0, min(1.0, clipped[0])),
+        max(0.0, min(1.0, clipped[1])),
+        max(0.0, min(1.0, clipped[2])),
+    )
+
+
+def _set_luminosity(
+    color: tuple[float, float, float],
+    luminosity: float,
+) -> tuple[float, float, float]:
+    difference = luminosity - _luminosity(color)
+    return _clip_color(
+        (
+            color[0] + difference,
+            color[1] + difference,
+            color[2] + difference,
+        )
+    )
+
+
+def _color_blend(base: Image.Image, blend: tuple[int, int, int]) -> Image.Image:
+    """Apply the standard non-separable Color blend to one solid colour."""
+    normalized_blend = (
+        blend[0] / 255.0,
+        blend[1] / 255.0,
+        blend[2] / 255.0,
+    )
+    output_by_luminosity = [
+        _set_luminosity(normalized_blend, luminosity / 255.0)
+        for luminosity in range(256)
+    ]
+    luminosity = base.convert("RGB").convert(
+        "L",
+        matrix=(0.3, 0.59, 0.11, 0.0),
+    )
+    channels = tuple(
+        luminosity.point(
+            [int(color[channel_index] * 255.0 + 0.5) for color in output_by_luminosity]
+        )
+        for channel_index in range(3)
+    )
+    alpha = base.getchannel("A")
+    return Image.merge("RGBA", (*channels, alpha))
+
+
 def _team_channels(textures: TextureSet) -> tuple[Image.Image, ...]:
     team_color = textures.team_color
     if team_color is None or team_color.mode not in ("RGB", "RGBA"):
@@ -63,6 +140,8 @@ def _apply_team_colors(
             new_img = ImageChops.soft_light(gray_img, color_img)
         elif settings.color_op is ColorOps.HARD_LIGHT:
             new_img = ImageChops.hard_light(gray_img, color_img)
+        elif settings.color_op is ColorOps.COLOR:
+            new_img = _color_blend(gray_img, (rgb[0], rgb[1], rgb[2]))
         else:
             raise ValueError(
                 f"Blend mode is not implemented yet: {settings.color_op.value}"

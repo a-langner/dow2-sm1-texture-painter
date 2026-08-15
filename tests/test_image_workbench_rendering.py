@@ -295,6 +295,12 @@ class TextureRenderingBaselineTests(unittest.TestCase):
                 (32, 64, 96, 255),
                 (208, 81, 40, 255),
             ),
+            ColorOps.COLOR.value: (
+                (0, 0, 0, 255),
+                (255, 255, 255, 255),
+                (32, 64, 96, 255),
+                (211, 93, 56, 255),
+            ),
         }
 
         for operation, expected in expected_by_operation.items():
@@ -446,6 +452,68 @@ class TextureRenderingBaselineTests(unittest.TestCase):
                     TextureRenderer().render(textures, settings).getpixel((0, 0)),
                     expected,
                 )
+
+    def test_color_mode_recolors_gray_while_preserving_luminosity(self):
+        diffuse = image_from_pixels(
+            "RGBA",
+            (
+                (32, 32, 32, 255),
+                (96, 96, 96, 255),
+                (160, 160, 160, 255),
+                (224, 224, 224, 255),
+            ),
+        )
+        full = Image.new("L", (2, 2), 255)
+        empty = Image.new("L", (2, 2), 0)
+        textures = TextureSet(
+            diffuse,
+            Image.merge("RGBA", (full, empty, empty, empty)),
+        )
+        settings = RenderSettings(
+            primary_color="#ff0000",
+            brightness=100,
+            contrast=100,
+            color_op=ColorOps.COLOR,
+        )
+
+        actual = pixels(TextureRenderer().render(textures, settings))
+        self.assertEqual(
+            actual,
+            (
+                (107, 0, 0, 255),
+                (255, 28, 28, 255),
+                (255, 119, 119, 255),
+                (255, 211, 211, 255),
+            ),
+        )
+        for base, result in zip((32, 96, 160, 224), actual):
+            result_luminosity = (
+                0.3 * result[0] + 0.59 * result[1] + 0.11 * result[2]
+            )
+            self.assertAlmostEqual(result_luminosity, base, delta=1.0)
+
+    def test_color_mode_grayscale_and_black_white_inputs_are_stable(self):
+        diffuse = Image.new("RGBA", (1, 1), (40, 120, 200, 255))
+        full = Image.new("L", (1, 1), 255)
+        empty = Image.new("L", (1, 1), 0)
+        textures = TextureSet(
+            diffuse,
+            Image.merge("RGBA", (full, empty, empty, empty)),
+        )
+        for colour in ("#000000", "#7f7f7f", "#ffffff", "#808081"):
+            with self.subTest(colour=colour):
+                settings = RenderSettings(
+                    primary_color=colour,
+                    brightness=100,
+                    contrast=100,
+                    color_op=ColorOps.COLOR,
+                )
+                result = TextureRenderer().render(textures, settings).getpixel((0, 0))
+                self.assertTrue(all(0 <= channel <= 255 for channel in result))
+                self.assertEqual(result[3], 255)
+                if colour != "#808081":
+                    self.assertEqual(result[0], result[1])
+                    self.assertEqual(result[1], result[2])
 
     def make_optional_maps_workbench(self):
         workbench = self.make_workbench()

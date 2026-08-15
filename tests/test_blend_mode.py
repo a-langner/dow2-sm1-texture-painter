@@ -48,5 +48,6 @@ class BlendModeTests(unittest.TestCase):
                 BlendMode.OVERLAY,
                 BlendMode.SOFT_LIGHT,
                 BlendMode.HARD_LIGHT,
+                BlendMode.COLOR,
             ),
         )
