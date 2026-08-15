@@ -1,12 +1,15 @@
 import threading
+import tempfile
 import unittest
 from concurrent.futures import Future
+from pathlib import Path
 
 from PIL import Image
 
 import test_support  # noqa: F401 - installs the user-data path redirect
-from src.preview_controller import PreviewController, PreviewRequest
+from src.preview_controller import PreviewController, PreviewRequest, render_preview
 from src.render_settings import RenderSettings
+from src.texture_loading_service import TextureLoadingService
 from src.texture_renderer import TextureRenderer
 from src.texture_set import TextureSet
 
@@ -290,6 +293,57 @@ class PreviewControllerTests(unittest.TestCase):
         self.assertEqual(self.results[0].workspace.size, (32, 16))
         self.assertEqual(diffuse.tobytes(), diffuse_before)
         self.assertEqual(team_color.tobytes(), team_before)
+
+    def test_variant_switch_refreshes_preview_and_restores_default_exactly(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            diffuse_path = root / "unit_dif.png"
+            default_path = root / "unit_tem.png"
+            variant_path = root / "unit_tem_2.png"
+            Image.new("RGBA", (4, 2), "gray").save(diffuse_path)
+            default_mask = Image.new("RGBA", (4, 2), (0, 0, 0, 0))
+            default_mask.putpixel((0, 0), (255, 0, 0, 0))
+            default_mask.putpixel((1, 1), (0, 0, 0, 255))
+            default_mask.save(default_path)
+            variant_mask = Image.new("RGBA", (4, 2), (0, 0, 0, 0))
+            variant_mask.putpixel((3, 0), (0, 255, 0, 0))
+            variant_mask.putpixel((2, 1), (0, 0, 255, 0))
+            variant_mask.save(variant_path)
+
+            service = TextureLoadingService()
+            loaded = service.load_diffuse_and_companions(diffuse_path)
+            settings = RenderSettings(tem_selected=(0, 1, 2, 3))
+            default_preview = render_preview(
+                TextureRenderer(),
+                PreviewRequest(loaded.texture_set.copy_for_render(), settings),
+            ).team_colour
+
+            switched = service.load_channel_file(
+                loaded.texture_set,
+                loaded.available_team_color_mask_variants[1].path,
+            )
+            variant_preview = render_preview(
+                TextureRenderer(),
+                PreviewRequest(switched.texture_set.copy_for_render(), settings),
+            ).team_colour
+
+            restored = service.load_channel_file(
+                switched.texture_set,
+                loaded.available_team_color_mask_variants[0].path,
+            )
+            restored_preview = render_preview(
+                TextureRenderer(),
+                PreviewRequest(restored.texture_set.copy_for_render(), settings),
+            ).team_colour
+
+        self.assertEqual(default_preview.mode, "L")
+        self.assertEqual(variant_preview.mode, "L")
+        self.assertEqual(default_preview.size, (4, 2))
+        self.assertEqual(variant_preview.size, (4, 2))
+        self.assertEqual(default_preview.getpixel((0, 0)), 255)
+        self.assertEqual(variant_preview.getpixel((3, 0)), 255)
+        self.assertNotEqual(variant_preview.tobytes(), default_preview.tobytes())
+        self.assertEqual(restored_preview.tobytes(), default_preview.tobytes())
 
     def test_controller_has_no_workbench_or_cached_output_path(self):
         import inspect
