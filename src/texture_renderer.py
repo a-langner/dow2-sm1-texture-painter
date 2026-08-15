@@ -59,6 +59,8 @@ def _apply_team_colors(
             new_img = ImageChops.multiply(gray_img, color_img)
         elif settings.color_op is ColorOps.SCREEN:
             new_img = ImageChops.screen(gray_img, color_img)
+        elif settings.color_op is ColorOps.SOFT_LIGHT:
+            new_img = ImageChops.soft_light(gray_img, color_img)
         else:
             raise ValueError(
                 f"Blend mode is not implemented yet: {settings.color_op.value}"

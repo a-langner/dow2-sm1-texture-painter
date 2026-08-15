@@ -46,5 +46,6 @@ class BlendModeTests(unittest.TestCase):
                 BlendMode.MULTIPLY,
                 BlendMode.SCREEN,
                 BlendMode.OVERLAY,
+                BlendMode.SOFT_LIGHT,
             ),
         )

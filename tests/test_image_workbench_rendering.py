@@ -283,6 +283,12 @@ class TextureRenderingBaselineTests(unittest.TestCase):
                 (32, 64, 96, 255),
                 (190, 78, 39, 255),
             ),
+            ColorOps.SOFT_LIGHT.value: (
+                (0, 0, 0, 255),
+                (255, 255, 255, 255),
+                (32, 64, 96, 255),
+                (206, 88, 42, 255),
+            ),
         }
 
         for operation, expected in expected_by_operation.items():
@@ -347,6 +353,42 @@ class TextureRenderingBaselineTests(unittest.TestCase):
             TextureRenderer().render(textures, settings).getpixel((0, 0)),
             (50, 75, 100, 0),
         )
+
+    def test_soft_light_known_values_include_edges_and_asymmetric_inputs(self):
+        diffuse = image_from_pixels(
+            "RGBA",
+            (
+                (0, 0, 0, 255),
+                (64, 64, 64, 255),
+                (128, 128, 128, 255),
+                (255, 255, 255, 255),
+            ),
+        )
+        full = Image.new("L", (2, 2), 255)
+        empty = Image.new("L", (2, 2), 0)
+        textures = TextureSet(
+            diffuse,
+            Image.merge("RGBA", (full, empty, empty, empty)),
+        )
+
+        expected_by_colour = {
+            "#000000": (0, 16, 64, 255),
+            "#c0c0c0": (0, 87, 159, 255),
+            "#ffffff": (0, 111, 191, 255),
+        }
+        for colour, expected in expected_by_colour.items():
+            with self.subTest(colour=colour):
+                settings = RenderSettings(
+                    primary_color=colour,
+                    brightness=100,
+                    contrast=100,
+                    color_op=ColorOps.SOFT_LIGHT,
+                )
+                actual = pixels(TextureRenderer().render(textures, settings))
+                self.assertEqual(tuple(pixel[0] for pixel in actual), expected)
+                self.assertTrue(
+                    all(0 <= channel <= 255 for pixel in actual for channel in pixel)
+                )
 
     def make_optional_maps_workbench(self):
         workbench = self.make_workbench()
