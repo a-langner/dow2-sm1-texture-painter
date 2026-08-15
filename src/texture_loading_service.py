@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 import logging
 from pathlib import Path
+import re
 
 from src.constant import OPEN_EXT_LIST
 from src.image_process import (
@@ -11,6 +12,7 @@ from src.image_process import (
     load_optional_texture,
     load_team_colour_texture,
 )
+from src.team_color_mask_variant import TeamColorMaskVariant
 from src.texture_naming import (
     DEFAULT_TEXTURE_NAMING,
     TEXTURE_NAMING_PROFILES,
@@ -103,6 +105,52 @@ def find_companion_texture(
     return None
 
 
+def discover_team_color_mask_variants(
+    diffuse_filepath: Path,
+    profile: TextureNamingProfile = DEFAULT_TEXTURE_NAMING,
+) -> tuple[TeamColorMaskVariant, ...]:
+    """Discover exact default and numbered mask siblings for one diffuse."""
+    diffuse_path = diffuse_filepath
+    default_path = replace_texture_suffix(
+        diffuse_path,
+        TextureKind.DIFFUSE,
+        TextureKind.TEAM_COLOR,
+        profile,
+    )
+    if default_path is None:
+        return ()
+
+    stem_pattern = re.compile(
+        rf"^{re.escape(default_path.stem)}(?:_([1-9]\d*))?$",
+        re.IGNORECASE,
+    )
+    extension = diffuse_path.suffix.casefold()
+    variants: list[TeamColorMaskVariant] = []
+    for candidate in diffuse_path.parent.iterdir():
+        if not candidate.is_file() or candidate.suffix.casefold() != extension:
+            continue
+        match = stem_pattern.fullmatch(candidate.stem)
+        if match is None:
+            continue
+        numbered_suffix = match.group(1)
+        variants.append(
+            TeamColorMaskVariant(
+                int(numbered_suffix) if numbered_suffix is not None else None,
+                candidate,
+            )
+        )
+    return tuple(
+        sorted(
+            variants,
+            key=lambda variant: (
+                variant.sort_key,
+                variant.filename.casefold(),
+                variant.filename,
+            ),
+        )
+    )
+
+
 def detect_texture_naming_profile(
     diffuse_filepath: Path,
     profiles: tuple[TextureNamingProfile, ...] = TEXTURE_NAMING_PROFILES,
@@ -111,12 +159,7 @@ def detect_texture_naming_profile(
     matches = tuple(
         profile
         for profile in profiles
-        if find_companion_texture(
-            diffuse_filepath,
-            TextureKind.TEAM_COLOR,
-            profile,
-        )
-        is not None
+        if discover_team_color_mask_variants(diffuse_filepath, profile)
     )
     return matches[0] if len(matches) == 1 else None
 
