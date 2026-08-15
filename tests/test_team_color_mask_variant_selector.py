@@ -122,6 +122,9 @@ class TeamColorMaskVariantSelectorTests(unittest.TestCase):
         painter.dialogs = Mock()
         painter.render_settings = render_settings
         painter.selected_pattern = selected_pattern
+        painter.pattern_controller = Mock()
+        color_boxes = [{"bg": color} for color in ("one", "two", "three", "four")]
+        painter.frame_color_chooser = SimpleNamespace(color_boxes=color_boxes)
 
         ArmyPainter.select_team_color_mask_variant(painter)
 
@@ -132,6 +135,11 @@ class TeamColorMaskVariantSelectorTests(unittest.TestCase):
         self.assertIs(painter.active_team_color_mask_variant, numbered)
         self.assertIs(painter.render_settings, render_settings)
         self.assertIs(painter.selected_pattern, selected_pattern)
+        self.assertEqual(
+            [color_box["bg"] for color_box in color_boxes],
+            ["one", "two", "three", "four"],
+        )
+        painter.pattern_controller.assert_not_called()
         painter.preview_controller.invalidate.assert_called_once_with()
         painter.select_channel.assert_called_once_with()
         painter.dialogs.show_error.assert_not_called()
@@ -168,6 +176,39 @@ class TeamColorMaskVariantSelectorTests(unittest.TestCase):
         painter.team_color_mask_variant_name.set.assert_called_with("Default")
         painter.team_color_mask_variant_filename.set.assert_called_with(
             "marine_tem.dds"
+        )
+
+    def test_applying_pattern_colors_does_not_change_active_variant(self):
+        default = TeamColorMaskVariant(None, Path("marine_tem.dds"))
+        numbered = TeamColorMaskVariant(2, Path("marine_tem_2.dds"))
+        textures = Mock(spec=TextureSet)
+        color_boxes = [{"bg": "old"} for _ in range(4)]
+        painter = SimpleNamespace(
+            available_team_color_mask_variants=(default, numbered),
+            active_team_color_mask_variant=numbered,
+            active_texture_set=textures,
+            frame_color_chooser=SimpleNamespace(
+                color_boxes=color_boxes,
+                draw_rgb_value=Mock(),
+            ),
+            update_pattern_action_states=Mock(),
+            refresh_workspace=Mock(),
+        )
+
+        ArmyPainter._apply_pattern_colors(
+            painter,
+            ["#111111", "#222222", "#333333", "#444444"],
+        )
+
+        self.assertIs(painter.active_team_color_mask_variant, numbered)
+        self.assertEqual(
+            painter.available_team_color_mask_variants,
+            (default, numbered),
+        )
+        self.assertIs(painter.active_texture_set, textures)
+        self.assertEqual(
+            [color_box["bg"] for color_box in color_boxes],
+            ["#111111", "#222222", "#333333", "#444444"],
         )
 
 

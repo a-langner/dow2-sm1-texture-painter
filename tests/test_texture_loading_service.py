@@ -214,6 +214,20 @@ class TextureLoadingServiceTests(unittest.TestCase):
         self.assertEqual(result.team_color_mask_path, second.resolve())
         self.assertIsNotNone(result.texture_set.team_color)
 
+    def test_new_diffuse_load_prefers_default_over_numbered_variants(self):
+        diffuse = self.root / "marine_dif.png"
+        default = self.root / "marine_tem.png"
+        second = self.root / "marine_tem_2.png"
+        save_image(diffuse)
+        save_image(default, color=(10, 20, 30, 255))
+        save_image(second, color=(40, 50, 60, 255))
+
+        result = self.service.load_diffuse_and_companions(diffuse)
+
+        self.assertTrue(result.active_team_color_mask_variant.is_default)
+        self.assertEqual(result.team_color_mask_path, default.resolve())
+        self.assertEqual(result.texture_set.team_color.getpixel((0, 0)), (10, 20, 30, 255))
+
     def test_discovery_failure_returns_no_partial_texture_set(self):
         diffuse = self.root / "marine_dif.png"
         save_image(diffuse)
