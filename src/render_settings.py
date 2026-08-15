@@ -165,6 +165,38 @@ class RenderSettings:
             settings = settings.initialize_per_color_processing()
         return replace(settings, processing_mode=mode)
 
+    def with_processing_state(
+        self,
+        mode: ProcessingMode,
+        global_processing: ColorProcessingSettings,
+        per_color_processing: PerColorProcessingSettings,
+    ) -> "RenderSettings":
+        """Restore both processing contexts from asset-independent state."""
+        if not isinstance(mode, ProcessingMode):
+            raise TypeError("mode must be a ProcessingMode value.")
+        if not isinstance(global_processing, ColorProcessingSettings):
+            raise TypeError(
+                "global_processing must be a ColorProcessingSettings value."
+            )
+        if not isinstance(per_color_processing, tuple) or len(
+            per_color_processing
+        ) != 4 or not all(
+            isinstance(settings, ColorProcessingSettings)
+            for settings in per_color_processing
+        ):
+            raise TypeError(
+                "per_color_processing must contain four settings values."
+            )
+        return replace(
+            self,
+            processing_mode=mode,
+            color_op=global_processing.blend_mode,
+            brightness=global_processing.brightness,
+            contrast=global_processing.contrast,
+            per_color_processing=per_color_processing,
+            _per_color_processing_initialized=True,
+        )
+
     def with_active_color_slot(self, slot: ColorSlot) -> "RenderSettings":
         """Select an editing slot without changing colours or processing."""
         if not isinstance(slot, ColorSlot):

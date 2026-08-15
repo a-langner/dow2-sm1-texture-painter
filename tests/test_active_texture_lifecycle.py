@@ -5,8 +5,11 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
+from src.color_processing_settings import ColorProcessingSettings
+from src.constant import ColorOps
 from src.frame_main import ArmyPainter
 from src.preview_controller import PreviewController
+from src.processing_mode import ProcessingMode
 from src.render_settings import DEFAULT_RENDER_SETTINGS
 from src.texture_set import TextureSet
 from src.team_color_mask_variant import TeamColorMaskVariant
@@ -121,6 +124,44 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
         )
 
         painter.refresh_workspace.assert_called_once_with()
+
+    def test_builtin_pattern_restores_global_default_processing(self):
+        import src.color_pattern_handler as pattern_handler
+
+        builtin_name = next(iter(pattern_handler.builtin_color_patterns))
+        settings = DEFAULT_RENDER_SETTINGS.with_processing_mode(
+            ProcessingMode.PER_COLOR
+        ).with_color_processing(
+            0, ColorProcessingSettings(ColorOps.HARD_LIGHT, 25.0, 150.0)
+        )
+        painter = SimpleNamespace(
+            render_settings=settings,
+            frame_color_chooser=SimpleNamespace(
+                color_boxes=[{"bg": None} for _ in range(4)],
+                draw_rgb_value=Mock(),
+            ),
+            update_pattern_action_states=Mock(),
+            refresh_workspace=Mock(),
+        )
+
+        ArmyPainter._apply_pattern_colors(
+            painter,
+            pattern_handler.get_pattern_colors(builtin_name),
+            SimpleNamespace(name=builtin_name),
+        )
+
+        self.assertIs(
+            painter.render_settings.processing_mode,
+            ProcessingMode.GLOBAL,
+        )
+        self.assertEqual(
+            painter.render_settings.global_processing,
+            ColorProcessingSettings(ColorOps.OVERLAY, 75.0, 100.0),
+        )
+        self.assertEqual(
+            painter.render_settings.per_color_processing,
+            (painter.render_settings.global_processing,) * 4,
+        )
 
     def test_startup_reset_without_texture_never_submits_preview(self):
         painter = SimpleNamespace(

@@ -477,6 +477,20 @@ class ColorPatternSavingTests(unittest.TestCase):
         self.assertEqual(state.global_processing, expected)
         self.assertEqual(state.per_color_processing, (expected,) * 4)
 
+    def test_every_builtin_pattern_resolves_to_unchanged_global_defaults(self):
+        for name in pattern_handler.builtin_color_patterns:
+            with self.subTest(pattern=name):
+                state = get_pattern_processing_state(name)
+                self.assertIs(state.processing_mode, ProcessingMode.GLOBAL)
+                self.assertEqual(
+                    state.global_processing,
+                    ColorProcessingSettings(BlendMode.OVERLAY, 75.0, 100.0),
+                )
+                self.assertEqual(
+                    state.per_color_processing,
+                    (state.global_processing,) * 4,
+                )
+
 
 class ColorPatternDeletionTests(unittest.TestCase):
     def setUp(self):

@@ -47,6 +47,7 @@ from src.color_pattern_handler import (
     UserPatternPersistenceError,
     get_pattern_colors,
     get_pattern_processing,
+    get_pattern_processing_state,
     normalize_pattern_colors,
     pattern_colors_equal,
 )
@@ -973,21 +974,20 @@ class ArmyPainter(tk.Tk):
         return True
 
     def _apply_pattern_colors(self, color_list, selection=None):
-        """Apply controller-provided colours and global processing."""
+        """Apply controller-provided colours and stored processing state."""
         for color, color_box in zip(color_list, self.frame_color_chooser.color_boxes):
             color_box["bg"] = color
         self.frame_color_chooser.draw_rgb_value()
         if selection is not None:
             try:
-                processing = get_pattern_processing(selection.name)
+                processing = get_pattern_processing_state(selection.name)
             except PatternNotFoundError:
                 processing = None
             if processing is not None:
-                self.render_settings = replace(
-                    self.render_settings,
-                    color_op=processing.blend_mode,
-                    brightness=processing.brightness,
-                    contrast=processing.contrast,
+                self.render_settings = self.render_settings.with_processing_state(
+                    processing.processing_mode,
+                    processing.global_processing,
+                    processing.per_color_processing,
                 )
                 ArmyPainter.refresh_processing_controls(self)
         self.update_pattern_action_states(selection)

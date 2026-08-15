@@ -173,6 +173,24 @@ class RenderSettingsTests(unittest.TestCase):
         self.assertEqual(settings.per_color_processing, per_color)
         self.assertTrue(settings.per_color_processing_initialized)
 
+    def test_complete_processing_state_can_be_restored_atomically(self):
+        global_processing = ColorProcessingSettings(ColorOps.SCREEN, 80, 120)
+        per_color = (
+            ColorProcessingSettings(ColorOps.OVERLAY, 10, 20),
+            ColorProcessingSettings(ColorOps.MULTIPLY, 30, 40),
+            ColorProcessingSettings(ColorOps.COLOR, 50, 60),
+            ColorProcessingSettings(ColorOps.HARD_LIGHT, 70, 80),
+        )
+
+        restored = RenderSettings().with_processing_state(
+            ProcessingMode.PER_COLOR, global_processing, per_color
+        )
+
+        self.assertIs(restored.processing_mode, ProcessingMode.PER_COLOR)
+        self.assertEqual(restored.global_processing, global_processing)
+        self.assertEqual(restored.per_color_processing, per_color)
+        self.assertTrue(restored.per_color_processing_initialized)
+
     def test_first_per_color_use_copies_then_current_global_values(self):
         global_processing = ColorProcessingSettings(
             ColorOps.HARD_LIGHT,
