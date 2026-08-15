@@ -53,4 +53,5 @@ IMPLEMENTED_BLEND_MODES = (
     BlendMode.SCREEN,
     BlendMode.OVERLAY,
     BlendMode.SOFT_LIGHT,
+    BlendMode.HARD_LIGHT,
 )

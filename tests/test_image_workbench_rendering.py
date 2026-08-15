@@ -289,6 +289,12 @@ class TextureRenderingBaselineTests(unittest.TestCase):
                 (32, 64, 96, 255),
                 (206, 88, 42, 255),
             ),
+            ColorOps.HARD_LIGHT.value: (
+                (153, 0, 0, 255),
+                (255, 255, 255, 255),
+                (32, 64, 96, 255),
+                (208, 81, 40, 255),
+            ),
         }
 
         for operation, expected in expected_by_operation.items():
@@ -388,6 +394,57 @@ class TextureRenderingBaselineTests(unittest.TestCase):
                 self.assertEqual(tuple(pixel[0] for pixel in actual), expected)
                 self.assertTrue(
                     all(0 <= channel <= 255 for pixel in actual for channel in pixel)
+                )
+
+    def test_hard_light_branches_on_blend_and_differs_from_overlay(self):
+        diffuse = Image.new("RGBA", (1, 1), (64, 192, 50, 255))
+        full = Image.new("L", (1, 1), 255)
+        empty = Image.new("L", (1, 1), 0)
+        textures = TextureSet(
+            diffuse,
+            Image.merge("RGBA", (full, empty, empty, empty)),
+        )
+        common = {
+            "primary_color": "#c040c8",
+            "brightness": 100,
+            "contrast": 100,
+        }
+
+        hard_light = TextureRenderer().render(
+            textures,
+            RenderSettings(color_op=ColorOps.HARD_LIGHT, **common),
+        )
+        overlay = TextureRenderer().render(
+            textures,
+            RenderSettings(color_op=ColorOps.OVERLAY, **common),
+        )
+
+        self.assertEqual(hard_light.getpixel((0, 0)), (161, 96, 167, 255))
+        self.assertEqual(overlay.getpixel((0, 0)), (96, 161, 78, 255))
+        self.assertNotEqual(pixels(hard_light), pixels(overlay))
+
+    def test_hard_light_clamps_black_and_white_blend_edges(self):
+        diffuse = Image.new("RGBA", (1, 1), (50, 128, 200, 255))
+        full = Image.new("L", (1, 1), 255)
+        empty = Image.new("L", (1, 1), 0)
+        textures = TextureSet(
+            diffuse,
+            Image.merge("RGBA", (full, empty, empty, empty)),
+        )
+        for colour, expected in (
+            ("#000000", (0, 0, 0, 255)),
+            ("#ffffff", (255, 255, 255, 255)),
+        ):
+            with self.subTest(colour=colour):
+                settings = RenderSettings(
+                    primary_color=colour,
+                    brightness=100,
+                    contrast=100,
+                    color_op=ColorOps.HARD_LIGHT,
+                )
+                self.assertEqual(
+                    TextureRenderer().render(textures, settings).getpixel((0, 0)),
+                    expected,
                 )
 
     def make_optional_maps_workbench(self):
