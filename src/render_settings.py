@@ -53,6 +53,10 @@ class RenderSettings:
     per_color_processing: PerColorProcessingSettings = field(
         default_factory=_default_per_color_processing
     )
+    _per_color_processing_initialized: bool = field(
+        default=False,
+        repr=False,
+    )
 
     def __post_init__(self) -> None:
         for field_name, value in zip(
@@ -94,6 +98,10 @@ class RenderSettings:
             raise TypeError(
                 "per_color_processing must contain ColorProcessingSettings values."
             )
+        if not isinstance(self._per_color_processing_initialized, bool):
+            raise TypeError(
+                "_per_color_processing_initialized must be a boolean."
+            )
         if not isinstance(self.tem_selected, tuple) or not all(
             isinstance(index, int) and not isinstance(index, bool)
             for index in self.tem_selected
@@ -123,9 +131,28 @@ class RenderSettings:
             contrast=self.contrast,
         )
 
+    @property
+    def per_color_processing_initialized(self) -> bool:
+        """Report whether the lazy per-colour values have been established."""
+        return self._per_color_processing_initialized
+
+    def initialize_per_color_processing(self) -> "RenderSettings":
+        """Copy current Global values to all slots exactly once."""
+        if self._per_color_processing_initialized:
+            return self
+        initial: PerColorProcessingSettings = (self.global_processing,) * 4
+        return replace(
+            self,
+            per_color_processing=initial,
+            _per_color_processing_initialized=True,
+        )
+
     def with_processing_mode(self, mode: ProcessingMode) -> "RenderSettings":
         """Switch context without changing either retained settings set."""
-        return replace(self, processing_mode=mode)
+        settings = self
+        if mode is ProcessingMode.PER_COLOR:
+            settings = settings.initialize_per_color_processing()
+        return replace(settings, processing_mode=mode)
 
     def with_global_processing(
         self, settings: ColorProcessingSettings
@@ -152,7 +179,8 @@ class RenderSettings:
             raise ValueError("slot_index must be between 0 and 3.")
         if not isinstance(settings, ColorProcessingSettings):
             raise TypeError("settings must be a ColorProcessingSettings value.")
-        per_color = list(self.per_color_processing)
+        initialized = self.initialize_per_color_processing()
+        per_color = list(initialized.per_color_processing)
         per_color[slot_index] = settings
         updated: PerColorProcessingSettings = (
             per_color[0],
@@ -160,7 +188,11 @@ class RenderSettings:
             per_color[2],
             per_color[3],
         )
-        return replace(self, per_color_processing=updated)
+        return replace(
+            initialized,
+            per_color_processing=updated,
+            _per_color_processing_initialized=True,
+        )
 
 
 DEFAULT_RENDER_SETTINGS = RenderSettings()

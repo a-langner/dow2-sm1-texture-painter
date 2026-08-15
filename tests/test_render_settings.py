@@ -39,6 +39,7 @@ class RenderSettingsTests(unittest.TestCase):
             (ColorProcessingSettings(),) * 4,
         )
         self.assertEqual(settings.global_processing, ColorProcessingSettings())
+        self.assertFalse(settings.per_color_processing_initialized)
         self.assertEqual(settings.tem_selected, ())
         self.assertEqual(settings, DEFAULT_RENDER_SETTINGS)
 
@@ -136,8 +137,9 @@ class RenderSettingsTests(unittest.TestCase):
             ColorProcessingSettings(ColorOps.SOFT_LIGHT, 70, 105),
             ColorProcessingSettings(ColorOps.OVERLAY, 75, 100),
         )
-        settings = RenderSettings(per_color_processing=per_color)
-        settings = settings.with_global_processing(global_processing)
+        settings = RenderSettings().with_global_processing(global_processing)
+        for index, processing in enumerate(per_color):
+            settings = settings.with_color_processing(index, processing)
 
         for mode in (
             ProcessingMode.PER_COLOR,
@@ -149,6 +151,41 @@ class RenderSettingsTests(unittest.TestCase):
         self.assertIs(settings.processing_mode, ProcessingMode.PER_COLOR)
         self.assertEqual(settings.global_processing, global_processing)
         self.assertEqual(settings.per_color_processing, per_color)
+        self.assertTrue(settings.per_color_processing_initialized)
+
+    def test_first_per_color_use_copies_then_current_global_values(self):
+        global_processing = ColorProcessingSettings(
+            ColorOps.HARD_LIGHT,
+            65,
+            110,
+        )
+        settings = RenderSettings().with_global_processing(global_processing)
+
+        initialized = settings.with_processing_mode(ProcessingMode.PER_COLOR)
+
+        self.assertEqual(
+            initialized.per_color_processing,
+            (global_processing,) * 4,
+        )
+        self.assertTrue(initialized.per_color_processing_initialized)
+        self.assertFalse(settings.per_color_processing_initialized)
+
+    def test_later_mode_switches_do_not_reinitialize_individual_values(self):
+        color_one = ColorProcessingSettings(ColorOps.MULTIPLY, 60, 90)
+        settings = RenderSettings().with_processing_mode(ProcessingMode.PER_COLOR)
+        settings = settings.with_color_processing(0, color_one)
+        settings = settings.with_processing_mode(ProcessingMode.GLOBAL)
+        settings = settings.with_global_processing(
+            ColorProcessingSettings(ColorOps.COLOR, 80, 110)
+        )
+
+        restored = settings.with_processing_mode(ProcessingMode.PER_COLOR)
+
+        self.assertEqual(restored.per_color_processing[0], color_one)
+        self.assertEqual(
+            restored.per_color_processing[1:],
+            (ColorProcessingSettings(),) * 3,
+        )
 
     def test_one_per_color_context_can_change_independently(self):
         original = RenderSettings()
