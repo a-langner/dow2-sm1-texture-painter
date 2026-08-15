@@ -8,6 +8,7 @@ from PIL import (
     ImageTk,
 )
 import tkinter as tk
+from tkinter import ttk
 from tkinter.messagebox import showerror
 from src.widget import (
     FrameColorChooser,
@@ -383,6 +384,43 @@ class ArmyPainter(tk.Tk):
         )
         self.frame_sliders.pack(side=tk.LEFT, fill=tk.Y)
 
+        self.frame_team_color_mask_variant = tk.Frame(self.frame_img_tools)
+        self.label_team_color_mask_variant = tk.Label(
+            self.frame_team_color_mask_variant,
+            text="Team Color Mask:",
+        )
+        self.label_team_color_mask_variant.pack(side=tk.LEFT, padx=(0, 4))
+        self.team_color_mask_variant_name = tk.StringVar(master=self)
+        self.team_color_mask_variant_selector = ttk.Combobox(
+            self.frame_team_color_mask_variant,
+            textvariable=self.team_color_mask_variant_name,
+            state="readonly",
+            width=12,
+        )
+        self.team_color_mask_variant_selector.pack(side=tk.LEFT)
+        ArmyPainter.sync_team_color_mask_variant_selector(self)
+
+    def sync_team_color_mask_variant_selector(self):
+        """Reflect discovered mask variants without cluttering single-mask assets."""
+        if not hasattr(self, "team_color_mask_variant_selector"):
+            return
+        variants = self.available_team_color_mask_variants
+        self.team_color_mask_variant_selector.configure(
+            values=tuple(variant.display_name for variant in variants)
+        )
+        active_variant = self.active_team_color_mask_variant
+        self.team_color_mask_variant_name.set(
+            active_variant.display_name if active_variant is not None else ""
+        )
+        if len(variants) >= 2:
+            self.frame_team_color_mask_variant.pack(
+                side=tk.RIGHT,
+                padx=6,
+                pady=4,
+            )
+        else:
+            self.frame_team_color_mask_variant.pack_forget()
+
     def define_menu(self):
         menubar = tk.Menu(self)
 
@@ -544,6 +582,7 @@ class ArmyPainter(tk.Tk):
         self.game_profile_id.set(profile.profile_id)
         self.available_team_color_mask_variants = ()
         self.active_team_color_mask_variant = None
+        ArmyPainter.sync_team_color_mask_variant_selector(self)
 
     def define_frame_workspace(self):
         self.img_dif = ImageTk.PhotoImage(
@@ -652,6 +691,7 @@ class ArmyPainter(tk.Tk):
         self.active_texture_set = None
         self.available_team_color_mask_variants = ()
         self.active_team_color_mask_variant = None
+        ArmyPainter.sync_team_color_mask_variant_selector(self)
         self.img_dif = ImageTk.PhotoImage(
             create_placeholder_img("Select Diffuse Texture", "RGBA")
         )
@@ -782,6 +822,7 @@ class ArmyPainter(tk.Tk):
         self.active_team_color_mask_variant = (
             result.active_team_color_mask_variant
         )
+        ArmyPainter.sync_team_color_mask_variant_selector(self)
 
         if result.team_color_mask_error is not None:
             self.dialogs.show_error(
@@ -859,6 +900,7 @@ class ArmyPainter(tk.Tk):
             self.active_texture_set = result.texture_set
             self.available_team_color_mask_variants = ()
             self.active_team_color_mask_variant = None
+            ArmyPainter.sync_team_color_mask_variant_selector(self)
             self.select_channel()
         except TextureValidationError as exc:
             self.dialogs.show_error(
