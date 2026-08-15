@@ -11,6 +11,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter.messagebox import showerror
 from src.widget import (
+    APP_COMBOBOX_STYLE,
     FrameColorChooser,
     FrameChannelList,
     FrameColorOps,
@@ -417,6 +418,7 @@ class ArmyPainter(tk.Tk):
             self.frame_team_color_mask_variant,
             textvariable=self.team_color_mask_variant_name,
             state="readonly",
+            style=APP_COMBOBOX_STYLE,
             width=12,
         )
         self.team_color_mask_variant_selector.grid(row=0, column=2)

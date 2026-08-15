@@ -127,6 +127,9 @@ PAINT_SWATCH_OUTLINE = "#606060"
 PAINT_SWATCH_SELECTED_OUTLINE = APP_SELECTION_BACKGROUND
 COLOR_FIELD_PREFERRED_HEIGHT = 240
 VISUAL_RESIZE_DELAY_MS = 40
+APP_COMBOBOX_STYLE = "AppSelection.TCombobox"
+APP_ENTRY_STYLE = "AppSelection.TEntry"
+APP_SPINBOX_STYLE = "AppSelection.TSpinbox"
 
 ActionCallback = Callable[[], None]
 BooleanChangedCallback = Callable[[bool], None]
@@ -138,6 +141,29 @@ RecentColorSelectedCallback = Callable[[str], None]
 LevelsChangedCallback = Callable[[float, float], None]
 StringChangedCallback = Callable[[str], None]
 LOGGER = logging.getLogger(__name__)
+
+
+def configure_app_selection_styles(widget: tk.Misc) -> None:
+    """Apply the shared accent to explicit app text-selection surfaces."""
+    style = ttk.Style(widget)
+    for style_name in (
+        APP_COMBOBOX_STYLE,
+        APP_ENTRY_STYLE,
+        APP_SPINBOX_STYLE,
+    ):
+        style.configure(
+            style_name,
+            selectbackground=APP_SELECTION_BACKGROUND,
+            selectforeground=APP_SELECTION_FOREGROUND,
+        )
+    widget.option_add(
+        "*TCombobox*Listbox.selectBackground",
+        APP_SELECTION_BACKGROUND,
+    )
+    widget.option_add(
+        "*TCombobox*Listbox.selectForeground",
+        APP_SELECTION_FOREGROUND,
+    )
 
 
 @dataclass(frozen=True)
@@ -354,6 +380,7 @@ class RecentColorSwatchRow(ttk.Frame):
         on_color_selected: RecentColorSelectedCallback,
     ) -> None:
         super().__init__(parent)
+        configure_app_selection_styles(self)
         self.colors = colors[:MAX_RECENT_COLORS]
         self.paint_catalog = paint_catalog
         self._on_color_selected = on_color_selected
@@ -956,6 +983,7 @@ class ColorPickerDialog(tk.Toplevel):
             self.palette_sort_area,
             values=PALETTE_SORT_DISPLAY_NAMES,
             state="readonly",
+            style=APP_COMBOBOX_STYLE,
             width=12,
         )
         self.palette_sort_selector.set(self.palette_sort_mode.display_name)
@@ -1102,6 +1130,7 @@ class ColorPickerDialog(tk.Toplevel):
             self.editor_color_space_area,
             values=COLOR_SPACE_MODES,
             state="readonly",
+            style=APP_COMBOBOX_STYLE,
             width=12,
         )
         self.color_space_selector.set(self.color_space_mode)
@@ -1188,6 +1217,7 @@ class ColorPickerDialog(tk.Toplevel):
                 validate="key",
                 validatecommand=validation,
                 command=self._on_rgb_control_changed,
+                style=APP_SPINBOX_STYLE,
             )
             control.grid(
                 row=0,
@@ -1228,6 +1258,7 @@ class ColorPickerDialog(tk.Toplevel):
                 validate="key",
                 validatecommand=validation,
                 command=self._on_color_model_control_changed,
+                style=APP_SPINBOX_STYLE,
             )
             control.pack(side=tk.LEFT, padx=(1, 0))
             control.bind("<KeyRelease>", self._on_color_model_control_changed)
@@ -1242,7 +1273,11 @@ class ColorPickerDialog(tk.Toplevel):
         self.editor_hex_area.grid_columnconfigure(1, weight=1)
         self.hex_input_label = ttk.Label(self.editor_hex_area, text="Hex:")
         self.hex_input_label.grid(row=0, column=0, sticky=tk.W, padx=(0, 4))
-        self.hex_input = ttk.Entry(self.editor_hex_area, width=9)
+        self.hex_input = ttk.Entry(
+            self.editor_hex_area,
+            width=9,
+            style=APP_ENTRY_STYLE,
+        )
         self.hex_input.grid(row=0, column=1, sticky=tk.W)
         self.hex_input.bind("<Return>", self._on_hex_input_return)
         self.hex_input.bind("<FocusOut>", self._on_hex_input_focus_out)
@@ -2444,6 +2479,7 @@ class FrameColorOps(tk.LabelFrame):
         **kw,
     ):
         super(FrameColorOps, self).__init__(master=master, cnf={}, **kw)
+        configure_app_selection_styles(self)
         self._on_operation_changed = on_operation_changed
         self._on_processing_mode_changed = on_processing_mode_changed
         display_names = tuple(op.display_name for op in IMPLEMENTED_BLEND_MODES)
@@ -2476,6 +2512,7 @@ class FrameColorOps(tk.LabelFrame):
             textvariable=self.var,
             values=display_names,
             state="readonly",
+            style=APP_COMBOBOX_STYLE,
             width=max(len(name) for name in display_names),
         )
         self.blend_mode_selector.pack(side=tk.LEFT, padx=(0, 4), pady=4)
