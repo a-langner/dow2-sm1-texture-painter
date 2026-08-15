@@ -3,6 +3,11 @@ from src.blend_mode import BlendMode
 # Compatibility name retained while callers migrate to blend terminology.
 ColorOps = BlendMode
 
+# Application-scoped selection accent. Apply explicitly to custom selection
+# surfaces rather than overriding native Tk/Windows control styles globally.
+APP_SELECTION_BACKGROUND = "#5B9BD5"
+APP_SELECTION_FOREGROUND = "#FFFFFF"
+
 
 OPEN_FILETYPES = (
     ("all", (".dds", ".png", ".jpg", ".bmp", ".tga", ".blp")),

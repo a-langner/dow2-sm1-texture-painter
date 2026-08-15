@@ -400,12 +400,16 @@ class ArmyPainter(tk.Tk):
         )
         self.frame_sliders.pack(side=tk.LEFT, fill=tk.Y)
 
-        self.frame_team_color_mask_variant = tk.Frame(self.frame_img_tools)
+        self.frame_team_color_mask_variant = tk.Frame(
+            self.frame_color_op_option
+        )
+        self.frame_team_color_mask_variant.grid_columnconfigure(0, weight=1)
+        self.frame_team_color_mask_variant.grid_columnconfigure(3, weight=1)
         self.label_team_color_mask_variant = tk.Label(
             self.frame_team_color_mask_variant,
             text="Team Color Mask:",
         )
-        self.label_team_color_mask_variant.pack(side=tk.LEFT, padx=(0, 4))
+        self.label_team_color_mask_variant.grid(row=0, column=1, padx=(0, 4))
         self.team_color_mask_variant_name = tk.StringVar(master=self)
         self.team_color_mask_variant_filename = tk.StringVar(master=self)
         self._team_color_mask_variant_tooltip = None
@@ -415,7 +419,7 @@ class ArmyPainter(tk.Tk):
             state="readonly",
             width=12,
         )
-        self.team_color_mask_variant_selector.pack(side=tk.LEFT)
+        self.team_color_mask_variant_selector.grid(row=0, column=2)
         self.team_color_mask_variant_selector.bind(
             "<Enter>", self.show_team_color_mask_variant_tooltip
         )
@@ -445,8 +449,10 @@ class ArmyPainter(tk.Tk):
         ArmyPainter.hide_team_color_mask_variant_tooltip(self)
         if len(variants) >= 2:
             self.frame_team_color_mask_variant.pack(
-                side=tk.RIGHT,
-                padx=6,
+                side=tk.LEFT,
+                fill=tk.X,
+                expand=True,
+                padx=(8, 6),
                 pady=4,
             )
         else:

@@ -15,7 +15,13 @@ from PIL import Image, ImageTk
 from src.color_pattern_handler import get_all_patterns, is_user_pattern
 from src.color_slot import ColorSlot
 from src.action_state import PatternActionContext, derive_pattern_action_state
-from src.constant import OPEN_FILETYPES, SAVE_EXT_LIST, ColorOps
+from src.constant import (
+    APP_SELECTION_BACKGROUND,
+    APP_SELECTION_FOREGROUND,
+    OPEN_FILETYPES,
+    SAVE_EXT_LIST,
+    ColorOps,
+)
 from src.blend_mode import IMPLEMENTED_BLEND_MODES
 from src.paint_catalog import PaintCatalog, PaintColor, load_citadel_catalog
 from src.processing_mode import ProcessingMode
@@ -118,7 +124,7 @@ COLOR_EDITOR_GROUP_PADDING = (8, 6)
 COLOR_MODEL_GROUP_PADDING = (4, 6)
 COLOR_MODEL_CONTROL_WIDTH = 3
 PAINT_SWATCH_OUTLINE = "#606060"
-PAINT_SWATCH_SELECTED_OUTLINE = "#5B9BD5"
+PAINT_SWATCH_SELECTED_OUTLINE = APP_SELECTION_BACKGROUND
 COLOR_FIELD_PREFERRED_HEIGHT = 240
 VISUAL_RESIZE_DELAY_MS = 40
 
@@ -2166,6 +2172,8 @@ class FrameChannelList(tk.LabelFrame):
             self,
             selectmode=tk.MULTIPLE,
             exportselection=False,
+            selectbackground=APP_SELECTION_BACKGROUND,
+            selectforeground=APP_SELECTION_FOREGROUND,
             height=4,
             width=9,
         )
@@ -2582,6 +2590,11 @@ class FramePatternList(tk.Frame):
         self.pattern_heading_font.configure(weight=tkfont.BOLD)
         self.pattern_style.configure(
             "Pattern.Treeview.Heading", font=self.pattern_heading_font
+        )
+        self.pattern_style.map(
+            "Pattern.Treeview",
+            background=[("selected", APP_SELECTION_BACKGROUND)],
+            foreground=[("selected", APP_SELECTION_FOREGROUND)],
         )
 
         self.tree_frame = tk.Frame(self)
