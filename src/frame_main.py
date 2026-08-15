@@ -12,6 +12,7 @@ from tkinter import ttk
 from tkinter.messagebox import showerror
 from src.widget import (
     APP_COMBOBOX_STYLE,
+    clear_readonly_combobox_text_selection,
     FrameColorChooser,
     FrameChannelList,
     FrameColorOps,
@@ -430,6 +431,9 @@ class ArmyPainter(tk.Tk):
         )
         self.team_color_mask_variant_selector.bind(
             "<<ComboboxSelected>>", self.select_team_color_mask_variant
+        )
+        clear_readonly_combobox_text_selection(
+            self.team_color_mask_variant_selector
         )
         ArmyPainter.sync_team_color_mask_variant_selector(self)
 

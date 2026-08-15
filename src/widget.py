@@ -194,6 +194,25 @@ def configure_app_selection_styles(widget: tk.Misc) -> None:
     )
 
 
+def clear_readonly_combobox_text_selection(combobox: ttk.Combobox) -> None:
+    """Suppress the native inner text highlight on readonly Comboboxes."""
+
+    def clear_selection(Event=None) -> None:
+        def clear_after_idle() -> None:
+            try:
+                combobox.selection_clear()
+            except tk.TclError:
+                pass
+
+        try:
+            combobox.after_idle(clear_after_idle)
+        except tk.TclError:
+            pass
+
+    combobox.bind("<FocusIn>", clear_selection, add="+")
+    combobox.bind("<<ComboboxSelected>>", clear_selection, add="+")
+
+
 @dataclass(frozen=True)
 class PatternSelection:
     name: str
@@ -1022,6 +1041,7 @@ class ColorPickerDialog(tk.Toplevel):
         self.palette_sort_selector.bind(
             "<<ComboboxSelected>>", self._on_palette_sort_selected
         )
+        clear_readonly_combobox_text_selection(self.palette_sort_selector)
         self.palette_count_label = ttk.Label(
             self.palette_count_area,
             text=format_visible_paint_count(0),
@@ -1169,6 +1189,7 @@ class ColorPickerDialog(tk.Toplevel):
         self.color_space_selector.bind(
             "<<ComboboxSelected>>", self._on_color_space_selected
         )
+        clear_readonly_combobox_text_selection(self.color_space_selector)
 
         self.hsv_color_field = tk.Canvas(
             self.editor_color_field_area,
@@ -2551,6 +2572,7 @@ class FrameColorOps(tk.LabelFrame):
             "<<ComboboxSelected>>",
             self._notify_operation_changed,
         )
+        clear_readonly_combobox_text_selection(self.blend_mode_selector)
 
     def _notify_operation_changed(self, Event=None):
         self._on_operation_changed(ColorOps.parse(self.var.get()).value)
