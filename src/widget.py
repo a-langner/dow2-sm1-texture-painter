@@ -13,6 +13,7 @@ from functools import partial
 from typing import Callable, Optional
 from PIL import Image, ImageTk
 from src.color_pattern_handler import get_all_patterns, is_user_pattern
+from src.color_slot import ColorSlot
 from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.constant import OPEN_FILETYPES, SAVE_EXT_LIST, ColorOps
 from src.blend_mode import IMPLEMENTED_BLEND_MODES
@@ -2422,6 +2423,8 @@ class FrameColorOps(tk.LabelFrame):
             command=self._notify_processing_mode_changed,
         )
         self.per_color_mode_button.pack(side=tk.LEFT, padx=(0, 6), pady=4)
+        self.editing_label = ttk.Label(self, text="Editing: Color 1")
+        self._editing_indicator_visible = False
         self.var = tk.StringVar(value=ColorOps.OVERLAY.display_name)
         self.blend_mode_label = ttk.Label(self, text="Blend Mode:")
         self.blend_mode_label.pack(side=tk.LEFT, padx=(4, 4), pady=4)
@@ -2444,6 +2447,28 @@ class FrameColorOps(tk.LabelFrame):
     def _notify_processing_mode_changed(self):
         mode = ProcessingMode.parse(self.processing_mode_var.get())
         self._on_processing_mode_changed(mode.value)
+
+    def set_processing_context(
+        self,
+        mode: ProcessingMode,
+        active_slot: ColorSlot,
+    ):
+        """Show the selected mode and active-slot editing context."""
+        if not isinstance(mode, ProcessingMode):
+            raise TypeError("mode must be a ProcessingMode value.")
+        if not isinstance(active_slot, ColorSlot):
+            raise TypeError("active_slot must be a ColorSlot value.")
+        self.processing_mode_var.set(mode.value)
+        if mode is ProcessingMode.PER_COLOR:
+            self.editing_label.configure(
+                text=f"Editing: {active_slot.display_name}"
+            )
+            if not self._editing_indicator_visible:
+                self.editing_label.pack(side=tk.LEFT, padx=(4, 6), pady=4)
+                self._editing_indicator_visible = True
+        elif self._editing_indicator_visible:
+            self.editing_label.pack_forget()
+            self._editing_indicator_visible = False
 
 
 class PatternTreeview(ttk.Treeview):

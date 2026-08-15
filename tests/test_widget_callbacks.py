@@ -60,6 +60,10 @@ class FakeWidget:
 
     def pack(self, **options):
         self.pack_options = options
+        self.is_packed = True
+
+    def pack_forget(self):
+        self.is_packed = False
 
     def place(self, **options):
         self.place_options = options
@@ -193,6 +197,7 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         combobox_type.assert_called_once()
         self.assertEqual(radiobutton_type.call_count, 2)
         self.assertEqual(frame.processing_mode_var.get(), "global")
+        self.assertFalse(frame._editing_indicator_visible)
         self.assertEqual(frame.global_mode_button.options["text"], "Global")
         self.assertEqual(frame.global_mode_button.options["value"], "global")
         self.assertEqual(frame.per_color_mode_button.options["text"], "Per Color")
@@ -221,6 +226,15 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         frame.processing_mode_var.set("per_color")
         frame.per_color_mode_button.options["command"]()
         mode_callback.assert_called_once_with("per_color")
+
+        frame.set_processing_context(ProcessingMode.PER_COLOR, ColorSlot.COLOR_3)
+        self.assertTrue(frame._editing_indicator_visible)
+        self.assertTrue(frame.editing_label.is_packed)
+        self.assertEqual(frame.editing_label.options["text"], "Editing: Color 3")
+
+        frame.set_processing_context(ProcessingMode.GLOBAL, ColorSlot.COLOR_3)
+        self.assertFalse(frame._editing_indicator_visible)
+        self.assertFalse(frame.editing_label.is_packed)
 
     @patch("src.widget.tk.Scale", side_effect=FakeScale)
     @patch("src.widget.tk.Frame.__init__", return_value=None)
@@ -313,6 +327,7 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
             render_settings=settings,
             frame_color_op_option=SimpleNamespace(
                 var=ValueVariable("Overlay"),
+                set_processing_context=Mock(),
             ),
             frame_sliders=SimpleNamespace(
                 brightness_slider=ValueVariable(75),
@@ -349,6 +364,10 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
             global_processing,
         )
         self.assertEqual(painter.render_settings.global_processing, global_processing)
+        painter.frame_color_op_option.set_processing_context.assert_called_with(
+            ProcessingMode.PER_COLOR,
+            ColorSlot.COLOR_1,
+        )
         self.assertEqual(painter.refresh_workspace.call_count, 2)
         painter.request_workspace_preview.assert_called_once_with()
 

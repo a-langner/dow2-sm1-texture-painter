@@ -871,6 +871,11 @@ class ArmyPainter(tk.Tk):
         self._processing_controls_refreshing = True
         try:
             if hasattr(self, "frame_color_op_option"):
+                if hasattr(self.frame_color_op_option, "set_processing_context"):
+                    self.frame_color_op_option.set_processing_context(
+                        self.render_settings.processing_mode,
+                        self.render_settings.active_color_slot,
+                    )
                 self.frame_color_op_option.var.set(processing.blend_mode.display_name)
             if hasattr(self, "frame_sliders"):
                 self.frame_sliders.brightness_slider.set(processing.brightness)
