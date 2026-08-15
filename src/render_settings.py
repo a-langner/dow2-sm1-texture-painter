@@ -3,31 +3,22 @@
 from dataclasses import dataclass
 import re
 
+from src.color_processing_settings import (
+    MAX_BRIGHTNESS,
+    MAX_CONTRAST,
+    MIN_BRIGHTNESS,
+    MIN_CONTRAST,
+    validate_processing_level,
+)
 from src.constant import ColorOps
 
 DEFAULT_COLOR = "#808080"
-MIN_BRIGHTNESS = 0.0
-MAX_BRIGHTNESS = 150.0
-MIN_CONTRAST = 0.0
-MAX_CONTRAST = 200.0
 _HEX_COLOR = re.compile(r"#[0-9a-fA-F]{6}\Z")
 
 
 def _validate_color(value: str, field_name: str) -> None:
     if not isinstance(value, str) or _HEX_COLOR.fullmatch(value) is None:
         raise ValueError(f"{field_name} must be a #RRGGBB colour string.")
-
-
-def _validate_level(
-    value: float,
-    field_name: str,
-    minimum: float,
-    maximum: float,
-) -> None:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise TypeError(f"{field_name} must be a number.")
-    if not minimum <= value <= maximum:
-        raise ValueError(f"{field_name} must be between {minimum:g} and {maximum:g}.")
 
 
 @dataclass(frozen=True)
@@ -57,13 +48,13 @@ class RenderSettings:
             self.colors,
         ):
             _validate_color(value, field_name)
-        _validate_level(
+        validate_processing_level(
             self.brightness,
             "brightness",
             MIN_BRIGHTNESS,
             MAX_BRIGHTNESS,
         )
-        _validate_level(
+        validate_processing_level(
             self.contrast,
             "contrast",
             MIN_CONTRAST,
