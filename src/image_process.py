@@ -65,17 +65,17 @@ def load_team_colour_texture(
     img = _open_texture(filepath)
     if img.size != diffuse_size:
         raise TextureValidationError(
-            f'Team-colour texture "{filepath}" is '
+            f'Team-colour mask "{filepath}" is '
             f"{img.size[0]}x{img.size[1]}, but the diffuse texture is "
             f"{diffuse_size[0]}x{diffuse_size[1]}. "
-            "Team-colour and diffuse textures must have identical dimensions."
+            "Team-colour mask and diffuse texture must have identical dimensions."
         )
     if img.mode == "RGB":
         empty_alpha = Image.new("L", img.size, 0)
         return Image.merge("RGBA", (*img.split(), empty_alpha))
     if img.mode != "RGBA":
         raise TextureValidationError(
-            f'Team-colour texture "{filepath}" uses mode {img.mode}. '
+            f'Team-colour mask "{filepath}" uses mode {img.mode}. '
             "An RGB or RGBA texture is required."
         )
     return img

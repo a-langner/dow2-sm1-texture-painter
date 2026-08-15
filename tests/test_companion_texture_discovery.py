@@ -3,7 +3,12 @@ import unittest
 from pathlib import Path
 
 from src.texture_loading_service import find_companion_texture
-from src.texture_naming import TextureKind, TextureNamingProfile
+from src.texture_naming import (
+    DOW2_TEXTURE_NAMING,
+    SM1_TEXTURE_NAMING,
+    TextureKind,
+    TextureNamingProfile,
+)
 
 
 class CompanionTextureDiscoveryTests(unittest.TestCase):
@@ -86,6 +91,44 @@ class CompanionTextureDiscoveryTests(unittest.TestCase):
 
             with self.assertRaises(TypeError):
                 find_companion_texture(diffuse, "tem")
+
+    def test_game_profiles_select_only_their_team_color_mask_suffix(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            diffuse = root / "sm_armour_mp_basic_arm1_dif.dds"
+            tem = root / "sm_armour_mp_basic_arm1_tem.dds"
+            pnt = root / "sm_armour_mp_basic_arm1_pnt.dds"
+            for path in (diffuse, tem, pnt):
+                path.touch()
+
+            self.assertEqual(
+                find_companion_texture(
+                    diffuse, TextureKind.TEAM_COLOR, DOW2_TEXTURE_NAMING
+                ),
+                tem,
+            )
+            self.assertEqual(
+                find_companion_texture(
+                    diffuse, TextureKind.TEAM_COLOR, SM1_TEXTURE_NAMING
+                ),
+                pnt,
+            )
+
+    def test_suffix_text_in_parent_directory_is_never_modified(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "mod_dif_assets"
+            root.mkdir()
+            diffuse = root / "unit_dif.dds"
+            expected = root / "unit_pnt.dds"
+            diffuse.touch()
+            expected.touch()
+
+            result = find_companion_texture(
+                diffuse, TextureKind.TEAM_COLOR, SM1_TEXTURE_NAMING
+            )
+
+            self.assertEqual(result, expected)
+            self.assertEqual(result.parent, root)
 
     def test_diffuse_is_not_a_companion_kind(self):
         with tempfile.TemporaryDirectory() as directory:

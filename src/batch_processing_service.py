@@ -140,14 +140,14 @@ def load_batch_texture_set(
 ) -> tuple[TextureSet, tuple[str, ...]]:
     """Load one isolated texture set for batch rendering."""
     diffuse = load_diffuse_texture(diffuse_path)
-    team_color_path = find_companion_texture(
+    team_color_mask_path = find_companion_texture(
         diffuse_path, TextureKind.TEAM_COLOR, profile
     )
-    if team_color_path is None:
+    if team_color_mask_path is None:
         raise TextureValidationError(
-            f'No team-colour texture was found for "{diffuse_path.name}".'
+            f'No team-colour mask was found for "{diffuse_path.name}".'
         )
-    team_color = load_team_colour_texture(team_color_path, diffuse.size)
+    team_color = load_team_colour_texture(team_color_mask_path, diffuse.size)
 
     warnings: list[str] = []
     optional_images: dict[TextureKind, Image.Image | None] = {}

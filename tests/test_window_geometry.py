@@ -39,8 +39,8 @@ class FakeTextureLoading:
             texture_set=object(),
             width=512,
             height=256,
-            team_color_error=None,
-            team_color_path=None,
+            team_color_mask_error=None,
+            team_color_mask_path=None,
             warnings=(),
         )
 

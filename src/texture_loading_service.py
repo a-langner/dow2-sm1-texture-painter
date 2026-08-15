@@ -43,12 +43,12 @@ class TextureLoadWarning:
 class TextureLoadResult:
     texture_set: TextureSet
     diffuse_path: Path
-    team_color_path: Path | None
+    team_color_mask_path: Path | None
     dirt_path: Path | None
     specular_path: Path | None
     width: int
     height: int
-    team_color_error: str | None
+    team_color_mask_error: str | None
     warnings: tuple[TextureLoadWarning, ...]
 
 
@@ -135,19 +135,19 @@ class TextureLoadingService:
                 f'Could not inspect companion textures for "{diffuse_path}": {exc}'
             ) from exc
 
-        team_color_error: str | None = None
-        team_color_path = companions[TextureKind.TEAM_COLOR]
-        if team_color_path is not None:
-            LOGGER.debug("Loading team-colour companion: %s", team_color_path)
+        team_color_mask_error: str | None = None
+        team_color_mask_path = companions[TextureKind.TEAM_COLOR]
+        if team_color_mask_path is not None:
+            LOGGER.debug("Loading team-colour mask: %s", team_color_mask_path)
             try:
                 textures.team_color = load_team_colour_texture(
-                    team_color_path, diffuse.size
+                    team_color_mask_path, diffuse.size
                 )
             except TextureValidationError as exc:
-                team_color_error = str(exc)
+                team_color_mask_error = str(exc)
                 LOGGER.warning(
-                    "Invalid team-colour companion %s: %s",
-                    team_color_path,
+                    "Invalid team-colour mask %s: %s",
+                    team_color_mask_path,
                     exc,
                 )
 
@@ -185,12 +185,12 @@ class TextureLoadingService:
         return TextureLoadResult(
             texture_set=textures,
             diffuse_path=diffuse_path,
-            team_color_path=team_color_path,
+            team_color_mask_path=team_color_mask_path,
             dirt_path=companions[TextureKind.DIRT],
             specular_path=companions[TextureKind.SPECULAR],
             width=width,
             height=height,
-            team_color_error=team_color_error,
+            team_color_mask_error=team_color_mask_error,
             warnings=tuple(warnings),
         )
 
@@ -201,7 +201,7 @@ class TextureLoadingService:
     ) -> ChannelLoadResult:
         if textures is None:
             raise TextureValidationError(
-                "Load a diffuse texture before loading a team-colour texture."
+                "Load a diffuse texture before loading a team-colour mask."
             )
         channel_path = validate_supported_texture_path(channel_path)
         team_color = load_team_colour_texture(channel_path, textures.diffuse.size)

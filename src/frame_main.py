@@ -761,12 +761,12 @@ class ArmyPainter(tk.Tk):
         self.preview_controller.invalidate()
         self.active_texture_set = result.texture_set
 
-        if result.team_color_error is not None:
+        if result.team_color_mask_error is not None:
             self.dialogs.show_error(
-                title="Invalid team-colour texture",
-                message=result.team_color_error,
+                title="Invalid team-colour mask",
+                message=result.team_color_mask_error,
             )
-        elif result.team_color_path is not None:
+        elif result.team_color_mask_path is not None:
             self.select_channel()
         else:
             self.open_channel()
@@ -838,7 +838,7 @@ class ArmyPainter(tk.Tk):
             self.select_channel()
         except TextureValidationError as exc:
             self.dialogs.show_error(
-                title="Invalid team-colour texture", message=str(exc)
+                title="Invalid team-colour mask", message=str(exc)
             )
 
     def _check_batch_path(self, source: str, dest: str):

@@ -220,8 +220,8 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
         replacement = Mock(spec=TextureSet)
         result = SimpleNamespace(
             texture_set=replacement,
-            team_color_error=None,
-            team_color_path=Path("marine_tem.png"),
+            team_color_mask_error=None,
+            team_color_mask_path=Path("marine_tem.png"),
             warnings=(),
             width=8,
             height=4,

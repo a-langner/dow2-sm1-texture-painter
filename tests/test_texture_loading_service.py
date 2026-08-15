@@ -46,10 +46,10 @@ class TextureLoadingServiceTests(unittest.TestCase):
 
         self.assertEqual((result.width, result.height), (8, 4))
         self.assertEqual(result.diffuse_path, diffuse)
-        self.assertEqual(result.team_color_path, team)
+        self.assertEqual(result.team_color_mask_path, team)
         self.assertEqual(result.dirt_path, dirt)
         self.assertEqual(result.specular_path, specular)
-        self.assertIsNone(result.team_color_error)
+        self.assertIsNone(result.team_color_mask_error)
         self.assertEqual(result.warnings, ())
         self.assertEqual(result.texture_set.team_color.mode, "RGBA")
         self.assertEqual(result.texture_set.dirt.size, (8, 4))
@@ -73,8 +73,8 @@ class TextureLoadingServiceTests(unittest.TestCase):
 
         result = self.service.load_diffuse_and_companions(diffuse)
 
-        self.assertIsNone(result.team_color_path)
-        self.assertIsNone(result.team_color_error)
+        self.assertIsNone(result.team_color_mask_path)
+        self.assertIsNone(result.team_color_mask_error)
         self.assertIsNone(result.texture_set.team_color)
 
     def test_invalid_companions_return_structured_issues(self):
@@ -90,7 +90,7 @@ class TextureLoadingServiceTests(unittest.TestCase):
         with self.assertLogs("src.texture_loading_service", level="WARNING"):
             result = self.service.load_diffuse_and_companions(diffuse)
 
-        self.assertIn("identical dimensions", result.team_color_error)
+        self.assertIn("identical dimensions", result.team_color_mask_error)
         self.assertEqual(
             [warning.kind for warning in result.warnings],
             [TextureKind.DIRT, TextureKind.SPECULAR],
@@ -143,7 +143,7 @@ class TextureLoadingServiceTests(unittest.TestCase):
 
         result = self.service.load_diffuse_and_companions(diffuse)
 
-        self.assertEqual(result.team_color_path, team)
+        self.assertEqual(result.team_color_mask_path, team)
 
     def test_injected_naming_profile_controls_discovery(self):
         profile = TextureNamingProfile(
@@ -161,7 +161,7 @@ class TextureLoadingServiceTests(unittest.TestCase):
 
         result = TextureLoadingService(profile).load_diffuse_and_companions(diffuse)
 
-        self.assertEqual(result.team_color_path, team)
+        self.assertEqual(result.team_color_mask_path, team)
 
     def test_sm1_profile_discovers_pnt_without_changing_other_companions(self):
         diffuse = self.root / "marine_dif.png"
@@ -176,7 +176,7 @@ class TextureLoadingServiceTests(unittest.TestCase):
             SM1_TEXTURE_NAMING
         ).load_diffuse_and_companions(diffuse)
 
-        self.assertEqual(result.team_color_path, sm1_team)
+        self.assertEqual(result.team_color_mask_path, sm1_team)
         self.assertEqual(result.dirt_path, dirt)
         self.assertEqual(result.specular_path, specular)
 

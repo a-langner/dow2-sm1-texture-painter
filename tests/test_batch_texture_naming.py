@@ -99,9 +99,9 @@ class BatchTextureNamingTests(unittest.TestCase):
         load_optional,
     ):
         profile = self._custom_profile()
-        team_color_path = Path("marine_mask.dds")
+        team_color_mask_path = Path("marine_mask.dds")
         load_diffuse.return_value.size = (4, 4)
-        find_companion.side_effect = [team_color_path, None, None]
+        find_companion.side_effect = [team_color_mask_path, None, None]
 
         load_batch_texture_set(Path("marine_base.dds"), profile)
 
@@ -112,7 +112,7 @@ class BatchTextureNamingTests(unittest.TestCase):
         self.assertTrue(
             all(call.args[2] is profile for call in find_companion.call_args_list)
         )
-        load_team_color.assert_called_once_with(team_color_path, (4, 4))
+        load_team_color.assert_called_once_with(team_color_mask_path, (4, 4))
         load_optional.assert_not_called()
 
     def test_batch_detection_uses_no_filesystem_outside_temporary_data(self):
