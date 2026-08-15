@@ -11,6 +11,7 @@ from src.color_processing_settings import (
     validate_processing_level,
 )
 from src.constant import ColorOps
+from src.processing_mode import ProcessingMode
 
 DEFAULT_COLOR = "#808080"
 _HEX_COLOR = re.compile(r"#[0-9a-fA-F]{6}\Z")
@@ -35,6 +36,7 @@ class RenderSettings:
     apply_dirt: bool = False
     apply_spec: bool = False
     color_op: ColorOps = ColorOps.OVERLAY
+    processing_mode: ProcessingMode = ProcessingMode.GLOBAL
     tem_selected: tuple[int, ...] = ()
 
     def __post_init__(self) -> None:
@@ -62,6 +64,8 @@ class RenderSettings:
         )
         if not isinstance(self.color_op, ColorOps):
             raise ValueError("color_op must be a ColorOps value.")
+        if not isinstance(self.processing_mode, ProcessingMode):
+            raise ValueError("processing_mode must be a ProcessingMode value.")
         if not isinstance(self.tem_selected, tuple) or not all(
             isinstance(index, int) and not isinstance(index, bool)
             for index in self.tem_selected

@@ -7,6 +7,7 @@ from unittest.mock import Mock
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.constant import ColorOps
+from src.processing_mode import ProcessingMode
 from src.render_settings import (
     DEFAULT_COLOR,
     DEFAULT_RENDER_SETTINGS,
@@ -31,6 +32,7 @@ class RenderSettingsTests(unittest.TestCase):
         self.assertFalse(settings.apply_dirt)
         self.assertFalse(settings.apply_spec)
         self.assertIs(settings.color_op, ColorOps.OVERLAY)
+        self.assertIs(settings.processing_mode, ProcessingMode.GLOBAL)
         self.assertEqual(settings.tem_selected, ())
         self.assertEqual(settings, DEFAULT_RENDER_SETTINGS)
 
@@ -133,6 +135,8 @@ class RenderSettingsTests(unittest.TestCase):
             RenderSettings(primary_color="red")
         with self.assertRaisesRegex(ValueError, "ColorOps"):
             RenderSettings(color_op="Overlay")
+        with self.assertRaisesRegex(ValueError, "ProcessingMode"):
+            RenderSettings(processing_mode="global")
         with self.assertRaisesRegex(TypeError, "tuple of integer"):
             RenderSettings(tem_selected=[0, 1])
         with self.assertRaisesRegex(ValueError, "cannot be negative"):
