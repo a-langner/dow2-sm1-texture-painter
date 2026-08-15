@@ -301,6 +301,12 @@ class TextureRenderingBaselineTests(unittest.TestCase):
                 (32, 64, 96, 255),
                 (211, 93, 56, 255),
             ),
+            ColorOps.LINEAR_BURN.value: (
+                (0, 0, 0, 255),
+                (255, 255, 255, 255),
+                (32, 64, 96, 255),
+                (187, 75, 37, 255),
+            ),
         }
 
         for operation, expected in expected_by_operation.items():
@@ -514,6 +520,51 @@ class TextureRenderingBaselineTests(unittest.TestCase):
                 if colour != "#808081":
                     self.assertEqual(result[0], result[1])
                     self.assertEqual(result[1], result[2])
+
+    def test_linear_burn_uses_clamped_base_plus_blend_minus_255(self):
+        diffuse = Image.new("RGBA", (1, 1), (0, 255, 128, 255))
+        full = Image.new("L", (1, 1), 255)
+        empty = Image.new("L", (1, 1), 0)
+        textures = TextureSet(
+            diffuse,
+            Image.merge("RGBA", (full, empty, empty, empty)),
+        )
+        settings = RenderSettings(
+            primary_color="#00ff7f",
+            brightness=100,
+            contrast=100,
+            color_op=ColorOps.LINEAR_BURN,
+        )
+
+        self.assertEqual(
+            TextureRenderer().render(textures, settings).getpixel((0, 0)),
+            (0, 255, 0, 255),
+        )
+
+    def test_linear_burn_darkens_more_strongly_than_multiply(self):
+        diffuse = Image.new("RGBA", (1, 1), (200, 150, 100, 255))
+        full = Image.new("L", (1, 1), 255)
+        empty = Image.new("L", (1, 1), 0)
+        textures = TextureSet(
+            diffuse,
+            Image.merge("RGBA", (full, empty, empty, empty)),
+        )
+        common = {
+            "primary_color": "#6496c8",
+            "brightness": 100,
+            "contrast": 100,
+        }
+        burn = TextureRenderer().render(
+            textures,
+            RenderSettings(color_op=ColorOps.LINEAR_BURN, **common),
+        ).getpixel((0, 0))
+        multiply = TextureRenderer().render(
+            textures,
+            RenderSettings(color_op=ColorOps.MULTIPLY, **common),
+        ).getpixel((0, 0))
+
+        self.assertEqual(burn, (45, 45, 45, 255))
+        self.assertTrue(all(burn[index] < multiply[index] for index in range(3)))
 
     def make_optional_maps_workbench(self):
         workbench = self.make_workbench()

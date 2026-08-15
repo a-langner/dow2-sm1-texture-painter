@@ -142,6 +142,8 @@ def _apply_team_colors(
             new_img = ImageChops.hard_light(gray_img, color_img)
         elif settings.color_op is ColorOps.COLOR:
             new_img = _color_blend(gray_img, (rgb[0], rgb[1], rgb[2]))
+        elif settings.color_op is ColorOps.LINEAR_BURN:
+            new_img = ImageChops.add(gray_img, color_img, offset=-255)
         else:
             raise ValueError(
                 f"Blend mode is not implemented yet: {settings.color_op.value}"

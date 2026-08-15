@@ -55,4 +55,5 @@ IMPLEMENTED_BLEND_MODES = (
     BlendMode.SOFT_LIGHT,
     BlendMode.HARD_LIGHT,
     BlendMode.COLOR,
+    BlendMode.LINEAR_BURN,
 )
