@@ -17,6 +17,7 @@ from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.constant import OPEN_FILETYPES, SAVE_EXT_LIST, ColorOps
 from src.blend_mode import IMPLEMENTED_BLEND_MODES
 from src.paint_catalog import PaintCatalog, PaintColor, load_citadel_catalog
+from src.processing_mode import ProcessingMode
 from src.color_picker_visual import (
     ColorVisualizationMode,
     color_wheel_geometry,
@@ -2372,11 +2373,32 @@ class FrameColorOps(tk.LabelFrame):
         cnf={},
         *,
         on_operation_changed: StringChangedCallback,
+        on_processing_mode_changed: StringChangedCallback,
         **kw,
     ):
         super(FrameColorOps, self).__init__(master=master, cnf={}, **kw)
         self._on_operation_changed = on_operation_changed
+        self._on_processing_mode_changed = on_processing_mode_changed
         display_names = tuple(op.display_name for op in IMPLEMENTED_BLEND_MODES)
+        self.processing_mode_var = tk.StringVar(value=ProcessingMode.GLOBAL.value)
+        self.settings_label = ttk.Label(self, text="Settings:")
+        self.settings_label.pack(side=tk.LEFT, padx=(4, 2), pady=4)
+        self.global_mode_button = ttk.Radiobutton(
+            self,
+            text=ProcessingMode.GLOBAL.display_name,
+            value=ProcessingMode.GLOBAL.value,
+            variable=self.processing_mode_var,
+            command=self._notify_processing_mode_changed,
+        )
+        self.global_mode_button.pack(side=tk.LEFT, padx=(0, 1), pady=4)
+        self.per_color_mode_button = ttk.Radiobutton(
+            self,
+            text=ProcessingMode.PER_COLOR.display_name,
+            value=ProcessingMode.PER_COLOR.value,
+            variable=self.processing_mode_var,
+            command=self._notify_processing_mode_changed,
+        )
+        self.per_color_mode_button.pack(side=tk.LEFT, padx=(0, 6), pady=4)
         self.var = tk.StringVar(value=ColorOps.OVERLAY.display_name)
         self.blend_mode_label = ttk.Label(self, text="Blend Mode:")
         self.blend_mode_label.pack(side=tk.LEFT, padx=(4, 4), pady=4)
@@ -2395,6 +2417,10 @@ class FrameColorOps(tk.LabelFrame):
 
     def _notify_operation_changed(self, Event=None):
         self._on_operation_changed(ColorOps.parse(self.var.get()).value)
+
+    def _notify_processing_mode_changed(self):
+        mode = ProcessingMode.parse(self.processing_mode_var.get())
+        self._on_processing_mode_changed(mode.value)
 
 
 class PatternTreeview(ttk.Treeview):

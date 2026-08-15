@@ -88,6 +88,7 @@ from src.pattern_exchange import (
 from src.platform_tools import open_directory_in_file_manager
 from src.pattern_controller import PatternController
 from src.preview_controller import PreviewController, PreviewRequest, PreviewResult
+from src.processing_mode import ProcessingMode
 from src.render_settings import DEFAULT_RENDER_SETTINGS
 from src.settings_handler import SettingsHandler
 from src.texture_naming import (
@@ -371,6 +372,7 @@ class ArmyPainter(tk.Tk):
         self.frame_color_op_option = FrameColorOps(
             self.frame_img_tools,
             on_operation_changed=self.color_operation_update,
+            on_processing_mode_changed=self.processing_mode_update,
             text="Color Operation",
         )
         self.frame_color_op_option.pack(side=tk.TOP, fill=tk.X)
@@ -848,6 +850,12 @@ class ArmyPainter(tk.Tk):
         self.render_settings = replace(
             self.render_settings,
             color_op=ColorOps.parse(color_op),
+        )
+        self.refresh_workspace()
+
+    def processing_mode_update(self, processing_mode: str):
+        self.render_settings = self.render_settings.with_processing_mode(
+            ProcessingMode.parse(processing_mode)
         )
         self.refresh_workspace()
 

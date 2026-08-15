@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.constant import ColorOps
 from src.frame_main import ArmyPainter
+from src.processing_mode import ProcessingMode
 from src.render_settings import DEFAULT_RENDER_SETTINGS
 from src.widget import (
     BatchEditTopLevel,
@@ -91,6 +92,16 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
 
         frame._on_operation_changed.assert_called_once_with("multiply")
 
+    def test_processing_mode_forwards_stable_selected_value(self):
+        frame = object.__new__(FrameColorOps)
+        frame.processing_mode_var = ValueVariable("per_color")
+        frame._on_processing_mode_changed = Mock()
+
+        frame._notify_processing_mode_changed()
+
+        frame._on_processing_mode_changed.assert_called_once_with("per_color")
+
+    @patch("src.widget.ttk.Radiobutton", side_effect=FakeWidget)
     @patch("src.widget.ttk.Combobox", side_effect=FakeWidget)
     @patch("src.widget.ttk.Label", side_effect=FakeWidget)
     @patch("src.widget.tk.StringVar", side_effect=lambda value: ValueVariable(value))
@@ -101,12 +112,24 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         _string_var,
         _label_type,
         combobox_type,
+        radiobutton_type,
     ):
-        callback = Mock()
+        operation_callback = Mock()
+        mode_callback = Mock()
 
-        frame = FrameColorOps(object(), on_operation_changed=callback)
+        frame = FrameColorOps(
+            object(),
+            on_operation_changed=operation_callback,
+            on_processing_mode_changed=mode_callback,
+        )
 
         combobox_type.assert_called_once()
+        self.assertEqual(radiobutton_type.call_count, 2)
+        self.assertEqual(frame.processing_mode_var.get(), "global")
+        self.assertEqual(frame.global_mode_button.options["text"], "Global")
+        self.assertEqual(frame.global_mode_button.options["value"], "global")
+        self.assertEqual(frame.per_color_mode_button.options["text"], "Per Color")
+        self.assertEqual(frame.per_color_mode_button.options["value"], "per_color")
         selector = frame.blend_mode_selector
         self.assertEqual(selector.options["state"], "readonly")
         self.assertEqual(
@@ -127,7 +150,10 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         self.assertIn("<<ComboboxSelected>>", selector.bindings)
         frame.var.set("Linear Dodge (Add)")
         selector.bindings["<<ComboboxSelected>>"](object())
-        callback.assert_called_once_with("linear_dodge")
+        operation_callback.assert_called_once_with("linear_dodge")
+        frame.processing_mode_var.set("per_color")
+        frame.per_color_mode_button.options["command"]()
+        mode_callback.assert_called_once_with("per_color")
 
     @patch("src.widget.tk.Scale", side_effect=FakeScale)
     @patch("src.widget.tk.Frame.__init__", return_value=None)
@@ -184,10 +210,15 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
 
         ArmyPainter.on_apply_alpha_toggle(painter, True)
         ArmyPainter.color_operation_update(painter, ColorOps.SCREEN.value)
+        ArmyPainter.processing_mode_update(painter, ProcessingMode.PER_COLOR.value)
 
         self.assertIs(painter.render_settings.apply_alpha, True)
         self.assertIs(painter.render_settings.color_op, ColorOps.SCREEN)
-        self.assertEqual(painter.refresh_workspace.call_count, 2)
+        self.assertIs(
+            painter.render_settings.processing_mode,
+            ProcessingMode.PER_COLOR,
+        )
+        self.assertEqual(painter.refresh_workspace.call_count, 3)
 
     def test_controller_receives_both_slider_levels(self):
         painter = type(
