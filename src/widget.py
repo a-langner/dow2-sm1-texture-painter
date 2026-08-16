@@ -2375,6 +2375,9 @@ class FrameColorChooser(tk.Frame):
                 "<ButtonRelease-1>", self._on_slot_pointer_release
             )
             self.color_boxes[i].bind(
+                "<Button-3>", partial(self._show_slot_context_menu, i)
+            )
+            self.color_boxes[i].bind(
                 "<Enter>", partial(self._show_color_tooltip, i)
             )
             self.color_boxes[i].bind("<Leave>", self._hide_color_tooltip)
@@ -2459,9 +2462,32 @@ class FrameColorChooser(tk.Frame):
         if (
             target_index is not None
             and target_index != source_index
-            and self._on_slots_swapped is not None
         ):
-            self._on_slots_swapped(source_index, target_index)
+            self._request_slot_swap(source_index, target_index)
+
+    def _show_slot_context_menu(self, slot_index: int, Event=None):
+        """Offer explicit swaps from one slot to each other fixed position."""
+        if Event is None:
+            return
+        self.select_slot(slot_index)
+        menu = tk.Menu(self, tearoff=0)
+        for target_index in range(len(self.color_slots)):
+            if target_index == slot_index:
+                continue
+            menu.add_command(
+                label=f"Swap with Color {target_index + 1}",
+                command=partial(self._request_slot_swap, slot_index, target_index),
+            )
+        try:
+            menu.tk_popup(Event.x_root, Event.y_root)
+        finally:
+            menu.grab_release()
+
+    def _request_slot_swap(self, source_index: int, target_index: int):
+        """Delegate one UI swap request to the application operation."""
+        if self._on_slots_swapped is not None:
+            return self._on_slots_swapped(source_index, target_index)
+        return None
 
     def _slot_index_at_pointer(self, root_x: int, root_y: int) -> Optional[int]:
         """Resolve a root-window pointer position to a fixed Color Slot."""
