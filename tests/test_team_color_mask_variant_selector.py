@@ -27,8 +27,9 @@ class TeamColorMaskVariantSelectorTests(unittest.TestCase):
 
         ArmyPainter.sync_team_color_mask_variant_selector(painter)
 
-        painter.team_color_mask_variant_selector.configure.assert_called_once_with(
-            values=()
+        painter.team_color_mask_variant_selector.configure.assert_any_call(values=())
+        painter.team_color_mask_variant_selector.configure.assert_called_with(
+            state="readonly"
         )
         painter.team_color_mask_variant_name.set.assert_called_once_with("")
         painter.team_color_mask_variant_filename.set.assert_called_once_with("")
@@ -41,8 +42,11 @@ class TeamColorMaskVariantSelectorTests(unittest.TestCase):
 
         ArmyPainter.sync_team_color_mask_variant_selector(painter)
 
-        painter.team_color_mask_variant_selector.configure.assert_called_once_with(
+        painter.team_color_mask_variant_selector.configure.assert_any_call(
             values=("Default",)
+        )
+        painter.team_color_mask_variant_selector.configure.assert_called_with(
+            state="readonly"
         )
         painter.team_color_mask_variant_name.set.assert_called_once_with("Default")
         painter.team_color_mask_variant_filename.set.assert_called_once_with(
