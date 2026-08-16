@@ -13,6 +13,7 @@ from src.color_processing_settings import (
     validate_processing_level,
 )
 from src.color_slot import ColorSlot
+from src.color_slot_state import ColorSlotState, ColorSlotStates
 from src.constant import ColorOps
 from src.processing_mode import ProcessingMode
 
@@ -124,6 +125,36 @@ class RenderSettings:
             self.secondary_color,
             self.tint_color,
             self.extra_color,
+        )
+
+    @property
+    def color_slot_states(self) -> ColorSlotStates:
+        """Return each positional slot's complete movable contents."""
+        return (
+            ColorSlotState(self.primary_color, self.per_color_processing[0]),
+            ColorSlotState(self.secondary_color, self.per_color_processing[1]),
+            ColorSlotState(self.tint_color, self.per_color_processing[2]),
+            ColorSlotState(self.extra_color, self.per_color_processing[3]),
+        )
+
+    def with_color_slot_states(self, states: ColorSlotStates) -> "RenderSettings":
+        """Replace complete slot contents without changing positional identity."""
+        if not isinstance(states, tuple) or len(states) != 4:
+            raise TypeError("states must be a tuple of four ColorSlotState values.")
+        if not all(isinstance(state, ColorSlotState) for state in states):
+            raise TypeError("states must contain ColorSlotState values.")
+        return replace(
+            self,
+            primary_color=states[0].color,
+            secondary_color=states[1].color,
+            tint_color=states[2].color,
+            extra_color=states[3].color,
+            per_color_processing=(
+                states[0].processing,
+                states[1].processing,
+                states[2].processing,
+                states[3].processing,
+            ),
         )
 
     @property
