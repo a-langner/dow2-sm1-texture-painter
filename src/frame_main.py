@@ -778,6 +778,33 @@ class ArmyPainter(tk.Tk):
         )
         ArmyPainter.refresh_processing_controls(self)
 
+    def swap_color_slots(self, source_index: int, target_index: int) -> bool:
+        """Exchange complete slot contents while retaining slot positions."""
+        source_slot = ColorSlot.from_index(source_index)
+        target_slot = ColorSlot.from_index(target_index)
+        if source_slot is target_slot:
+            return False
+
+        ArmyPainter.sync_render_settings(self)
+        states = list(self.render_settings.color_slot_states)
+        states[source_slot.index], states[target_slot.index] = (
+            states[target_slot.index],
+            states[source_slot.index],
+        )
+        self.render_settings = self.render_settings.with_color_slot_states(
+            (states[0], states[1], states[2], states[3])
+        )
+        for state, color_box in zip(
+            self.render_settings.color_slot_states,
+            self.frame_color_chooser.color_boxes,
+        ):
+            color_box["bg"] = state.color
+        self.frame_color_chooser.draw_rgb_value()
+        ArmyPainter.refresh_processing_controls(self)
+        self.update_pattern_action_states()
+        self.refresh_workspace()
+        return True
+
     def save(self, Event=None):
         """Save image from current workspace
 
