@@ -197,6 +197,7 @@ class RenderSettingsTests(unittest.TestCase):
             ColorOps.HARD_LIGHT,
             65,
             110,
+            72,
         )
         settings = RenderSettings().with_global_processing(global_processing)
 
@@ -205,6 +206,10 @@ class RenderSettingsTests(unittest.TestCase):
         self.assertEqual(
             initialized.per_color_processing,
             (global_processing,) * 4,
+        )
+        self.assertEqual(
+            tuple(value.opacity for value in initialized.per_color_processing),
+            (72, 72, 72, 72),
         )
         self.assertTrue(initialized.per_color_processing_initialized)
         self.assertFalse(settings.per_color_processing_initialized)

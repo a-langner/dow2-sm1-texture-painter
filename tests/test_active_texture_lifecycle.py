@@ -174,6 +174,7 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
             frame_sliders=SimpleNamespace(
                 brightness_slider=SimpleNamespace(set=Mock()),
                 contrast_slider=SimpleNamespace(set=Mock()),
+                opacity_slider=SimpleNamespace(set=Mock()),
             ),
             frame_channel_select=SimpleNamespace(
                 lb=SimpleNamespace(selection_set=Mock())
@@ -195,6 +196,7 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
         painter.preview_controller.request_preview.assert_not_called()
         painter.preview_controller.request_preview_immediately.assert_not_called()
         painter.sync_render_settings.assert_not_called()
+        painter.frame_sliders.opacity_slider.set.assert_called_once_with(100.0)
 
     @patch("src.frame_main.ImageTk.PhotoImage", side_effect=lambda image: image)
     @patch("src.frame_main.create_placeholder_img", side_effect=(object(), object()))

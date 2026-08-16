@@ -516,6 +516,7 @@ class ColorPatternSavingTests(unittest.TestCase):
         expected = ColorProcessingSettings(BlendMode.SCREEN, 45.0, 125.0)
         self.assertIs(state.processing_mode, ProcessingMode.GLOBAL)
         self.assertEqual(state.global_processing, expected)
+        self.assertEqual(state.global_processing.opacity, 100.0)
         self.assertEqual(state.per_color_processing, (expected,) * 4)
 
     def test_every_builtin_pattern_resolves_to_unchanged_global_defaults(self):
