@@ -77,6 +77,9 @@ class PatternDirtyStateTests(unittest.TestCase):
     def test_swatch_click_selects_and_highlights_without_opening_picker(self):
         chooser = object.__new__(FrameColorChooser)
         chooser.color_boxes = [Mock() for _ in range(4)]
+        chooser.color_slots = [Mock() for _ in range(4)]
+        for slot in chooser.color_slots:
+            slot.cget.return_value = "SystemButtonFace"
         chooser.active_slot_index = 0
         chooser._on_slot_selected = Mock()
         chooser._color_picker = Mock()

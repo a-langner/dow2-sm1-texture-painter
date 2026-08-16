@@ -89,7 +89,9 @@ class FakeWidget:
     def get(self):
         return self.value
 
-    def bind(self, event, callback):
+    def bind(self, event, callback, add=None):
+        if add == "+" and event in self.bindings:
+            return
         self.bindings[event] = callback
 
     def delete(self, first, last=None):
@@ -2083,6 +2085,7 @@ class ColorPickerDialogTests(unittest.TestCase):
                     "#8a1f27",
                 )
 
+    @patch("src.widget.configure_app_selection_styles")
     @patch("src.widget.tk.Canvas")
     @patch("src.widget.ttk.Label")
     @patch("src.widget.ttk.Frame.__init__", return_value=None)
@@ -2091,6 +2094,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         _frame_init,
         _label_type,
         canvas_type,
+        _configure_selection_styles,
     ):
         colors = tuple((value, value, value) for value in range(15))
 
@@ -2114,6 +2118,7 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         self.assertEqual(canvas_type.call_args.kwargs["height"], 1)
 
+    @patch("src.widget.configure_app_selection_styles")
     @patch("src.widget.tk.Canvas")
     @patch("src.widget.ttk.Label")
     @patch("src.widget.ttk.Frame.__init__", return_value=None)
@@ -2122,6 +2127,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         _frame_init,
         _label_type,
         canvas_type,
+        _configure_selection_styles,
     ):
         RecentColorSwatchRow(
             object(),

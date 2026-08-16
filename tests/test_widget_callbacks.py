@@ -68,6 +68,15 @@ class FakeWidget:
     def place(self, **options):
         self.place_options = options
 
+    def pack_propagate(self, enabled):
+        self.pack_propagate_enabled = enabled
+
+    def grid_propagate(self, enabled):
+        self.grid_propagate_enabled = enabled
+
+    def cget(self, key):
+        return self.options.get(key, "SystemButtonFace")
+
     def configure(self, **options):
         self.options.update(options)
 
@@ -79,7 +88,9 @@ class FakeWidget:
     def create_text(self, *args, **options):
         pass
 
-    def bind(self, event, callback):
+    def bind(self, event, callback, add=None):
+        if add == "+" and event in self.bindings:
+            return
         self.bindings[event] = callback
 
 
@@ -90,12 +101,14 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
     )
     @patch("src.widget.tk.Button", side_effect=FakeWidget)
     @patch("src.widget.tk.Canvas", side_effect=FakeWidget)
+    @patch("src.widget.tk.Frame", side_effect=FakeWidget)
     @patch("src.widget.tkfont.Font")
     @patch("src.widget.tk.Frame.__init__", return_value=None)
     def test_color_slots_select_separately_from_explicit_edit_buttons(
         self,
         _frame_init,
         font_type,
+        frame_type,
         canvas_type,
         button_type,
         _presentation,
@@ -114,6 +127,7 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
 
         self.assertEqual(canvas_type.call_count, 4)
         self.assertEqual(button_type.call_count, 4)
+        self.assertEqual(frame_type.call_count, 4)
         self.assertEqual(
             [button.options["text"] for button in chooser.color_buttons],
             ["Edit Color 1", "Edit Color 2", "Edit Color 3", "Edit Color 4"],
@@ -172,6 +186,7 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
 
         frame._on_processing_mode_changed.assert_called_once_with("per_color")
 
+    @patch("src.widget.configure_app_selection_styles")
     @patch("src.widget.ttk.Radiobutton", side_effect=FakeWidget)
     @patch("src.widget.ttk.Combobox", side_effect=FakeWidget)
     @patch("src.widget.ttk.Label", side_effect=FakeWidget)
@@ -184,6 +199,7 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         _label_type,
         combobox_type,
         radiobutton_type,
+        _configure_selection_styles,
     ):
         operation_callback = Mock()
         mode_callback = Mock()
