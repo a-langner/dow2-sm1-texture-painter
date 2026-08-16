@@ -157,21 +157,11 @@ def configure_app_selection_styles(widget: tk.Misc) -> None:
         )
     style.configure(
         APP_COMBOBOX_STYLE,
-        fieldbackground=APP_SELECTION_BACKGROUND,
-        foreground=APP_SELECTION_FOREGROUND,
         selectbackground=APP_SELECTION_BACKGROUND,
         selectforeground=APP_SELECTION_FOREGROUND,
     )
     style.map(
         APP_COMBOBOX_STYLE,
-        fieldbackground=[
-            ("readonly", APP_SELECTION_BACKGROUND),
-            ("focus", APP_SELECTION_BACKGROUND),
-        ],
-        foreground=[
-            ("readonly", APP_SELECTION_FOREGROUND),
-            ("focus", APP_SELECTION_FOREGROUND),
-        ],
         selectbackground=[
             ("readonly focus", APP_SELECTION_BACKGROUND),
             ("focus", APP_SELECTION_BACKGROUND),
@@ -181,10 +171,6 @@ def configure_app_selection_styles(widget: tk.Misc) -> None:
             ("readonly focus", APP_SELECTION_FOREGROUND),
             ("focus", APP_SELECTION_FOREGROUND),
             ("readonly", APP_SELECTION_FOREGROUND),
-        ],
-        background=[
-            ("pressed", APP_SELECTION_BACKGROUND),
-            ("active", APP_SELECTION_BACKGROUND),
         ],
     )
     widget.option_add(
@@ -214,6 +200,13 @@ def clear_readonly_combobox_text_selection(combobox: ttk.Combobox) -> None:
 
     combobox.bind("<FocusIn>", clear_selection, add="+")
     combobox.bind("<<ComboboxSelected>>", clear_selection, add="+")
+
+
+def show_readonly_combobox_value(combobox: ttk.Combobox, value: str) -> None:
+    """Set and repaint a readonly Combobox value before user interaction."""
+    combobox.configure(state="normal")
+    combobox.set(value)
+    combobox.configure(state="readonly")
 
 
 @dataclass(frozen=True)
@@ -1039,12 +1032,15 @@ class ColorPickerDialog(tk.Toplevel):
             style=APP_COMBOBOX_STYLE,
             width=12,
         )
-        self.palette_sort_selector.set(self.palette_sort_mode.display_name)
         self.palette_sort_selector.pack(side=tk.LEFT)
         self.palette_sort_selector.bind(
             "<<ComboboxSelected>>", self._on_palette_sort_selected
         )
         clear_readonly_combobox_text_selection(self.palette_sort_selector)
+        show_readonly_combobox_value(
+            self.palette_sort_selector,
+            self.palette_sort_mode.display_name,
+        )
         self.palette_count_label = ttk.Label(
             self.palette_count_area,
             text=format_visible_paint_count(0),
@@ -1187,12 +1183,15 @@ class ColorPickerDialog(tk.Toplevel):
             style=APP_COMBOBOX_STYLE,
             width=12,
         )
-        self.color_space_selector.set(self.color_space_mode)
         self.color_space_selector.pack(side=tk.LEFT)
         self.color_space_selector.bind(
             "<<ComboboxSelected>>", self._on_color_space_selected
         )
         clear_readonly_combobox_text_selection(self.color_space_selector)
+        show_readonly_combobox_value(
+            self.color_space_selector,
+            self.color_space_mode,
+        )
 
         self.hsv_color_field = tk.Canvas(
             self.editor_color_field_area,
@@ -2640,6 +2639,7 @@ class FrameColorOps(tk.LabelFrame):
         *,
         on_operation_changed: StringChangedCallback,
         on_processing_mode_changed: StringChangedCallback,
+        initial_operation: ColorOps,
         **kw,
     ):
         super(FrameColorOps, self).__init__(master=master, cnf={}, **kw)
@@ -2668,7 +2668,7 @@ class FrameColorOps(tk.LabelFrame):
         self.per_color_mode_button.pack(side=tk.LEFT, padx=(0, 6), pady=4)
         self.editing_label = ttk.Label(self, text="Editing: Color 1")
         self._editing_indicator_visible = False
-        self.var = tk.StringVar(value=ColorOps.OVERLAY.display_name)
+        self.var = tk.StringVar(value=initial_operation.display_name)
         self.blend_mode_label = ttk.Label(self, text="Blend Mode:")
         self.blend_mode_label.pack(side=tk.LEFT, padx=(4, 4), pady=4)
         self.blend_mode_selector = ttk.Combobox(
@@ -2685,6 +2685,7 @@ class FrameColorOps(tk.LabelFrame):
             self._notify_operation_changed,
         )
         clear_readonly_combobox_text_selection(self.blend_mode_selector)
+        show_readonly_combobox_value(self.blend_mode_selector, self.var.get())
 
     def _notify_operation_changed(self, Event=None):
         self._on_operation_changed(ColorOps.parse(self.var.get()).value)

@@ -210,6 +210,7 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
             object(),
             on_operation_changed=operation_callback,
             on_processing_mode_changed=mode_callback,
+            initial_operation=DEFAULT_RENDER_SETTINGS.color_op,
         )
 
         combobox_type.assert_called_once()

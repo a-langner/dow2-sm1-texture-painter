@@ -13,6 +13,7 @@ from tkinter.messagebox import showerror
 from src.widget import (
     APP_COMBOBOX_STYLE,
     clear_readonly_combobox_text_selection,
+    show_readonly_combobox_value,
     FrameColorChooser,
     FrameChannelList,
     FrameColorOps,
@@ -380,6 +381,7 @@ class ArmyPainter(tk.Tk):
             self.frame_img_tools,
             on_operation_changed=self.color_operation_update,
             on_processing_mode_changed=self.processing_mode_update,
+            initial_operation=self.render_settings.active_processing.blend_mode,
             text="Color Operation",
         )
         self.frame_color_op_option.pack(side=tk.TOP, fill=tk.X)
@@ -447,8 +449,13 @@ class ArmyPainter(tk.Tk):
             values=tuple(variant.display_name for variant in variants)
         )
         active_variant = self.active_team_color_mask_variant
-        self.team_color_mask_variant_name.set(
+        visible_name = (
             active_variant.display_name if active_variant is not None else ""
+        )
+        self.team_color_mask_variant_name.set(visible_name)
+        show_readonly_combobox_value(
+            self.team_color_mask_variant_selector,
+            visible_name,
         )
         self.team_color_mask_variant_filename.set(
             active_variant.filename if active_variant is not None else ""
