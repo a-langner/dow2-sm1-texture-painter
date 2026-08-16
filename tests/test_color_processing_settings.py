@@ -8,8 +8,10 @@ from src.color_processing_settings import (
     DEFAULT_COLOR_PROCESSING_SETTINGS,
     MAX_BRIGHTNESS,
     MAX_CONTRAST,
+    MAX_OPACITY,
     MIN_BRIGHTNESS,
     MIN_CONTRAST,
+    MIN_OPACITY,
     ColorProcessingSettings,
 )
 
@@ -21,6 +23,7 @@ class ColorProcessingSettingsTests(unittest.TestCase):
         self.assertIs(settings.blend_mode, BlendMode.OVERLAY)
         self.assertEqual(settings.brightness, 75.0)
         self.assertEqual(settings.contrast, 100.0)
+        self.assertEqual(settings.opacity, 100.0)
         self.assertEqual(settings, DEFAULT_COLOR_PROCESSING_SETTINGS)
 
     def test_every_blend_mode_and_level_boundary_is_supported(self):
@@ -34,9 +37,11 @@ class ColorProcessingSettingsTests(unittest.TestCase):
         settings = ColorProcessingSettings(
             brightness=MIN_BRIGHTNESS,
             contrast=MAX_CONTRAST,
+            opacity=MIN_OPACITY,
         )
         self.assertEqual(settings.brightness, MIN_BRIGHTNESS)
         self.assertEqual(settings.contrast, MAX_CONTRAST)
+        self.assertEqual(settings.opacity, MIN_OPACITY)
         self.assertEqual(
             ColorProcessingSettings(brightness=MAX_BRIGHTNESS).brightness,
             MAX_BRIGHTNESS,
@@ -44,6 +49,10 @@ class ColorProcessingSettingsTests(unittest.TestCase):
         self.assertEqual(
             ColorProcessingSettings(contrast=MIN_CONTRAST).contrast,
             MIN_CONTRAST,
+        )
+        self.assertEqual(
+            ColorProcessingSettings(opacity=MAX_OPACITY).opacity,
+            MAX_OPACITY,
         )
 
     def test_values_are_immutable_and_replaceable_per_context(self):
@@ -53,6 +62,7 @@ class ColorProcessingSettingsTests(unittest.TestCase):
             blend_mode=BlendMode.MULTIPLY,
             brightness=60,
             contrast=90,
+            opacity=65,
         )
 
         self.assertEqual(global_settings, DEFAULT_COLOR_PROCESSING_SETTINGS)
@@ -70,6 +80,8 @@ class ColorProcessingSettingsTests(unittest.TestCase):
             {"brightness": MAX_BRIGHTNESS + 1},
             {"contrast": MIN_CONTRAST - 1},
             {"contrast": MAX_CONTRAST + 1},
+            {"opacity": MIN_OPACITY - 1},
+            {"opacity": MAX_OPACITY + 1},
         ):
             with self.subTest(values=values):
                 with self.assertRaisesRegex(ValueError, "must be between"):

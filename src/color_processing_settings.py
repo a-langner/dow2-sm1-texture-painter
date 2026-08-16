@@ -8,6 +8,8 @@ MIN_BRIGHTNESS = 0.0
 MAX_BRIGHTNESS = 150.0
 MIN_CONTRAST = 0.0
 MAX_CONTRAST = 200.0
+MIN_OPACITY = 0.0
+MAX_OPACITY = 100.0
 
 
 def validate_processing_level(
@@ -32,6 +34,7 @@ class ColorProcessingSettings:
     blend_mode: BlendMode = BlendMode.OVERLAY
     brightness: float = 75.0
     contrast: float = 100.0
+    opacity: float = 100.0
 
     def __post_init__(self) -> None:
         if not isinstance(self.blend_mode, BlendMode):
@@ -47,6 +50,12 @@ class ColorProcessingSettings:
             "contrast",
             MIN_CONTRAST,
             MAX_CONTRAST,
+        )
+        validate_processing_level(
+            self.opacity,
+            "opacity",
+            MIN_OPACITY,
+            MAX_OPACITY,
         )
 
 
