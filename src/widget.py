@@ -126,6 +126,7 @@ COLOR_MODEL_CONTROL_WIDTH = 3
 PAINT_SWATCH_OUTLINE = "#606060"
 PAINT_SWATCH_SELECTED_OUTLINE = APP_SELECTION_BACKGROUND
 COLOR_SLOT_DROP_TARGET_OUTLINE = "#00a6d6"
+COLOR_SLOT_DRAG_THRESHOLD = 6
 COLOR_FIELD_PREFERRED_HEIGHT = 240
 VISUAL_RESIZE_DELAY_MS = 40
 APP_COMBOBOX_STYLE = "AppSelection.TCombobox"
@@ -2327,6 +2328,7 @@ class FrameColorChooser(tk.Frame):
         self.color_buttons = []
         self.active_slot_index = 0
         self._drag_source_index = None
+        self._drag_start_position = None
         self._drag_target_index = None
         self._drag_started = False
         self.initialize()
@@ -2406,14 +2408,27 @@ class FrameColorChooser(tk.Frame):
     def _on_slot_pointer_press(self, slot_index: int, Event=None):
         """Select a slot and remember it as a potential drag source."""
         self._drag_source_index = slot_index
+        self._drag_start_position = (
+            (Event.x_root, Event.y_root) if Event is not None else None
+        )
         self._drag_target_index = None
         self._drag_started = False
         self.select_slot(slot_index)
 
     def _on_slot_pointer_motion(self, Event=None):
         """Mark pointer movement from a swatch as an active drag."""
-        if self._drag_source_index is not None:
+        if (
+            self._drag_source_index is not None
+            and self._drag_start_position is not None
+            and Event is not None
+        ):
             if not self._drag_started:
+                start_x, start_y = self._drag_start_position
+                distance_squared = (Event.x_root - start_x) ** 2 + (
+                    Event.y_root - start_y
+                ) ** 2
+                if distance_squared <= COLOR_SLOT_DRAG_THRESHOLD**2:
+                    return
                 self._drag_started = True
                 self.color_boxes[self._drag_source_index].configure(cursor="fleur")
             target_index = None
@@ -2433,6 +2448,7 @@ class FrameColorChooser(tk.Frame):
         if dragging and Event is not None:
             target_index = self._slot_index_at_pointer(Event.x_root, Event.y_root)
         self._drag_source_index = None
+        self._drag_start_position = None
         self._drag_target_index = None
         self._drag_started = False
         for color_box in self.color_boxes:

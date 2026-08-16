@@ -133,7 +133,9 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
             ["Edit Color 1", "Edit Color 2", "Edit Color 3", "Edit Color 4"],
         )
 
-        chooser.color_boxes[2].bindings["<ButtonPress-1>"](object())
+        chooser.color_boxes[2].bindings["<ButtonPress-1>"](
+            SimpleNamespace(x_root=10, y_root=10)
+        )
         selected.assert_called_once_with(2)
         picker.assert_not_called()
 

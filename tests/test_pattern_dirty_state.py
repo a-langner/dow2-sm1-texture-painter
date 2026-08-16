@@ -82,6 +82,7 @@ class PatternDirtyStateTests(unittest.TestCase):
             slot.cget.return_value = "SystemButtonFace"
         chooser.active_slot_index = 0
         chooser._drag_source_index = None
+        chooser._drag_start_position = None
         chooser._drag_target_index = None
         chooser._drag_started = False
         chooser._on_slot_selected = Mock()
