@@ -153,10 +153,10 @@ class RenderSettingsTests(unittest.TestCase):
             contrast=100,
         )
         per_color = (
-            ColorProcessingSettings(ColorOps.MULTIPLY, 65, 110),
-            ColorProcessingSettings(ColorOps.COLOR, 80, 95),
-            ColorProcessingSettings(ColorOps.SOFT_LIGHT, 70, 105),
-            ColorProcessingSettings(ColorOps.OVERLAY, 75, 100),
+            ColorProcessingSettings(ColorOps.MULTIPLY, 65, 110, 100),
+            ColorProcessingSettings(ColorOps.COLOR, 80, 95, 65),
+            ColorProcessingSettings(ColorOps.SOFT_LIGHT, 70, 105, 40),
+            ColorProcessingSettings(ColorOps.OVERLAY, 75, 100, 85),
         )
         settings = RenderSettings().with_global_processing(global_processing)
         for index, processing in enumerate(per_color):
@@ -240,9 +240,9 @@ class RenderSettingsTests(unittest.TestCase):
         self.assertEqual(changed.global_processing, original.global_processing)
 
     def test_distinct_slots_survive_per_color_global_per_color_switch(self):
-        color_one = ColorProcessingSettings(ColorOps.MULTIPLY, 60, 90)
-        color_two = ColorProcessingSettings(ColorOps.COLOR, 80, 110)
-        changed_color_one = ColorProcessingSettings(ColorOps.SCREEN, 65, 95)
+        color_one = ColorProcessingSettings(ColorOps.MULTIPLY, 60, 90, 25)
+        color_two = ColorProcessingSettings(ColorOps.COLOR, 80, 110, 70)
+        changed_color_one = ColorProcessingSettings(ColorOps.SCREEN, 65, 95, 45)
         settings = RenderSettings().with_processing_mode(
             ProcessingMode.PER_COLOR
         )
@@ -351,8 +351,8 @@ class RenderSettingsTests(unittest.TestCase):
     def test_army_painter_swaps_complete_slot_state_only(self):
         from src.frame_main import ArmyPainter
 
-        source_processing = ColorProcessingSettings(ColorOps.MULTIPLY, 65, 110)
-        target_processing = ColorProcessingSettings(ColorOps.SOFT_LIGHT, 80, 95)
+        source_processing = ColorProcessingSettings(ColorOps.MULTIPLY, 65, 110, 25)
+        target_processing = ColorProcessingSettings(ColorOps.SOFT_LIGHT, 80, 95, 90)
         global_processing = ColorProcessingSettings(ColorOps.SCREEN, 88, 123)
         per_color_processing = (
             source_processing,
@@ -371,6 +371,10 @@ class RenderSettingsTests(unittest.TestCase):
         )
         contrast_slider = SimpleNamespace(
             get=Mock(return_value=source_processing.contrast),
+            set=Mock(),
+        )
+        opacity_slider = SimpleNamespace(
+            get=Mock(return_value=source_processing.opacity),
             set=Mock(),
         )
         painter = SimpleNamespace(
@@ -402,6 +406,7 @@ class RenderSettingsTests(unittest.TestCase):
             frame_sliders=SimpleNamespace(
                 brightness_slider=brightness_slider,
                 contrast_slider=contrast_slider,
+                opacity_slider=opacity_slider,
             ),
             frame_channel_select=SimpleNamespace(
                 lb=SimpleNamespace(curselection=Mock(return_value=(0, 2)))
@@ -427,6 +432,13 @@ class RenderSettingsTests(unittest.TestCase):
             ),
         )
         self.assertEqual(painter.render_settings.global_processing, global_processing)
+        self.assertEqual(
+            tuple(
+                processing.opacity
+                for processing in painter.render_settings.per_color_processing
+            ),
+            (90, 100, 25, 100),
+        )
         self.assertIs(
             painter.render_settings.active_color_slot,
             ColorSlot.COLOR_1,

@@ -342,8 +342,8 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         painter.request_workspace_preview.assert_called_once_with()
 
     def test_processing_controls_follow_mode_and_active_slot_without_leakage(self):
-        global_processing = ColorProcessingSettings(ColorOps.OVERLAY, 75, 100)
-        color_two = ColorProcessingSettings(ColorOps.COLOR, 80, 95)
+        global_processing = ColorProcessingSettings(ColorOps.OVERLAY, 75, 100, 90)
+        color_two = ColorProcessingSettings(ColorOps.COLOR, 80, 95, 65)
         settings = DEFAULT_RENDER_SETTINGS.with_global_processing(global_processing)
         settings = settings.with_processing_mode(ProcessingMode.PER_COLOR)
         settings = settings.with_active_color_slot(ColorSlot.COLOR_2)
@@ -359,7 +359,7 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
             frame_sliders=SimpleNamespace(
                 brightness_slider=ValueVariable(75),
                 contrast_slider=ValueVariable(100),
-                opacity_slider=ValueVariable(100),
+                opacity_slider=ValueVariable(90),
             ),
             refresh_workspace=Mock(),
             request_workspace_preview=Mock(),
@@ -372,20 +372,23 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         self.assertEqual(painter.frame_color_op_option.var.get(), "Color")
         self.assertEqual(painter.frame_sliders.brightness_slider.get(), 80)
         self.assertEqual(painter.frame_sliders.contrast_slider.get(), 95)
+        self.assertEqual(painter.frame_sliders.opacity_slider.get(), 65)
 
         painter.frame_color_op_option.var.set("Hard Light")
         ArmyPainter.color_operation_update(painter, "hard_light")
         painter.frame_sliders.brightness_slider.set(55)
         painter.frame_sliders.contrast_slider.set(130)
-        ArmyPainter.on_slider_update(painter, 55, 130, 100)
+        painter.frame_sliders.opacity_slider.set(40)
+        ArmyPainter.on_slider_update(painter, 55, 130, 40)
         ArmyPainter.on_color_slot_selected(painter, 0)
 
         self.assertEqual(painter.frame_color_op_option.var.get(), "Overlay")
         self.assertEqual(painter.frame_sliders.brightness_slider.get(), 75)
         self.assertEqual(painter.frame_sliders.contrast_slider.get(), 100)
+        self.assertEqual(painter.frame_sliders.opacity_slider.get(), 90)
         self.assertEqual(
             painter.render_settings.per_color_processing[1],
-            ColorProcessingSettings(ColorOps.HARD_LIGHT, 55, 130),
+            ColorProcessingSettings(ColorOps.HARD_LIGHT, 55, 130, 40),
         )
         self.assertEqual(
             painter.render_settings.per_color_processing[0],
