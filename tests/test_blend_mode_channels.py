@@ -89,6 +89,37 @@ class BlendModeChannelAndAlphaTests(unittest.TestCase):
                         255,
                     )
 
+    def test_opacity_scales_only_the_team_color_mask_strength(self):
+        textures = textures_for_channel(0)
+        full_strength = settings_for_channel(BlendMode.NORMAL, 0, False)
+        no_strength = RenderSettings(
+            primary_color=full_strength.primary_color,
+            brightness=full_strength.brightness,
+            contrast=full_strength.contrast,
+            opacity=0,
+            color_op=full_strength.color_op,
+        )
+        half_strength = RenderSettings(
+            primary_color=full_strength.primary_color,
+            brightness=full_strength.brightness,
+            contrast=full_strength.contrast,
+            opacity=50,
+            color_op=full_strength.color_op,
+        )
+
+        self.assertEqual(
+            TextureRenderer().render(textures, full_strength).getpixel((0, 0)),
+            (*EXPECTED_RGB[BlendMode.NORMAL], 255),
+        )
+        self.assertEqual(
+            TextureRenderer().render(textures, no_strength).getpixel((0, 0)),
+            (*BASE, 255),
+        )
+        self.assertEqual(
+            TextureRenderer().render(textures, half_strength).getpixel((0, 0)),
+            (125, 90, 120, 255),
+        )
+
     def test_per_color_mode_maps_independent_processing_to_rgba_channels(self):
         diffuse = Image.new("RGBA", (4, 1), (*BASE, 255))
         channels = []

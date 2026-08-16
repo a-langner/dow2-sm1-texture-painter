@@ -30,6 +30,7 @@ class RenderSettingsTests(unittest.TestCase):
         self.assertEqual(settings.colors, (DEFAULT_COLOR,) * 4)
         self.assertEqual(settings.brightness, 75.0)
         self.assertEqual(settings.contrast, 100.0)
+        self.assertEqual(settings.opacity, 100.0)
         self.assertFalse(settings.apply_alpha)
         self.assertFalse(settings.apply_dirt)
         self.assertFalse(settings.apply_spec)

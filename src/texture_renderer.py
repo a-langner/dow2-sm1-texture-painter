@@ -168,8 +168,13 @@ def _apply_team_colors(
         enhancer_brightness = ImageEnhance.Brightness(new_img)
         new_img = enhancer_brightness.enhance(processing.brightness / 100)
 
-        # Apply the team-colour channel exactly once.
-        workspace.paste(new_img, mask=channel)
+        # Apply the team-colour channel exactly once, with opacity scaling its
+        # effective strength rather than the blended RGB values.
+        effective_channel = channel
+        if processing.opacity != 100.0:
+            opacity = processing.opacity / 100.0
+            effective_channel = channel.point(lambda value: value * opacity)
+        workspace.paste(new_img, mask=effective_channel)
     return workspace
 
 
