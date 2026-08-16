@@ -125,6 +125,7 @@ COLOR_MODEL_GROUP_PADDING = (4, 6)
 COLOR_MODEL_CONTROL_WIDTH = 3
 PAINT_SWATCH_OUTLINE = "#606060"
 PAINT_SWATCH_SELECTED_OUTLINE = APP_SELECTION_BACKGROUND
+COLOR_SLOT_DROP_TARGET_OUTLINE = "#00a6d6"
 COLOR_FIELD_PREFERRED_HEIGHT = 240
 VISUAL_RESIZE_DELAY_MS = 40
 APP_COMBOBOX_STYLE = "AppSelection.TCombobox"
@@ -2326,6 +2327,7 @@ class FrameColorChooser(tk.Frame):
         self.color_buttons = []
         self.active_slot_index = 0
         self._drag_source_index = None
+        self._drag_target_index = None
         self._drag_started = False
         self.initialize()
 
@@ -2404,23 +2406,40 @@ class FrameColorChooser(tk.Frame):
     def _on_slot_pointer_press(self, slot_index: int, Event=None):
         """Select a slot and remember it as a potential drag source."""
         self._drag_source_index = slot_index
+        self._drag_target_index = None
         self._drag_started = False
         self.select_slot(slot_index)
 
     def _on_slot_pointer_motion(self, Event=None):
         """Mark pointer movement from a swatch as an active drag."""
         if self._drag_source_index is not None:
-            self._drag_started = True
+            if not self._drag_started:
+                self._drag_started = True
+                self.color_boxes[self._drag_source_index].configure(cursor="fleur")
+            target_index = None
+            if Event is not None:
+                target_index = self._slot_index_at_pointer(Event.x_root, Event.y_root)
+            if target_index == self._drag_source_index:
+                target_index = None
+            if target_index != self._drag_target_index:
+                self._drag_target_index = target_index
+                self._draw_active_slot()
 
     def _on_slot_pointer_release(self, Event=None):
         """Swap with the slot under the pointer, or cancel an invalid drop."""
         source_index = self._drag_source_index
         dragging = self._drag_started
+        target_index = self._drag_target_index
+        if dragging and Event is not None:
+            target_index = self._slot_index_at_pointer(Event.x_root, Event.y_root)
         self._drag_source_index = None
+        self._drag_target_index = None
         self._drag_started = False
-        if source_index is None or not dragging or Event is None:
+        for color_box in self.color_boxes:
+            color_box.configure(cursor="")
+        self._draw_active_slot()
+        if source_index is None or not dragging:
             return
-        target_index = self._slot_index_at_pointer(Event.x_root, Event.y_root)
         if (
             target_index is not None
             and target_index != source_index
@@ -2449,20 +2468,23 @@ class FrameColorChooser(tk.Frame):
     def _draw_active_slot(self):
         for index, color_box in enumerate(self.color_boxes):
             active = index == self.active_slot_index
+            dragging = self._drag_started and index == self._drag_source_index
+            drop_target = self._drag_started and index == self._drag_target_index
+            outline = (
+                COLOR_SLOT_DROP_TARGET_OUTLINE
+                if drop_target
+                else (
+                    PAINT_SWATCH_SELECTED_OUTLINE
+                    if active
+                    else self.color_slots[index].cget("bg")
+                )
+            )
             color_box.configure(
-                relief=tk.SUNKEN if active else tk.RAISED,
+                relief=tk.FLAT if dragging else (tk.SUNKEN if active else tk.RAISED),
                 bd=2,
                 highlightthickness=2,
-                highlightbackground=(
-                    PAINT_SWATCH_SELECTED_OUTLINE
-                    if active
-                    else self.color_slots[index].cget("bg")
-                ),
-                highlightcolor=(
-                    PAINT_SWATCH_SELECTED_OUTLINE
-                    if active
-                    else self.color_slots[index].cget("bg")
-                ),
+                highlightbackground=outline,
+                highlightcolor=outline,
             )
 
     def apply_color(self, btn_idx: int, Event=None):
