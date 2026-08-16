@@ -347,6 +347,100 @@ class RenderSettingsTests(unittest.TestCase):
         self.assertIs(settings.color_op, ColorOps.MULTIPLY)
         self.assertEqual(settings.tem_selected, (0, 2))
 
+    def test_army_painter_swaps_complete_slot_state_only(self):
+        from src.frame_main import ArmyPainter
+
+        source_processing = ColorProcessingSettings(ColorOps.MULTIPLY, 65, 110)
+        target_processing = ColorProcessingSettings(ColorOps.SOFT_LIGHT, 80, 95)
+        global_processing = ColorProcessingSettings(ColorOps.SCREEN, 88, 123)
+        per_color_processing = (
+            source_processing,
+            ColorProcessingSettings(),
+            target_processing,
+            ColorProcessingSettings(ColorOps.COLOR, 70, 105),
+        )
+        color_boxes = [{"bg": color} for color in COLORS]
+        operation_var = SimpleNamespace(
+            get=Mock(return_value=source_processing.blend_mode.display_name),
+            set=Mock(),
+        )
+        brightness_slider = SimpleNamespace(
+            get=Mock(return_value=source_processing.brightness),
+            set=Mock(),
+        )
+        contrast_slider = SimpleNamespace(
+            get=Mock(return_value=source_processing.contrast),
+            set=Mock(),
+        )
+        painter = SimpleNamespace(
+            render_settings=RenderSettings(
+                primary_color=COLORS[0],
+                secondary_color=COLORS[1],
+                tint_color=COLORS[2],
+                extra_color=COLORS[3],
+                color_op=global_processing.blend_mode,
+                brightness=global_processing.brightness,
+                contrast=global_processing.contrast,
+                processing_mode=ProcessingMode.PER_COLOR,
+                active_color_slot=ColorSlot.COLOR_1,
+                per_color_processing=per_color_processing,
+                _per_color_processing_initialized=True,
+                apply_alpha=True,
+                apply_dirt=True,
+                tem_selected=(0, 2),
+            ),
+            get_current_pattern_colors=Mock(return_value=COLORS),
+            frame_color_chooser=SimpleNamespace(
+                color_boxes=color_boxes,
+                draw_rgb_value=Mock(),
+            ),
+            frame_color_op_option=SimpleNamespace(
+                var=operation_var,
+                set_processing_context=Mock(),
+            ),
+            frame_sliders=SimpleNamespace(
+                brightness_slider=brightness_slider,
+                contrast_slider=contrast_slider,
+            ),
+            frame_channel_select=SimpleNamespace(
+                lb=SimpleNamespace(curselection=Mock(return_value=(0, 2)))
+            ),
+            update_pattern_action_states=Mock(),
+            refresh_workspace=Mock(),
+        )
+
+        changed = ArmyPainter.swap_color_slots(painter, 0, 2)
+
+        self.assertTrue(changed)
+        self.assertEqual(
+            painter.render_settings.colors,
+            (COLORS[2], COLORS[1], COLORS[0], COLORS[3]),
+        )
+        self.assertEqual(
+            painter.render_settings.per_color_processing,
+            (
+                target_processing,
+                per_color_processing[1],
+                source_processing,
+                per_color_processing[3],
+            ),
+        )
+        self.assertEqual(painter.render_settings.global_processing, global_processing)
+        self.assertIs(
+            painter.render_settings.active_color_slot,
+            ColorSlot.COLOR_1,
+        )
+        self.assertTrue(painter.render_settings.apply_alpha)
+        self.assertTrue(painter.render_settings.apply_dirt)
+        self.assertEqual(painter.render_settings.tem_selected, (0, 2))
+        self.assertEqual(
+            [color_box["bg"] for color_box in color_boxes],
+            [COLORS[2], COLORS[1], COLORS[0], COLORS[3]],
+        )
+        painter.frame_color_chooser.draw_rgb_value.assert_called_once_with()
+        painter.update_pattern_action_states.assert_called_once_with()
+        painter.refresh_workspace.assert_called_once_with()
+
     def test_model_has_no_tkinter_or_image_dependency(self):
         source_path = Path(__file__).resolve().parents[1] / "src" / "render_settings.py"
         tree = ast.parse(source_path.read_text(encoding="utf-8"))
