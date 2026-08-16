@@ -62,8 +62,10 @@ from src.recent_colors import MAX_RECENT_COLORS, RecentColors, add_recent_color
 from src.render_settings import (
     MAX_BRIGHTNESS,
     MAX_CONTRAST,
+    MAX_OPACITY,
     MIN_BRIGHTNESS,
     MIN_CONTRAST,
+    MIN_OPACITY,
 )
 from src.window_geometry import safe_window_geometry
 
@@ -141,7 +143,7 @@ ColorSlotsSwappedCallback = Callable[[int, int], object]
 ColorPickerCallback = Callable[[str], Optional[str]]
 PaintSelectedCallback = Callable[[PaintColor], None]
 RecentColorSelectedCallback = Callable[[str], None]
-LevelsChangedCallback = Callable[[float, float], None]
+LevelsChangedCallback = Callable[[float, float, float], None]
 StringChangedCallback = Callable[[str], None]
 LOGGER = logging.getLogger(__name__)
 
@@ -2585,7 +2587,7 @@ class FrameColorChooser(tk.Frame):
 
 
 class FrameSlider(tk.Frame):
-    """Brightness and contrast controls that report both current levels."""
+    """Brightness, contrast, and opacity controls for team-colour processing."""
 
     def __init__(
         self,
@@ -2622,10 +2624,24 @@ class FrameSlider(tk.Frame):
         )
         self.contrast_slider.pack(side=tk.TOP, fill=tk.X)
 
+        # Opacity slider
+        self.opacity_slider = tk.Scale(
+            self,
+            label="Opacity",
+            length=100,
+            from_=MIN_OPACITY,
+            to=MAX_OPACITY,
+            orient=tk.HORIZONTAL,
+            command=self._notify_levels_changed,
+        )
+        self.opacity_slider.set(100)
+        self.opacity_slider.pack(side=tk.TOP, fill=tk.X)
+
     def _notify_levels_changed(self, value=None):
         self._on_levels_changed(
             float(self.brightness_slider.get()),
             float(self.contrast_slider.get()),
+            float(self.opacity_slider.get()),
         )
 
 

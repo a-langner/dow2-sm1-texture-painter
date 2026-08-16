@@ -42,6 +42,9 @@ class FakeScale:
     def get(self):
         return self.value
 
+    def set(self, value):
+        self.value = value
+
 
 class FakeWidget:
     def __init__(self, parent=None, **options):
@@ -51,6 +54,9 @@ class FakeWidget:
 
     def insert(self, *args):
         pass
+
+    def set(self, value):
+        self.value = value
 
     def __getitem__(self, key):
         return self.options[key]
@@ -266,9 +272,11 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         callback.assert_not_called()
         frame.brightness_slider.options["command"]("75")
         frame.contrast_slider.options["command"]("100")
+        frame.opacity_slider.options["command"]("100")
 
-        self.assertEqual(callback.call_args_list[0].args, (75.0, 100.0))
-        self.assertEqual(callback.call_args_list[1].args, (75.0, 100.0))
+        self.assertEqual(callback.call_args_list[0].args, (75.0, 100.0, 100.0))
+        self.assertEqual(callback.call_args_list[1].args, (75.0, 100.0, 100.0))
+        self.assertEqual(callback.call_args_list[2].args, (75.0, 100.0, 100.0))
 
     @patch.object(BatchEditTopLevel, "initialize")
     @patch("src.widget.tk.Toplevel.title")
@@ -329,7 +337,7 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
             },
         )()
 
-        ArmyPainter.on_slider_update(painter, 75.0, 100.0)
+        ArmyPainter.on_slider_update(painter, 75.0, 100.0, 100.0)
 
         painter.request_workspace_preview.assert_called_once_with()
 
@@ -351,6 +359,7 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
             frame_sliders=SimpleNamespace(
                 brightness_slider=ValueVariable(75),
                 contrast_slider=ValueVariable(100),
+                opacity_slider=ValueVariable(100),
             ),
             refresh_workspace=Mock(),
             request_workspace_preview=Mock(),
@@ -368,7 +377,7 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         ArmyPainter.color_operation_update(painter, "hard_light")
         painter.frame_sliders.brightness_slider.set(55)
         painter.frame_sliders.contrast_slider.set(130)
-        ArmyPainter.on_slider_update(painter, 55, 130)
+        ArmyPainter.on_slider_update(painter, 55, 130, 100)
         ArmyPainter.on_color_slot_selected(painter, 0)
 
         self.assertEqual(painter.frame_color_op_option.var.get(), "Overlay")
@@ -407,6 +416,7 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
             frame_sliders=SimpleNamespace(
                 brightness_slider=ValueVariable(50),
                 contrast_slider=ValueVariable(60),
+                opacity_slider=ValueVariable(100),
             ),
             _processing_controls_refreshing=False,
         )
