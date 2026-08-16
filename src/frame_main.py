@@ -367,6 +367,7 @@ class ArmyPainter(tk.Tk):
             self.frame_img_tools,
             on_color_changed=self.on_color_changed,
             on_slot_selected=self.on_color_slot_selected,
+            on_slots_swapped=self.swap_color_slots,
             settings=self.settings,
             width=COLOR_BOX_SIZE * 4 + 12,
             height=COLOR_BOX_SIZE + COLOR_BTN_HEIGHT,

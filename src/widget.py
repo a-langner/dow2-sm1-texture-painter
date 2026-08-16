@@ -135,6 +135,7 @@ ActionCallback = Callable[[], None]
 BooleanChangedCallback = Callable[[bool], None]
 ColorChangedCallback = Callable[[int, str], None]
 ColorSlotSelectedCallback = Callable[[int], None]
+ColorSlotsSwappedCallback = Callable[[int, int], object]
 ColorPickerCallback = Callable[[str], Optional[str]]
 PaintSelectedCallback = Callable[[PaintColor], None]
 RecentColorSelectedCallback = Callable[[str], None]
@@ -2297,6 +2298,7 @@ class FrameColorChooser(tk.Frame):
         *,
         on_color_changed: ColorChangedCallback,
         on_slot_selected: ColorSlotSelectedCallback,
+        on_slots_swapped: Optional[ColorSlotsSwappedCallback] = None,
         color_picker: Optional[ColorPickerCallback] = None,
         paint_catalog: Optional[PaintCatalog] = None,
         settings=None,
@@ -2305,6 +2307,7 @@ class FrameColorChooser(tk.Frame):
         super(FrameColorChooser, self).__init__(master=master, cnf={}, **kw)
         self._on_color_changed = on_color_changed
         self._on_slot_selected = on_slot_selected
+        self._on_slots_swapped = on_slots_swapped
         self._color_picker = (
             self._open_color_picker if color_picker is None else color_picker
         )
@@ -2322,6 +2325,8 @@ class FrameColorChooser(tk.Frame):
         self.color_boxes = []
         self.color_buttons = []
         self.active_slot_index = 0
+        self._drag_source_index = None
+        self._drag_started = False
         self.initialize()
 
     def _open_color_picker(self, initial_color: str) -> Optional[str]:
@@ -2358,7 +2363,13 @@ class FrameColorChooser(tk.Frame):
                     highlightbackground=slot.cget("bg"),
                 )
             )
-            self.color_boxes[i].bind("<Button-1>", partial(self.select_slot, i))
+            self.color_boxes[i].bind(
+                "<ButtonPress-1>", partial(self._on_slot_pointer_press, i)
+            )
+            self.color_boxes[i].bind("<B1-Motion>", self._on_slot_pointer_motion)
+            self.color_boxes[i].bind(
+                "<ButtonRelease-1>", self._on_slot_pointer_release
+            )
             self.color_boxes[i].bind(
                 "<Enter>", partial(self._show_color_tooltip, i)
             )
@@ -2389,6 +2400,43 @@ class FrameColorChooser(tk.Frame):
             )
         self._draw_active_slot()
         self.draw_rgb_value()
+
+    def _on_slot_pointer_press(self, slot_index: int, Event=None):
+        """Select a slot and remember it as a potential drag source."""
+        self._drag_source_index = slot_index
+        self._drag_started = False
+        self.select_slot(slot_index)
+
+    def _on_slot_pointer_motion(self, Event=None):
+        """Mark pointer movement from a swatch as an active drag."""
+        if self._drag_source_index is not None:
+            self._drag_started = True
+
+    def _on_slot_pointer_release(self, Event=None):
+        """Swap with the slot under the pointer, or cancel an invalid drop."""
+        source_index = self._drag_source_index
+        dragging = self._drag_started
+        self._drag_source_index = None
+        self._drag_started = False
+        if source_index is None or not dragging or Event is None:
+            return
+        target_index = self._slot_index_at_pointer(Event.x_root, Event.y_root)
+        if (
+            target_index is not None
+            and target_index != source_index
+            and self._on_slots_swapped is not None
+        ):
+            self._on_slots_swapped(source_index, target_index)
+
+    def _slot_index_at_pointer(self, root_x: int, root_y: int) -> Optional[int]:
+        """Resolve a root-window pointer position to a fixed Color Slot."""
+        widget = self.winfo_containing(root_x, root_y)
+        while widget is not None and widget is not self:
+            for index, slot in enumerate(self.color_slots):
+                if widget is slot:
+                    return index
+            widget = getattr(widget, "master", None)
+        return None
 
     def select_slot(self, slot_index: int, Event=None):
         """Select a slot without opening its Color Picker."""
