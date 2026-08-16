@@ -122,12 +122,12 @@ class PatternControllerTests(unittest.TestCase):
     def test_per_color_save_update_restart_and_reload_preserve_all_slots(self):
         original = PatternProcessingState(
             ProcessingMode.PER_COLOR,
-            ColorProcessingSettings(ColorOps.SCREEN, 80, 120),
+            ColorProcessingSettings(ColorOps.SCREEN, 80, 120, 90),
             (
-                ColorProcessingSettings(ColorOps.OVERLAY, 10, 20),
-                ColorProcessingSettings(ColorOps.MULTIPLY, 30, 40),
-                ColorProcessingSettings(ColorOps.COLOR, 50, 60),
-                ColorProcessingSettings(ColorOps.HARD_LIGHT, 70, 80),
+                ColorProcessingSettings(ColorOps.OVERLAY, 10, 20, 100),
+                ColorProcessingSettings(ColorOps.MULTIPLY, 30, 40, 65),
+                ColorProcessingSettings(ColorOps.COLOR, 50, 60, 40),
+                ColorProcessingSettings(ColorOps.HARD_LIGHT, 70, 80, 85),
             ),
         )
         updated = PatternProcessingState(
@@ -135,7 +135,7 @@ class PatternControllerTests(unittest.TestCase):
             original.global_processing,
             (
                 original.per_color_processing[0],
-                ColorProcessingSettings(ColorOps.LINEAR_DODGE, 90, 100),
+                ColorProcessingSettings(ColorOps.LINEAR_DODGE, 90, 100, 25),
                 original.per_color_processing[2],
                 original.per_color_processing[3],
             ),

@@ -422,12 +422,14 @@ class ColorPatternSavingTests(unittest.TestCase):
                 )
 
     def test_per_color_processing_state_round_trips_with_stable_ids(self):
-        global_settings = ColorProcessingSettings(BlendMode.SCREEN, 80.0, 110.0)
+        global_settings = ColorProcessingSettings(
+            BlendMode.SCREEN, 80.0, 110.0, 90.0
+        )
         per_color = (
-            ColorProcessingSettings(BlendMode.OVERLAY, 10.0, 20.0),
-            ColorProcessingSettings(BlendMode.MULTIPLY, 30.0, 40.0),
-            ColorProcessingSettings(BlendMode.HARD_LIGHT, 50.0, 60.0),
-            ColorProcessingSettings(BlendMode.LINEAR_DODGE, 70.0, 80.0),
+            ColorProcessingSettings(BlendMode.OVERLAY, 10.0, 20.0, 100.0),
+            ColorProcessingSettings(BlendMode.MULTIPLY, 30.0, 40.0, 65.0),
+            ColorProcessingSettings(BlendMode.HARD_LIGHT, 50.0, 60.0, 40.0),
+            ColorProcessingSettings(BlendMode.LINEAR_DODGE, 70.0, 80.0, 85.0),
         )
         state = PatternProcessingState(
             ProcessingMode.PER_COLOR, global_settings, per_color
@@ -444,9 +446,17 @@ class ColorPatternSavingTests(unittest.TestCase):
             document = json.loads(pattern_path.read_text(encoding="utf-8"))
             stored = document["patterns"]["Per Color"]
             self.assertEqual(stored["processing_mode"], "per_color")
+            self.assertEqual(stored["global_processing"]["opacity"], 90.0)
             self.assertEqual(
                 list(stored["per_color_processing"]),
                 ["color_1", "color_2", "color_3", "color_4"],
+            )
+            self.assertEqual(
+                [
+                    stored["per_color_processing"][f"color_{index}"]["opacity"]
+                    for index in range(1, 5)
+                ],
+                [100.0, 65.0, 40.0, 85.0],
             )
             self.assertNotIn("tem_selected", stored)
 
@@ -457,6 +467,37 @@ class ColorPatternSavingTests(unittest.TestCase):
                 pattern_handler, "builtin_color_patterns", OrderedDict()
             ):
                 self.assertEqual(get_pattern_processing_state("Per Color"), state)
+
+    def test_complete_legacy_processing_without_opacity_defaults_to_100(self):
+        processing = OrderedDict(
+            (("blend_mode", "screen"), ("brightness", 80), ("contrast", 110))
+        )
+        stored = pattern()
+        stored.update(
+            (
+                ("processing_mode", "per_color"),
+                ("global_processing", processing),
+                (
+                    "per_color_processing",
+                    OrderedDict(
+                        (slot, OrderedDict(processing))
+                        for slot in ("color_1", "color_2", "color_3", "color_4")
+                    ),
+                ),
+            )
+        )
+        patterns = OrderedDict((("Legacy Complete", stored),))
+
+        with patch.object(
+            pattern_handler, "builtin_color_patterns", OrderedDict()
+        ), patch.object(pattern_handler, "user_color_patterns", patterns):
+            state = get_pattern_processing_state("Legacy Complete")
+
+        self.assertEqual(state.global_processing.opacity, 100.0)
+        self.assertEqual(
+            tuple(value.opacity for value in state.per_color_processing),
+            (100.0, 100.0, 100.0, 100.0),
+        )
 
     def test_legacy_global_processing_seeds_all_per_color_slots(self):
         legacy = pattern()

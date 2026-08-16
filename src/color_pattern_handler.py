@@ -34,6 +34,7 @@ color_key = [
     "extra_colour_name",
 ]
 processing_key = ["blend_mode", "brightness", "contrast"]
+processing_settings_key = processing_key + ["opacity"]
 processing_state_key = [
     "processing_mode",
     "global_processing",
@@ -304,7 +305,10 @@ def get_pattern_processing_state(name: str) -> PatternProcessingState:
 
 
 def _parse_processing_settings(value: object) -> ColorProcessingSettings:
-    if not isinstance(value, Mapping) or list(value) != processing_key:
+    if not isinstance(value, Mapping) or list(value) not in (
+        processing_key,
+        processing_settings_key,
+    ):
         raise ValueError("processing settings have an invalid structure")
     brightness = value["brightness"]
     contrast = value["contrast"]
@@ -312,8 +316,14 @@ def _parse_processing_settings(value: object) -> ColorProcessingSettings:
         raise TypeError("brightness must be numeric")
     if not isinstance(contrast, (int, float)) or isinstance(contrast, bool):
         raise TypeError("contrast must be numeric")
+    opacity = value.get("opacity", 100.0)
+    if not isinstance(opacity, (int, float)) or isinstance(opacity, bool):
+        raise TypeError("opacity must be numeric")
     return ColorProcessingSettings(
-        BlendMode.parse(value["blend_mode"]), float(brightness), float(contrast)
+        BlendMode.parse(value["blend_mode"]),
+        float(brightness),
+        float(contrast),
+        float(opacity),
     )
 
 
@@ -493,6 +503,7 @@ def _stored_processing_settings(
             ("blend_mode", settings.blend_mode.value),
             ("brightness", settings.brightness),
             ("contrast", settings.contrast),
+            ("opacity", settings.opacity),
         )
     )
 
