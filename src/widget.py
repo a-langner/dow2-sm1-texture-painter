@@ -153,7 +153,13 @@ LOGGER = logging.getLogger(__name__)
 class ColorSlotDragGhost:
     """Own the short-lived borderless window used for slot drag feedback."""
 
-    def __init__(self, master: tk.Misc, slot_index: int, color: str):
+    def __init__(
+        self,
+        master: tk.Misc,
+        slot_index: int,
+        color: str,
+        transient_owner: Optional[tk.Misc] = None,
+    ):
         normalized_color = normalize_rgb_hex(color)
         self._window = tk.Toplevel(master, takefocus=False)
         self._window.withdraw()
@@ -180,8 +186,12 @@ class ColorSlotDragGhost:
             bd=0,
         ).place(relx=0.5, rely=0.5, anchor=tk.CENTER)
 
+        if transient_owner is not None:
+            try:
+                self._window.transient(transient_owner)
+            except tk.TclError:
+                pass
         try:
-            self._window.transient(master.winfo_toplevel())
             self._window.attributes("-topmost", True)
         except tk.TclError:
             pass
@@ -2377,6 +2387,7 @@ class FrameColorChooser(tk.Frame):
         color_picker: Optional[ColorPickerCallback] = None,
         paint_catalog: Optional[PaintCatalog] = None,
         settings=None,
+        drag_binding_owner: Optional[tk.Misc] = None,
         **kw,
     ):
         super(FrameColorChooser, self).__init__(master=master, cnf={}, **kw)
@@ -2406,11 +2417,13 @@ class FrameColorChooser(tk.Frame):
         self._drag_started = False
         self._drag_ghost = None
         self.initialize()
-        self._drag_cancel_binding_owner = self.winfo_toplevel()
-        self._drag_cancel_binding = self._drag_cancel_binding_owner.bind(
-            "<Escape>", self._on_slot_drag_cancel, add="+"
-        )
-        self.bind("<Destroy>", self._on_color_chooser_destroy, add="+")
+        self._drag_cancel_binding_owner = drag_binding_owner
+        self._drag_cancel_binding = None
+        if self._drag_cancel_binding_owner is not None:
+            self._drag_cancel_binding = self._drag_cancel_binding_owner.bind(
+                "<Escape>", self._on_slot_drag_cancel, add="+"
+            )
+            self.bind("<Destroy>", self._on_color_chooser_destroy, add="+")
 
     def _open_color_picker(self, initial_color: str) -> Optional[str]:
         """Open the production custom picker with the slot's current color."""
@@ -2527,6 +2540,7 @@ class FrameColorChooser(tk.Frame):
                     self,
                     self._drag_source_index,
                     str(source_box["bg"]),
+                    transient_owner=self._drag_cancel_binding_owner,
                 )
                 self._drag_ghost.show_at_pointer(Event.x_root, Event.y_root)
             elif self._drag_ghost is not None:
@@ -2589,7 +2603,7 @@ class FrameColorChooser(tk.Frame):
         self._drag_cancel_binding = None
         binding_owner = self._drag_cancel_binding_owner
         self._drag_cancel_binding_owner = None
-        if binding is not None:
+        if binding is not None and binding_owner is not None:
             try:
                 binding_owner.unbind("<Escape>", binding)
             except tk.TclError:
