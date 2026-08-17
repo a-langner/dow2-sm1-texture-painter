@@ -2404,6 +2404,7 @@ class FrameColorChooser(tk.Frame):
         self._drag_start_position = None
         self._drag_target_index = None
         self._drag_started = False
+        self._drag_ghost = None
         self.initialize()
 
     def _open_color_picker(self, initial_color: str) -> Optional[str]:
@@ -2506,7 +2507,16 @@ class FrameColorChooser(tk.Frame):
                 if distance_squared <= COLOR_SLOT_DRAG_THRESHOLD**2:
                     return
                 self._drag_started = True
-                self.color_boxes[self._drag_source_index].configure(cursor="fleur")
+                source_box = self.color_boxes[self._drag_source_index]
+                source_box.configure(cursor="fleur")
+                self._drag_ghost = ColorSlotDragGhost(
+                    self,
+                    self._drag_source_index,
+                    str(source_box["bg"]),
+                )
+                self._drag_ghost.show_at_pointer(Event.x_root, Event.y_root)
+            elif self._drag_ghost is not None:
+                self._drag_ghost.move_to_pointer(Event.x_root, Event.y_root)
             target_index = None
             if Event is not None:
                 target_index = self._slot_index_at_pointer(Event.x_root, Event.y_root)
@@ -2527,6 +2537,9 @@ class FrameColorChooser(tk.Frame):
         self._drag_start_position = None
         self._drag_target_index = None
         self._drag_started = False
+        if self._drag_ghost is not None:
+            self._drag_ghost.destroy()
+            self._drag_ghost = None
         for color_box in self.color_boxes:
             color_box.configure(cursor="")
         self._draw_active_slot()
