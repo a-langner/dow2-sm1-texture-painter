@@ -152,12 +152,32 @@ LOGGER = logging.getLogger(__name__)
 class ColorSlotDragGhost:
     """Own the short-lived borderless window used for slot drag feedback."""
 
-    def __init__(self, master: tk.Misc):
+    def __init__(self, master: tk.Misc, slot_index: int, color: str):
+        normalized_color = normalize_rgb_hex(color)
         self._window = tk.Toplevel(master, takefocus=False)
         self._window.withdraw()
         self._window.wm_overrideredirect(True)
-        self.content = tk.Frame(self._window, bd=0, highlightthickness=0)
+        self.content = tk.Frame(
+            self._window,
+            width=COLOR_BOX_SIZE,
+            height=COLOR_BOX_SIZE,
+            bg=normalized_color,
+            bd=2,
+            relief=tk.RAISED,
+            highlightthickness=2,
+            highlightbackground=PAINT_SWATCH_SELECTED_OUTLINE,
+        )
         self.content.pack(fill=tk.BOTH, expand=True)
+        self.content.pack_propagate(False)
+        tk.Label(
+            self.content,
+            text=f"Color {slot_index + 1}\n{normalized_color}",
+            bg=normalized_color,
+            fg=contrasting_text_color(normalized_color),
+            font=("Arial", 10, "bold"),
+            justify=tk.CENTER,
+            bd=0,
+        ).place(relx=0.5, rely=0.5, anchor=tk.CENTER)
 
         try:
             self._window.transient(master.winfo_toplevel())
