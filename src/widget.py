@@ -2621,12 +2621,14 @@ class FrameColorChooser(tk.Frame):
 
     def _slot_index_at_pointer(self, root_x: int, root_y: int) -> Optional[int]:
         """Resolve a root-window pointer position to a fixed Color Slot."""
-        widget = self.winfo_containing(root_x, root_y)
-        while widget is not None and widget is not self:
-            for index, slot in enumerate(self.color_slots):
-                if widget is slot:
-                    return index
-            widget = getattr(widget, "master", None)
+        for index, slot in enumerate(self.color_slots):
+            left = slot.winfo_rootx()
+            top = slot.winfo_rooty()
+            if (
+                left <= root_x < left + slot.winfo_width()
+                and top <= root_y < top + slot.winfo_height()
+            ):
+                return index
         return None
 
     def select_slot(self, slot_index: int, Event=None):
