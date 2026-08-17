@@ -129,6 +129,7 @@ PAINT_SWATCH_OUTLINE = "#606060"
 PAINT_SWATCH_SELECTED_OUTLINE = APP_SELECTION_BACKGROUND
 COLOR_SLOT_DROP_TARGET_OUTLINE = "#00a6d6"
 COLOR_SLOT_DRAG_THRESHOLD = 6
+COLOR_SLOT_DRAG_GHOST_ALPHA = 0.65
 COLOR_FIELD_PREFERRED_HEIGHT = 240
 VISUAL_RESIZE_DELAY_MS = 40
 APP_COMBOBOX_STYLE = "AppSelection.TCombobox"
@@ -146,6 +147,54 @@ RecentColorSelectedCallback = Callable[[str], None]
 LevelsChangedCallback = Callable[[float, float, float], None]
 StringChangedCallback = Callable[[str], None]
 LOGGER = logging.getLogger(__name__)
+
+
+class ColorSlotDragGhost:
+    """Own the short-lived borderless window used for slot drag feedback."""
+
+    def __init__(self, master: tk.Misc):
+        self._window = tk.Toplevel(master, takefocus=False)
+        self._window.withdraw()
+        self._window.wm_overrideredirect(True)
+        self.content = tk.Frame(self._window, bd=0, highlightthickness=0)
+        self.content.pack(fill=tk.BOTH, expand=True)
+
+        try:
+            self._window.transient(master.winfo_toplevel())
+            self._window.attributes("-topmost", True)
+        except tk.TclError:
+            pass
+        try:
+            self._window.attributes("-alpha", COLOR_SLOT_DRAG_GHOST_ALPHA)
+        except tk.TclError:
+            # Opaque drag feedback is preferable to disabling dragging on a
+            # window manager that does not implement per-window alpha.
+            pass
+        try:
+            self._window.attributes("-disabled", True)
+        except tk.TclError:
+            # Not all Tk window managers expose the Windows disabled flag.
+            pass
+
+    def show_at(self, root_x: int, root_y: int) -> None:
+        """Show the existing ghost at screen coordinates without rebuilding it."""
+        self.move_to(root_x, root_y)
+        self._window.deiconify()
+        self._window.lift()
+
+    def move_to(self, root_x: int, root_y: int) -> None:
+        """Move the existing ghost using screen coordinates."""
+        self._window.geometry(f"+{root_x}+{root_y}")
+
+    def destroy(self) -> None:
+        """Destroy the ghost window; repeated cleanup is harmless."""
+        window = self._window
+        self._window = None
+        if window is not None:
+            try:
+                window.destroy()
+            except tk.TclError:
+                pass
 
 
 def configure_app_selection_styles(widget: tk.Misc) -> None:
