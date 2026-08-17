@@ -130,6 +130,7 @@ PAINT_SWATCH_SELECTED_OUTLINE = APP_SELECTION_BACKGROUND
 COLOR_SLOT_DROP_TARGET_OUTLINE = "#00a6d6"
 COLOR_SLOT_DRAG_THRESHOLD = 6
 COLOR_SLOT_DRAG_GHOST_ALPHA = 0.65
+COLOR_SLOT_DRAG_GHOST_OFFSET = 12
 COLOR_FIELD_PREFERRED_HEIGHT = 240
 VISUAL_RESIZE_DELAY_MS = 40
 APP_COMBOBOX_STYLE = "AppSelection.TCombobox"
@@ -196,15 +197,17 @@ class ColorSlotDragGhost:
             # Not all Tk window managers expose the Windows disabled flag.
             pass
 
-    def show_at(self, root_x: int, root_y: int) -> None:
-        """Show the existing ghost at screen coordinates without rebuilding it."""
-        self.move_to(root_x, root_y)
+    def show_at_pointer(self, pointer_x: int, pointer_y: int) -> None:
+        """Show the ghost beside a pointer expressed in screen coordinates."""
+        self.move_to_pointer(pointer_x, pointer_y)
         self._window.deiconify()
         self._window.lift()
 
-    def move_to(self, root_x: int, root_y: int) -> None:
-        """Move the existing ghost using screen coordinates."""
-        self._window.geometry(f"+{root_x}+{root_y}")
+    def move_to_pointer(self, pointer_x: int, pointer_y: int) -> None:
+        """Keep the existing ghost offset from the screen-coordinate pointer."""
+        ghost_x = pointer_x + COLOR_SLOT_DRAG_GHOST_OFFSET
+        ghost_y = pointer_y + COLOR_SLOT_DRAG_GHOST_OFFSET
+        self._window.geometry(f"+{ghost_x}+{ghost_y}")
 
     def destroy(self) -> None:
         """Destroy the ghost window; repeated cleanup is harmless."""
