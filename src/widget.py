@@ -2406,6 +2406,11 @@ class FrameColorChooser(tk.Frame):
         self._drag_started = False
         self._drag_ghost = None
         self.initialize()
+        self._drag_cancel_binding_owner = self.winfo_toplevel()
+        self._drag_cancel_binding = self._drag_cancel_binding_owner.bind(
+            "<Escape>", self._on_slot_drag_cancel, add="+"
+        )
+        self.bind("<Destroy>", self._on_color_chooser_destroy, add="+")
 
     def _open_color_picker(self, initial_color: str) -> Optional[str]:
         """Open the production custom picker with the slot's current color."""
@@ -2484,6 +2489,7 @@ class FrameColorChooser(tk.Frame):
 
     def _on_slot_pointer_press(self, slot_index: int, Event=None):
         """Select a slot and remember it as a potential drag source."""
+        self._finish_slot_drag()
         self._drag_source_index = slot_index
         self._drag_start_position = (
             (Event.x_root, Event.y_root) if Event is not None else None
@@ -2494,6 +2500,14 @@ class FrameColorChooser(tk.Frame):
 
     def _on_slot_pointer_motion(self, Event=None):
         """Mark pointer movement from a swatch as an active drag."""
+        try:
+            self._update_slot_drag(Event)
+        except Exception:
+            self._finish_slot_drag()
+            raise
+
+    def _update_slot_drag(self, Event=None):
+        """Advance an active drag while leaving failure cleanup centralized."""
         if (
             self._drag_source_index is not None
             and self._drag_start_position is not None
@@ -2531,25 +2545,55 @@ class FrameColorChooser(tk.Frame):
         source_index = self._drag_source_index
         dragging = self._drag_started
         target_index = self._drag_target_index
-        if dragging and Event is not None:
-            target_index = self._slot_index_at_pointer(Event.x_root, Event.y_root)
+        try:
+            if dragging and Event is not None:
+                target_index = self._slot_index_at_pointer(Event.x_root, Event.y_root)
+        finally:
+            self._finish_slot_drag()
+        if source_index is None or not dragging:
+            return
+        if target_index is not None and target_index != source_index:
+            self._request_slot_swap(source_index, target_index)
+
+    def _on_slot_drag_cancel(self, Event=None):
+        """Cancel any pending or active drag without changing slot contents."""
+        self._finish_slot_drag()
+
+    def _finish_slot_drag(self, *, redraw: bool = True) -> None:
+        """Clear every transient drag resource and restore slot presentation."""
         self._drag_source_index = None
         self._drag_start_position = None
         self._drag_target_index = None
         self._drag_started = False
-        if self._drag_ghost is not None:
-            self._drag_ghost.destroy()
-            self._drag_ghost = None
+        ghost = self._drag_ghost
+        self._drag_ghost = None
+        if ghost is not None:
+            ghost.destroy()
         for color_box in self.color_boxes:
-            color_box.configure(cursor="")
-        self._draw_active_slot()
-        if source_index is None or not dragging:
+            try:
+                color_box.configure(cursor="")
+            except tk.TclError:
+                pass
+        if redraw:
+            try:
+                self._draw_active_slot()
+            except tk.TclError:
+                pass
+
+    def _on_color_chooser_destroy(self, Event=None) -> None:
+        """Release drag resources if this chooser is destroyed mid-drag."""
+        if Event is not None and Event.widget is not self:
             return
-        if (
-            target_index is not None
-            and target_index != source_index
-        ):
-            self._request_slot_swap(source_index, target_index)
+        self._finish_slot_drag(redraw=False)
+        binding = self._drag_cancel_binding
+        self._drag_cancel_binding = None
+        binding_owner = self._drag_cancel_binding_owner
+        self._drag_cancel_binding_owner = None
+        if binding is not None:
+            try:
+                binding_owner.unbind("<Escape>", binding)
+            except tk.TclError:
+                pass
 
     def _show_slot_context_menu(self, slot_index: int, Event=None):
         """Offer explicit swaps from one slot to each other fixed position."""
