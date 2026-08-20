@@ -763,7 +763,11 @@ class ArmyPainter(tk.Tk):
             self.frame_batch_tools = None
 
     def on_slider_update(
-        self, brightness: float, contrast: float, opacity: float
+        self,
+        brightness: float,
+        contrast: float,
+        saturation: float,
+        opacity: float,
     ):
         if getattr(self, "_processing_controls_refreshing", False):
             return
@@ -775,6 +779,7 @@ class ArmyPainter(tk.Tk):
                     brightness,
                     contrast,
                     opacity,
+                    saturation,
                 )
             )
         self.request_workspace_preview()
@@ -899,14 +904,19 @@ class ArmyPainter(tk.Tk):
         brightness = current.brightness
         contrast = current.contrast
         opacity = current.opacity
+        saturation = current.saturation
         if hasattr(self, "frame_color_op_option"):
             blend_mode = ColorOps.parse(self.frame_color_op_option.var.get())
         if hasattr(self, "frame_sliders"):
             brightness = float(self.frame_sliders.brightness_slider.get())
             contrast = float(self.frame_sliders.contrast_slider.get())
+            if hasattr(self.frame_sliders, "saturation_slider"):
+                saturation = float(self.frame_sliders.saturation_slider.get())
             if hasattr(self.frame_sliders, "opacity_slider"):
                 opacity = float(self.frame_sliders.opacity_slider.get())
-        return ColorProcessingSettings(blend_mode, brightness, contrast, opacity)
+        return ColorProcessingSettings(
+            blend_mode, brightness, contrast, opacity, saturation
+        )
 
     def sync_processing_settings_from_controls(self) -> None:
         """Store visible values in Global or the active Color Slot."""
@@ -934,6 +944,8 @@ class ArmyPainter(tk.Tk):
             if hasattr(self, "frame_sliders"):
                 self.frame_sliders.brightness_slider.set(processing.brightness)
                 self.frame_sliders.contrast_slider.set(processing.contrast)
+                if hasattr(self.frame_sliders, "saturation_slider"):
+                    self.frame_sliders.saturation_slider.set(processing.saturation)
                 if hasattr(self.frame_sliders, "opacity_slider"):
                     self.frame_sliders.opacity_slider.set(processing.opacity)
         finally:
@@ -975,6 +987,7 @@ class ArmyPainter(tk.Tk):
                 current.brightness,
                 current.contrast,
                 current.opacity,
+                current.saturation,
             )
         )
         self.refresh_workspace()

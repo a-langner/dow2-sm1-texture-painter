@@ -84,7 +84,7 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
         )
         painter.refresh_workspace = lambda: ArmyPainter.refresh_workspace(painter)
 
-        ArmyPainter.on_slider_update(painter, 80.0, 110.0, 100.0)
+        ArmyPainter.on_slider_update(painter, 80.0, 110.0, 100.0, 100.0)
         ArmyPainter.on_color_changed(painter, 0, "#102030")
 
         painter.preview_controller.request_preview.assert_called_once_with()
@@ -93,7 +93,7 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
     def test_slider_initialization_without_texture_is_silent(self):
         painter = SimpleNamespace(request_workspace_preview=Mock())
 
-        ArmyPainter.on_slider_update(painter, 75.0, 100.0, 100.0)
+        ArmyPainter.on_slider_update(painter, 75.0, 100.0, 100.0, 100.0)
 
         painter.request_workspace_preview.assert_called_once_with()
 
