@@ -157,6 +157,8 @@ def _apply_team_colors(
             new_img = ImageChops.add(gray_img, color_img, offset=-255)
         elif processing.blend_mode is ColorOps.LINEAR_DODGE:
             new_img = ImageChops.add(gray_img, color_img)
+        elif processing.blend_mode is ColorOps.DARKEN:
+            new_img = ImageChops.darker(gray_img, color_img)
         else:
             raise ValueError(
                 "Blend mode is not implemented yet: "

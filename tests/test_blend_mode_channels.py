@@ -22,6 +22,7 @@ EXPECTED_RGB = {
     BlendMode.COLOR: (184, 64, 24),
     BlendMode.LINEAR_BURN: (0, 0, 0),
     BlendMode.LINEAR_DODGE: (250, 180, 240),
+    BlendMode.DARKEN: (50, 80, 40),
 }
 
 
@@ -110,7 +111,7 @@ class BlendModeChannelAndAlphaTests(unittest.TestCase):
     def test_zero_saturation_desaturates_every_blend_mode(self):
         renderer = TextureRenderer()
         textures = textures_for_channel(0)
-        for mode in BlendMode:
+        for mode in EXPECTED_RGB:
             with self.subTest(mode=mode):
                 settings = settings_for_channel(mode, 0, False)
                 desaturated = RenderSettings(
@@ -187,7 +188,7 @@ class BlendModeChannelAndAlphaTests(unittest.TestCase):
         textures = TextureSet(diffuse, Image.merge("RGBA", tuple(channels)))
         colors = ("#c85028", "#2878c8", "#d0b020", "#40b060")
         processing = (
-            ColorProcessingSettings(BlendMode.MULTIPLY, 60, 110, 100, 0),
+            ColorProcessingSettings(BlendMode.DARKEN, 60, 110, 100, 0),
             ColorProcessingSettings(BlendMode.COLOR, 80, 95, 100, 50),
             ColorProcessingSettings(BlendMode.SOFT_LIGHT, 70, 105, 100, 150),
             ColorProcessingSettings(BlendMode.LINEAR_BURN, 65, 100, 100, 200),
