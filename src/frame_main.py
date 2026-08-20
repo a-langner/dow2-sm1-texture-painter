@@ -1333,6 +1333,8 @@ class ArmyPainter(tk.Tk):
             color_box["bg"] = "#808080"
         self.frame_sliders.brightness_slider.set(DEFAULT_RENDER_SETTINGS.brightness)
         self.frame_sliders.contrast_slider.set(DEFAULT_RENDER_SETTINGS.contrast)
+        if hasattr(self.frame_sliders, "saturation_slider"):
+            self.frame_sliders.saturation_slider.set(DEFAULT_RENDER_SETTINGS.saturation)
         if hasattr(self.frame_sliders, "opacity_slider"):
             self.frame_sliders.opacity_slider.set(DEFAULT_RENDER_SETTINGS.opacity)
         self.frame_channel_select.lb.selection_set(first=0, last=3)

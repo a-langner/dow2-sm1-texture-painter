@@ -378,9 +378,15 @@ class RenderSettingsTests(unittest.TestCase):
     def test_army_painter_swaps_complete_slot_state_only(self):
         from src.frame_main import ArmyPainter
 
-        source_processing = ColorProcessingSettings(ColorOps.MULTIPLY, 65, 110, 25)
-        target_processing = ColorProcessingSettings(ColorOps.SOFT_LIGHT, 80, 95, 90)
-        global_processing = ColorProcessingSettings(ColorOps.SCREEN, 88, 123)
+        source_processing = ColorProcessingSettings(
+            ColorOps.MULTIPLY, 65, 110, 25, 45
+        )
+        target_processing = ColorProcessingSettings(
+            ColorOps.SOFT_LIGHT, 80, 95, 90, 175
+        )
+        global_processing = ColorProcessingSettings(
+            ColorOps.SCREEN, 88, 123, 100, 130
+        )
         per_color_processing = (
             source_processing,
             ColorProcessingSettings(),
@@ -404,6 +410,10 @@ class RenderSettingsTests(unittest.TestCase):
             get=Mock(return_value=source_processing.opacity),
             set=Mock(),
         )
+        saturation_slider = SimpleNamespace(
+            get=Mock(return_value=source_processing.saturation),
+            set=Mock(),
+        )
         painter = SimpleNamespace(
             render_settings=RenderSettings(
                 primary_color=COLORS[0],
@@ -413,6 +423,7 @@ class RenderSettingsTests(unittest.TestCase):
                 color_op=global_processing.blend_mode,
                 brightness=global_processing.brightness,
                 contrast=global_processing.contrast,
+                saturation=global_processing.saturation,
                 processing_mode=ProcessingMode.PER_COLOR,
                 active_color_slot=ColorSlot.COLOR_1,
                 per_color_processing=per_color_processing,
@@ -433,6 +444,7 @@ class RenderSettingsTests(unittest.TestCase):
             frame_sliders=SimpleNamespace(
                 brightness_slider=brightness_slider,
                 contrast_slider=contrast_slider,
+                saturation_slider=saturation_slider,
                 opacity_slider=opacity_slider,
             ),
             frame_channel_select=SimpleNamespace(
@@ -465,6 +477,13 @@ class RenderSettingsTests(unittest.TestCase):
                 for processing in painter.render_settings.per_color_processing
             ),
             (90, 100, 25, 100),
+        )
+        self.assertEqual(
+            tuple(
+                processing.saturation
+                for processing in painter.render_settings.per_color_processing
+            ),
+            (175, 100, 45, 100),
         )
         self.assertIs(
             painter.render_settings.active_color_slot,
