@@ -15,6 +15,9 @@ class BlendMode(Enum):
     COLOR = "color"
     LINEAR_BURN = "linear_burn"
     LINEAR_DODGE = "linear_dodge"
+    DARKEN = "darken"
+    LIGHTEN = "lighten"
+    COLOR_BURN = "color_burn"
 
     @property
     def display_name(self) -> str:
@@ -44,6 +47,9 @@ _BLEND_MODE_DISPLAY_NAMES = {
     BlendMode.COLOR: "Color",
     BlendMode.LINEAR_BURN: "Linear Burn",
     BlendMode.LINEAR_DODGE: "Linear Dodge (Add)",
+    BlendMode.DARKEN: "Darken",
+    BlendMode.LIGHTEN: "Lighten",
+    BlendMode.COLOR_BURN: "Color Burn",
 }
 
 # User-facing order: retain the three original choices first, followed by the

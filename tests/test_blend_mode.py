@@ -16,6 +16,9 @@ class BlendModeTests(unittest.TestCase):
             "color": "Color",
             "linear_burn": "Linear Burn",
             "linear_dodge": "Linear Dodge (Add)",
+            "darken": "Darken",
+            "lighten": "Lighten",
+            "color_burn": "Color Burn",
         }
         self.assertEqual(
             {mode.value: mode.display_name for mode in BlendMode},
