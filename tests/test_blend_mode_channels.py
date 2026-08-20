@@ -89,6 +89,63 @@ class BlendModeChannelAndAlphaTests(unittest.TestCase):
                         255,
                     )
 
+    def test_neutral_saturation_preserves_established_pixels_for_every_mode(self):
+        renderer = TextureRenderer()
+        textures = textures_for_channel(0)
+        for mode, expected_rgb in EXPECTED_RGB.items():
+            with self.subTest(mode=mode):
+                settings = settings_for_channel(mode, 0, False)
+                explicitly_neutral = RenderSettings(
+                    primary_color=settings.primary_color,
+                    brightness=settings.brightness,
+                    contrast=settings.contrast,
+                    saturation=100,
+                    color_op=settings.color_op,
+                )
+                self.assertEqual(
+                    renderer.render(textures, explicitly_neutral).getpixel((0, 0)),
+                    (*expected_rgb, 255),
+                )
+
+    def test_zero_saturation_desaturates_every_blend_mode(self):
+        renderer = TextureRenderer()
+        textures = textures_for_channel(0)
+        for mode in BlendMode:
+            with self.subTest(mode=mode):
+                settings = settings_for_channel(mode, 0, False)
+                desaturated = RenderSettings(
+                    primary_color=settings.primary_color,
+                    brightness=settings.brightness,
+                    contrast=settings.contrast,
+                    saturation=0,
+                    color_op=settings.color_op,
+                )
+                red, green, blue, alpha = renderer.render(
+                    textures, desaturated
+                ).getpixel((0, 0))
+                self.assertEqual((red, green, blue), (red, red, red))
+                self.assertEqual(alpha, 255)
+
+    def test_increased_saturation_strengthens_processed_colour(self):
+        renderer = TextureRenderer()
+        textures = textures_for_channel(0)
+        neutral = settings_for_channel(BlendMode.NORMAL, 0, False)
+        increased = RenderSettings(
+            primary_color=neutral.primary_color,
+            brightness=neutral.brightness,
+            contrast=neutral.contrast,
+            saturation=200,
+            color_op=neutral.color_op,
+        )
+
+        neutral_rgb = renderer.render(textures, neutral).getpixel((0, 0))[:3]
+        increased_rgb = renderer.render(textures, increased).getpixel((0, 0))[:3]
+
+        self.assertGreater(
+            max(increased_rgb) - min(increased_rgb),
+            max(neutral_rgb) - min(neutral_rgb),
+        )
+
     def test_opacity_scales_only_the_team_color_mask_strength(self):
         textures = textures_for_channel(0)
         full_strength = settings_for_channel(BlendMode.NORMAL, 0, False)
@@ -130,10 +187,10 @@ class BlendModeChannelAndAlphaTests(unittest.TestCase):
         textures = TextureSet(diffuse, Image.merge("RGBA", tuple(channels)))
         colors = ("#c85028", "#2878c8", "#d0b020", "#40b060")
         processing = (
-            ColorProcessingSettings(BlendMode.MULTIPLY, 60, 110),
-            ColorProcessingSettings(BlendMode.COLOR, 80, 95),
-            ColorProcessingSettings(BlendMode.SOFT_LIGHT, 70, 105),
-            ColorProcessingSettings(BlendMode.LINEAR_BURN, 65, 100),
+            ColorProcessingSettings(BlendMode.MULTIPLY, 60, 110, 100, 0),
+            ColorProcessingSettings(BlendMode.COLOR, 80, 95, 100, 50),
+            ColorProcessingSettings(BlendMode.SOFT_LIGHT, 70, 105, 100, 150),
+            ColorProcessingSettings(BlendMode.LINEAR_BURN, 65, 100, 100, 200),
         )
         common = dict(
             primary_color=colors[0],
@@ -155,6 +212,7 @@ class BlendModeChannelAndAlphaTests(unittest.TestCase):
                 color_op=context.blend_mode,
                 brightness=context.brightness,
                 contrast=context.contrast,
+                saturation=context.saturation,
             )
             global_result = TextureRenderer().render(textures, global_settings)
             expected_pixels.append(global_result.getpixel((channel_index, 0)))

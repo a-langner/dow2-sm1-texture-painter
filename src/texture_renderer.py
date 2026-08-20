@@ -167,6 +167,9 @@ def _apply_team_colors(
         new_img = enhancer_contrast.enhance(processing.contrast / 100)
         enhancer_brightness = ImageEnhance.Brightness(new_img)
         new_img = enhancer_brightness.enhance(processing.brightness / 100)
+        if processing.saturation != 100.0:
+            enhancer_saturation = ImageEnhance.Color(new_img)
+            new_img = enhancer_saturation.enhance(processing.saturation / 100)
 
         # Apply the team-colour channel exactly once, with opacity scaling its
         # effective strength rather than the blended RGB values.
