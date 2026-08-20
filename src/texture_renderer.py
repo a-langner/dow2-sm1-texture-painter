@@ -86,6 +86,28 @@ def _color_blend(base: Image.Image, blend: tuple[int, int, int]) -> Image.Image:
     return Image.merge("RGBA", (*channels, alpha))
 
 
+def _color_burn(base: Image.Image, blend: tuple[int, int, int]) -> Image.Image:
+    """Apply standard Color Burn against one solid RGB colour."""
+    channels = base.convert("RGB").split()
+    burned_channels = []
+    for channel, blend_value in zip(channels, blend):
+        if blend_value == 0:
+            burned_channels.append(channel.point([0] * 256))
+            continue
+        lookup = [
+            int(
+                max(
+                    0.0,
+                    255.0 - min(255.0, ((255 - base_value) * 255) / blend_value),
+                )
+                + 0.5
+            )
+            for base_value in range(256)
+        ]
+        burned_channels.append(channel.point(lookup))
+    return Image.merge("RGBA", (*burned_channels, base.getchannel("A")))
+
+
 def _team_channels(textures: TextureSet) -> tuple[Image.Image, ...]:
     team_color = textures.team_color
     if team_color is None or team_color.mode not in ("RGB", "RGBA"):
@@ -108,7 +130,8 @@ def _apply_team_colors(
         _team_channels(textures),
         processing_by_channel,
     ):
-        rgb = ImageColor.getrgb(color)
+        parsed_color = ImageColor.getrgb(color)
+        rgb = (parsed_color[0], parsed_color[1], parsed_color[2])
 
         # Neutral grey is the established no-colour sentinel.
         if rgb == (128, 128, 128):
@@ -161,6 +184,8 @@ def _apply_team_colors(
             new_img = ImageChops.darker(gray_img, color_img)
         elif processing.blend_mode is ColorOps.LIGHTEN:
             new_img = ImageChops.lighter(gray_img, color_img)
+        elif processing.blend_mode is ColorOps.COLOR_BURN:
+            new_img = _color_burn(gray_img, rgb)
         else:
             raise ValueError(
                 "Blend mode is not implemented yet: "

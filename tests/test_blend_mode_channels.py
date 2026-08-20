@@ -24,6 +24,7 @@ EXPECTED_RGB = {
     BlendMode.LINEAR_DODGE: (250, 180, 240),
     BlendMode.DARKEN: (50, 80, 40),
     BlendMode.LIGHTEN: (200, 100, 200),
+    BlendMode.COLOR_BURN: (0, 0, 0),
 }
 
 
@@ -191,7 +192,7 @@ class BlendModeChannelAndAlphaTests(unittest.TestCase):
         processing = (
             ColorProcessingSettings(BlendMode.DARKEN, 60, 110, 100, 0),
             ColorProcessingSettings(BlendMode.LIGHTEN, 80, 95, 100, 50),
-            ColorProcessingSettings(BlendMode.SOFT_LIGHT, 70, 105, 100, 150),
+            ColorProcessingSettings(BlendMode.COLOR_BURN, 70, 105, 100, 150),
             ColorProcessingSettings(BlendMode.LINEAR_BURN, 65, 100, 100, 200),
         )
         common = dict(
