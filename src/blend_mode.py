@@ -64,4 +64,7 @@ IMPLEMENTED_BLEND_MODES = (
     BlendMode.COLOR,
     BlendMode.LINEAR_BURN,
     BlendMode.LINEAR_DODGE,
+    BlendMode.DARKEN,
+    BlendMode.LIGHTEN,
+    BlendMode.COLOR_BURN,
 )

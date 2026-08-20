@@ -242,6 +242,9 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
                 "Color",
                 "Linear Burn",
                 "Linear Dodge (Add)",
+                "Darken",
+                "Lighten",
+                "Color Burn",
             ),
         )
         self.assertEqual(frame.var.get(), "Overlay")
