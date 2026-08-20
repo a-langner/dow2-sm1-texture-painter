@@ -22,6 +22,7 @@ FULL_MASK_EXPECTED = {
     BlendMode.LINEAR_BURN: (0, 0, 0),
     BlendMode.LINEAR_DODGE: (250, 180, 240),
     BlendMode.DARKEN: (50, 80, 40),
+    BlendMode.LIGHTEN: (200, 100, 200),
 }
 
 # Pillow's 8-bit paste interpolation at mask strength 128 determines rounding.
@@ -36,6 +37,7 @@ PARTIAL_MASK_EXPECTED = {
     BlendMode.LINEAR_BURN: (25, 50, 100),
     BlendMode.LINEAR_DODGE: (150, 140, 220),
     BlendMode.DARKEN: (50, 90, 120),
+    BlendMode.LIGHTEN: (125, 100, 200),
 }
 
 EDGE_EXPECTED = {
@@ -49,6 +51,7 @@ EDGE_EXPECTED = {
     BlendMode.LINEAR_BURN: ((0, 0, 0), (200, 80, 40), (0, 0, 0), (50, 100, 200), (0, 0, 0)),
     BlendMode.LINEAR_DODGE: ((200, 80, 40), (255, 255, 255), (50, 100, 200), (255, 255, 255), (255, 255, 255)),
     BlendMode.DARKEN: ((0, 0, 0), (200, 80, 40), (0, 0, 0), (50, 100, 200), (127, 127, 127)),
+    BlendMode.LIGHTEN: ((200, 80, 40), (255, 255, 255), (50, 100, 200), (255, 255, 255), (128, 128, 128)),
 }
 
 
