@@ -2855,6 +2855,7 @@ class FrameColorOps(tk.LabelFrame):
             state="readonly",
             style=APP_COMBOBOX_STYLE,
             width=max(len(name) for name in display_names),
+            height=len(display_names),
         )
         self.blend_mode_selector.pack(side=tk.LEFT, padx=(0, 4), pady=4)
         self.blend_mode_selector.bind(

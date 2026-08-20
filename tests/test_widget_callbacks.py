@@ -230,6 +230,7 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         self.assertEqual(frame.per_color_mode_button.options["value"], "per_color")
         selector = frame.blend_mode_selector
         self.assertEqual(selector.options["state"], "readonly")
+        self.assertEqual(selector.options["height"], 12)
         self.assertEqual(
             selector.options["values"],
             (
