@@ -9,9 +9,11 @@ from src.color_processing_settings import (
     MAX_BRIGHTNESS,
     MAX_CONTRAST,
     MAX_OPACITY,
+    MAX_SATURATION,
     MIN_BRIGHTNESS,
     MIN_CONTRAST,
     MIN_OPACITY,
+    MIN_SATURATION,
     ColorProcessingSettings,
 )
 
@@ -24,6 +26,7 @@ class ColorProcessingSettingsTests(unittest.TestCase):
         self.assertEqual(settings.brightness, 75.0)
         self.assertEqual(settings.contrast, 100.0)
         self.assertEqual(settings.opacity, 100.0)
+        self.assertEqual(settings.saturation, 100.0)
         self.assertEqual(settings, DEFAULT_COLOR_PROCESSING_SETTINGS)
 
     def test_every_blend_mode_and_level_boundary_is_supported(self):
@@ -38,10 +41,12 @@ class ColorProcessingSettingsTests(unittest.TestCase):
             brightness=MIN_BRIGHTNESS,
             contrast=MAX_CONTRAST,
             opacity=MIN_OPACITY,
+            saturation=MAX_SATURATION,
         )
         self.assertEqual(settings.brightness, MIN_BRIGHTNESS)
         self.assertEqual(settings.contrast, MAX_CONTRAST)
         self.assertEqual(settings.opacity, MIN_OPACITY)
+        self.assertEqual(settings.saturation, MAX_SATURATION)
         self.assertEqual(
             ColorProcessingSettings(brightness=MAX_BRIGHTNESS).brightness,
             MAX_BRIGHTNESS,
@@ -54,6 +59,10 @@ class ColorProcessingSettingsTests(unittest.TestCase):
             ColorProcessingSettings(opacity=MAX_OPACITY).opacity,
             MAX_OPACITY,
         )
+        self.assertEqual(
+            ColorProcessingSettings(saturation=MIN_SATURATION).saturation,
+            MIN_SATURATION,
+        )
 
     def test_values_are_immutable_and_replaceable_per_context(self):
         global_settings = ColorProcessingSettings()
@@ -63,6 +72,7 @@ class ColorProcessingSettingsTests(unittest.TestCase):
             brightness=60,
             contrast=90,
             opacity=65,
+            saturation=140,
         )
 
         self.assertEqual(global_settings, DEFAULT_COLOR_PROCESSING_SETTINGS)
@@ -82,6 +92,8 @@ class ColorProcessingSettingsTests(unittest.TestCase):
             {"contrast": MAX_CONTRAST + 1},
             {"opacity": MIN_OPACITY - 1},
             {"opacity": MAX_OPACITY + 1},
+            {"saturation": MIN_SATURATION - 1},
+            {"saturation": MAX_SATURATION + 1},
         ):
             with self.subTest(values=values):
                 with self.assertRaisesRegex(ValueError, "must be between"):

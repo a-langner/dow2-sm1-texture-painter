@@ -8,9 +8,11 @@ from src.color_processing_settings import (
     MAX_BRIGHTNESS,
     MAX_CONTRAST,
     MAX_OPACITY,
+    MAX_SATURATION,
     MIN_BRIGHTNESS,
     MIN_CONTRAST,
     MIN_OPACITY,
+    MIN_SATURATION,
     ColorProcessingSettings,
     validate_processing_level,
 )
@@ -49,6 +51,7 @@ class RenderSettings:
     brightness: float = 75.0
     contrast: float = 100.0
     opacity: float = 100.0
+    saturation: float = 100.0
     apply_alpha: bool = False
     apply_dirt: bool = False
     apply_spec: bool = False
@@ -92,6 +95,12 @@ class RenderSettings:
             "opacity",
             MIN_OPACITY,
             MAX_OPACITY,
+        )
+        validate_processing_level(
+            self.saturation,
+            "saturation",
+            MIN_SATURATION,
+            MAX_SATURATION,
         )
         if not isinstance(self.color_op, ColorOps):
             raise ValueError("color_op must be a ColorOps value.")
@@ -174,6 +183,7 @@ class RenderSettings:
             brightness=self.brightness,
             contrast=self.contrast,
             opacity=self.opacity,
+            saturation=self.saturation,
         )
 
     @property
@@ -235,6 +245,7 @@ class RenderSettings:
             brightness=global_processing.brightness,
             contrast=global_processing.contrast,
             opacity=global_processing.opacity,
+            saturation=global_processing.saturation,
             per_color_processing=per_color_processing,
             _per_color_processing_initialized=True,
         )
@@ -257,6 +268,7 @@ class RenderSettings:
             brightness=settings.brightness,
             contrast=settings.contrast,
             opacity=settings.opacity,
+            saturation=settings.saturation,
         )
 
     def with_active_processing(

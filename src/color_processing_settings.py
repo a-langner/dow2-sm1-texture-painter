@@ -10,6 +10,8 @@ MIN_CONTRAST = 0.0
 MAX_CONTRAST = 200.0
 MIN_OPACITY = 0.0
 MAX_OPACITY = 100.0
+MIN_SATURATION = 0.0
+MAX_SATURATION = 200.0
 
 
 def validate_processing_level(
@@ -35,6 +37,7 @@ class ColorProcessingSettings:
     brightness: float = 75.0
     contrast: float = 100.0
     opacity: float = 100.0
+    saturation: float = 100.0
 
     def __post_init__(self) -> None:
         if not isinstance(self.blend_mode, BlendMode):
@@ -56,6 +59,12 @@ class ColorProcessingSettings:
             "opacity",
             MIN_OPACITY,
             MAX_OPACITY,
+        )
+        validate_processing_level(
+            self.saturation,
+            "saturation",
+            MIN_SATURATION,
+            MAX_SATURATION,
         )
 
 

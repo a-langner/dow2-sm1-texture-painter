@@ -15,8 +15,10 @@ from src.render_settings import (
     DEFAULT_RENDER_SETTINGS,
     MAX_BRIGHTNESS,
     MAX_CONTRAST,
+    MAX_SATURATION,
     MIN_BRIGHTNESS,
     MIN_CONTRAST,
+    MIN_SATURATION,
     RenderSettings,
 )
 
@@ -31,6 +33,7 @@ class RenderSettingsTests(unittest.TestCase):
         self.assertEqual(settings.brightness, 75.0)
         self.assertEqual(settings.contrast, 100.0)
         self.assertEqual(settings.opacity, 100.0)
+        self.assertEqual(settings.saturation, 100.0)
         self.assertFalse(settings.apply_alpha)
         self.assertFalse(settings.apply_dirt)
         self.assertFalse(settings.apply_spec)
@@ -101,6 +104,16 @@ class RenderSettingsTests(unittest.TestCase):
             MAX_CONTRAST,
         )
 
+    def test_saturation_accepts_processing_range_boundaries(self):
+        self.assertEqual(
+            RenderSettings(saturation=MIN_SATURATION).saturation,
+            MIN_SATURATION,
+        )
+        self.assertEqual(
+            RenderSettings(saturation=MAX_SATURATION).saturation,
+            MAX_SATURATION,
+        )
+
     def test_all_supported_operation_modes_use_enum(self):
         for operation in ColorOps:
             with self.subTest(operation=operation):
@@ -151,6 +164,7 @@ class RenderSettingsTests(unittest.TestCase):
             blend_mode=ColorOps.OVERLAY,
             brightness=75,
             contrast=100,
+            saturation=135,
         )
         per_color = (
             ColorProcessingSettings(ColorOps.MULTIPLY, 65, 110, 100),
@@ -172,6 +186,7 @@ class RenderSettingsTests(unittest.TestCase):
         self.assertIs(settings.processing_mode, ProcessingMode.PER_COLOR)
         self.assertEqual(settings.global_processing, global_processing)
         self.assertEqual(settings.per_color_processing, per_color)
+        self.assertEqual(settings.global_processing.saturation, 135)
         self.assertTrue(settings.per_color_processing_initialized)
 
     def test_complete_processing_state_can_be_restored_atomically(self):
@@ -198,6 +213,7 @@ class RenderSettingsTests(unittest.TestCase):
             65,
             110,
             72,
+            145,
         )
         settings = RenderSettings().with_global_processing(global_processing)
 
@@ -210,6 +226,10 @@ class RenderSettingsTests(unittest.TestCase):
         self.assertEqual(
             tuple(value.opacity for value in initialized.per_color_processing),
             (72, 72, 72, 72),
+        )
+        self.assertEqual(
+            tuple(value.saturation for value in initialized.per_color_processing),
+            (145, 145, 145, 145),
         )
         self.assertTrue(initialized.per_color_processing_initialized)
         self.assertFalse(settings.per_color_processing_initialized)
@@ -301,6 +321,8 @@ class RenderSettingsTests(unittest.TestCase):
             {"brightness": MAX_BRIGHTNESS + 1},
             {"contrast": MIN_CONTRAST - 1},
             {"contrast": MAX_CONTRAST + 1},
+            {"saturation": MIN_SATURATION - 1},
+            {"saturation": MAX_SATURATION + 1},
         )
         for values in invalid_values:
             with self.subTest(values=values):
