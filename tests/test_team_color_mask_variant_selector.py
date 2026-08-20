@@ -182,6 +182,33 @@ class TeamColorMaskVariantSelectorTests(unittest.TestCase):
             "marine_tem.dds"
         )
 
+    def test_workspace_reset_restores_default_mask_variant(self):
+        default = TeamColorMaskVariant(None, Path("marine_tem.dds"))
+        numbered = TeamColorMaskVariant(2, Path("marine_tem_2.dds"))
+        original_textures = Mock(spec=TextureSet)
+        replacement_textures = Mock(spec=TextureSet)
+        painter = self.make_painter((default, numbered), numbered)
+        painter.team_color_mask_variant_name.get.return_value = "Default"
+        painter.active_texture_set = original_textures
+        painter.texture_loading = Mock()
+        painter.texture_loading.load_channel_file.return_value = SimpleNamespace(
+            texture_set=replacement_textures
+        )
+        painter.preview_controller = Mock()
+        painter.select_channel = Mock()
+        painter.dialogs = Mock()
+
+        ArmyPainter.reset_team_color_mask_variant(painter)
+
+        painter.team_color_mask_variant_name.set.assert_any_call("Default")
+        painter.texture_loading.load_channel_file.assert_called_once_with(
+            original_textures, default.path
+        )
+        self.assertIs(painter.active_team_color_mask_variant, default)
+        self.assertIs(painter.active_texture_set, replacement_textures)
+        painter.preview_controller.invalidate.assert_called_once_with()
+        painter.select_channel.assert_called_once_with()
+
     def test_applying_pattern_colors_does_not_change_active_variant(self):
         default = TeamColorMaskVariant(None, Path("marine_tem.dds"))
         numbered = TeamColorMaskVariant(2, Path("marine_tem_2.dds"))

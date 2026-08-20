@@ -166,8 +166,19 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
     def test_startup_reset_without_texture_never_submits_preview(self):
         painter = SimpleNamespace(
             active_texture_set=None,
+            available_team_color_mask_variants=(),
+            active_team_color_mask_variant=None,
             preview_controller=Mock(),
             sync_render_settings=Mock(),
+            render_settings=DEFAULT_RENDER_SETTINGS.with_processing_mode(
+                ProcessingMode.PER_COLOR
+            ).with_active_processing(
+                ColorProcessingSettings(ColorOps.MULTIPLY, 40, 130, 60, 170)
+            ),
+            frame_color_op_option=SimpleNamespace(
+                var=SimpleNamespace(set=Mock()),
+                set_processing_context=Mock(),
+            ),
             frame_color_chooser=SimpleNamespace(
                 color_boxes=[{"bg": None} for _ in range(4)]
             ),
@@ -201,6 +212,19 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
         painter.frame_sliders.opacity_slider.set.assert_called_once_with(100.0)
         painter.frame_sliders.saturation_slider.set.assert_called_once_with(100.0)
         painter.frame_army_pattern.clear_selection.assert_called_once_with()
+        self.assertIs(
+            painter.render_settings.processing_mode,
+            ProcessingMode.GLOBAL,
+        )
+        self.assertEqual(
+            painter.render_settings.global_processing,
+            DEFAULT_RENDER_SETTINGS.global_processing,
+        )
+        self.assertEqual(
+            painter.render_settings.per_color_processing,
+            (DEFAULT_RENDER_SETTINGS.global_processing,) * 4,
+        )
+        painter.frame_color_op_option.var.set.assert_called_with("Overlay")
 
     @patch("src.frame_main.ImageTk.PhotoImage", side_effect=lambda image: image)
     @patch("src.frame_main.create_placeholder_img", side_effect=(object(), object()))

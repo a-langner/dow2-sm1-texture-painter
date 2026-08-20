@@ -546,6 +546,20 @@ class ArmyPainter(tk.Tk):
         ArmyPainter.sync_team_color_mask_variant_selector(self)
         self.select_channel()
 
+    def reset_team_color_mask_variant(self):
+        """Restore the default or first available mask for the active asset."""
+        variants = self.available_team_color_mask_variants
+        if len(variants) < 2:
+            return
+        default_variant = next(
+            (variant for variant in variants if variant.is_default),
+            variants[0],
+        )
+        if default_variant is self.active_team_color_mask_variant:
+            return
+        self.team_color_mask_variant_name.set(default_variant.display_name)
+        ArmyPainter.select_team_color_mask_variant(self)
+
     def define_menu(self):
         menubar = tk.Menu(self)
 
@@ -1330,14 +1344,16 @@ class ArmyPainter(tk.Tk):
 
     def reset_workspace(self, Event=None):
         self.frame_army_pattern.clear_selection()
+        default_processing = DEFAULT_RENDER_SETTINGS.global_processing
+        self.render_settings = self.render_settings.with_processing_state(
+            ProcessingMode.GLOBAL,
+            default_processing,
+            (default_processing,) * 4,
+        )
+        ArmyPainter.refresh_processing_controls(self)
+        ArmyPainter.reset_team_color_mask_variant(self)
         for color_box in self.frame_color_chooser.color_boxes:
             color_box["bg"] = "#808080"
-        self.frame_sliders.brightness_slider.set(DEFAULT_RENDER_SETTINGS.brightness)
-        self.frame_sliders.contrast_slider.set(DEFAULT_RENDER_SETTINGS.contrast)
-        if hasattr(self.frame_sliders, "saturation_slider"):
-            self.frame_sliders.saturation_slider.set(DEFAULT_RENDER_SETTINGS.saturation)
-        if hasattr(self.frame_sliders, "opacity_slider"):
-            self.frame_sliders.opacity_slider.set(DEFAULT_RENDER_SETTINGS.opacity)
         self.frame_channel_select.lb.selection_set(first=0, last=3)
         self.select_channel()
         self.update_pattern_action_states()
