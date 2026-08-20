@@ -7,6 +7,9 @@ from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 import src.color_pattern_handler as pattern_handler
+from src.blend_mode import BlendMode
+from src.color_processing_settings import ColorProcessingSettings
+from src.processing_mode import ProcessingMode
 from src.pattern_exchange import (
     PATTERN_EXCHANGE_FORMAT,
     PATTERN_EXCHANGE_VERSION,
@@ -74,8 +77,19 @@ class PatternExchangeLifecycleTests(unittest.TestCase):
 
             user_name = "User Pattern"
             user_colors = exchange_colors("#abcdef")
+            processing = pattern_handler.PatternProcessingState(
+                ProcessingMode.PER_COLOR,
+                ColorProcessingSettings(BlendMode.SCREEN, 80, 110, 90, 135),
+                (
+                    ColorProcessingSettings(saturation=25),
+                    ColorProcessingSettings(saturation=75),
+                    ColorProcessingSettings(saturation=150),
+                    ColorProcessingSettings(saturation=200),
+                ),
+            )
             import_pattern(
-                ImportedPattern(user_name, user_colors), pattern_path=user_path
+                ImportedPattern(user_name, user_colors, processing),
+                pattern_path=user_path,
             )
 
             export_pattern(builtin_name, builtin_export)
@@ -85,6 +99,7 @@ class PatternExchangeLifecycleTests(unittest.TestCase):
 
             imported_builtin = read_pattern_file(builtin_export)
             imported_user = read_pattern_file(user_export)
+            self.assertEqual(imported_user.processing, processing)
             import_pattern(
                 imported_builtin,
                 target_name="Imported Built-in",
@@ -97,8 +112,20 @@ class PatternExchangeLifecycleTests(unittest.TestCase):
             )
 
             reloaded = pattern_handler.load_user_patterns(user_path)
-            self.assertEqual(reloaded["Imported Built-in"], builtin_colors)
-            self.assertEqual(reloaded["Imported User"], user_colors)
+            self.assertEqual(
+                [reloaded["Imported Built-in"][key] for key in pattern_handler.color_key],
+                list(builtin_colors.values()),
+            )
+            self.assertEqual(
+                [reloaded["Imported User"][key] for key in pattern_handler.color_key],
+                list(user_colors.values()),
+            )
+            self.assertEqual(
+                pattern_handler.parse_pattern_processing_state(
+                    reloaded["Imported User"]
+                ),
+                processing,
+            )
             # Rebuild the module-backed handler state as application startup does.
             pattern_handler.user_color_patterns.clear()
             pattern_handler.user_color_patterns.update(reloaded)
@@ -144,8 +171,10 @@ class PatternExchangeLifecycleTests(unittest.TestCase):
                 pattern_path=user_path,
             )
             self.assertEqual(result, "Élite Löwen_日本 Copy")
+            reloaded = pattern_handler.load_user_patterns(user_path)[result]
             self.assertEqual(
-                pattern_handler.load_user_patterns(user_path)[result], colors
+                [reloaded[key] for key in pattern_handler.color_key],
+                list(colors.values()),
             )
 
     def test_invalid_exchange_files_are_rejected_without_being_modified(self):

@@ -6,22 +6,26 @@ import re
 import tempfile
 from collections import OrderedDict
 from collections.abc import Iterable, Mapping
-from typing import NamedTuple, TypedDict, cast
+from typing import NamedTuple, NotRequired, TypedDict, cast
 
 from src.color_pattern_handler import (
     ARMY_PATTERN_RESOURCE,
     InvalidPatternError,
     PatternAlreadyExistsError,
+    PatternProcessingState,
     PatternNameConflictError,
     PatternNotFoundError,
     StoredPattern,
     builtin_color_patterns,
     color_key,
     get_all_patterns,
+    get_pattern_processing_state,
     is_user_pattern,
     normalize_pattern_colors,
     normalize_pattern_name,
+    parse_pattern_processing_state,
     save_imported_pattern,
+    serialize_pattern_processing_state,
     replace_user_patterns,
     user_color_patterns,
 )
@@ -41,6 +45,9 @@ class PatternExchangeDocument(TypedDict):
     version: int
     name: str
     colors: dict[str, str]
+    processing_mode: NotRequired[str]
+    global_processing: NotRequired[object]
+    per_color_processing: NotRequired[object]
 
 WINDOWS_RESERVED_FILENAMES = {
     "CON",
@@ -186,6 +193,7 @@ class CollectionImportResult(NamedTuple):
 class ImportedPattern(NamedTuple):
     name: str
     colors: dict[str, str]
+    processing: PatternProcessingState | None = None
 
 
 class ImportedPatternCollection(NamedTuple):
@@ -222,31 +230,52 @@ class CollectionImportAnalysis(NamedTuple):
 
 def create_pattern_exchange_entry(
     name: str,
-    pattern: Mapping[str, str],
+    pattern: Mapping[str, object],
 ) -> dict[str, object]:
-    """Create the shared name-and-colors structure for one pattern."""
-    return {
+    """Create the shared name, colors, and processing structure."""
+    entry: dict[str, object] = {
         "name": name,
-        "colors": {key: pattern[key] for key in color_key},
+        "colors": {key: cast(str, pattern[key]) for key in color_key},
     }
+    if all(
+        key in pattern
+        for key in ("processing_mode", "global_processing", "per_color_processing")
+    ):
+        entry.update(
+            serialize_pattern_processing_state(
+                parse_pattern_processing_state(pattern)
+            )
+        )
+    return entry
 
 
 def create_pattern_exchange_document(
     name: str,
-    pattern: Mapping[str, str],
+    pattern: Mapping[str, object],
 ) -> PatternExchangeDocument:
-    """Create the versioned document for exchanging one color pattern."""
-    return {
+    """Create the versioned document for exchanging one complete pattern."""
+    document: PatternExchangeDocument = {
         "format": PATTERN_EXCHANGE_FORMAT,
         "version": PATTERN_EXCHANGE_VERSION,
         "name": name,
-        "colors": {key: pattern[key] for key in color_key},
+        "colors": {key: cast(str, pattern[key]) for key in color_key},
     }
+    if all(
+        key in pattern
+        for key in ("processing_mode", "global_processing", "per_color_processing")
+    ):
+        serialized = serialize_pattern_processing_state(
+            parse_pattern_processing_state(pattern)
+        )
+        document["processing_mode"] = cast(str, serialized["processing_mode"])
+        document["global_processing"] = serialized["global_processing"]
+        document["per_color_processing"] = serialized["per_color_processing"]
+    return document
 
 
 def create_pattern_collection_exchange_document(
     name: str,
-    patterns: Iterable[tuple[str, Mapping[str, str]]],
+    patterns: Iterable[tuple[str, Mapping[str, object]]],
 ) -> dict[str, object]:
     """Create a versioned collection document from ordered pattern pairs."""
     return {
@@ -318,15 +347,25 @@ def validate_imported_pattern_collection(
         entry_description = f"Pattern entry {index}"
         if isinstance(raw_name, str):
             entry_description += f" ({raw_name!r})"
+        single_document = {
+            "format": PATTERN_EXCHANGE_FORMAT,
+            "version": PATTERN_EXCHANGE_VERSION,
+            "name": raw_name,
+            "colors": entry.get("colors"),
+        }
+        single_document.update(
+            {
+                key: entry[key]
+                for key in (
+                    "processing_mode",
+                    "global_processing",
+                    "per_color_processing",
+                )
+                if key in entry
+            }
+        )
         try:
-            normalized = validate_imported_pattern(
-                {
-                    "format": PATTERN_EXCHANGE_FORMAT,
-                    "version": PATTERN_EXCHANGE_VERSION,
-                    "name": raw_name,
-                    "colors": entry.get("colors"),
-                }
-            )
+            normalized = validate_imported_pattern(single_document)
         except PatternImportError as exc:
             raise InvalidPatternCollectionError(
                 f"{entry_description} is invalid: {exc}"
@@ -338,7 +377,18 @@ def validate_imported_pattern_collection(
                 f"Duplicate Pattern name {pattern_name!r} at entry {index}"
             )
         normalized_names.add(pattern_name)
-        normalized_patterns.append(ImportedPattern(pattern_name, normalized["colors"]))
+        processing = (
+            parse_pattern_processing_state(normalized)
+            if "processing_mode" in normalized
+            else None
+        )
+        normalized_patterns.append(
+            ImportedPattern(
+                pattern_name,
+                normalized["colors"],
+                processing,
+            )
+        )
 
     return ImportedPatternCollection(collection_name, tuple(normalized_patterns))
 
@@ -453,13 +503,19 @@ def import_analyzed_pattern_collection(
 
     final_patterns = OrderedDict(user_color_patterns)
     for pattern in analysis.new_patterns:
-        final_patterns[pattern.name] = OrderedDict(pattern.colors)
+        stored: StoredPattern = OrderedDict(pattern.colors)
+        if pattern.processing is not None:
+            stored.update(serialize_pattern_processing_state(pattern.processing))
+        final_patterns[pattern.name] = stored
 
     overwritten_count = 0
     skipped_user_conflict_count = len(analysis.user_conflicts)
     if overwrite_user_conflicts:
         for pattern in analysis.user_conflicts:
-            final_patterns[pattern.name] = OrderedDict(pattern.colors)
+            stored = OrderedDict[str, object](pattern.colors)
+            if pattern.processing is not None:
+                stored.update(serialize_pattern_processing_state(pattern.processing))
+            final_patterns[pattern.name] = stored
         overwritten_count = len(analysis.user_conflicts)
         skipped_user_conflict_count = 0
 
@@ -537,8 +593,31 @@ def validate_imported_pattern(data: object) -> PatternExchangeDocument:
     except InvalidPatternError as exc:
         raise InvalidImportedPatternColorsError(str(exc)) from exc
 
+    processing_fields = {
+        key: data[key]
+        for key in (
+            "processing_mode",
+            "global_processing",
+            "per_color_processing",
+        )
+        if key in data
+    }
+    if not processing_fields:
+        return create_pattern_exchange_document(
+            normalized_name, dict(zip(color_key, normalized_colors))
+        )
+    if len(processing_fields) != 3:
+        raise InvalidPatternFileError("Pattern processing is incomplete")
+    try:
+        processing = parse_pattern_processing_state(processing_fields)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise InvalidPatternFileError("Pattern processing is invalid") from exc
     return create_pattern_exchange_document(
-        normalized_name, dict(zip(color_key, normalized_colors))
+        normalized_name,
+        {
+            **dict(zip(color_key, normalized_colors)),
+            **serialize_pattern_processing_state(processing),
+        },
     )
 
 
@@ -569,7 +648,12 @@ def read_pattern_file(path: Path) -> ImportedPattern:
             f'Could not read pattern file "{path}": {exc}'
         ) from exc
     document = parse_imported_pattern_json(json_text)
-    return ImportedPattern(document["name"], document["colors"])
+    processing = (
+        parse_pattern_processing_state(document)
+        if "processing_mode" in document
+        else None
+    )
+    return ImportedPattern(document["name"], document["colors"], processing)
 
 
 def import_pattern(
@@ -594,6 +678,7 @@ def import_pattern(
             [imported_pattern.colors[key] for key in color_key],
             overwrite=overwrite,
             pattern_path=pattern_path,
+            processing=imported_pattern.processing,
         )
     except PatternNameConflictError as exc:
         raise BuiltinPatternImportConflictError(str(exc)) from exc
@@ -607,8 +692,7 @@ def export_pattern(name: str, destination: Path) -> None:
     if pattern is None:
         raise PatternNotFoundError(f"Pattern '{name}' does not exist")
 
-    colors = {key: cast(str, pattern[key]) for key in color_key}
-    document = create_pattern_exchange_document(name, colors)
+    document = create_pattern_exchange_document(name, pattern)
     _write_exchange_document(document, destination)
 
 
@@ -623,7 +707,7 @@ def export_user_pattern_collection(
         raise InvalidPatternCollectionNameError(str(exc)) from exc
 
     user_patterns = [
-        (name, {key: cast(str, pattern[key]) for key in color_key})
+        (name, pattern)
         for name, pattern in get_all_patterns().items()
         if is_user_pattern(name)
     ]

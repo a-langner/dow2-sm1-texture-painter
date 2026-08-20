@@ -1,7 +1,11 @@
 import unittest
 
 import test_support  # noqa: F401 - installs the user-data path redirect
-from src.color_pattern_handler import color_key
+from src.color_pattern_handler import (
+    DEFAULT_PATTERN_PROCESSING_STATE,
+    color_key,
+    parse_pattern_processing_state,
+)
 from src.pattern_exchange import (
     InvalidImportedPatternColorsError,
     InvalidImportedPatternNameError,
@@ -31,14 +35,13 @@ class PatternExchangeFormatTests(unittest.TestCase):
     def test_generated_document_has_expected_structure(self):
         document = create_pattern_exchange_document("Example Pattern", self.colors)
 
+        self.assertEqual(document["format"], "dow2-sm1-texture-painter-pattern")
+        self.assertEqual(document["version"], 1)
+        self.assertEqual(document["name"], "Example Pattern")
+        self.assertEqual(document["colors"], self.colors)
         self.assertEqual(
-            document,
-            {
-                "format": "dow2-sm1-texture-painter-pattern",
-                "version": 1,
-                "name": "Example Pattern",
-                "colors": self.colors,
-            },
+            parse_pattern_processing_state(document),
+            DEFAULT_PATTERN_PROCESSING_STATE,
         )
         self.assertEqual(list(document["colors"]), color_key)
 
@@ -80,7 +83,12 @@ class PatternExchangeValidationTests(unittest.TestCase):
     def test_valid_version_one_data_is_normalized(self):
         result = validate_imported_pattern(self.valid_document)
 
-        self.assertEqual(result, self.valid_document)
+        self.assertEqual(result["name"], self.valid_document["name"])
+        self.assertEqual(result["colors"], self.valid_document["colors"])
+        self.assertEqual(
+            parse_pattern_processing_state(result),
+            DEFAULT_PATTERN_PROCESSING_STATE,
+        )
 
     def test_invalid_top_level_type_is_rejected(self):
         for value in (None, [], "pattern"):
@@ -160,7 +168,9 @@ class PatternExchangeValidationTests(unittest.TestCase):
             "colors": colors,
         }
 
-        self.assertEqual(validate_imported_pattern(document), self.valid_document)
+        normalized = validate_imported_pattern(document)
+        self.assertEqual(normalized["name"], self.valid_document["name"])
+        self.assertEqual(normalized["colors"], self.valid_document["colors"])
 
     def test_name_surrounding_whitespace_is_removed(self):
         document = {**self.valid_document, "name": "  Example Pattern  "}

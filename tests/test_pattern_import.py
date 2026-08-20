@@ -68,7 +68,15 @@ class PatternImportTests(unittest.TestCase):
 
             self.assertEqual(result, "Imported")
             self.assertTrue(is_user_pattern("Imported"))
-            self.assertEqual(load_user_patterns(user_path)["Imported"], colors())
+            stored = load_user_patterns(user_path)["Imported"]
+            self.assertEqual(
+                [stored[key] for key in color_key],
+                list(colors().values()),
+            )
+            self.assertEqual(
+                pattern_handler.parse_pattern_processing_state(stored),
+                pattern_handler.DEFAULT_PATTERN_PROCESSING_STATE,
+            )
 
     def test_read_file_distinguishes_missing_and_permission_failures(self):
         with tempfile.TemporaryDirectory() as temporary_directory:

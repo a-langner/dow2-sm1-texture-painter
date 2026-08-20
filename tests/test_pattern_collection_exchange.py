@@ -100,16 +100,18 @@ class PatternCollectionExchangeFormatTests(unittest.TestCase):
         )
 
         self.assertEqual(
-            document,
-            {
-                "format": "dow2-sm1-texture-painter-pattern-collection",
-                "version": 1,
-                "name": "My Space Marine Patterns",
-                "patterns": [
-                    {"name": "Blood Ravens Veteran", "colors": first_colors},
-                    {"name": "Ultramarines Sergeant", "colors": second_colors},
-                ],
-            },
+            document["format"],
+            "dow2-sm1-texture-painter-pattern-collection",
+        )
+        self.assertEqual(document["version"], 1)
+        self.assertEqual(document["name"], "My Space Marine Patterns")
+        self.assertEqual(
+            [entry["name"] for entry in document["patterns"]],
+            ["Blood Ravens Veteran", "Ultramarines Sergeant"],
+        )
+        self.assertEqual(
+            [entry["colors"] for entry in document["patterns"]],
+            [first_colors, second_colors],
         )
         self.assertIsInstance(document["patterns"], list)
         self.assertEqual(

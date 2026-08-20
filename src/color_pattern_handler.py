@@ -34,7 +34,8 @@ color_key = [
     "extra_colour_name",
 ]
 processing_key = ["blend_mode", "brightness", "contrast"]
-processing_settings_key = processing_key + ["opacity"]
+opacity_processing_settings_key = processing_key + ["opacity"]
+processing_settings_key = opacity_processing_settings_key + ["saturation"]
 processing_state_key = [
     "processing_mode",
     "global_processing",
@@ -307,6 +308,7 @@ def get_pattern_processing_state(name: str) -> PatternProcessingState:
 def _parse_processing_settings(value: object) -> ColorProcessingSettings:
     if not isinstance(value, Mapping) or list(value) not in (
         processing_key,
+        opacity_processing_settings_key,
         processing_settings_key,
     ):
         raise ValueError("processing settings have an invalid structure")
@@ -319,11 +321,15 @@ def _parse_processing_settings(value: object) -> ColorProcessingSettings:
     opacity = value.get("opacity", 100.0)
     if not isinstance(opacity, (int, float)) or isinstance(opacity, bool):
         raise TypeError("opacity must be numeric")
+    saturation = value.get("saturation", 100.0)
+    if not isinstance(saturation, (int, float)) or isinstance(saturation, bool):
+        raise TypeError("saturation must be numeric")
     return ColorProcessingSettings(
         BlendMode.parse(value["blend_mode"]),
         float(brightness),
         float(contrast),
         float(opacity),
+        float(saturation),
     )
 
 
@@ -463,27 +469,7 @@ def _stored_pattern(
 ) -> StoredPattern:
     pattern: StoredPattern = OrderedDict(zip(color_key, colors))
     if isinstance(processing, PatternProcessingState):
-        pattern.update(
-            (
-                ("processing_mode", processing.processing_mode.value),
-                (
-                    "global_processing",
-                    _stored_processing_settings(processing.global_processing),
-                ),
-                (
-                    "per_color_processing",
-                    OrderedDict(
-                        (
-                            slot.value,
-                            _stored_processing_settings(
-                                processing.per_color_processing[slot.index]
-                            ),
-                        )
-                        for slot in ColorSlot
-                    ),
-                ),
-            )
-        )
+        pattern.update(serialize_pattern_processing_state(processing))
     elif processing is not None:
         pattern.update(
             (
@@ -504,8 +490,43 @@ def _stored_processing_settings(
             ("brightness", settings.brightness),
             ("contrast", settings.contrast),
             ("opacity", settings.opacity),
+            ("saturation", settings.saturation),
         )
     )
+
+
+def serialize_pattern_processing_state(
+    processing: PatternProcessingState,
+) -> OrderedDict[str, object]:
+    """Return the stable structured representation used by storage and exchange."""
+    return OrderedDict(
+        (
+            ("processing_mode", processing.processing_mode.value),
+            (
+                "global_processing",
+                _stored_processing_settings(processing.global_processing),
+            ),
+            (
+                "per_color_processing",
+                OrderedDict(
+                    (
+                        slot.value,
+                        _stored_processing_settings(
+                            processing.per_color_processing[slot.index]
+                        ),
+                    )
+                    for slot in ColorSlot
+                ),
+            ),
+        )
+    )
+
+
+def parse_pattern_processing_state(
+    pattern: Mapping[str, object],
+) -> PatternProcessingState:
+    """Parse structured or legacy processing with backward-compatible defaults."""
+    return _parse_pattern_processing_state(pattern, strict=True)
 
 
 def _write_user_patterns(
@@ -590,6 +611,8 @@ def save_imported_pattern(
     colors: Iterable[object],
     overwrite: bool = False,
     pattern_path: Path | None = None,
+    *,
+    processing: PatternProcessingState | None = None,
 ) -> str:
     """Persist an imported user pattern, optionally replacing that user name."""
     normalized_name = normalize_pattern_name(name)
@@ -608,7 +631,7 @@ def save_imported_pattern(
     pattern_path = Path(pattern_path)
     _ensure_user_pattern_file_is_writable(pattern_path)
 
-    pattern = _stored_pattern(normalized_colors, None)
+    pattern = _stored_pattern(normalized_colors, processing)
     updated_user_patterns = OrderedDict(user_color_patterns)
     updated_user_patterns[normalized_name] = pattern
     _write_user_patterns(updated_user_patterns, pattern_path)

@@ -423,13 +423,13 @@ class ColorPatternSavingTests(unittest.TestCase):
 
     def test_per_color_processing_state_round_trips_with_stable_ids(self):
         global_settings = ColorProcessingSettings(
-            BlendMode.SCREEN, 80.0, 110.0, 90.0
+            BlendMode.SCREEN, 80.0, 110.0, 90.0, 135.0
         )
         per_color = (
-            ColorProcessingSettings(BlendMode.OVERLAY, 10.0, 20.0, 100.0),
-            ColorProcessingSettings(BlendMode.MULTIPLY, 30.0, 40.0, 65.0),
-            ColorProcessingSettings(BlendMode.HARD_LIGHT, 50.0, 60.0, 40.0),
-            ColorProcessingSettings(BlendMode.LINEAR_DODGE, 70.0, 80.0, 85.0),
+            ColorProcessingSettings(BlendMode.OVERLAY, 10.0, 20.0, 100.0, 25.0),
+            ColorProcessingSettings(BlendMode.MULTIPLY, 30.0, 40.0, 65.0, 75.0),
+            ColorProcessingSettings(BlendMode.HARD_LIGHT, 50.0, 60.0, 40.0, 150.0),
+            ColorProcessingSettings(BlendMode.LINEAR_DODGE, 70.0, 80.0, 85.0, 200.0),
         )
         state = PatternProcessingState(
             ProcessingMode.PER_COLOR, global_settings, per_color
@@ -447,6 +447,7 @@ class ColorPatternSavingTests(unittest.TestCase):
             stored = document["patterns"]["Per Color"]
             self.assertEqual(stored["processing_mode"], "per_color")
             self.assertEqual(stored["global_processing"]["opacity"], 90.0)
+            self.assertEqual(stored["global_processing"]["saturation"], 135.0)
             self.assertEqual(
                 list(stored["per_color_processing"]),
                 ["color_1", "color_2", "color_3", "color_4"],
@@ -457,6 +458,13 @@ class ColorPatternSavingTests(unittest.TestCase):
                     for index in range(1, 5)
                 ],
                 [100.0, 65.0, 40.0, 85.0],
+            )
+            self.assertEqual(
+                [
+                    stored["per_color_processing"][f"color_{index}"]["saturation"]
+                    for index in range(1, 5)
+                ],
+                [25.0, 75.0, 150.0, 200.0],
             )
             self.assertNotIn("tem_selected", stored)
 
@@ -494,8 +502,13 @@ class ColorPatternSavingTests(unittest.TestCase):
             state = get_pattern_processing_state("Legacy Complete")
 
         self.assertEqual(state.global_processing.opacity, 100.0)
+        self.assertEqual(state.global_processing.saturation, 100.0)
         self.assertEqual(
             tuple(value.opacity for value in state.per_color_processing),
+            (100.0, 100.0, 100.0, 100.0),
+        )
+        self.assertEqual(
+            tuple(value.saturation for value in state.per_color_processing),
             (100.0, 100.0, 100.0, 100.0),
         )
 

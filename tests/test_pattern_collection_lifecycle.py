@@ -7,6 +7,8 @@ from unittest.mock import patch
 
 import test_support
 import src.color_pattern_handler as pattern_handler
+from src.color_processing_settings import ColorProcessingSettings
+from src.processing_mode import ProcessingMode
 from src.pattern_exchange import (
     PATTERN_COLLECTION_EXCHANGE_FORMAT,
     PATTERN_COLLECTION_EXCHANGE_VERSION,
@@ -66,9 +68,12 @@ class PatternCollectionLifecycleTests(unittest.TestCase):
         pattern_handler.army_color_pattern.clear()
         pattern_handler.army_color_pattern.update(self.original_all)
 
-    def seed_user(self, name, pattern_colors, path):
+    def seed_user(self, name, pattern_colors, path, processing=None):
         pattern_handler.save_imported_pattern(
-            name, list(pattern_colors.values()), pattern_path=path
+            name,
+            list(pattern_colors.values()),
+            pattern_path=path,
+            processing=processing,
         )
 
     def rebuild_handler_state(self, users):
@@ -94,8 +99,21 @@ class PatternCollectionLifecycleTests(unittest.TestCase):
                 ("Zulu", colors("#123456")),
                 ("Élite 日本語", colors("#abcdef")),
             ]
-            for name, pattern_colors in expected:
-                self.seed_user(name, pattern_colors, source_user_path)
+            saturation_state = pattern_handler.PatternProcessingState(
+                ProcessingMode.PER_COLOR,
+                ColorProcessingSettings(saturation=140),
+                tuple(
+                    ColorProcessingSettings(saturation=value)
+                    for value in (20, 80, 150, 200)
+                ),
+            )
+            self.seed_user(
+                expected[0][0],
+                expected[0][1],
+                source_user_path,
+                saturation_state,
+            )
+            self.seed_user(expected[1][0], expected[1][1], source_user_path)
 
             with patch(
                 "src.pattern_exchange.get_user_patterns_path",
@@ -140,8 +158,15 @@ class PatternCollectionLifecycleTests(unittest.TestCase):
             self.rebuild_handler_state(reloaded)
             self.assertEqual(list(reloaded), [name for name, _ in expected])
             for name, expected_colors in expected:
-                self.assertEqual(reloaded[name], expected_colors)
+                self.assertEqual(
+                    [reloaded[name][key] for key in pattern_handler.color_key],
+                    list(expected_colors.values()),
+                )
                 self.assertTrue(pattern_handler.is_user_pattern(name))
+            self.assertEqual(
+                pattern_handler.parse_pattern_processing_state(reloaded["Zulu"]),
+                saturation_state,
+            )
 
         self.assertEqual(
             pattern_handler.ARMY_PATTERN_RESOURCE.read_bytes(), builtin_before
@@ -184,7 +209,11 @@ class PatternCollectionLifecycleTests(unittest.TestCase):
             )
             self.assertEqual(overwrite_result, CollectionImportResult(0, 2, 0, 1))
             self.assertEqual(
-                pattern_handler.user_color_patterns["Existing"], colors("#333333")
+                [
+                    pattern_handler.user_color_patterns["Existing"][key]
+                    for key in pattern_handler.color_key
+                ],
+                list(colors("#333333").values()),
             )
             self.assertNotIn(builtin_name, pattern_handler.user_color_patterns)
 
