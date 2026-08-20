@@ -6,7 +6,12 @@ import re
 import tempfile
 from collections import OrderedDict
 from collections.abc import Iterable, Mapping
-from typing import NamedTuple, NotRequired, TypedDict, cast
+from typing import NamedTuple, TypedDict, cast
+
+try:
+    from typing import NotRequired
+except ImportError:  # Python 3.10
+    from typing_extensions import NotRequired
 
 from src.color_pattern_handler import (
     ARMY_PATTERN_RESOURCE,

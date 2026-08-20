@@ -1,3 +1,4 @@
 pillow
+typing_extensions
 pyinstaller
 platformdirs
