@@ -3327,6 +3327,13 @@ class FramePatternList(tk.Frame):
         self.tree.see(item_id)
         return item_id
 
+    def clear_selection(self):
+        """Remove the active Pattern row and its keyboard focus."""
+        selected_items = self.tree.selection()
+        if selected_items:
+            self.tree.selection_remove(*selected_items)
+        self.tree.focus("")
+
 
 class PatternImportConflictDialog(tk.Toplevel):
     """Small modal dialog for explicit imported-pattern conflict choices."""

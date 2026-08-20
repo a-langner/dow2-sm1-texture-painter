@@ -171,6 +171,7 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
             frame_color_chooser=SimpleNamespace(
                 color_boxes=[{"bg": None} for _ in range(4)]
             ),
+            frame_army_pattern=SimpleNamespace(clear_selection=Mock()),
             frame_sliders=SimpleNamespace(
                 brightness_slider=SimpleNamespace(set=Mock()),
                 contrast_slider=SimpleNamespace(set=Mock()),
@@ -199,6 +200,7 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
         painter.sync_render_settings.assert_not_called()
         painter.frame_sliders.opacity_slider.set.assert_called_once_with(100.0)
         painter.frame_sliders.saturation_slider.set.assert_called_once_with(100.0)
+        painter.frame_army_pattern.clear_selection.assert_called_once_with()
 
     @patch("src.frame_main.ImageTk.PhotoImage", side_effect=lambda image: image)
     @patch("src.frame_main.create_placeholder_img", side_effect=(object(), object()))

@@ -1329,6 +1329,7 @@ class ArmyPainter(tk.Tk):
         )
 
     def reset_workspace(self, Event=None):
+        self.frame_army_pattern.clear_selection()
         for color_box in self.frame_color_chooser.color_boxes:
             color_box["bg"] = "#808080"
         self.frame_sliders.brightness_slider.set(DEFAULT_RENDER_SETTINGS.brightness)

@@ -15,6 +15,7 @@ from src.widget import (
     FrameChannelList,
     FrameColorChooser,
     FrameColorOps,
+    FramePatternList,
     FrameSlider,
 )
 
@@ -280,6 +281,19 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         self.assertEqual(callback.call_args_list[1].args, expected)
         self.assertEqual(callback.call_args_list[2].args, expected)
         self.assertEqual(callback.call_args_list[3].args, expected)
+
+    def test_pattern_list_clear_selection_removes_highlight_and_focus(self):
+        tree = SimpleNamespace(
+            selection=Mock(return_value=("pattern-1",)),
+            selection_remove=Mock(),
+            focus=Mock(),
+        )
+        frame = SimpleNamespace(tree=tree)
+
+        FramePatternList.clear_selection(frame)
+
+        tree.selection_remove.assert_called_once_with("pattern-1")
+        tree.focus.assert_called_once_with("")
 
     @patch.object(BatchEditTopLevel, "initialize")
     @patch("src.widget.tk.Toplevel.title")
