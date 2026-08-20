@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import test_support
 import src.color_pattern_handler as pattern_handler
+from src.blend_mode import BlendMode
 from src.color_processing_settings import ColorProcessingSettings
 from src.processing_mode import ProcessingMode
 from src.pattern_exchange import (
@@ -101,10 +102,21 @@ class PatternCollectionLifecycleTests(unittest.TestCase):
             ]
             saturation_state = pattern_handler.PatternProcessingState(
                 ProcessingMode.PER_COLOR,
-                ColorProcessingSettings(saturation=140),
+                ColorProcessingSettings(
+                    blend_mode=BlendMode.COLOR_BURN,
+                    saturation=140,
+                ),
                 tuple(
-                    ColorProcessingSettings(saturation=value)
-                    for value in (20, 80, 150, 200)
+                    ColorProcessingSettings(blend_mode=mode, saturation=value)
+                    for mode, value in zip(
+                        (
+                            BlendMode.DARKEN,
+                            BlendMode.LIGHTEN,
+                            BlendMode.COLOR_BURN,
+                            BlendMode.OVERLAY,
+                        ),
+                        (20, 80, 150, 200),
+                    )
                 ),
             )
             self.seed_user(

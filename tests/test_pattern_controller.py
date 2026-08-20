@@ -122,12 +122,12 @@ class PatternControllerTests(unittest.TestCase):
     def test_per_color_save_update_restart_and_reload_preserve_all_slots(self):
         original = PatternProcessingState(
             ProcessingMode.PER_COLOR,
-            ColorProcessingSettings(ColorOps.SCREEN, 80, 120, 90),
+            ColorProcessingSettings(ColorOps.COLOR_BURN, 80, 120, 90),
             (
-                ColorProcessingSettings(ColorOps.OVERLAY, 10, 20, 100),
-                ColorProcessingSettings(ColorOps.MULTIPLY, 30, 40, 65),
-                ColorProcessingSettings(ColorOps.COLOR, 50, 60, 40),
-                ColorProcessingSettings(ColorOps.HARD_LIGHT, 70, 80, 85),
+                ColorProcessingSettings(ColorOps.DARKEN, 10, 20, 100),
+                ColorProcessingSettings(ColorOps.LIGHTEN, 30, 40, 65),
+                ColorProcessingSettings(ColorOps.COLOR_BURN, 50, 60, 40),
+                ColorProcessingSettings(ColorOps.OVERLAY, 70, 80, 85),
             ),
         )
         updated = PatternProcessingState(
@@ -135,13 +135,18 @@ class PatternControllerTests(unittest.TestCase):
             original.global_processing,
             (
                 original.per_color_processing[0],
-                ColorProcessingSettings(ColorOps.LINEAR_DODGE, 90, 100, 25),
+                ColorProcessingSettings(ColorOps.DARKEN, 90, 100, 25),
                 original.per_color_processing[2],
                 original.per_color_processing[3],
             ),
         )
 
         self.controller.save_new_pattern("Per Color", COLORS, original)
+        self.controller.duplicate_pattern("Per Color", "Per Color Copy")
+        self.assertEqual(
+            pattern_handler.get_pattern_processing_state("Per Color Copy"),
+            original,
+        )
         self.controller.update_pattern("Per Color", NEW_COLORS, updated)
 
         reloaded = pattern_handler.load_user_patterns(self.user_path)

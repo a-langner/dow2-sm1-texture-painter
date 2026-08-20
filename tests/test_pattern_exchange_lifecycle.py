@@ -79,12 +79,12 @@ class PatternExchangeLifecycleTests(unittest.TestCase):
             user_colors = exchange_colors("#abcdef")
             processing = pattern_handler.PatternProcessingState(
                 ProcessingMode.PER_COLOR,
-                ColorProcessingSettings(BlendMode.SCREEN, 80, 110, 90, 135),
+                ColorProcessingSettings(BlendMode.COLOR_BURN, 80, 110, 90, 135),
                 (
-                    ColorProcessingSettings(saturation=25),
-                    ColorProcessingSettings(saturation=75),
-                    ColorProcessingSettings(saturation=150),
-                    ColorProcessingSettings(saturation=200),
+                    ColorProcessingSettings(BlendMode.DARKEN, saturation=25),
+                    ColorProcessingSettings(BlendMode.LIGHTEN, saturation=75),
+                    ColorProcessingSettings(BlendMode.COLOR_BURN, saturation=150),
+                    ColorProcessingSettings(BlendMode.OVERLAY, saturation=200),
                 ),
             )
             import_pattern(
