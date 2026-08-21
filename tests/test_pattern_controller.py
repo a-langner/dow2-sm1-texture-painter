@@ -126,6 +126,17 @@ class PatternControllerTests(unittest.TestCase):
             pattern_handler.PatternMarkerColor.PURPLE,
         )
 
+    def test_duplicate_uses_consistent_append_fallback_for_manual_order(self):
+        self.save("Source")
+        self.save("Tail", NEW_COLORS)
+
+        self.controller.duplicate_pattern("Source", "Source Copy")
+
+        self.assertEqual(
+            list(pattern_handler.user_color_patterns),
+            ["Source", "Tail", "Source Copy"],
+        )
+
     def test_update_reports_unchanged_then_persists_changed_colors(self):
         self.save()
         unchanged = self.controller.update_pattern("User", COLORS)

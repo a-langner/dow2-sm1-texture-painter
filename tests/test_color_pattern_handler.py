@@ -402,6 +402,36 @@ class ColorPatternSavingTests(unittest.TestCase):
                 ["Third", "Renamed", "Second"],
             )
 
+    def test_commands_preserve_manual_order_and_append_new_patterns(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            for name in ("First", "Second", "Third"):
+                pattern_handler.save(name, self.colors(), pattern_path)
+            reorder_user_pattern("Third", 0, pattern_path)
+
+            pattern_handler.save("Saved New", self.colors(), pattern_path)
+            pattern_handler.save_imported_pattern(
+                "Imported", self.colors(), pattern_path=pattern_path
+            )
+            pattern_handler.save_imported_pattern(
+                "Second", self.colors(), overwrite=True, pattern_path=pattern_path
+            )
+            pattern_handler.rename_user_pattern(
+                "First", "Renamed", pattern_path
+            )
+            pattern_handler.delete("Saved New", pattern_path)
+
+            expected_order = ["Third", "Renamed", "Second", "Imported"]
+            self.assertEqual(
+                list(pattern_handler.user_color_patterns), expected_order
+            )
+            self.assertEqual(
+                list(load_user_patterns(pattern_path)), expected_order
+            )
+            self.assertEqual(
+                list(get_all_patterns())[-len(expected_order) :], expected_order
+            )
+
     def test_saved_pattern_can_be_loaded_from_disk(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             pattern_path = Path(temporary_directory) / "user_patterns.json"
