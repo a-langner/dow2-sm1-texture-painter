@@ -334,6 +334,7 @@ class ArmyPainter(tk.Tk):
     def _initialize_view_state(self):
         """Initialize previews and deferred warnings after complete wiring."""
         self.reset_workspace()
+        ArmyPainter.clear_workspace_history(self)
         self.after_idle(self.show_user_pattern_load_warning)
 
     def _create_pattern_controller(self):

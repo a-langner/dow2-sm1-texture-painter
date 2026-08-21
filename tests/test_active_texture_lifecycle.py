@@ -336,7 +336,10 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
                 opacity_slider=SimpleNamespace(set=Mock()),
             ),
             frame_channel_select=SimpleNamespace(
-                lb=SimpleNamespace(selection_set=Mock())
+                lb=SimpleNamespace(
+                    selection_set=Mock(),
+                    curselection=Mock(return_value=(0, 1, 2, 3)),
+                )
             ),
             update_pattern_action_states=Mock(),
             after_idle=Mock(),
@@ -363,6 +366,8 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
             ProcessingMode.GLOBAL,
         )
         self.assertFalse(painter.show_original_preview)
+        self.assertFalse(painter.workspace_history.can_undo)
+        self.assertFalse(painter.workspace_history.can_redo)
         self.assertEqual(
             painter.render_settings.global_processing,
             DEFAULT_RENDER_SETTINGS.global_processing,
