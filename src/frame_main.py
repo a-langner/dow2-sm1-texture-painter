@@ -1149,7 +1149,7 @@ class ArmyPainter(tk.Tk):
     def apply_preview_result(self, result: PreviewResult):
         """Apply a completed preview on Tk's event thread."""
         self.processed_preview_image = ImageTk.PhotoImage(result.workspace)
-        if not self.show_original_preview:
+        if not getattr(self, "show_original_preview", False):
             self.img_dif = self.processed_preview_image
             self.label_img_dif.config(image=self.img_dif)
         self.img_tem = ImageTk.PhotoImage(result.team_colour)
