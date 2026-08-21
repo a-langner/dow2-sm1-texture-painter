@@ -129,11 +129,26 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
             pattern_marker_display_color(
                 PatternMarkerColor.DEFAULT, True
             ).casefold(),
-            "#ffffff",
+            "#505050",
         )
-        self.assertIsNone(
-            pattern_marker_display_color(PatternMarkerColor.DEFAULT, False)
+        self.assertEqual(
+            pattern_marker_display_color(
+                PatternMarkerColor.DEFAULT, False
+            ).casefold(),
+            "#202020",
         )
+
+    def test_marker_menu_is_flat_with_heading_and_star_accelerators(self):
+        widget_source = (
+            Path(__file__).resolve().parents[1] / "src" / "widget.py"
+        ).read_text(encoding="utf-8")
+        class_source = widget_source.split("class FramePatternList", 1)[1].split(
+            "class PatternImportConflictDialog", 1
+        )[0]
+
+        self.assertIn('label="Marker Color", state=tk.DISABLED', class_source)
+        self.assertIn('accelerator="★"', class_source)
+        self.assertNotIn("marker_color_menu", class_source)
 
     def test_context_menu_targets_right_clicked_user_pattern(self):
         tree = SimpleNamespace(

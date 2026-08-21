@@ -86,6 +86,7 @@ PATTERN_MARKER_COLORS = {
     PatternMarkerColor.BLUE: ("#1b77df", "#76bdfe"),
     PatternMarkerColor.PURPLE: ("#9d19d5", "#c057f0"),
 }
+DEFAULT_PATTERN_MARKER_COLORS = ("#202020", "#505050")
 HEADER_SEPARATOR_STARTUP_RETRIES = 3
 COLOR_PICKER_DEFAULT_WIDTH = 1196
 COLOR_PICKER_DEFAULT_HEIGHT = 760
@@ -2306,7 +2307,7 @@ def pattern_marker_display_color(marker_color, selected):
     """Return a readable assigned star colour for the row background."""
     colors = PATTERN_MARKER_COLORS.get(marker_color)
     if colors is None:
-        return APP_SELECTION_FOREGROUND if selected else None
+        colors = DEFAULT_PATTERN_MARKER_COLORS
     return colors[1 if selected else 0]
 
 
@@ -3151,15 +3152,20 @@ class FramePatternList(tk.Frame):
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.marker_labels = []
         self.marker_menu = tk.Menu(self, tearoff=False)
-        self.marker_color_menu = tk.Menu(self.marker_menu, tearoff=False)
+        self.marker_menu.add_command(label="Marker Color", state=tk.DISABLED)
+        self.marker_menu.add_separator()
         for marker_color in PatternMarkerColor:
-            self.marker_color_menu.add_command(
+            self.marker_menu.add_command(
                 label=marker_color.name.title(),
+                accelerator="★",
                 command=partial(self._assign_context_marker, marker_color),
             )
-        self.marker_menu.add_cascade(
-            label="Marker Color", menu=self.marker_color_menu
-        )
+            menu_index = self.marker_menu.index(tk.END)
+            self.marker_menu.entryconfigure(
+                menu_index,
+                foreground=pattern_marker_display_color(marker_color, False),
+                activeforeground=pattern_marker_display_color(marker_color, True),
+            )
         self._context_pattern_item = None
         self.tree.bind("<Button-3>", self._show_pattern_context_menu, add="+")
         self.header_separator_pressed = False
@@ -3327,8 +3333,6 @@ class FramePatternList(tk.Frame):
             marker_color = metadata.get(
                 "marker_color", PatternMarkerColor.DEFAULT
             )
-            if marker_color is PatternMarkerColor.DEFAULT:
-                continue
             bbox = self.tree.bbox(item_id, "marker")
             if not bbox:
                 continue
