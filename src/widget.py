@@ -2829,10 +2829,14 @@ class FrameSlider(tk.Frame):
         cnf={},
         *,
         on_levels_changed: LevelsChangedCallback,
+        on_interaction_started: Optional[ActionCallback] = None,
+        on_interaction_finished: Optional[ActionCallback] = None,
         **kw,
     ):
         super(FrameSlider, self).__init__(master=master, cnf={}, **kw)
         self._on_levels_changed = on_levels_changed
+        self._on_interaction_started = on_interaction_started
+        self._on_interaction_finished = on_interaction_finished
 
         # Brightness slider
         self.brightness_slider = tk.Scale(
@@ -2884,6 +2888,15 @@ class FrameSlider(tk.Frame):
         self.opacity_slider.set(100)
         self.opacity_slider.pack(side=tk.TOP, fill=tk.X)
 
+        for slider in (
+            self.brightness_slider,
+            self.contrast_slider,
+            self.saturation_slider,
+            self.opacity_slider,
+        ):
+            slider.bind("<ButtonPress-1>", self._notify_interaction_started)
+            slider.bind("<ButtonRelease-1>", self._notify_interaction_finished)
+
     def _notify_levels_changed(self, value=None):
         self._on_levels_changed(
             float(self.brightness_slider.get()),
@@ -2891,6 +2904,14 @@ class FrameSlider(tk.Frame):
             float(self.saturation_slider.get()),
             float(self.opacity_slider.get()),
         )
+
+    def _notify_interaction_started(self, Event=None):
+        if self._on_interaction_started is not None:
+            self._on_interaction_started()
+
+    def _notify_interaction_finished(self, Event=None):
+        if self._on_interaction_finished is not None:
+            self._on_interaction_finished()
 
 
 class FrameColorOps(tk.LabelFrame):

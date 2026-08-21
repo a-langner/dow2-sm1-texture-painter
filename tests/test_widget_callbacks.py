@@ -36,6 +36,7 @@ class FakeScale:
         self.parent = parent
         self.options = options
         self.value = 75 if options["label"] == "Brightness" else 100
+        self.bindings = {}
 
     def pack(self, **options):
         self.pack_options = options
@@ -45,6 +46,9 @@ class FakeScale:
 
     def set(self, value):
         self.value = value
+
+    def bind(self, event_name, callback):
+        self.bindings[event_name] = callback
 
 
 class FakeWidget:
@@ -390,8 +394,15 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         self, _frame_init, _scale_type
     ):
         callback = Mock()
+        started = Mock()
+        finished = Mock()
 
-        frame = FrameSlider(object(), on_levels_changed=callback)
+        frame = FrameSlider(
+            object(),
+            on_levels_changed=callback,
+            on_interaction_started=started,
+            on_interaction_finished=finished,
+        )
         callback.assert_not_called()
         frame.brightness_slider.options["command"]("75")
         frame.contrast_slider.options["command"]("100")
@@ -403,6 +414,10 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         self.assertEqual(callback.call_args_list[1].args, expected)
         self.assertEqual(callback.call_args_list[2].args, expected)
         self.assertEqual(callback.call_args_list[3].args, expected)
+        frame.brightness_slider.bindings["<ButtonPress-1>"]()
+        frame.brightness_slider.bindings["<ButtonRelease-1>"]()
+        started.assert_called_once_with()
+        finished.assert_called_once_with()
 
     def test_pattern_list_clear_selection_removes_highlight_and_focus(self):
         tree = SimpleNamespace(

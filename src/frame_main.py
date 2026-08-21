@@ -217,6 +217,7 @@ class ArmyPainter(tk.Tk):
         self.original_preview_image = None
         self.workspace_history = WorkspaceHistory()
         self._history_recording_suspended = False
+        self._slider_edit_start = None
 
     def _configure_main_window(self):
         """Configure root-window geometry, identity, and lifecycle hook."""
@@ -419,6 +420,8 @@ class ArmyPainter(tk.Tk):
         self.frame_sliders = FrameSlider(
             self.frame_img_tools,
             on_levels_changed=self.on_slider_update,
+            on_interaction_started=self.begin_slider_edit,
+            on_interaction_finished=self.end_slider_edit,
             relief=tk.RIDGE,
             bd=2,
         )
@@ -848,9 +851,22 @@ class ArmyPainter(tk.Tk):
                     saturation,
                 )
             )
-        if previous is not None:
+        if previous is not None and getattr(self, "_slider_edit_start", None) is None:
             ArmyPainter.record_workspace_edit(self, previous)
         self.request_workspace_preview()
+
+    def begin_slider_edit(self) -> None:
+        """Capture one pre-drag state shared by every motion update."""
+        if getattr(self, "_processing_controls_refreshing", False):
+            return
+        self._slider_edit_start = ArmyPainter.capture_editable_workspace_state(self)
+
+    def end_slider_edit(self) -> None:
+        """Commit an entire pointer drag as at most one history entry."""
+        previous = getattr(self, "_slider_edit_start", None)
+        self._slider_edit_start = None
+        if previous is not None:
+            ArmyPainter.record_workspace_edit(self, previous)
 
     def on_color_changed(self, slot_index: int, color: str):
         if not hasattr(self, "render_settings"):

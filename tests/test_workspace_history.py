@@ -111,6 +111,36 @@ class WorkspaceHistoryTests(unittest.TestCase):
         self.assertEqual(history.undo(after), before)
         self.assertEqual(painter.render_settings.primary_color, "#102030")
 
+    def test_slider_drag_records_only_press_and_final_release_states(self):
+        history = WorkspaceHistory()
+        painter = SimpleNamespace(
+            render_settings=DEFAULT_RENDER_SETTINGS,
+            active_team_color_mask_variant=None,
+            workspace_history=history,
+            _history_recording_suspended=False,
+            _processing_controls_refreshing=False,
+            _slider_edit_start=None,
+            request_workspace_preview=Mock(),
+        )
+        before = EditableWorkspaceState.from_render_settings(
+            DEFAULT_RENDER_SETTINGS, None
+        )
+
+        ArmyPainter.begin_slider_edit(painter)
+        for brightness in (72.0, 68.0, 54.0, 42.0):
+            ArmyPainter.on_slider_update(
+                painter, brightness, 100.0, 100.0, 100.0
+            )
+        self.assertEqual(history.undo_count, 0)
+        ArmyPainter.end_slider_edit(painter)
+
+        self.assertEqual(history.undo_count, 1)
+        after = EditableWorkspaceState.from_render_settings(
+            painter.render_settings, None
+        )
+        self.assertEqual(history.undo(after), before)
+        self.assertEqual(history.redo(before), after)
+
 
 if __name__ == "__main__":
     unittest.main()
