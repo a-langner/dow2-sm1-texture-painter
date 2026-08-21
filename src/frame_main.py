@@ -1178,6 +1178,30 @@ class ArmyPainter(tk.Tk):
             ArmyPainter.sync_history_action_states(self)
         return True
 
+    def redo(self, Event=None) -> bool:
+        """Restore the next editable workspace state, if one exists."""
+        history = self.workspace_history
+        current = ArmyPainter.capture_editable_workspace_state(self)
+        next_state = history.redo(current)
+        if next_state is None:
+            ArmyPainter.sync_history_action_states(self)
+            return False
+
+        self._history_recording_suspended = True
+        try:
+            ArmyPainter.restore_editable_workspace_state(self, next_state)
+        except TextureValidationError as exc:
+            history.undo(next_state)
+            self.dialogs.show_error(
+                title="Cannot redo team-colour mask change",
+                message=str(exc),
+            )
+            return False
+        finally:
+            self._history_recording_suspended = False
+            ArmyPainter.sync_history_action_states(self)
+        return True
+
     def get_processing_settings_from_controls(self) -> ColorProcessingSettings:
         """Read the processing controls, falling back to current state."""
         current = self.render_settings.active_processing

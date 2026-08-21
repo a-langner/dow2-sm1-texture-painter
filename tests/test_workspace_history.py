@@ -236,6 +236,30 @@ class WorkspaceHistoryTests(unittest.TestCase):
         painter.refresh_workspace.assert_called_once_with()
         self.assertTrue(history.can_redo)
 
+        painter.frame_color_chooser.draw_rgb_value.reset_mock()
+        listbox.reset_mock()
+        painter.frame_channel_select.apply_alpha.set.reset_mock()
+        painter.refresh_workspace.reset_mock()
+        with patch.object(
+            ArmyPainter, "refresh_processing_controls"
+        ) as redo_refresh, patch.object(
+            ArmyPainter, "sync_team_color_mask_variant_selector"
+        ):
+            self.assertTrue(ArmyPainter.redo(painter))
+
+        self.assertEqual(painter.render_settings, after_settings)
+        self.assertEqual(
+            [box["bg"] for box in painter.frame_color_chooser.color_boxes],
+            list(after_settings.colors),
+        )
+        listbox.selection_clear.assert_called_once_with(0, "end")
+        listbox.selection_set.assert_has_calls([call(1), call(3)])
+        painter.frame_channel_select.apply_alpha.set.assert_called_once_with(False)
+        redo_refresh.assert_called_once_with(painter)
+        painter.refresh_workspace.assert_called_once_with()
+        self.assertTrue(history.can_undo)
+        self.assertFalse(history.can_redo)
+
 
 if __name__ == "__main__":
     unittest.main()
