@@ -3189,9 +3189,22 @@ class FramePatternList(tk.Frame):
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.marker_labels = []
         self.marker_menu = tk.Menu(self, tearoff=False)
-        self.marker_menu.add_command(label="Marker Color", state=tk.DISABLED)
-        self.marker_menu.bind("<<MenuSelect>>", self._suppress_marker_menu_heading)
+        self._marker_menu_action_indices = {}
+        for label, callback in (
+            ("Save New", self._on_save_new),
+            ("Update", self._on_update),
+            ("Rename", self._on_rename),
+            ("Delete", self._on_delete),
+        ):
+            self.marker_menu.add_command(label=label, command=callback)
+            self._marker_menu_action_indices[label] = self.marker_menu.index(tk.END)
         self.marker_menu.add_separator()
+        self.marker_menu.add_command(label="Marker Color", state=tk.DISABLED)
+        self._marker_menu_heading_index = self.marker_menu.index(tk.END)
+        self.marker_menu.bind("<<MenuSelect>>", self._suppress_marker_menu_heading)
+        self.marker_menu.bind("<Motion>", self._suppress_marker_menu_heading, add="+")
+        self.marker_menu.add_separator()
+        self._marker_menu_marker_indices = []
         for marker_color in PatternMarkerColor:
             self.marker_menu.add_command(
                 label=marker_color.name.title(),
@@ -3199,6 +3212,7 @@ class FramePatternList(tk.Frame):
                 command=partial(self._assign_context_marker, marker_color),
             )
             menu_index = self.marker_menu.index(tk.END)
+            self._marker_menu_marker_indices.append(menu_index)
             self.marker_menu.entryconfigure(
                 menu_index,
                 foreground=pattern_marker_display_color(marker_color, False),
@@ -3363,16 +3377,29 @@ class FramePatternList(tk.Frame):
         )
 
     def _suppress_marker_menu_heading(self, Event=None):
-        if self.marker_menu.index(tk.ACTIVE) == 0:
+        hovered_index = (
+            self.marker_menu.index(f"@{Event.y}") if Event is not None else None
+        )
+        if (
+            hovered_index == self._marker_menu_heading_index
+            or self.marker_menu.index(tk.ACTIVE) == self._marker_menu_heading_index
+        ):
             self.marker_menu.activate(tk.NONE)
+            self.marker_menu.after_idle(
+                partial(self.marker_menu.activate, tk.NONE)
+            )
 
     def _show_pattern_item_context_menu(self, item_id, x_root, y_root):
-        if not item_id or not self.tree.is_user_item(item_id):
+        if not item_id:
             self._context_pattern_item = None
             return
         self._context_pattern_item = item_id
         self.tree.selection_set(item_id)
         self.tree.focus(item_id)
+        self.update_idletasks()
+        marker_state = tk.NORMAL if self.tree.is_user_item(item_id) else tk.DISABLED
+        for menu_index in self._marker_menu_marker_indices:
+            self.marker_menu.entryconfigure(menu_index, state=marker_state)
         self.marker_menu.tk_popup(x_root, y_root)
         return "break"
 
@@ -3812,19 +3839,19 @@ class FramePatternList(tk.Frame):
         return self.tree.get_pattern_name(neighbor_item)
 
     def set_pattern_action_states(self, states):
-        """Apply centralized Pattern action policy to this widget's buttons."""
-        self.save_new_button.config(
-            state=tk.NORMAL if states.save_new_enabled else tk.DISABLED
+        """Apply centralized Pattern action policy to buttons and row menu."""
+        action_states = (
+            ("Save New", self.save_new_button, states.save_new_enabled),
+            ("Update", self.update_button, states.update_enabled),
+            ("Rename", self.rename_button, states.rename_enabled),
+            ("Delete", self.delete_button, states.delete_enabled),
         )
-        self.update_button.config(
-            state=tk.NORMAL if states.update_enabled else tk.DISABLED
-        )
-        self.rename_button.config(
-            state=tk.NORMAL if states.rename_enabled else tk.DISABLED
-        )
-        self.delete_button.config(
-            state=tk.NORMAL if states.delete_enabled else tk.DISABLED
-        )
+        for label, button, enabled in action_states:
+            state = tk.NORMAL if enabled else tk.DISABLED
+            button.config(state=state)
+            self.marker_menu.entryconfigure(
+                self._marker_menu_action_indices[label], state=state
+            )
         self.modified_label.config(
             text="Modified" if states.modified_indicator_visible else ""
         )

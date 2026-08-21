@@ -324,7 +324,7 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
             "#202020",
         )
 
-    def test_marker_menu_is_flat_with_heading_and_star_accelerators(self):
+    def test_marker_menu_has_shared_actions_flat_colors_and_star_accelerators(self):
         widget_source = (
             Path(__file__).resolve().parents[1] / "src" / "widget.py"
         ).read_text(encoding="utf-8")
@@ -333,6 +333,8 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
         )[0]
 
         self.assertIn('label="Marker Color", state=tk.DISABLED', class_source)
+        for label in ("Save New", "Update", "Rename", "Delete"):
+            self.assertIn(f'("{label}", self._on_', class_source)
         self.assertIn('accelerator="★"', class_source)
         self.assertNotIn("marker_color_menu", class_source)
 
@@ -340,12 +342,14 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
         menu = SimpleNamespace(
             index=Mock(return_value=0),
             activate=Mock(),
+            after_idle=Mock(side_effect=lambda callback: callback()),
         )
-        frame = SimpleNamespace(marker_menu=menu)
+        frame = SimpleNamespace(marker_menu=menu, _marker_menu_heading_index=0)
 
         FramePatternList._suppress_marker_menu_heading(frame)
 
-        menu.activate.assert_called_once_with(tk.NONE)
+        self.assertEqual(menu.activate.call_count, 2)
+        menu.activate.assert_called_with(tk.NONE)
 
     def test_context_menu_targets_right_clicked_user_pattern(self):
         tree = SimpleNamespace(
@@ -354,11 +358,13 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
             selection_set=Mock(),
             focus=Mock(),
         )
-        menu = SimpleNamespace(tk_popup=Mock())
+        menu = SimpleNamespace(tk_popup=Mock(), entryconfigure=Mock())
         frame = SimpleNamespace(
             tree=tree,
             marker_menu=menu,
+            _marker_menu_marker_indices=[6, 7, 8, 9, 10, 11],
             _context_pattern_item=None,
+            update_idletasks=Mock(),
         )
         event = SimpleNamespace(y=18, x_root=40, y_root=60)
 
@@ -368,6 +374,8 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
         self.assertEqual(frame._context_pattern_item, "user-item")
         tree.selection_set.assert_called_once_with("user-item")
         menu.tk_popup.assert_called_once_with(40, 60)
+        for index in frame._marker_menu_marker_indices:
+            menu.entryconfigure.assert_any_call(index, state=tk.NORMAL)
 
     def test_context_marker_callback_uses_stable_name_and_updates_row(self):
         callback = Mock(return_value=True)
@@ -394,24 +402,31 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
         )
         self.assertIsNone(frame._context_pattern_item)
 
-    def test_context_menu_is_not_shown_for_builtin_pattern(self):
+    def test_builtin_context_menu_disables_marker_choices(self):
         tree = SimpleNamespace(
             identify_row=Mock(return_value="builtin-item"),
             is_user_item=Mock(return_value=False),
+            selection_set=Mock(),
+            focus=Mock(),
         )
+        menu = SimpleNamespace(tk_popup=Mock(), entryconfigure=Mock())
         frame = SimpleNamespace(
             tree=tree,
-            marker_menu=SimpleNamespace(tk_popup=Mock()),
+            marker_menu=menu,
+            _marker_menu_marker_indices=[6, 7, 8, 9, 10, 11],
             _context_pattern_item="old-item",
+            update_idletasks=Mock(),
         )
 
         result = FramePatternList._show_pattern_context_menu(
-            frame, SimpleNamespace(y=4)
+            frame, SimpleNamespace(y=4, x_root=10, y_root=20)
         )
 
-        self.assertIsNone(result)
-        self.assertIsNone(frame._context_pattern_item)
-        frame.marker_menu.tk_popup.assert_not_called()
+        self.assertEqual(result, "break")
+        self.assertEqual(frame._context_pattern_item, "builtin-item")
+        for index in frame._marker_menu_marker_indices:
+            menu.entryconfigure.assert_any_call(index, state=tk.DISABLED)
+        menu.tk_popup.assert_called_once_with(10, 20)
 
     @patch("src.widget.ttk.Label", side_effect=FakeButton)
     @patch("src.widget.tk.Button", side_effect=FakeButton)
@@ -424,6 +439,13 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
         frame._on_update = Mock()
         frame._on_rename = Mock()
         frame._on_delete = Mock()
+        frame.marker_menu = SimpleNamespace(entryconfigure=Mock())
+        frame._marker_menu_action_indices = {
+            "Save New": 0,
+            "Update": 1,
+            "Rename": 2,
+            "Delete": 3,
+        }
 
         frame._create_action_buttons()
 
@@ -475,6 +497,9 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
             derive_pattern_action_state(PatternActionContext(False, False, True, False))
         )
         self.assertEqual(frame.modified_label.options["text"], "")
+        frame.marker_menu.entryconfigure.assert_any_call(1, state=tk.DISABLED)
+        frame.marker_menu.entryconfigure.assert_any_call(2, state=tk.DISABLED)
+        frame.marker_menu.entryconfigure.assert_any_call(3, state=tk.DISABLED)
 
     def test_selection_change_invokes_supplied_callback_without_event(self):
         frame = object.__new__(FramePatternList)
