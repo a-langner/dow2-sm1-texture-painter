@@ -80,11 +80,11 @@ COLOR_BOX_SIZE = 90
 COLOR_BTN_HEIGHT = 26
 PATTERN_MARKER_COLUMN_WIDTH = 28
 PATTERN_MARKER_COLORS = {
-    PatternMarkerColor.YELLOW: ("#b07d00", "#ffd75a"),
-    PatternMarkerColor.RED: ("#c62828", "#ff7b7b"),
-    PatternMarkerColor.GREEN: ("#218739", "#70dc86"),
-    PatternMarkerColor.BLUE: ("#1565c0", "#78beff"),
-    PatternMarkerColor.PURPLE: ("#7b1fa2", "#dc91ff"),
+    PatternMarkerColor.YELLOW: ("#efd80e", "#ffd864"),
+    PatternMarkerColor.RED: ("#e92525", "#f74d4d"),
+    PatternMarkerColor.GREEN: ("#17D443", "#61d378"),
+    PatternMarkerColor.BLUE: ("#1b77df", "#76bdfe"),
+    PatternMarkerColor.PURPLE: ("#9d19d5", "#c057f0"),
 }
 HEADER_SEPARATOR_STARTUP_RETRIES = 3
 COLOR_PICKER_DEFAULT_WIDTH = 1196
