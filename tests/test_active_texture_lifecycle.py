@@ -8,7 +8,7 @@ import test_support  # noqa: F401 - installs the user-data path redirect
 from src.color_processing_settings import ColorProcessingSettings
 from src.constant import ColorOps
 from src.frame_main import ArmyPainter
-from src.preview_controller import PreviewController
+from src.preview_controller import PreviewController, PreviewResult
 from src.processing_mode import ProcessingMode
 from src.render_settings import DEFAULT_RENDER_SETTINGS
 from src.texture_set import TextureSet
@@ -64,6 +64,41 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
         self.assertIsNone(painter.original_preview_image)
         self.assertIs(painter.img_dif, processed)
         painter.label_img_dif.config.assert_called_once_with(image=processed)
+
+    @patch("src.frame_main.ImageTk.PhotoImage", side_effect=lambda image: image)
+    def test_new_processed_result_is_retained_while_original_remains_visible(
+        self, photo_image
+    ):
+        original = object()
+        stale_processed = object()
+        newest_processed = object()
+        team_colour = object()
+        painter = SimpleNamespace(
+            show_original_preview=True,
+            original_preview_image=original,
+            processed_preview_image=stale_processed,
+            img_dif=original,
+            label_img_dif=Mock(),
+            label_img_tem=Mock(),
+        )
+
+        ArmyPainter.apply_preview_result(
+            painter,
+            PreviewResult(1, newest_processed, team_colour),
+        )
+
+        self.assertIs(painter.img_dif, original)
+        self.assertIs(painter.processed_preview_image, newest_processed)
+        painter.label_img_dif.config.assert_not_called()
+
+        ArmyPainter.end_show_original_preview(painter)
+
+        self.assertIs(painter.img_dif, newest_processed)
+        painter.label_img_dif.config.assert_called_once_with(
+            image=newest_processed
+        )
+        painter.label_img_tem.config.assert_called_once_with(image=team_colour)
+        self.assertEqual(photo_image.call_count, 2)
 
     def test_preview_request_requires_an_active_texture(self):
         painter = SimpleNamespace(
