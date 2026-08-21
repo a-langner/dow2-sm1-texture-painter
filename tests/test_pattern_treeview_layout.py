@@ -12,6 +12,7 @@ from src.widget import (
     calculate_pattern_separator_x,
     find_treeview_body_boundary,
     pattern_marker_display_color,
+    pattern_item_has_marker,
 )
 
 
@@ -116,6 +117,11 @@ class FakePositionTree:
 
 
 class PatternTreeviewLayoutTests(unittest.TestCase):
+    def test_only_user_pattern_rows_receive_marker_overlays(self):
+        self.assertTrue(pattern_item_has_marker({"is_user": True}))
+        self.assertFalse(pattern_item_has_marker({"is_user": False}))
+        self.assertFalse(pattern_item_has_marker(None))
+
     def test_assigned_marker_colors_remain_distinct_on_selected_rows(self):
         selected_colors = {
             pattern_marker_display_color(marker, True)
@@ -149,6 +155,17 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
         self.assertIn('label="Marker Color", state=tk.DISABLED', class_source)
         self.assertIn('accelerator="★"', class_source)
         self.assertNotIn("marker_color_menu", class_source)
+
+    def test_disabled_marker_heading_cannot_remain_active(self):
+        menu = SimpleNamespace(
+            index=Mock(return_value=0),
+            activate=Mock(),
+        )
+        frame = SimpleNamespace(marker_menu=menu)
+
+        FramePatternList._suppress_marker_menu_heading(frame)
+
+        menu.activate.assert_called_once_with(tk.NONE)
 
     def test_context_menu_targets_right_clicked_user_pattern(self):
         tree = SimpleNamespace(

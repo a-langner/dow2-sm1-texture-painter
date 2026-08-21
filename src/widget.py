@@ -2311,6 +2311,11 @@ def pattern_marker_display_color(marker_color, selected):
     return colors[1 if selected else 0]
 
 
+def pattern_item_has_marker(metadata):
+    """Keep built-in rows undecorated while marking every user row."""
+    return bool(metadata and metadata.get("is_user"))
+
+
 def calculate_pattern_separator_x(tree_x, tree_width, marker_width, border_width=0):
     """Return the marker-column boundary within the Treeview parent."""
     return max(tree_x, tree_x + tree_width - marker_width - border_width)
@@ -3153,6 +3158,7 @@ class FramePatternList(tk.Frame):
         self.marker_labels = []
         self.marker_menu = tk.Menu(self, tearoff=False)
         self.marker_menu.add_command(label="Marker Color", state=tk.DISABLED)
+        self.marker_menu.bind("<<MenuSelect>>", self._suppress_marker_menu_heading)
         self.marker_menu.add_separator()
         for marker_color in PatternMarkerColor:
             self.marker_menu.add_command(
@@ -3287,6 +3293,10 @@ class FramePatternList(tk.Frame):
             getattr(Event, "y_root", 0),
         )
 
+    def _suppress_marker_menu_heading(self, Event=None):
+        if self.marker_menu.index(tk.ACTIVE) == 0:
+            self.marker_menu.activate(tk.NONE)
+
     def _show_pattern_item_context_menu(self, item_id, x_root, y_root):
         if not item_id or not self.tree.is_user_item(item_id):
             self._context_pattern_item = None
@@ -3328,7 +3338,7 @@ class FramePatternList(tk.Frame):
         )
         for item_id in self.tree.get_children():
             metadata = self.tree.pattern_metadata.get(item_id)
-            if metadata is None:
+            if not pattern_item_has_marker(metadata):
                 continue
             marker_color = metadata.get(
                 "marker_color", PatternMarkerColor.DEFAULT
