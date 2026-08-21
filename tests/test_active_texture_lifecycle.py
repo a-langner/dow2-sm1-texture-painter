@@ -46,6 +46,25 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
         photo_image.assert_called_once_with(original)
         painter.preview_controller.assert_not_called()
 
+    def test_interrupted_original_preview_cleanup_is_idempotent(self):
+        original = object()
+        processed = object()
+        painter = SimpleNamespace(
+            show_original_preview=True,
+            original_preview_image=original,
+            processed_preview_image=processed,
+            img_dif=original,
+            label_img_dif=Mock(),
+        )
+
+        ArmyPainter.reset_original_preview_state(painter)
+        ArmyPainter.end_show_original_preview(painter)
+
+        self.assertFalse(painter.show_original_preview)
+        self.assertIsNone(painter.original_preview_image)
+        self.assertIs(painter.img_dif, processed)
+        painter.label_img_dif.config.assert_called_once_with(image=processed)
+
     def test_preview_request_requires_an_active_texture(self):
         painter = SimpleNamespace(
             active_texture_set=None,

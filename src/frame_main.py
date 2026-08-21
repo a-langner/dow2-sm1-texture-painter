@@ -432,6 +432,13 @@ class ArmyPainter(tk.Tk):
         self.show_original_button.bind(
             "<ButtonRelease-1>", self.end_show_original_preview
         )
+        self.show_original_button.bind("<Leave>", self.end_show_original_preview)
+        self.show_original_button.bind(
+            "<FocusOut>", self.end_show_original_preview
+        )
+        self.show_original_button.bind(
+            "<Destroy>", self.end_show_original_preview
+        )
         self.show_original_button.pack(side=tk.LEFT, padx=6, pady=4)
 
         self.frame_team_color_mask_variant = tk.Frame(
@@ -1094,8 +1101,23 @@ class ArmyPainter(tk.Tk):
 
     def reset_original_preview_state(self) -> None:
         """Return the transient comparison source to the processed preview."""
-        self.show_original_preview = False
+        ArmyPainter.restore_processed_preview(self)
         self.original_preview_image = None
+
+    def restore_processed_preview(self) -> None:
+        """Idempotently end comparison and restore the latest processed image."""
+        was_showing_original = getattr(self, "show_original_preview", False)
+        self.show_original_preview = False
+        if not was_showing_original or not hasattr(
+            self, "processed_preview_image"
+        ):
+            return
+        self.img_dif = self.processed_preview_image
+        if hasattr(self, "label_img_dif"):
+            try:
+                self.label_img_dif.config(image=self.img_dif)
+            except tk.TclError:
+                pass
 
     def sync_show_original_button_state(self) -> None:
         """Enable comparison only while an original DIF is loaded."""
@@ -1121,11 +1143,8 @@ class ArmyPainter(tk.Tk):
         self.label_img_dif.config(image=self.img_dif)
 
     def end_show_original_preview(self, Event=None) -> None:
-        """Restore the latest processed image after a normal button release."""
-        self.show_original_preview = False
-        if hasattr(self, "processed_preview_image"):
-            self.img_dif = self.processed_preview_image
-            self.label_img_dif.config(image=self.img_dif)
+        """Restore the latest processed image after release or cancellation."""
+        ArmyPainter.restore_processed_preview(self)
 
     def apply_preview_result(self, result: PreviewResult):
         """Apply a completed preview on Tk's event thread."""
