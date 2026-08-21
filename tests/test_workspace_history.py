@@ -1,5 +1,6 @@
 import unittest
-from dataclasses import replace
+from dataclasses import fields, replace
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, call, patch
 
@@ -100,6 +101,26 @@ class WorkspaceHistoryTests(unittest.TestCase):
         )
 
         self.assertEqual(first, second)
+
+    def test_snapshot_contains_only_lightweight_editable_fields(self):
+        self.assertEqual(
+            {field.name for field in fields(EditableWorkspaceState)},
+            {
+                "color_slot_states",
+                "global_processing",
+                "processing_mode",
+                "per_color_processing_initialized",
+                "selected_channels",
+                "apply_alpha",
+                "apply_dirt",
+                "apply_spec",
+                "team_color_mask_variant",
+            },
+        )
+        source = Path(__file__).resolve().parents[1] / "src" / "workspace_history.py"
+        source_text = source.read_text(encoding="utf-8")
+        self.assertNotIn("PIL", source_text)
+        self.assertNotIn("TextureSet", source_text)
 
     def test_color_picker_edit_uses_central_history_boundary(self):
         history = WorkspaceHistory()
