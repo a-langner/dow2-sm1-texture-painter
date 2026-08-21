@@ -686,6 +686,75 @@ class RenderSettingsTests(unittest.TestCase):
                 painter.update_pattern_action_states.assert_called_once_with()
                 painter.refresh_workspace.assert_called_once_with()
 
+    def test_reset_color_restores_only_target_slot_authoritative_defaults(self):
+        from src.frame_main import ArmyPainter
+
+        global_processing = ColorProcessingSettings(
+            ColorOps.SCREEN, 88, 123, 97, 130
+        )
+        original_per_color = (
+            ColorProcessingSettings(ColorOps.MULTIPLY, 70, 110, 60, 85),
+            ColorProcessingSettings(ColorOps.SOFT_LIGHT, 90, 95, 80, 120),
+            ColorProcessingSettings(ColorOps.COLOR, 65, 105, 75, 140),
+            ColorProcessingSettings(ColorOps.HARD_LIGHT, 82, 115, 55, 150),
+        )
+        color_boxes = [{"bg": color} for color in COLORS]
+        texture_set = object()
+        mask_variant = object()
+        painter = SimpleNamespace(
+            render_settings=RenderSettings(
+                primary_color=COLORS[0],
+                secondary_color=COLORS[1],
+                tint_color=COLORS[2],
+                extra_color=COLORS[3],
+                color_op=global_processing.blend_mode,
+                brightness=global_processing.brightness,
+                contrast=global_processing.contrast,
+                opacity=global_processing.opacity,
+                saturation=global_processing.saturation,
+                processing_mode=ProcessingMode.PER_COLOR,
+                active_color_slot=ColorSlot.COLOR_3,
+                per_color_processing=original_per_color,
+                _per_color_processing_initialized=True,
+            ),
+            frame_color_chooser=SimpleNamespace(
+                color_boxes=color_boxes,
+                draw_rgb_value=Mock(),
+            ),
+            active_texture_set=texture_set,
+            active_team_color_mask_variant=mask_variant,
+            texture_naming_profile=object(),
+            update_pattern_action_states=Mock(),
+            refresh_workspace=Mock(),
+        )
+
+        with patch.object(ArmyPainter, "sync_render_settings") as sync, patch.object(
+            ArmyPainter, "refresh_processing_controls"
+        ) as refresh_controls:
+            ArmyPainter.reset_color_slot(painter, 2)
+
+        default_state = DEFAULT_RENDER_SETTINGS.color_slot_states[2]
+        sync.assert_called_once_with(painter)
+        self.assertEqual(
+            painter.render_settings.colors,
+            (COLORS[0], COLORS[1], default_state.color, COLORS[3]),
+        )
+        self.assertEqual(
+            painter.render_settings.per_color_processing,
+            (
+                original_per_color[0],
+                original_per_color[1],
+                default_state.processing,
+                original_per_color[3],
+            ),
+        )
+        self.assertEqual(painter.render_settings.global_processing, global_processing)
+        self.assertIs(painter.active_texture_set, texture_set)
+        self.assertIs(painter.active_team_color_mask_variant, mask_variant)
+        refresh_controls.assert_called_once_with(painter)
+        painter.update_pattern_action_states.assert_called_once_with()
+        painter.refresh_workspace.assert_called_once_with()
+
     def test_model_has_no_tkinter_or_image_dependency(self):
         source_path = Path(__file__).resolve().parents[1] / "src" / "render_settings.py"
         tree = ast.parse(source_path.read_text(encoding="utf-8"))

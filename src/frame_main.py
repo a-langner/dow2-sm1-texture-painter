@@ -376,6 +376,7 @@ class ArmyPainter(tk.Tk):
             on_color_and_settings_copied=self.copy_color_slot_with_settings,
             on_color_pasted=self.paste_color_slot,
             on_color_and_settings_pasted=self.paste_color_slot_with_settings,
+            on_color_reset=self.reset_color_slot,
             color_paste_available=self.is_color_paste_available,
             color_and_settings_paste_available=(
                 self.is_color_and_settings_paste_available
@@ -906,6 +907,24 @@ class ArmyPainter(tk.Tk):
         self.update_pattern_action_states()
         self.refresh_workspace()
         return True
+
+    def reset_color_slot(self, slot_index: int) -> None:
+        """Restore one positional slot from the authoritative defaults."""
+        slot = ColorSlot.from_index(slot_index)
+        ArmyPainter.sync_render_settings(self)
+        states = list(self.render_settings.color_slot_states)
+        default_state = DEFAULT_RENDER_SETTINGS.color_slot_states[slot.index]
+        states[slot.index] = default_state
+        self.render_settings = self.render_settings.with_color_slot_states(
+            (states[0], states[1], states[2], states[3])
+        )
+        self.frame_color_chooser.color_boxes[slot.index]["bg"] = (
+            default_state.color
+        )
+        self.frame_color_chooser.draw_rgb_value()
+        ArmyPainter.refresh_processing_controls(self)
+        self.update_pattern_action_states()
+        self.refresh_workspace()
 
     def save(self, Event=None):
         """Save image from current workspace

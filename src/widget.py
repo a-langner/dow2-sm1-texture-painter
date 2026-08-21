@@ -2392,6 +2392,7 @@ class FrameColorChooser(tk.Frame):
         on_color_and_settings_copied: Optional[ColorSlotActionCallback] = None,
         on_color_pasted: Optional[ColorSlotActionCallback] = None,
         on_color_and_settings_pasted: Optional[ColorSlotActionCallback] = None,
+        on_color_reset: Optional[ColorSlotActionCallback] = None,
         color_paste_available: Optional[AvailabilityCallback] = None,
         color_and_settings_paste_available: Optional[AvailabilityCallback] = None,
         color_picker: Optional[ColorPickerCallback] = None,
@@ -2408,6 +2409,7 @@ class FrameColorChooser(tk.Frame):
         self._on_color_and_settings_copied = on_color_and_settings_copied
         self._on_color_pasted = on_color_pasted
         self._on_color_and_settings_pasted = on_color_and_settings_pasted
+        self._on_color_reset = on_color_reset
         self._color_paste_available = color_paste_available
         self._color_and_settings_paste_available = (
             color_and_settings_paste_available
@@ -2674,6 +2676,11 @@ class FrameColorChooser(tk.Frame):
                 label=f"Swap with Color {target_index + 1}",
                 command=partial(self._request_slot_swap, slot_index, target_index),
             )
+        menu.add_separator()
+        menu.add_command(
+            label="Reset Color",
+            command=partial(self._request_color_reset, slot_index),
+        )
         try:
             menu.tk_popup(Event.x_root, Event.y_root)
         finally:
@@ -2701,6 +2708,12 @@ class FrameColorChooser(tk.Frame):
         """Delegate a complete slot-state paste for one fixed Color Slot."""
         if self._on_color_and_settings_pasted is not None:
             return self._on_color_and_settings_pasted(slot_index)
+        return None
+
+    def _request_color_reset(self, slot_index: int):
+        """Delegate a reset for one fixed Color Slot."""
+        if self._on_color_reset is not None:
+            return self._on_color_reset(slot_index)
         return None
 
     def _request_slot_swap(self, source_index: int, target_index: int):

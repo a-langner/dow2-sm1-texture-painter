@@ -178,6 +178,7 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         chooser._on_color_and_settings_copied = Mock()
         chooser._on_color_pasted = Mock()
         chooser._on_color_and_settings_pasted = Mock()
+        chooser._on_color_reset = Mock()
         chooser._color_paste_available = Mock(return_value=False)
         chooser._color_and_settings_paste_available = Mock(return_value=False)
         chooser._on_slots_swapped = Mock()
@@ -209,9 +210,17 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         chooser._on_color_and_settings_pasted.assert_called_once_with(2)
         self.assertEqual(menu.entries[6][0], "separator")
         self.assertEqual(
-            [entry[1]["label"] for entry in menu.entries[7:]],
-            ["Swap with Color 1", "Swap with Color 2", "Swap with Color 4"],
+            [entry[1]["label"] for entry in menu.entries[7:10]],
+            [
+                "Swap with Color 1",
+                "Swap with Color 2",
+                "Swap with Color 4",
+            ],
         )
+        self.assertEqual(menu.entries[-2][0], "separator")
+        self.assertEqual(menu.entries[-1][1]["label"], "Reset Color")
+        menu.entries[-1][1]["command"]()
+        chooser._on_color_reset.assert_called_once_with(2)
 
     def test_copy_color_stores_only_color_without_refreshing_state(self):
         painter = SimpleNamespace(
@@ -243,6 +252,7 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         chooser._on_color_and_settings_copied = Mock()
         chooser._on_color_pasted = Mock()
         chooser._on_color_and_settings_pasted = Mock()
+        chooser._on_color_reset = Mock()
         chooser._color_paste_available = Mock(return_value=True)
         chooser._color_and_settings_paste_available = Mock(return_value=True)
         chooser._on_slots_swapped = Mock()
