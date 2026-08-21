@@ -133,6 +133,7 @@ class ArmyPainterCompositionTests(unittest.TestCase):
             "on_pattern_select",
             "update_pattern_action_states",
             "set_pattern_marker_color",
+            "reorder_user_pattern",
         )
         painter = SimpleNamespace(
             define_frame_workspace_tool=Mock(),
@@ -155,6 +156,9 @@ class ArmyPainterCompositionTests(unittest.TestCase):
         self.assertIs(options["on_state_changed"], painter.update_pattern_action_states)
         self.assertIs(
             options["on_marker_changed"], painter.set_pattern_marker_color
+        )
+        self.assertIs(
+            options["on_pattern_reordered"], painter.reorder_user_pattern
         )
         self.assertIs(painter.frame_army_pattern, pattern_panel_type.return_value)
         painter.define_menu.assert_called_once_with()

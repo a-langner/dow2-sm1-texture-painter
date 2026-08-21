@@ -118,6 +118,44 @@ class FakePositionTree:
 
 
 class PatternTreeviewLayoutTests(unittest.TestCase):
+    def test_drag_release_reorders_only_within_user_items_and_restores_name(self):
+        frame = object.__new__(FramePatternList)
+        frame._drag_pattern_item = "user-b"
+        frame._drag_pattern_target = "user-a"
+        frame._drag_pattern_start = (0, 0)
+        frame._pattern_drag_started = True
+        frame._on_pattern_reordered = Mock(return_value=True)
+        frame.load_pattern_list = Mock()
+        frame.tree = SimpleNamespace(
+            get_pattern_name=Mock(return_value="User B"),
+            get_children=Mock(return_value=("builtin", "user-a", "user-b")),
+            is_user_item=Mock(side_effect=lambda item: item.startswith("user-")),
+        )
+
+        FramePatternList._on_pattern_drag_release(frame)
+
+        frame._on_pattern_reordered.assert_called_once_with("User B", 0)
+        frame.load_pattern_list.assert_called_once_with("User B")
+        self.assertIsNone(frame._drag_pattern_item)
+
+    def test_drag_press_ignores_builtin_pattern(self):
+        frame = object.__new__(FramePatternList)
+        frame._drag_pattern_item = "old"
+        frame._drag_pattern_start = (1, 1)
+        frame._drag_pattern_target = "old"
+        frame._pattern_drag_started = True
+        frame.tree = SimpleNamespace(
+            identify_row=Mock(return_value="builtin"),
+            is_user_item=Mock(return_value=False),
+        )
+
+        FramePatternList._on_pattern_drag_press(
+            frame, SimpleNamespace(y=5, x_root=10, y_root=20)
+        )
+
+        self.assertIsNone(frame._drag_pattern_item)
+        self.assertFalse(frame._pattern_drag_started)
+
     def test_marker_overlay_is_clipped_before_tree_bottom_border(self):
         self.assertEqual(clipped_pattern_marker_height(170, 20, 181, 1), 10)
         self.assertEqual(clipped_pattern_marker_height(120, 20, 181, 1), 20)

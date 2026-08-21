@@ -67,6 +67,11 @@ class PathStore:
     def delete(self, name):
         return pattern_handler.delete(name, pattern_path=self.path)
 
+    def reorder_user_pattern(self, name, target_index):
+        return pattern_handler.reorder_user_pattern(
+            name, target_index, pattern_path=self.path
+        )
+
 
 class PatternControllerTests(unittest.TestCase):
     def setUp(self):
@@ -133,6 +138,17 @@ class PatternControllerTests(unittest.TestCase):
             tuple(pattern_handler.user_color_patterns["User"].values()),
             NEW_COLORS,
         )
+
+    def test_reorder_persists_user_order_without_changing_pattern_data(self):
+        self.save("First")
+        self.save("Second", NEW_COLORS)
+        before = OrderedDict(pattern_handler.user_color_patterns["Second"])
+
+        result = self.controller.reorder_pattern("Second", 0)
+
+        self.assertTrue(result.changed and result.persisted and result.list_changed)
+        self.assertEqual(list(pattern_handler.user_color_patterns), ["Second", "First"])
+        self.assertEqual(pattern_handler.user_color_patterns["Second"], before)
 
     def test_per_color_save_update_restart_and_reload_preserve_all_slots(self):
         original = PatternProcessingState(

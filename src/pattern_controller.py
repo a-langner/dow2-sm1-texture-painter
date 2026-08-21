@@ -56,6 +56,7 @@ class PatternStore(Protocol):
     def set_user_pattern_marker_color(
         self, name: str, marker_color: PatternMarkerColor
     ) -> None: ...
+    def reorder_user_pattern(self, name: str, target_index: int) -> bool: ...
 
 
 class PatternDirectoryRecorder(Protocol):
@@ -277,6 +278,17 @@ class PatternController:
             selected_name=name,
             persisted=True,
             changed=True,
+        )
+
+    def reorder_pattern(
+        self, name: str, target_index: int
+    ) -> PatternOperationResult:
+        changed = self.store.reorder_user_pattern(name, target_index)
+        return PatternOperationResult(
+            selected_name=name,
+            list_changed=changed,
+            persisted=changed,
+            changed=changed,
         )
 
     def reset_pattern(self, name: str) -> PatternOperationResult:

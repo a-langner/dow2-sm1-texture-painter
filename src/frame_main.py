@@ -328,6 +328,7 @@ class ArmyPainter(tk.Tk):
             on_selection_changed=self.on_pattern_select,
             on_state_changed=self.update_pattern_action_states,
             on_marker_changed=self.set_pattern_marker_color,
+            on_pattern_reordered=self.reorder_user_pattern,
         )
         self.frame_army_pattern.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.frame_channel_select.lb.bind("<<ListboxSelect>>", self.select_channel)
@@ -1873,6 +1874,21 @@ class ArmyPainter(tk.Tk):
             )
             return False
         return True
+
+    def reorder_user_pattern(self, pattern_name: str, target_index: int) -> bool:
+        """Persist a user Pattern drop without entering workspace history."""
+        try:
+            result = ArmyPainter._pattern_workflows(self).reorder_pattern(
+                pattern_name, target_index
+            )
+        except (PatternError, OSError) as exc:
+            LOGGER.exception("Could not reorder Pattern '%s'", pattern_name)
+            self.dialogs.show_error(
+                title="Cannot Reorder Pattern",
+                message=f"The Pattern order could not be saved:\n{exc}",
+            )
+            return False
+        return result.changed
 
     def get_current_pattern_colors(self) -> list[str]:
         """Return current GUI colors in canonical Pattern order."""

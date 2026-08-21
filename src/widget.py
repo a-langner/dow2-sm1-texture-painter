@@ -79,6 +79,7 @@ from src.window_geometry import safe_window_geometry
 COLOR_BOX_SIZE = 90
 COLOR_BTN_HEIGHT = 26
 PATTERN_MARKER_COLUMN_WIDTH = 28
+PATTERN_DRAG_THRESHOLD = 6
 PATTERN_MARKER_COLORS = {
     PatternMarkerColor.YELLOW: ("#efd80e", "#ffd864"),
     PatternMarkerColor.RED: ("#e92525", "#f74d4d"),
@@ -154,6 +155,7 @@ APP_SPINBOX_STYLE = "AppSelection.TSpinbox"
 
 ActionCallback = Callable[[], None]
 PatternMarkerCallback = Callable[[str, PatternMarkerColor], object]
+PatternReorderCallback = Callable[[str, int], object]
 AvailabilityCallback = Callable[[], bool]
 BooleanChangedCallback = Callable[[bool], None]
 ColorChangedCallback = Callable[[int, str], None]
@@ -3110,6 +3112,7 @@ class FramePatternList(tk.Frame):
         on_selection_changed: Optional[ActionCallback] = None,
         on_state_changed: Optional[ActionCallback] = None,
         on_marker_changed: Optional[PatternMarkerCallback] = None,
+        on_pattern_reordered: Optional[PatternReorderCallback] = None,
         **kw,
     ):
         super(FramePatternList, self).__init__(master=master, cnf={}, **kw)
@@ -3120,6 +3123,7 @@ class FramePatternList(tk.Frame):
         self._on_selection_changed = on_selection_changed
         self._on_state_changed = on_state_changed
         self._on_marker_changed = on_marker_changed
+        self._on_pattern_reordered = on_pattern_reordered
         self._external_callbacks_enabled = False
         self.pattern_style = ttk.Style(self)
         heading_font = (
@@ -3179,7 +3183,17 @@ class FramePatternList(tk.Frame):
                 activeforeground=pattern_marker_display_color(marker_color, True),
             )
         self._context_pattern_item = None
+        self._drag_pattern_item = None
+        self._drag_pattern_start = None
+        self._drag_pattern_target = None
+        self._pattern_drag_started = False
         self.tree.bind("<Button-3>", self._show_pattern_context_menu, add="+")
+        self.tree.bind("<ButtonPress-1>", self._on_pattern_drag_press, add="+")
+        self.tree.bind("<B1-Motion>", self._on_pattern_drag_motion, add="+")
+        self.tree.bind(
+            "<ButtonRelease-1>", self._on_pattern_drag_release, add="+"
+        )
+        self.bind("<Escape>", self._cancel_pattern_drag, add="+")
         self.header_separator_pressed = False
         self.tree.bind("<Button-1>", self._block_header_separator_press, add="+")
         self.tree.bind("<B1-Motion>", self._block_header_separator_drag, add="+")
@@ -3332,6 +3346,70 @@ class FramePatternList(tk.Frame):
         self.tree.focus(item_id)
         return "break"
 
+    def _on_pattern_drag_press(self, Event, item_id=None):
+        self._cancel_pattern_drag()
+        if item_id is None:
+            item_id = self.tree.identify_row(Event.y)
+        if not item_id or not self.tree.is_user_item(item_id):
+            return
+        self._drag_pattern_item = item_id
+        self._drag_pattern_start = (Event.x_root, Event.y_root)
+
+    def _on_pattern_drag_motion(self, Event):
+        if self._drag_pattern_item is None or self._drag_pattern_start is None:
+            return
+        if not self._pattern_drag_started:
+            start_x, start_y = self._drag_pattern_start
+            distance_squared = (Event.x_root - start_x) ** 2 + (
+                Event.y_root - start_y
+            ) ** 2
+            if distance_squared < PATTERN_DRAG_THRESHOLD**2:
+                return
+            self._pattern_drag_started = True
+        tree_y = Event.y_root - self.tree.winfo_rooty()
+        target_item = self.tree.identify_row(tree_y)
+        self._drag_pattern_target = (
+            target_item
+            if target_item and self.tree.is_user_item(target_item)
+            else None
+        )
+
+    def _on_pattern_drag_release(self, Event=None):
+        source_item = self._drag_pattern_item
+        target_item = self._drag_pattern_target
+        dragging = self._pattern_drag_started
+        self._cancel_pattern_drag()
+        if (
+            not dragging
+            or source_item is None
+            or target_item is None
+            or source_item == target_item
+            or self._on_pattern_reordered is None
+        ):
+            return
+        source_name = self.tree.get_pattern_name(source_item)
+        user_items = [
+            item
+            for item in self.tree.get_children()
+            if self.tree.is_user_item(item)
+        ]
+        if source_name is None or target_item not in user_items:
+            return
+        target_index = user_items.index(target_item)
+        if self._on_pattern_reordered(source_name, target_index) is False:
+            return
+        self.load_pattern_list(source_name)
+
+    def _cancel_pattern_drag(self, Event=None):
+        self._drag_pattern_item = None
+        self._drag_pattern_start = None
+        self._drag_pattern_target = None
+        self._pattern_drag_started = False
+
+    def _on_marker_drag_press(self, Event, item_id):
+        self._select_pattern_item(item_id)
+        self._on_pattern_drag_press(Event, item_id)
+
     def _redraw_pattern_markers(self):
         for label in self.marker_labels:
             label.destroy()
@@ -3381,9 +3459,11 @@ class FramePatternList(tk.Frame):
                 height=visible_height,
             )
             label.bind(
-                "<Button-1>",
-                lambda Event, item=item_id: self._select_pattern_item(item),
+                "<ButtonPress-1>",
+                lambda Event, item=item_id: self._on_marker_drag_press(Event, item),
             )
+            label.bind("<B1-Motion>", self._on_pattern_drag_motion)
+            label.bind("<ButtonRelease-1>", self._on_pattern_drag_release)
             label.bind(
                 "<Button-3>",
                 lambda Event, item=item_id: self._show_pattern_item_context_menu(
