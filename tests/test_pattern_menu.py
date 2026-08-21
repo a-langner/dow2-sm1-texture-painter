@@ -226,7 +226,7 @@ class PatternMenuStateTests(unittest.TestCase):
                     {
                         "label": "Batch Edit Tools",
                         "command": handlers["open_batch_edit_tools"],
-                        "accelerator": "Ctrl+D",
+                        "accelerator": "Ctrl+B",
                     },
                 )
             ],
