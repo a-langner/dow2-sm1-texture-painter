@@ -100,6 +100,59 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
         painter.label_img_tem.config.assert_called_once_with(image=team_colour)
         self.assertEqual(photo_image.call_count, 2)
 
+    @patch("src.frame_main.ImageTk.PhotoImage", side_effect=lambda image: image)
+    def test_original_comparison_does_not_mutate_workspace_or_dirty_state(
+        self, photo_image
+    ):
+        original = object()
+        processed = object()
+        render_settings = DEFAULT_RENDER_SETTINGS.with_processing_mode(
+            ProcessingMode.PER_COLOR
+        ).with_active_processing(
+            ColorProcessingSettings(ColorOps.MULTIPLY, 70, 110, 60, 85)
+        )
+        colors = ("#112233", "#445566", "#778899", "#aabbcc")
+        selected_channels = (0, 2)
+        mask_variant = object()
+        painter = SimpleNamespace(
+            active_texture_set=SimpleNamespace(diffuse=original),
+            original_preview_image=None,
+            processed_preview_image=processed,
+            show_original_preview=False,
+            img_dif=processed,
+            label_img_dif=Mock(),
+            render_settings=render_settings,
+            frame_color_chooser=SimpleNamespace(
+                color_boxes=[{"bg": color} for color in colors]
+            ),
+            frame_channel_select=SimpleNamespace(
+                lb=SimpleNamespace(curselection=Mock(return_value=selected_channels))
+            ),
+            active_team_color_mask_variant=mask_variant,
+            update_pattern_action_states=Mock(),
+            request_workspace_preview=Mock(),
+            refresh_workspace=Mock(),
+            swap_color_slots=Mock(),
+        )
+
+        ArmyPainter.begin_show_original_preview(painter)
+        ArmyPainter.end_show_original_preview(painter)
+
+        self.assertIs(painter.render_settings, render_settings)
+        self.assertEqual(
+            tuple(box["bg"] for box in painter.frame_color_chooser.color_boxes),
+            colors,
+        )
+        self.assertEqual(
+            painter.frame_channel_select.lb.curselection(), selected_channels
+        )
+        self.assertIs(painter.active_team_color_mask_variant, mask_variant)
+        painter.update_pattern_action_states.assert_not_called()
+        painter.request_workspace_preview.assert_not_called()
+        painter.refresh_workspace.assert_not_called()
+        painter.swap_color_slots.assert_not_called()
+        photo_image.assert_called_once_with(original)
+
     def test_preview_request_requires_an_active_texture(self):
         painter = SimpleNamespace(
             active_texture_set=None,
