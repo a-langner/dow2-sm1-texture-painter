@@ -2391,7 +2391,9 @@ class FrameColorChooser(tk.Frame):
         on_color_copied: Optional[ColorSlotActionCallback] = None,
         on_color_and_settings_copied: Optional[ColorSlotActionCallback] = None,
         on_color_pasted: Optional[ColorSlotActionCallback] = None,
+        on_color_and_settings_pasted: Optional[ColorSlotActionCallback] = None,
         color_paste_available: Optional[AvailabilityCallback] = None,
+        color_and_settings_paste_available: Optional[AvailabilityCallback] = None,
         color_picker: Optional[ColorPickerCallback] = None,
         paint_catalog: Optional[PaintCatalog] = None,
         settings=None,
@@ -2405,7 +2407,11 @@ class FrameColorChooser(tk.Frame):
         self._on_color_copied = on_color_copied
         self._on_color_and_settings_copied = on_color_and_settings_copied
         self._on_color_pasted = on_color_pasted
+        self._on_color_and_settings_pasted = on_color_and_settings_pasted
         self._color_paste_available = color_paste_available
+        self._color_and_settings_paste_available = (
+            color_and_settings_paste_available
+        )
         self._color_picker = (
             self._open_color_picker if color_picker is None else color_picker
         )
@@ -2650,6 +2656,16 @@ class FrameColorChooser(tk.Frame):
             label="Copy Color + Settings",
             command=partial(self._request_color_and_settings_copy, slot_index),
         )
+        menu.add_command(
+            label="Paste Color + Settings",
+            command=partial(self._request_color_and_settings_paste, slot_index),
+            state=(
+                tk.NORMAL
+                if self._color_and_settings_paste_available is not None
+                and self._color_and_settings_paste_available()
+                else tk.DISABLED
+            ),
+        )
         menu.add_separator()
         for target_index in range(len(self.color_slots)):
             if target_index == slot_index:
@@ -2679,6 +2695,12 @@ class FrameColorChooser(tk.Frame):
         """Delegate a complete slot-state copy for one fixed Color Slot."""
         if self._on_color_and_settings_copied is not None:
             return self._on_color_and_settings_copied(slot_index)
+        return None
+
+    def _request_color_and_settings_paste(self, slot_index: int):
+        """Delegate a complete slot-state paste for one fixed Color Slot."""
+        if self._on_color_and_settings_pasted is not None:
+            return self._on_color_and_settings_pasted(slot_index)
         return None
 
     def _request_slot_swap(self, source_index: int, target_index: int):

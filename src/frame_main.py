@@ -375,7 +375,11 @@ class ArmyPainter(tk.Tk):
             on_color_copied=self.copy_color_slot,
             on_color_and_settings_copied=self.copy_color_slot_with_settings,
             on_color_pasted=self.paste_color_slot,
+            on_color_and_settings_pasted=self.paste_color_slot_with_settings,
             color_paste_available=self.is_color_paste_available,
+            color_and_settings_paste_available=(
+                self.is_color_and_settings_paste_available
+            ),
             settings=self.settings,
             drag_binding_owner=self,
             width=COLOR_BOX_SIZE * 4 + 12,
@@ -862,6 +866,10 @@ class ArmyPainter(tk.Tk):
             slot.index
         ]
 
+    def is_color_and_settings_paste_available(self) -> bool:
+        """Report whether a complete slot snapshot has been copied."""
+        return self._color_slot_clipboard_state is not None
+
     def paste_color_slot(self, slot_index: int) -> bool:
         """Replace one slot colour while retaining all processing contexts."""
         color = self._color_slot_clipboard_color
@@ -876,6 +884,25 @@ class ArmyPainter(tk.Tk):
         )
         self.frame_color_chooser.color_boxes[slot.index]["bg"] = color
         self.frame_color_chooser.draw_rgb_value()
+        self.update_pattern_action_states()
+        self.refresh_workspace()
+        return True
+
+    def paste_color_slot_with_settings(self, slot_index: int) -> bool:
+        """Replace one complete slot snapshot without changing Global settings."""
+        copied = self._color_slot_clipboard_state
+        if copied is None:
+            return False
+        slot = ColorSlot.from_index(slot_index)
+        ArmyPainter.sync_render_settings(self)
+        states = list(self.render_settings.color_slot_states)
+        states[slot.index] = copied
+        self.render_settings = self.render_settings.with_color_slot_states(
+            (states[0], states[1], states[2], states[3])
+        )
+        self.frame_color_chooser.color_boxes[slot.index]["bg"] = copied.color
+        self.frame_color_chooser.draw_rgb_value()
+        ArmyPainter.refresh_processing_controls(self)
         self.update_pattern_action_states()
         self.refresh_workspace()
         return True

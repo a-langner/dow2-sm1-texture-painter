@@ -9,6 +9,7 @@ import test_support  # noqa: F401 - installs the user-data path redirect
 from src.constant import ColorOps
 from src.color_processing_settings import ColorProcessingSettings
 from src.color_slot import ColorSlot
+from src.color_slot_state import ColorSlotState
 from src.processing_mode import ProcessingMode
 from src.render_settings import (
     DEFAULT_COLOR,
@@ -606,6 +607,80 @@ class RenderSettingsTests(unittest.TestCase):
         self.assertEqual(painter.render_settings.global_processing, global_processing)
         painter.update_pattern_action_states.assert_not_called()
         painter.refresh_workspace.assert_not_called()
+
+    def test_paste_color_and_settings_replaces_complete_slot_in_both_modes(self):
+        from src.frame_main import ArmyPainter
+
+        copied = ColorSlotState(
+            "#010203",
+            ColorProcessingSettings(ColorOps.MULTIPLY, 70, 110, 60, 85),
+        )
+        global_processing = ColorProcessingSettings(
+            ColorOps.SCREEN, 88, 123, 97, 130
+        )
+        original_per_color = (
+            ColorProcessingSettings(),
+            ColorProcessingSettings(ColorOps.SOFT_LIGHT, 90, 95, 80, 120),
+            ColorProcessingSettings(ColorOps.COLOR, 65, 105, 75, 140),
+            ColorProcessingSettings(),
+        )
+
+        for mode in (ProcessingMode.GLOBAL, ProcessingMode.PER_COLOR):
+            with self.subTest(mode=mode):
+                color_boxes = [{"bg": color} for color in COLORS]
+                painter = SimpleNamespace(
+                    _color_slot_clipboard_state=copied,
+                    render_settings=RenderSettings(
+                        primary_color=COLORS[0],
+                        secondary_color=COLORS[1],
+                        tint_color=COLORS[2],
+                        extra_color=COLORS[3],
+                        color_op=global_processing.blend_mode,
+                        brightness=global_processing.brightness,
+                        contrast=global_processing.contrast,
+                        opacity=global_processing.opacity,
+                        saturation=global_processing.saturation,
+                        processing_mode=mode,
+                        active_color_slot=ColorSlot.COLOR_2,
+                        per_color_processing=original_per_color,
+                        _per_color_processing_initialized=True,
+                    ),
+                    frame_color_chooser=SimpleNamespace(
+                        color_boxes=color_boxes,
+                        draw_rgb_value=Mock(),
+                    ),
+                    update_pattern_action_states=Mock(),
+                    refresh_workspace=Mock(),
+                )
+
+                with patch.object(ArmyPainter, "sync_render_settings") as sync, patch.object(
+                    ArmyPainter, "refresh_processing_controls"
+                ) as refresh_controls:
+                    changed = ArmyPainter.paste_color_slot_with_settings(painter, 1)
+
+                self.assertTrue(changed)
+                sync.assert_called_once_with(painter)
+                self.assertIs(painter.render_settings.processing_mode, mode)
+                self.assertEqual(
+                    painter.render_settings.global_processing,
+                    global_processing,
+                )
+                self.assertEqual(
+                    painter.render_settings.colors,
+                    (COLORS[0], copied.color, COLORS[2], COLORS[3]),
+                )
+                self.assertEqual(
+                    painter.render_settings.per_color_processing,
+                    (
+                        original_per_color[0],
+                        copied.processing,
+                        original_per_color[2],
+                        original_per_color[3],
+                    ),
+                )
+                refresh_controls.assert_called_once_with(painter)
+                painter.update_pattern_action_states.assert_called_once_with()
+                painter.refresh_workspace.assert_called_once_with()
 
     def test_model_has_no_tkinter_or_image_dependency(self):
         source_path = Path(__file__).resolve().parents[1] / "src" / "render_settings.py"
