@@ -122,6 +122,21 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
         self.assertFalse(pattern_item_has_marker({"is_user": False}))
         self.assertFalse(pattern_item_has_marker(None))
 
+    def test_treeview_has_no_native_star_under_centered_marker_overlay(self):
+        widget_source = (
+            Path(__file__).resolve().parents[1] / "src" / "widget.py"
+        ).read_text(encoding="utf-8")
+        tree_source = widget_source.split("class PatternTreeview", 1)[1].split(
+            "class FramePatternList", 1
+        )[0]
+        redraw_source = widget_source.split(
+            "def _redraw_pattern_markers", 1
+        )[1].split("def _tree_border_width", 1)[0]
+
+        self.assertIn('values=(pattern_name, "")', tree_source)
+        self.assertIn('x=self.tree.winfo_x() + x', redraw_source)
+        self.assertIn("width=width", redraw_source)
+
     def test_assigned_marker_colors_remain_distinct_on_selected_rows(self):
         selected_colors = {
             pattern_marker_display_color(marker, True)

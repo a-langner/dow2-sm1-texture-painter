@@ -3056,7 +3056,7 @@ class PatternTreeview(ttk.Treeview):
         item_id = self.insert(
             "",
             tk.END,
-            values=(pattern_name, "★" if user_created else ""),
+            values=(pattern_name, ""),
         )
         self.pattern_metadata[item_id] = {
             "name": pattern_name,
@@ -3278,11 +3278,11 @@ class FramePatternList(tk.Frame):
 
     def _set_pattern_scroll(self, first, last):
         self.scrollbar.set(first, last)
-        self.after_idle(self._redraw_pattern_markers)
+        if hasattr(self, "marker_labels"):
+            self._redraw_pattern_markers()
 
     def _scroll_pattern_tree(self, *args):
         self.tree.yview(*args)
-        self.after_idle(self._redraw_pattern_markers)
 
     def _show_pattern_context_menu(self, Event):
         item_id = self.tree.identify_row(Event.y)
@@ -3360,11 +3360,10 @@ class FramePatternList(tk.Frame):
                     APP_SELECTION_BACKGROUND if selected else normal_background
                 ),
             )
-            overlay_width = min(width, PATTERN_MARKER_COLUMN_WIDTH - 2)
             label.place(
-                x=self.tree.winfo_x() + x + width - overlay_width,
+                x=self.tree.winfo_x() + x,
                 y=self.tree.winfo_y() + y,
-                width=overlay_width,
+                width=width,
                 height=height,
             )
             label.bind(
