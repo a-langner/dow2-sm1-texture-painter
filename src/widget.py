@@ -3111,6 +3111,12 @@ class PatternTreeview(ttk.Treeview):
         metadata = self.pattern_metadata.get(item_id)
         return bool(metadata and metadata["is_user"])
 
+    def get_pattern_marker(self, item_id):
+        metadata = self.pattern_metadata.get(item_id)
+        if metadata is None or not metadata["is_user"]:
+            return PatternMarkerColor.DEFAULT
+        return metadata.get("marker_color", PatternMarkerColor.DEFAULT)
+
     def get_pattern_item_id(self, pattern_name):
         return self.item_by_pattern_name.get(pattern_name)
 
@@ -3189,6 +3195,16 @@ class FramePatternList(tk.Frame):
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.marker_labels = []
         self.marker_menu = tk.Menu(self, tearoff=False)
+        self._marker_menu_background = self.marker_menu.cget("background")
+        self._marker_menu_active_background = self.marker_menu.cget(
+            "activebackground"
+        )
+        self._marker_menu_active_foreground = self.marker_menu.cget(
+            "activeforeground"
+        )
+        self._marker_menu_disabled_foreground = self.marker_menu.cget(
+            "disabledforeground"
+        )
         self._marker_menu_action_indices = {}
         for label, callback in (
             ("Save New", self._on_save_new),
@@ -3203,16 +3219,21 @@ class FramePatternList(tk.Frame):
         self._marker_menu_heading_index = self.marker_menu.index(tk.END)
         self.marker_menu.entryconfigure(
             self._marker_menu_heading_index,
-            activebackground=self.marker_menu.cget("background"),
-            activeforeground=self.marker_menu.cget("disabledforeground"),
+            activebackground=self._marker_menu_background,
+            activeforeground=self._marker_menu_disabled_foreground,
         )
         self.marker_menu.bind("<<MenuSelect>>", self._suppress_marker_menu_heading)
         self.marker_menu.bind("<Motion>", self._suppress_marker_menu_heading, add="+")
         self.marker_menu.add_separator()
         self._marker_menu_marker_indices = []
+        self._marker_menu_color = tk.StringVar(
+            self, value=PatternMarkerColor.DEFAULT.value
+        )
         for marker_color in PatternMarkerColor:
-            self.marker_menu.add_command(
+            self.marker_menu.add_radiobutton(
                 label=marker_color.name.title(),
+                variable=self._marker_menu_color,
+                value=marker_color.value,
                 accelerator="★",
                 command=partial(self._assign_context_marker, marker_color),
             )
@@ -3402,9 +3423,26 @@ class FramePatternList(tk.Frame):
         self.tree.selection_set(item_id)
         self.tree.focus(item_id)
         self.update_idletasks()
-        marker_state = tk.NORMAL if self.tree.is_user_item(item_id) else tk.DISABLED
-        for menu_index in self._marker_menu_marker_indices:
-            self.marker_menu.entryconfigure(menu_index, state=marker_state)
+        is_user_pattern = self.tree.is_user_item(item_id)
+        self._marker_menu_color.set(self.tree.get_pattern_marker(item_id).value)
+        marker_state = tk.NORMAL if is_user_pattern else tk.DISABLED
+        for marker_color, menu_index in zip(
+            PatternMarkerColor, self._marker_menu_marker_indices
+        ):
+            options = {
+                "state": marker_state,
+                "activebackground": (
+                    self._marker_menu_active_background
+                    if is_user_pattern
+                    else self._marker_menu_background
+                ),
+                "activeforeground": (
+                    pattern_marker_display_color(marker_color, True)
+                    if is_user_pattern
+                    else self._marker_menu_disabled_foreground
+                ),
+            }
+            self.marker_menu.entryconfigure(menu_index, **options)
         self.marker_menu.tk_popup(x_root, y_root)
         return "break"
 
@@ -3855,7 +3893,18 @@ class FramePatternList(tk.Frame):
             state = tk.NORMAL if enabled else tk.DISABLED
             button.config(state=state)
             self.marker_menu.entryconfigure(
-                self._marker_menu_action_indices[label], state=state
+                self._marker_menu_action_indices[label],
+                state=state,
+                activebackground=(
+                    self._marker_menu_active_background
+                    if enabled
+                    else self._marker_menu_background
+                ),
+                activeforeground=(
+                    self._marker_menu_active_foreground
+                    if enabled
+                    else self._marker_menu_disabled_foreground
+                ),
             )
         self.modified_label.config(
             text="Modified" if states.modified_indicator_visible else ""
