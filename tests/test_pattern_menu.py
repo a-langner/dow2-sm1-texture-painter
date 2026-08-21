@@ -218,6 +218,22 @@ class PatternMenuStateTests(unittest.TestCase):
                 )
             ],
         )
+        self.assertEqual(
+            cascades["Tools"].items,
+            [
+                (
+                    "command",
+                    {
+                        "label": "Batch Edit Tools",
+                        "command": handlers["open_batch_edit_tools"],
+                        "accelerator": "Ctrl+D",
+                    },
+                )
+            ],
+        )
+        painter.bind.assert_any_call(
+            "<Control-d>", handlers["open_batch_edit_tools"]
+        )
 
         labels = [
             item[1].get("label") if item[0] == "command" else None
