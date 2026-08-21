@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import OrderedDict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from enum import Enum
 import json
 from importlib import resources
 import logging
@@ -41,6 +42,7 @@ processing_state_key = [
     "global_processing",
     "per_color_processing",
 ]
+MARKER_COLOR_KEY = "marker_color"
 
 COLOR_VALUE_PATTERN = re.compile(r"^#[0-9a-fA-F]{6}$")
 LOGGER = logging.getLogger(__name__)
@@ -49,6 +51,26 @@ PatternColors = list[str]
 StoredPattern = OrderedDict[str, object]
 PatternCollection = OrderedDict[str, StoredPattern]
 PatternInput = Mapping[str, object]
+
+
+class PatternMarkerColor(Enum):
+    """Stable organizational marker identities for user-created Patterns."""
+
+    DEFAULT = "default"
+    YELLOW = "yellow"
+    RED = "red"
+    GREEN = "green"
+    BLUE = "blue"
+    PURPLE = "purple"
+
+    @classmethod
+    def parse(cls, value: object) -> PatternMarkerColor:
+        if not isinstance(value, str):
+            return cls.DEFAULT
+        try:
+            return cls(value)
+        except ValueError:
+            return cls.DEFAULT
 
 
 class PatternProcessing(NamedTuple):
@@ -305,6 +327,17 @@ def get_pattern_processing_state(name: str) -> PatternProcessingState:
         return DEFAULT_PATTERN_PROCESSING_STATE
 
 
+def get_pattern_marker_color(name: str) -> PatternMarkerColor:
+    """Return user marker metadata without affecting Pattern processing."""
+    normalized_name = normalize_pattern_name(name)
+    pattern = get_all_patterns().get(normalized_name)
+    if pattern is None:
+        raise PatternNotFoundError(f"Pattern '{normalized_name}' was not found")
+    if normalized_name not in user_color_patterns:
+        return PatternMarkerColor.DEFAULT
+    return PatternMarkerColor.parse(pattern.get(MARKER_COLOR_KEY))
+
+
 def _parse_processing_settings(value: object) -> ColorProcessingSettings:
     if not isinstance(value, Mapping) or list(value) not in (
         processing_key,
@@ -398,13 +431,23 @@ def _is_valid_pattern_collection(patterns: object) -> bool:
     for name, pattern in patterns.items():
         if not isinstance(name, str) or not name.strip():
             return False
-        if not isinstance(pattern, dict) or list(pattern) not in (
+        if not isinstance(pattern, dict):
+            return False
+        pattern_keys = list(pattern)
+        keys_without_marker = [
+            key for key in pattern_keys if key != MARKER_COLOR_KEY
+        ]
+        if keys_without_marker not in (
             color_key,
             color_key + processing_key,
             color_key + processing_state_key,
+        ) or pattern_keys.count(MARKER_COLOR_KEY) > 1:
+            return False
+        if MARKER_COLOR_KEY in pattern and not isinstance(
+            pattern[MARKER_COLOR_KEY], str
         ):
             return False
-        if list(pattern) == color_key + processing_state_key:
+        if keys_without_marker == color_key + processing_state_key:
             try:
                 _parse_pattern_processing_state(pattern, strict=True)
             except (KeyError, TypeError, ValueError):
@@ -466,6 +509,7 @@ def _validate_new_pattern(
 def _stored_pattern(
     colors: PatternColors,
     processing: PatternProcessing | PatternProcessingState | None,
+    marker_color: PatternMarkerColor = PatternMarkerColor.DEFAULT,
 ) -> StoredPattern:
     pattern: StoredPattern = OrderedDict(zip(color_key, colors))
     if isinstance(processing, PatternProcessingState):
@@ -478,6 +522,8 @@ def _stored_pattern(
                 ("contrast", processing.contrast),
             )
         )
+    if marker_color is not PatternMarkerColor.DEFAULT:
+        pattern[MARKER_COLOR_KEY] = marker_color.value
     return pattern
 
 
@@ -665,7 +711,11 @@ def update_user_pattern(
     pattern_path = Path(pattern_path)
     _ensure_user_pattern_file_is_writable(pattern_path)
 
-    updated_pattern = _stored_pattern(normalized_colors, processing)
+    updated_pattern = _stored_pattern(
+        normalized_colors,
+        processing,
+        get_pattern_marker_color(normalized_name),
+    )
     updated_user_patterns = OrderedDict(user_color_patterns)
     updated_user_patterns[normalized_name] = updated_pattern
     try:

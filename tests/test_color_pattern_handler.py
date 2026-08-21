@@ -21,6 +21,8 @@ from src.color_pattern_handler import (
     DEFAULT_PATTERN_PROCESSING,
     PatternProcessing,
     PatternProcessingState,
+    PatternMarkerColor,
+    get_pattern_marker_color,
     color_key,
     get_all_patterns,
     load_builtin_patterns,
@@ -80,6 +82,53 @@ class ColorPatternLoadingTests(unittest.TestCase):
 
         self.assertEqual(patterns, expected)
         self.assertEqual(list(patterns), ["First", "Second"])
+
+    def test_existing_user_pattern_without_marker_loads_as_default(self):
+        expected = OrderedDict([("Unmarked", pattern())])
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            pattern_path.write_text(
+                json.dumps(user_pattern_document(expected)), encoding="utf-8"
+            )
+
+            loaded = load_user_patterns(pattern_path)
+
+        with patch.object(pattern_handler, "user_color_patterns", loaded):
+            self.assertIs(
+                get_pattern_marker_color("Unmarked"), PatternMarkerColor.DEFAULT
+            )
+
+    def test_known_marker_metadata_loads_with_stable_identifier(self):
+        marked = pattern()
+        marked["marker_color"] = "purple"
+        expected = OrderedDict([("Marked", marked)])
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            pattern_path.write_text(
+                json.dumps(user_pattern_document(expected)), encoding="utf-8"
+            )
+
+            loaded = load_user_patterns(pattern_path)
+
+        with patch.object(pattern_handler, "user_color_patterns", loaded):
+            self.assertIs(
+                get_pattern_marker_color("Marked"), PatternMarkerColor.PURPLE
+            )
+
+    def test_unknown_marker_metadata_falls_back_to_default(self):
+        marked = pattern()
+        marked["marker_color"] = "orange"
+        loaded = OrderedDict([("Unknown", marked)])
+
+        with patch.object(pattern_handler, "user_color_patterns", loaded):
+            self.assertIs(
+                get_pattern_marker_color("Unknown"), PatternMarkerColor.DEFAULT
+            )
+
+    def test_builtin_pattern_marker_is_always_default(self):
+        self.assertIs(
+            get_pattern_marker_color("Blood Ravens"), PatternMarkerColor.DEFAULT
+        )
 
     def test_duplicate_builtin_and_user_names_are_rejected(self):
         builtins = OrderedDict([("Duplicate", pattern())])
