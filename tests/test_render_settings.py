@@ -686,6 +686,54 @@ class RenderSettingsTests(unittest.TestCase):
                 painter.update_pattern_action_states.assert_called_once_with()
                 painter.refresh_workspace.assert_called_once_with()
 
+    def test_global_complete_paste_survives_first_per_color_switch(self):
+        from src.frame_main import ArmyPainter
+
+        copied = ColorSlotState(
+            "#010203",
+            ColorProcessingSettings(ColorOps.MULTIPLY, 70, 110, 60, 85),
+        )
+        global_processing = ColorProcessingSettings(
+            ColorOps.SCREEN, 88, 123, 97, 130
+        )
+        color_boxes = [{"bg": color} for color in COLORS]
+        painter = SimpleNamespace(
+            _color_slot_clipboard_state=copied,
+            render_settings=RenderSettings(
+                primary_color=COLORS[0],
+                secondary_color=COLORS[1],
+                tint_color=COLORS[2],
+                extra_color=COLORS[3],
+                color_op=global_processing.blend_mode,
+                brightness=global_processing.brightness,
+                contrast=global_processing.contrast,
+                opacity=global_processing.opacity,
+                saturation=global_processing.saturation,
+                processing_mode=ProcessingMode.GLOBAL,
+            ),
+            frame_color_chooser=SimpleNamespace(
+                color_boxes=color_boxes,
+                draw_rgb_value=Mock(),
+            ),
+            update_pattern_action_states=Mock(),
+            refresh_workspace=Mock(),
+        )
+
+        with patch.object(ArmyPainter, "sync_render_settings"), patch.object(
+            ArmyPainter, "refresh_processing_controls"
+        ):
+            ArmyPainter.paste_color_slot_with_settings(painter, 2)
+
+        switched = painter.render_settings.with_processing_mode(
+            ProcessingMode.PER_COLOR
+        )
+        self.assertEqual(switched.per_color_processing[2], copied.processing)
+        self.assertEqual(
+            switched.per_color_processing[:2] + switched.per_color_processing[3:],
+            (global_processing, global_processing, global_processing),
+        )
+        self.assertEqual(switched.global_processing, global_processing)
+
     def test_reset_color_restores_only_target_slot_authoritative_defaults(self):
         from src.frame_main import ArmyPainter
 

@@ -896,6 +896,7 @@ class ArmyPainter(tk.Tk):
             return False
         slot = ColorSlot.from_index(slot_index)
         ArmyPainter.sync_render_settings(self)
+        self.render_settings = self.render_settings.initialize_per_color_processing()
         states = list(self.render_settings.color_slot_states)
         states[slot.index] = copied
         self.render_settings = self.render_settings.with_color_slot_states(
@@ -912,6 +913,7 @@ class ArmyPainter(tk.Tk):
         """Restore one positional slot from the authoritative defaults."""
         slot = ColorSlot.from_index(slot_index)
         ArmyPainter.sync_render_settings(self)
+        self.render_settings = self.render_settings.initialize_per_color_processing()
         states = list(self.render_settings.color_slot_states)
         default_state = DEFAULT_RENDER_SETTINGS.color_slot_states[slot.index]
         states[slot.index] = default_state
