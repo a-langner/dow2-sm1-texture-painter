@@ -35,12 +35,20 @@ class PathStore:
     def __init__(self, path):
         self.path = path
 
-    def save(self, name, colors, *, processing=None):
+    def save(
+        self,
+        name,
+        colors,
+        *,
+        processing=None,
+        marker_color=pattern_handler.PatternMarkerColor.DEFAULT,
+    ):
         return pattern_handler.save(
             name,
             colors,
             pattern_path=self.path,
             processing=processing,
+            marker_color=marker_color,
         )
 
     def update_user_pattern(self, name, colors, *, processing=None):
@@ -98,6 +106,9 @@ class PatternControllerTests(unittest.TestCase):
 
     def test_save_duplicate_and_structured_results(self):
         saved = self.save("  User  ")
+        pattern_handler.set_user_pattern_marker_color(
+            "User", pattern_handler.PatternMarkerColor.PURPLE, self.user_path
+        )
         duplicate = self.controller.duplicate_pattern("User", "User Copy")
 
         self.assertIsInstance(saved, PatternOperationResult)
@@ -105,6 +116,10 @@ class PatternControllerTests(unittest.TestCase):
         self.assertTrue(saved.list_changed and saved.persisted and saved.changed)
         self.assertEqual(duplicate.colors_to_apply, COLORS)
         self.assertIn("User Copy", pattern_handler.user_color_patterns)
+        self.assertIs(
+            pattern_handler.get_pattern_marker_color("User Copy"),
+            pattern_handler.PatternMarkerColor.PURPLE,
+        )
 
     def test_update_reports_unchanged_then_persists_changed_colors(self):
         self.save()

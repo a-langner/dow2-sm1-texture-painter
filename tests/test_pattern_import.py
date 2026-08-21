@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 import src.color_pattern_handler as pattern_handler
+from src.color_pattern_handler import PatternMarkerColor, get_pattern_marker_color
 from src.color_pattern_handler import color_key, is_user_pattern, load_user_patterns
 from src.pattern_exchange import (
     PATTERN_EXCHANGE_FORMAT,
@@ -109,6 +110,34 @@ class PatternImportTests(unittest.TestCase):
             reloaded_patterns = load_user_patterns(user_path)
 
             self.assertIn("Persistent", reloaded_patterns)
+
+    def test_marker_survives_single_import_and_unknown_falls_back(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            user_path = root / "user_patterns.json"
+            for name, marker_value, expected in (
+                ("Marked", "red", PatternMarkerColor.RED),
+                ("Unknown", "orange", PatternMarkerColor.DEFAULT),
+                ("Legacy", None, PatternMarkerColor.DEFAULT),
+            ):
+                document = {
+                    "format": PATTERN_EXCHANGE_FORMAT,
+                    "version": PATTERN_EXCHANGE_VERSION,
+                    "name": name,
+                    "colors": colors(),
+                }
+                if marker_value is not None:
+                    document["marker_color"] = marker_value
+                source = root / f"{name}.pattern.json"
+                source.write_text(json.dumps(document), encoding="utf-8")
+
+                import_pattern(read_pattern_file(source), pattern_path=user_path)
+
+                self.assertIs(get_pattern_marker_color(name), expected)
+            reloaded = load_user_patterns(user_path)
+            self.assertEqual(reloaded["Marked"]["marker_color"], "red")
+            self.assertNotIn("marker_color", reloaded["Unknown"])
+            self.assertNotIn("marker_color", reloaded["Legacy"])
 
     def test_builtin_collision_is_distinct_even_with_overwrite(self):
         builtin_name = next(iter(pattern_handler.builtin_color_patterns))

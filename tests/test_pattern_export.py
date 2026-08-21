@@ -58,6 +58,24 @@ class PatternExportTests(unittest.TestCase):
         self.assertEqual(document["name"], pattern_name)
         self.assertEqual(document["colors"], colors)
 
+    def test_exports_stable_user_marker_metadata(self):
+        pattern_name = "Marked"
+        marked = OrderedDict(
+            zip(color_key, ("#112233", "#445566", "#778899", "#aabbcc"))
+        )
+        marked["marker_color"] = "blue"
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            destination = Path(temporary_directory) / "marked.pattern.json"
+            with patch(
+                "src.pattern_exchange.get_all_patterns",
+                return_value=OrderedDict([(pattern_name, marked)]),
+            ):
+                export_pattern(pattern_name, destination)
+
+            document = json.loads(destination.read_text(encoding="utf-8"))
+
+        self.assertEqual(document["marker_color"], "blue")
+
     def test_unknown_pattern_is_rejected(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             destination = Path(temporary_directory) / "unknown.pattern.json"

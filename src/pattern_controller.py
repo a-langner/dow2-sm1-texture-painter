@@ -12,6 +12,7 @@ from src.color_pattern_handler import (
     PatternMarkerColor,
     PatternProcessingState,
     get_pattern_colors,
+    get_pattern_marker_color,
     normalize_pattern_name,
     pattern_colors_equal,
 )
@@ -41,6 +42,7 @@ class PatternStore(Protocol):
         colors: PatternColors,
         *,
         processing: PatternProcessingState | None = None,
+        marker_color: PatternMarkerColor = PatternMarkerColor.DEFAULT,
     ) -> None: ...
     def update_user_pattern(
         self,
@@ -121,6 +123,7 @@ class PatternController:
         store: PatternStore = pattern_store,
         get_colors: Callable[[str], PatternColors] = get_pattern_colors,
         get_processing: Callable[[str], PatternProcessingState] | None = None,
+        get_marker: Callable[[str], PatternMarkerColor] = get_pattern_marker_color,
         read_single: Callable[[Path], ImportedPattern] = read_pattern_file,
         persist_single_import: PersistSingleImport = import_pattern,
         export_single: Callable[[str, Path], None] = export_pattern,
@@ -141,6 +144,7 @@ class PatternController:
         self.store = store
         self.get_colors = get_colors
         self.get_processing = get_processing
+        self.get_marker = get_marker
         self.read_single = read_single
         self.persist_single_import = persist_single_import
         self.export_single = export_single
@@ -232,13 +236,19 @@ class PatternController:
     ) -> PatternOperationResult:
         stored_colors = self.get_colors(source_name)
         normalized_name = normalize_pattern_name(new_name)
+        marker_color = self.get_marker(source_name)
         if self.get_processing is None:
-            self.store.save(normalized_name, stored_colors)
+            self.store.save(
+                normalized_name,
+                stored_colors,
+                marker_color=marker_color,
+            )
         else:
             self.store.save(
                 normalized_name,
                 stored_colors,
                 processing=self.get_processing(source_name),
+                marker_color=marker_color,
             )
         return PatternOperationResult(
             selected_name=normalized_name,

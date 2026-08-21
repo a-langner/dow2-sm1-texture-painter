@@ -317,6 +317,29 @@ class ColorPatternSavingTests(unittest.TestCase):
                 "Blood Ravens", PatternMarkerColor.RED
             )
 
+    def test_update_and_rename_preserve_marker_through_reload(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            pattern_handler.save("Original", self.colors(), pattern_path)
+            set_user_pattern_marker_color(
+                "Original", PatternMarkerColor.YELLOW, pattern_path
+            )
+
+            pattern_handler.update_user_pattern(
+                "Original",
+                list(pattern("#abcdef").values()),
+                pattern_path,
+            )
+            pattern_handler.rename_user_pattern(
+                "Original", "Renamed", pattern_path
+            )
+
+            reloaded = load_user_patterns(pattern_path)
+            self.assertEqual(reloaded["Renamed"]["marker_color"], "yellow")
+            self.assertIs(
+                get_pattern_marker_color("Renamed"), PatternMarkerColor.YELLOW
+            )
+
     def test_saved_pattern_can_be_loaded_from_disk(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             pattern_path = Path(temporary_directory) / "user_patterns.json"

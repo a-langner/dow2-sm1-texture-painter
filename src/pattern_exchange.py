@@ -17,10 +17,12 @@ from src.color_pattern_handler import (
     ARMY_PATTERN_RESOURCE,
     InvalidPatternError,
     PatternAlreadyExistsError,
+    PatternMarkerColor,
     PatternProcessingState,
     PatternNameConflictError,
     PatternNotFoundError,
     StoredPattern,
+    MARKER_COLOR_KEY,
     builtin_color_patterns,
     color_key,
     get_all_patterns,
@@ -53,6 +55,7 @@ class PatternExchangeDocument(TypedDict):
     processing_mode: NotRequired[str]
     global_processing: NotRequired[object]
     per_color_processing: NotRequired[object]
+    marker_color: NotRequired[str]
 
 WINDOWS_RESERVED_FILENAMES = {
     "CON",
@@ -199,6 +202,7 @@ class ImportedPattern(NamedTuple):
     name: str
     colors: dict[str, str]
     processing: PatternProcessingState | None = None
+    marker_color: PatternMarkerColor = PatternMarkerColor.DEFAULT
 
 
 class ImportedPatternCollection(NamedTuple):
@@ -251,6 +255,9 @@ def create_pattern_exchange_entry(
                 parse_pattern_processing_state(pattern)
             )
         )
+    marker_color = PatternMarkerColor.parse(pattern.get(MARKER_COLOR_KEY))
+    if marker_color is not PatternMarkerColor.DEFAULT:
+        entry[MARKER_COLOR_KEY] = marker_color.value
     return entry
 
 
@@ -275,6 +282,9 @@ def create_pattern_exchange_document(
         document["processing_mode"] = cast(str, serialized["processing_mode"])
         document["global_processing"] = serialized["global_processing"]
         document["per_color_processing"] = serialized["per_color_processing"]
+    marker_color = PatternMarkerColor.parse(pattern.get(MARKER_COLOR_KEY))
+    if marker_color is not PatternMarkerColor.DEFAULT:
+        document["marker_color"] = marker_color.value
     return document
 
 
@@ -369,6 +379,8 @@ def validate_imported_pattern_collection(
                 if key in entry
             }
         )
+        if MARKER_COLOR_KEY in entry:
+            single_document[MARKER_COLOR_KEY] = entry[MARKER_COLOR_KEY]
         try:
             normalized = validate_imported_pattern(single_document)
         except PatternImportError as exc:
@@ -392,6 +404,7 @@ def validate_imported_pattern_collection(
                 pattern_name,
                 normalized["colors"],
                 processing,
+                PatternMarkerColor.parse(normalized.get(MARKER_COLOR_KEY)),
             )
         )
 
@@ -511,6 +524,8 @@ def import_analyzed_pattern_collection(
         stored: StoredPattern = OrderedDict(pattern.colors)
         if pattern.processing is not None:
             stored.update(serialize_pattern_processing_state(pattern.processing))
+        if pattern.marker_color is not PatternMarkerColor.DEFAULT:
+            stored[MARKER_COLOR_KEY] = pattern.marker_color.value
         final_patterns[pattern.name] = stored
 
     overwritten_count = 0
@@ -520,6 +535,8 @@ def import_analyzed_pattern_collection(
             stored = OrderedDict[str, object](pattern.colors)
             if pattern.processing is not None:
                 stored.update(serialize_pattern_processing_state(pattern.processing))
+            if pattern.marker_color is not PatternMarkerColor.DEFAULT:
+                stored[MARKER_COLOR_KEY] = pattern.marker_color.value
             final_patterns[pattern.name] = stored
         overwritten_count = len(analysis.user_conflicts)
         skipped_user_conflict_count = 0
@@ -607,9 +624,16 @@ def validate_imported_pattern(data: object) -> PatternExchangeDocument:
         )
         if key in data
     }
+    marker_color = PatternMarkerColor.parse(data.get(MARKER_COLOR_KEY))
+    marker_metadata = (
+        {MARKER_COLOR_KEY: marker_color.value}
+        if marker_color is not PatternMarkerColor.DEFAULT
+        else {}
+    )
     if not processing_fields:
         return create_pattern_exchange_document(
-            normalized_name, dict(zip(color_key, normalized_colors))
+            normalized_name,
+            {**dict(zip(color_key, normalized_colors)), **marker_metadata},
         )
     if len(processing_fields) != 3:
         raise InvalidPatternFileError("Pattern processing is incomplete")
@@ -622,6 +646,7 @@ def validate_imported_pattern(data: object) -> PatternExchangeDocument:
         {
             **dict(zip(color_key, normalized_colors)),
             **serialize_pattern_processing_state(processing),
+            **marker_metadata,
         },
     )
 
@@ -658,7 +683,12 @@ def read_pattern_file(path: Path) -> ImportedPattern:
         if "processing_mode" in document
         else None
     )
-    return ImportedPattern(document["name"], document["colors"], processing)
+    return ImportedPattern(
+        document["name"],
+        document["colors"],
+        processing,
+        PatternMarkerColor.parse(document.get(MARKER_COLOR_KEY)),
+    )
 
 
 def import_pattern(
@@ -684,6 +714,7 @@ def import_pattern(
             overwrite=overwrite,
             pattern_path=pattern_path,
             processing=imported_pattern.processing,
+            marker_color=imported_pattern.marker_color,
         )
     except PatternNameConflictError as exc:
         raise BuiltinPatternImportConflictError(str(exc)) from exc

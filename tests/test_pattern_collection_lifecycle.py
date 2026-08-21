@@ -69,12 +69,20 @@ class PatternCollectionLifecycleTests(unittest.TestCase):
         pattern_handler.army_color_pattern.clear()
         pattern_handler.army_color_pattern.update(self.original_all)
 
-    def seed_user(self, name, pattern_colors, path, processing=None):
+    def seed_user(
+        self,
+        name,
+        pattern_colors,
+        path,
+        processing=None,
+        marker_color=pattern_handler.PatternMarkerColor.DEFAULT,
+    ):
         pattern_handler.save_imported_pattern(
             name,
             list(pattern_colors.values()),
             pattern_path=path,
             processing=processing,
+            marker_color=marker_color,
         )
 
     def rebuild_handler_state(self, users):
@@ -124,6 +132,7 @@ class PatternCollectionLifecycleTests(unittest.TestCase):
                 expected[0][1],
                 source_user_path,
                 saturation_state,
+                pattern_handler.PatternMarkerColor.GREEN,
             )
             self.seed_user(expected[1][0], expected[1][1], source_user_path)
 
@@ -178,6 +187,11 @@ class PatternCollectionLifecycleTests(unittest.TestCase):
             self.assertEqual(
                 pattern_handler.parse_pattern_processing_state(reloaded["Zulu"]),
                 saturation_state,
+            )
+            self.assertEqual(document["patterns"][0]["marker_color"], "green")
+            self.assertIs(
+                pattern_handler.get_pattern_marker_color("Zulu"),
+                pattern_handler.PatternMarkerColor.GREEN,
             )
 
         self.assertEqual(

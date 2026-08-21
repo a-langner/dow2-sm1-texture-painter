@@ -676,6 +676,7 @@ def save(
     pattern_path: Path | None = None,
     *,
     processing: PatternProcessing | PatternProcessingState | None = None,
+    marker_color: PatternMarkerColor = PatternMarkerColor.DEFAULT,
 ) -> None:
     normalized_name, normalized_colors = _validate_new_pattern(name, colors)
     if pattern_path is None:
@@ -683,7 +684,7 @@ def save(
     pattern_path = Path(pattern_path)
     _ensure_user_pattern_file_is_writable(pattern_path)
 
-    pattern = _stored_pattern(normalized_colors, processing)
+    pattern = _stored_pattern(normalized_colors, processing, marker_color)
     updated_user_patterns = OrderedDict(user_color_patterns)
     updated_user_patterns[normalized_name] = pattern
 
@@ -700,6 +701,7 @@ def save_imported_pattern(
     pattern_path: Path | None = None,
     *,
     processing: PatternProcessingState | None = None,
+    marker_color: PatternMarkerColor = PatternMarkerColor.DEFAULT,
 ) -> str:
     """Persist an imported user pattern, optionally replacing that user name."""
     normalized_name = normalize_pattern_name(name)
@@ -718,7 +720,7 @@ def save_imported_pattern(
     pattern_path = Path(pattern_path)
     _ensure_user_pattern_file_is_writable(pattern_path)
 
-    pattern = _stored_pattern(normalized_colors, processing)
+    pattern = _stored_pattern(normalized_colors, processing, marker_color)
     updated_user_patterns = OrderedDict(user_color_patterns)
     updated_user_patterns[normalized_name] = pattern
     _write_user_patterns(updated_user_patterns, pattern_path)
@@ -872,6 +874,7 @@ def replace_user_patterns(
         normalized_patterns[normalized_name] = _stored_pattern(
             normalized_colors,
             processing,
+            PatternMarkerColor.parse(pattern.get(MARKER_COLOR_KEY)),
         )
 
     if pattern_path is None:

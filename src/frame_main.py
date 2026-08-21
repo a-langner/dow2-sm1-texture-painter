@@ -347,6 +347,9 @@ class ArmyPainter(tk.Tk):
             store=src.color_pattern_handler,
             get_colors=lambda name: get_pattern_colors(name),
             get_processing=_get_pattern_processing_or_default,
+            get_marker=lambda name: src.color_pattern_handler.get_pattern_marker_color(
+                name
+            ),
             read_single=lambda path: read_pattern_file(path),
             persist_single_import=lambda pattern, **options: (
                 persist_imported_pattern(pattern, **options)
