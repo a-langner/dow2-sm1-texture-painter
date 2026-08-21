@@ -2348,6 +2348,7 @@ class FrameChannelList(tk.LabelFrame):
         self.lb = tk.Listbox(
             self,
             selectmode=tk.MULTIPLE,
+            activestyle="none",
             exportselection=False,
             selectbackground=APP_SELECTION_BACKGROUND,
             selectforeground=APP_SELECTION_FOREGROUND,

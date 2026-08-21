@@ -288,6 +288,7 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         listbox_type.assert_called_once()
         self.assertIsInstance(frame.lb, FakeWidget)
         self.assertIs(frame.lb.options["exportselection"], False)
+        self.assertEqual(frame.lb.options["activestyle"], "none")
         self.assertEqual(frame.lb.options["selectmode"], "multiple")
 
     def test_alpha_toggle_forwards_boolean_value(self):
