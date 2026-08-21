@@ -16,6 +16,36 @@ from src.team_color_mask_variant import TeamColorMaskVariant
 
 
 class ActiveTextureLifecycleTests(unittest.TestCase):
+    @patch("src.frame_main.ImageTk.PhotoImage", side_effect=lambda image: image)
+    def test_original_preview_hold_switches_cached_display_without_rendering(
+        self, photo_image
+    ):
+        original = object()
+        processed = object()
+        painter = SimpleNamespace(
+            active_texture_set=SimpleNamespace(diffuse=original),
+            original_preview_image=None,
+            processed_preview_image=processed,
+            show_original_preview=False,
+            img_dif=processed,
+            label_img_dif=Mock(),
+            preview_controller=Mock(),
+        )
+
+        ArmyPainter.begin_show_original_preview(painter)
+
+        self.assertTrue(painter.show_original_preview)
+        self.assertIs(painter.img_dif, original)
+        painter.label_img_dif.config.assert_called_with(image=original)
+
+        ArmyPainter.end_show_original_preview(painter)
+
+        self.assertFalse(painter.show_original_preview)
+        self.assertIs(painter.img_dif, processed)
+        painter.label_img_dif.config.assert_called_with(image=processed)
+        photo_image.assert_called_once_with(original)
+        painter.preview_controller.assert_not_called()
+
     def test_preview_request_requires_an_active_texture(self):
         painter = SimpleNamespace(
             active_texture_set=None,

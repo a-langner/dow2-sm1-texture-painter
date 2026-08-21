@@ -212,6 +212,7 @@ class ArmyPainter(tk.Tk):
         self._color_slot_clipboard_color = None
         self._color_slot_clipboard_state = None
         self.show_original_preview = False
+        self.original_preview_image = None
 
     def _configure_main_window(self):
         """Configure root-window geometry, identity, and lifecycle hook."""
@@ -418,6 +419,20 @@ class ArmyPainter(tk.Tk):
             bd=2,
         )
         self.frame_sliders.pack(side=tk.LEFT, fill=tk.Y)
+
+        self.show_original_button = tk.Button(
+            self.frame_img_tools,
+            text="Show Original",
+            state=tk.DISABLED,
+            width=12,
+        )
+        self.show_original_button.bind(
+            "<ButtonPress-1>", self.begin_show_original_preview
+        )
+        self.show_original_button.bind(
+            "<ButtonRelease-1>", self.end_show_original_preview
+        )
+        self.show_original_button.pack(side=tk.LEFT, padx=6, pady=4)
 
         self.frame_team_color_mask_variant = tk.Frame(
             self.frame_color_op_option
@@ -740,6 +755,7 @@ class ArmyPainter(tk.Tk):
         self.img_dif = ImageTk.PhotoImage(
             create_placeholder_img("Select Diffuse Texture", "RGBA")
         )
+        self.processed_preview_image = self.img_dif
         self.label_img_dif = tk.Label(
             self.frame_img, image=self.img_dif, relief=tk.RAISED
         )
@@ -987,11 +1003,13 @@ class ArmyPainter(tk.Tk):
         self.img_dif = ImageTk.PhotoImage(
             create_placeholder_img("Select Diffuse Texture", "RGBA")
         )
+        self.processed_preview_image = self.img_dif
         self.label_img_dif.config(image=self.img_dif)
         self.img_tem = ImageTk.PhotoImage(
             create_placeholder_img("Select Team Color Mask", "L")
         )
         self.label_img_tem.config(image=self.img_tem)
+        ArmyPainter.sync_show_original_button_state(self)
 
     def sync_render_settings(self) -> None:
         colors = self.get_current_pattern_colors()
@@ -1077,11 +1095,44 @@ class ArmyPainter(tk.Tk):
     def reset_original_preview_state(self) -> None:
         """Return the transient comparison source to the processed preview."""
         self.show_original_preview = False
+        self.original_preview_image = None
+
+    def sync_show_original_button_state(self) -> None:
+        """Enable comparison only while an original DIF is loaded."""
+        if hasattr(self, "show_original_button"):
+            self.show_original_button.configure(
+                state=(
+                    tk.NORMAL
+                    if self.active_texture_set is not None
+                    else tk.DISABLED
+                )
+            )
+
+    def begin_show_original_preview(self, Event=None) -> None:
+        """Display the loaded DIF directly without scheduling processing."""
+        if self.active_texture_set is None:
+            return
+        if self.original_preview_image is None:
+            self.original_preview_image = ImageTk.PhotoImage(
+                self.active_texture_set.diffuse
+            )
+        self.show_original_preview = True
+        self.img_dif = self.original_preview_image
+        self.label_img_dif.config(image=self.img_dif)
+
+    def end_show_original_preview(self, Event=None) -> None:
+        """Restore the latest processed image after a normal button release."""
+        self.show_original_preview = False
+        if hasattr(self, "processed_preview_image"):
+            self.img_dif = self.processed_preview_image
+            self.label_img_dif.config(image=self.img_dif)
 
     def apply_preview_result(self, result: PreviewResult):
         """Apply a completed preview on Tk's event thread."""
-        self.img_dif = ImageTk.PhotoImage(result.workspace)
-        self.label_img_dif.config(image=self.img_dif)
+        self.processed_preview_image = ImageTk.PhotoImage(result.workspace)
+        if not self.show_original_preview:
+            self.img_dif = self.processed_preview_image
+            self.label_img_dif.config(image=self.img_dif)
         self.img_tem = ImageTk.PhotoImage(result.team_colour)
         self.label_img_tem.config(image=self.img_tem)
 
@@ -1194,6 +1245,7 @@ class ArmyPainter(tk.Tk):
         ArmyPainter.reset_original_preview_state(self)
         self.preview_controller.invalidate()
         self.active_texture_set = result.texture_set
+        ArmyPainter.sync_show_original_button_state(self)
         self.available_team_color_mask_variants = (
             result.available_team_color_mask_variants
         )
