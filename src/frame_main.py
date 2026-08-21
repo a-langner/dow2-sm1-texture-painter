@@ -48,6 +48,7 @@ from src.color_pattern_handler import (
     PatternError,
     PatternNotFoundError,
     PatternProcessingState,
+    PatternMarkerColor,
     UserPatternPersistenceError,
     get_pattern_colors,
     get_pattern_processing_state,
@@ -326,6 +327,7 @@ class ArmyPainter(tk.Tk):
             on_delete=self.delete_pattern,
             on_selection_changed=self.on_pattern_select,
             on_state_changed=self.update_pattern_action_states,
+            on_marker_changed=self.set_pattern_marker_color,
         )
         self.frame_army_pattern.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.frame_channel_select.lb.bind("<<ListboxSelect>>", self.select_channel)
@@ -1851,6 +1853,23 @@ class ArmyPainter(tk.Tk):
 
         self.frame_army_pattern.load_pattern_list(result.selected_name)
         self.update_pattern_action_states()
+
+    def set_pattern_marker_color(
+        self, pattern_name: str, marker_color: PatternMarkerColor
+    ) -> bool:
+        """Persist marker metadata selected from the Pattern row menu."""
+        try:
+            ArmyPainter._pattern_workflows(self).set_marker_color(
+                pattern_name, marker_color
+            )
+        except (PatternError, OSError) as exc:
+            LOGGER.exception("Could not update marker for Pattern '%s'", pattern_name)
+            self.dialogs.show_error(
+                title="Cannot Change Marker",
+                message=f"The Pattern marker could not be saved:\n{exc}",
+            )
+            return False
+        return True
 
     def get_current_pattern_colors(self) -> list[str]:
         """Return current GUI colors in canonical Pattern order."""

@@ -9,6 +9,7 @@ import src.color_pattern_handler as pattern_store
 from src.color_pattern_handler import (
     InvalidPatternError,
     PatternColors,
+    PatternMarkerColor,
     PatternProcessingState,
     get_pattern_colors,
     normalize_pattern_name,
@@ -50,6 +51,9 @@ class PatternStore(Protocol):
     ) -> str: ...
     def rename_user_pattern(self, old_name: str, new_name: str) -> str: ...
     def delete(self, name: str) -> None: ...
+    def set_user_pattern_marker_color(
+        self, name: str, marker_color: PatternMarkerColor
+    ) -> None: ...
 
 
 class PatternDirectoryRecorder(Protocol):
@@ -251,6 +255,16 @@ class PatternController:
         return PatternOperationResult(
             selected_name=fallback_name,
             list_changed=True,
+            persisted=True,
+            changed=True,
+        )
+
+    def set_marker_color(
+        self, name: str, marker_color: PatternMarkerColor
+    ) -> PatternOperationResult:
+        self.store.set_user_pattern_marker_color(name, marker_color)
+        return PatternOperationResult(
+            selected_name=name,
             persisted=True,
             changed=True,
         )

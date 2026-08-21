@@ -12,7 +12,12 @@ from tkinter import filedialog
 from functools import partial
 from typing import Callable, Optional
 from PIL import Image, ImageTk
-from src.color_pattern_handler import get_all_patterns, is_user_pattern
+from src.color_pattern_handler import (
+    PatternMarkerColor,
+    get_all_patterns,
+    get_pattern_marker_color,
+    is_user_pattern,
+)
 from src.color_slot import ColorSlot
 from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.constant import (
@@ -140,6 +145,7 @@ APP_ENTRY_STYLE = "AppSelection.TEntry"
 APP_SPINBOX_STYLE = "AppSelection.TSpinbox"
 
 ActionCallback = Callable[[], None]
+PatternMarkerCallback = Callable[[str, PatternMarkerColor], object]
 AvailabilityCallback = Callable[[], bool]
 BooleanChangedCallback = Callable[[bool], None]
 ColorChangedCallback = Callable[[int, str], None]
@@ -2325,6 +2331,7 @@ def build_pattern_rows(patterns=None):
                 "name": pattern_name,
                 "is_user": user_created,
                 "marker": "★" if user_created else "",
+                "marker_color": get_pattern_marker_color(pattern_name),
             }
         )
     return rows
@@ -3019,7 +3026,12 @@ class PatternTreeview(ttk.Treeview):
         self.pattern_metadata.clear()
         self.item_by_pattern_name.clear()
 
-    def insert_pattern(self, pattern_name, user_created):
+    def insert_pattern(
+        self,
+        pattern_name,
+        user_created,
+        marker_color=PatternMarkerColor.DEFAULT,
+    ):
         item_id = self.insert(
             "",
             tk.END,
@@ -3030,7 +3042,15 @@ class PatternTreeview(ttk.Treeview):
             "is_user": user_created,
         }
         self.item_by_pattern_name[pattern_name] = item_id
+        self.set_pattern_marker(item_id, marker_color)
         return item_id
+
+    def set_pattern_marker(self, item_id, marker_color):
+        metadata = self.pattern_metadata.get(item_id)
+        if metadata is None or not metadata["is_user"]:
+            return
+        metadata["marker_color"] = marker_color
+        self.item(item_id, tags=(f"marker-{marker_color.value}",))
 
     def get_pattern_name(self, item_id):
         metadata = self.pattern_metadata.get(item_id)
@@ -3062,6 +3082,7 @@ class FramePatternList(tk.Frame):
         on_delete: ActionCallback,
         on_selection_changed: Optional[ActionCallback] = None,
         on_state_changed: Optional[ActionCallback] = None,
+        on_marker_changed: Optional[PatternMarkerCallback] = None,
         **kw,
     ):
         super(FramePatternList, self).__init__(master=master, cnf={}, **kw)
@@ -3071,6 +3092,7 @@ class FramePatternList(tk.Frame):
         self._on_delete = on_delete
         self._on_selection_changed = on_selection_changed
         self._on_state_changed = on_state_changed
+        self._on_marker_changed = on_marker_changed
         self._external_callbacks_enabled = False
         self.pattern_style = ttk.Style(self)
         heading_font = (
@@ -3112,6 +3134,18 @@ class FramePatternList(tk.Frame):
         )
         self.scrollbar.config(command=self.tree.yview)
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.marker_menu = tk.Menu(self, tearoff=False)
+        self.marker_color_menu = tk.Menu(self.marker_menu, tearoff=False)
+        for marker_color in PatternMarkerColor:
+            self.marker_color_menu.add_command(
+                label=marker_color.name.title(),
+                command=partial(self._assign_context_marker, marker_color),
+            )
+        self.marker_menu.add_cascade(
+            label="Marker Color", menu=self.marker_color_menu
+        )
+        self._context_pattern_item = None
+        self.tree.bind("<Button-3>", self._show_pattern_context_menu, add="+")
         self.header_separator_pressed = False
         self.tree.bind("<Button-1>", self._block_header_separator_press, add="+")
         self.tree.bind("<B1-Motion>", self._block_header_separator_drag, add="+")
@@ -3211,6 +3245,29 @@ class FramePatternList(tk.Frame):
     def _notify_selection_changed(self, Event=None):
         if self._external_callbacks_enabled and self._on_selection_changed is not None:
             self._on_selection_changed()
+
+    def _show_pattern_context_menu(self, Event):
+        item_id = self.tree.identify_row(Event.y)
+        if not item_id or not self.tree.is_user_item(item_id):
+            self._context_pattern_item = None
+            return
+        self._context_pattern_item = item_id
+        self.tree.selection_set(item_id)
+        self.tree.focus(item_id)
+        self.marker_menu.tk_popup(Event.x_root, Event.y_root)
+        return "break"
+
+    def _assign_context_marker(self, marker_color):
+        item_id = self._context_pattern_item
+        self._context_pattern_item = None
+        if item_id is None or not self.tree.is_user_item(item_id):
+            return
+        pattern_name = self.tree.get_pattern_name(item_id)
+        if pattern_name is None or self._on_marker_changed is None:
+            return
+        if self._on_marker_changed(pattern_name, marker_color) is False:
+            return
+        self.tree.set_pattern_marker(item_id, marker_color)
 
     def _tree_border_width(self):
         border_width = self.pattern_style.lookup(
@@ -3354,7 +3411,11 @@ class FramePatternList(tk.Frame):
         self.tree.clear_patterns()
         rows = build_pattern_rows()
         for row in rows:
-            self.tree.insert_pattern(row["name"], user_created=row["is_user"])
+            self.tree.insert_pattern(
+                row["name"],
+                user_created=row["is_user"],
+                marker_color=row["marker_color"],
+            )
         pattern_name = pattern_name_to_restore(
             preferred_pattern_name,
             current_pattern_name,

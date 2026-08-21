@@ -338,6 +338,47 @@ def get_pattern_marker_color(name: str) -> PatternMarkerColor:
     return PatternMarkerColor.parse(pattern.get(MARKER_COLOR_KEY))
 
 
+def set_user_pattern_marker_color(
+    name: str,
+    marker_color: PatternMarkerColor,
+    pattern_path: Path | None = None,
+) -> None:
+    """Atomically change organizational metadata for one user Pattern."""
+    normalized_name = normalize_pattern_name(name)
+    if normalized_name in builtin_color_patterns:
+        raise BuiltinPatternModificationError(
+            f"Built-in pattern '{normalized_name}' cannot receive a marker color"
+        )
+    if normalized_name not in user_color_patterns:
+        raise PatternNotFoundError(f"Pattern '{normalized_name}' was not found")
+    if not isinstance(marker_color, PatternMarkerColor):
+        raise TypeError("marker_color must be a PatternMarkerColor value")
+
+    updated_pattern = OrderedDict(user_color_patterns[normalized_name])
+    if marker_color is PatternMarkerColor.DEFAULT:
+        updated_pattern.pop(MARKER_COLOR_KEY, None)
+    else:
+        updated_pattern[MARKER_COLOR_KEY] = marker_color.value
+    if updated_pattern == user_color_patterns[normalized_name]:
+        return
+
+    if pattern_path is None:
+        pattern_path = get_user_patterns_path(create_parent=True)
+    pattern_path = Path(pattern_path)
+    _ensure_user_pattern_file_is_writable(pattern_path)
+    updated_user_patterns = OrderedDict(user_color_patterns)
+    updated_user_patterns[normalized_name] = updated_pattern
+    try:
+        _write_user_patterns(updated_user_patterns, pattern_path)
+    except OSError as exc:
+        raise UserPatternPersistenceError(
+            f"Could not update marker for user pattern '{normalized_name}': {exc}"
+        ) from exc
+
+    user_color_patterns[normalized_name] = updated_pattern
+    army_color_pattern[normalized_name] = updated_pattern
+
+
 def _parse_processing_settings(value: object) -> ColorProcessingSettings:
     if not isinstance(value, Mapping) or list(value) not in (
         processing_key,

@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.action_state import PatternActionContext, derive_pattern_action_state
+from src.color_pattern_handler import PatternMarkerColor
 from src.widget import (
     FramePatternList,
     calculate_pattern_separator_x,
@@ -114,6 +115,72 @@ class FakePositionTree:
 
 
 class PatternTreeviewLayoutTests(unittest.TestCase):
+    def test_context_menu_targets_right_clicked_user_pattern(self):
+        tree = SimpleNamespace(
+            identify_row=Mock(return_value="user-item"),
+            is_user_item=Mock(return_value=True),
+            selection_set=Mock(),
+            focus=Mock(),
+        )
+        menu = SimpleNamespace(tk_popup=Mock())
+        frame = SimpleNamespace(
+            tree=tree,
+            marker_menu=menu,
+            _context_pattern_item=None,
+        )
+        event = SimpleNamespace(y=18, x_root=40, y_root=60)
+
+        result = FramePatternList._show_pattern_context_menu(frame, event)
+
+        self.assertEqual(result, "break")
+        self.assertEqual(frame._context_pattern_item, "user-item")
+        tree.selection_set.assert_called_once_with("user-item")
+        menu.tk_popup.assert_called_once_with(40, 60)
+
+    def test_context_marker_callback_uses_stable_name_and_updates_row(self):
+        callback = Mock(return_value=True)
+        tree = SimpleNamespace(
+            is_user_item=Mock(return_value=True),
+            get_pattern_name=Mock(return_value="Right Clicked"),
+            set_pattern_marker=Mock(),
+        )
+        frame = SimpleNamespace(
+            tree=tree,
+            _context_pattern_item="user-item",
+            _on_marker_changed=callback,
+        )
+
+        FramePatternList._assign_context_marker(
+            frame, PatternMarkerColor.GREEN
+        )
+
+        callback.assert_called_once_with(
+            "Right Clicked", PatternMarkerColor.GREEN
+        )
+        tree.set_pattern_marker.assert_called_once_with(
+            "user-item", PatternMarkerColor.GREEN
+        )
+        self.assertIsNone(frame._context_pattern_item)
+
+    def test_context_menu_is_not_shown_for_builtin_pattern(self):
+        tree = SimpleNamespace(
+            identify_row=Mock(return_value="builtin-item"),
+            is_user_item=Mock(return_value=False),
+        )
+        frame = SimpleNamespace(
+            tree=tree,
+            marker_menu=SimpleNamespace(tk_popup=Mock()),
+            _context_pattern_item="old-item",
+        )
+
+        result = FramePatternList._show_pattern_context_menu(
+            frame, SimpleNamespace(y=4)
+        )
+
+        self.assertIsNone(result)
+        self.assertIsNone(frame._context_pattern_item)
+        frame.marker_menu.tk_popup.assert_not_called()
+
     @patch("src.widget.ttk.Label", side_effect=FakeButton)
     @patch("src.widget.tk.Button", side_effect=FakeButton)
     @patch("src.widget.tk.Frame", return_value=FakeActionFrame())

@@ -23,6 +23,7 @@ from src.color_pattern_handler import (
     PatternProcessingState,
     PatternMarkerColor,
     get_pattern_marker_color,
+    set_user_pattern_marker_color,
     color_key,
     get_all_patterns,
     load_builtin_patterns,
@@ -287,6 +288,34 @@ class ColorPatternSavingTests(unittest.TestCase):
             self.assertEqual(saved["version"], USER_PATTERN_VERSION)
             self.assertEqual(list(saved["patterns"]), ["New Pattern"])
             self.assertIn("New Pattern", pattern_handler.user_color_patterns)
+
+    def test_marker_assignment_persists_and_default_removes_metadata(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            pattern_handler.save("Marked", self.colors(), pattern_path)
+
+            set_user_pattern_marker_color(
+                "Marked", PatternMarkerColor.BLUE, pattern_path
+            )
+
+            reloaded = load_user_patterns(pattern_path)
+            self.assertEqual(reloaded["Marked"]["marker_color"], "blue")
+            self.assertIs(
+                get_pattern_marker_color("Marked"), PatternMarkerColor.BLUE
+            )
+
+            set_user_pattern_marker_color(
+                "Marked", PatternMarkerColor.DEFAULT, pattern_path
+            )
+
+            reloaded = load_user_patterns(pattern_path)
+            self.assertNotIn("marker_color", reloaded["Marked"])
+
+    def test_builtin_pattern_cannot_receive_marker_color(self):
+        with self.assertRaises(pattern_handler.BuiltinPatternModificationError):
+            set_user_pattern_marker_color(
+                "Blood Ravens", PatternMarkerColor.RED
+            )
 
     def test_saved_pattern_can_be_loaded_from_disk(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
