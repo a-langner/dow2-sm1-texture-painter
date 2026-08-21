@@ -112,6 +112,8 @@ class PatternMenuStateTests(unittest.TestCase):
                 "close",
                 "on_exit",
                 "reset_workspace",
+                "undo",
+                "redo",
                 "on_dirt_toggle",
                 "on_spec_toggle",
                 "save_pattern",
@@ -148,6 +150,38 @@ class PatternMenuStateTests(unittest.TestCase):
         }
         self.assertEqual(
             list(cascades), ["File", "Edit", "Game", "Patterns", "Tools", "Help"]
+        )
+        self.assertEqual(
+            cascades["Edit"].items[:4],
+            [
+                (
+                    "command",
+                    {
+                        "label": "Undo",
+                        "command": handlers["undo"],
+                        "accelerator": "Ctrl+Z",
+                        "state": "disabled",
+                    },
+                ),
+                (
+                    "command",
+                    {
+                        "label": "Redo",
+                        "command": handlers["redo"],
+                        "accelerator": "Ctrl+Y",
+                        "state": "disabled",
+                    },
+                ),
+                ("separator", {}),
+                (
+                    "command",
+                    {
+                        "label": "Reset workspace",
+                        "command": handlers["reset_workspace"],
+                        "accelerator": "Ctrl+R",
+                    },
+                ),
+            ],
         )
         self.assertEqual(
             [item[1]["label"] for item in cascades["Game"].items],

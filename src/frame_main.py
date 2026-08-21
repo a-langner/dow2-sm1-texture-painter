@@ -636,14 +636,27 @@ class ArmyPainter(tk.Tk):
             self.config(menu=menubar)
 
         def define_editmenu():
-            editmenu = tk.Menu(menubar, tearoff=0)
-            editmenu.add_command(
+            self.edit_menu = tk.Menu(menubar, tearoff=0)
+            self.edit_menu.add_command(
+                label="Undo",
+                command=self.undo,
+                accelerator="Ctrl+Z",
+                state=tk.DISABLED,
+            )
+            self.edit_menu.add_command(
+                label="Redo",
+                command=self.redo,
+                accelerator="Ctrl+Y",
+                state=tk.DISABLED,
+            )
+            self.edit_menu.add_separator()
+            self.edit_menu.add_command(
                 label="Reset workspace",
                 command=self.reset_workspace,
                 accelerator="Ctrl+R",
             )
             self.apply_dirt = tk.BooleanVar()
-            editmenu.add_checkbutton(
+            self.edit_menu.add_checkbutton(
                 label="Apply Dirt Texture",
                 variable=self.apply_dirt,
                 onvalue=1,
@@ -651,14 +664,14 @@ class ArmyPainter(tk.Tk):
                 command=self.on_dirt_toggle,
             )
             self.apply_spec = tk.BooleanVar()
-            editmenu.add_checkbutton(
+            self.edit_menu.add_checkbutton(
                 label="Apply Specular Texture",
                 variable=self.apply_spec,
                 onvalue=1,
                 offvalue=0,
                 command=self.on_spec_toggle,
             )
-            menubar.add_cascade(label="Edit", menu=editmenu)
+            menubar.add_cascade(label="Edit", menu=self.edit_menu)
 
         def define_patternmenu():
             self.pattern_menu = tk.Menu(menubar, tearoff=0)
