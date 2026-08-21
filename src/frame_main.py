@@ -1061,6 +1061,7 @@ class ArmyPainter(tk.Tk):
             )
 
     def close(self, Event=None):
+        ArmyPainter.clear_workspace_history(self)
         ArmyPainter.reset_original_preview_state(self)
         self.preview_controller.invalidate()
         self.active_texture_set = None
@@ -1118,6 +1119,16 @@ class ArmyPainter(tk.Tk):
         history = self.workspace_history
         menu.entryconfigure("Undo", state=tk.NORMAL if history.can_undo else tk.DISABLED)
         menu.entryconfigure("Redo", state=tk.NORMAL if history.can_redo else tk.DISABLED)
+
+    def clear_workspace_history(self) -> None:
+        """Clear session history when the editable source context changes."""
+        history = getattr(self, "workspace_history", None)
+        if history is None:
+            history = WorkspaceHistory()
+            self.workspace_history = history
+        history.clear()
+        self._slider_edit_start = None
+        ArmyPainter.sync_history_action_states(self)
 
     def restore_editable_workspace_state(
         self, state: EditableWorkspaceState
@@ -1470,6 +1481,7 @@ class ArmyPainter(tk.Tk):
         ):
             self.select_game_profile(detected_profile.profile_id)
         result = self.texture_loading.load_diffuse_and_companions(Path(filepath))
+        ArmyPainter.clear_workspace_history(self)
         ArmyPainter.reset_original_preview_state(self)
         self.preview_controller.invalidate()
         self.active_texture_set = result.texture_set
@@ -1554,6 +1566,7 @@ class ArmyPainter(tk.Tk):
             result = self.texture_loading.load_channel_file(
                 self.active_texture_set, Path(filepath)
             )
+            ArmyPainter.clear_workspace_history(self)
             self.preview_controller.invalidate()
             self.active_texture_set = result.texture_set
             self.available_team_color_mask_variants = ()

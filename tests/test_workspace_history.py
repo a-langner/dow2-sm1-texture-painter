@@ -272,6 +272,30 @@ class WorkspaceHistoryTests(unittest.TestCase):
         self.assertTrue(history.can_undo)
         self.assertFalse(history.can_redo)
 
+    def test_workspace_boundary_clears_undo_redo_and_slider_gesture(self):
+        history = WorkspaceHistory()
+        first = state_with_brightness(10)
+        second = state_with_brightness(20)
+        history.record_edit(first, second)
+        history.undo(second)
+        painter = SimpleNamespace(
+            workspace_history=history,
+            _slider_edit_start=first,
+            edit_menu=Mock(),
+        )
+
+        ArmyPainter.clear_workspace_history(painter)
+
+        self.assertFalse(history.can_undo)
+        self.assertFalse(history.can_redo)
+        self.assertIsNone(painter._slider_edit_start)
+        painter.edit_menu.entryconfigure.assert_has_calls(
+            [
+                call("Undo", state="disabled"),
+                call("Redo", state="disabled"),
+            ]
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
