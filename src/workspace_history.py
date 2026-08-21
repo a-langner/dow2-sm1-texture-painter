@@ -26,12 +26,14 @@ class EditableWorkspaceState:
     apply_dirt: bool
     apply_spec: bool
     team_color_mask_variant: TeamColorMaskVariant | None
+    selected_pattern_name: str | None
 
     @classmethod
     def from_render_settings(
         cls,
         settings: RenderSettings,
         team_color_mask_variant: TeamColorMaskVariant | None,
+        selected_pattern_name: str | None = None,
     ) -> "EditableWorkspaceState":
         """Capture render state while deliberately excluding active-slot focus."""
         return cls(
@@ -46,6 +48,7 @@ class EditableWorkspaceState:
             apply_dirt=settings.apply_dirt,
             apply_spec=settings.apply_spec,
             team_color_mask_variant=team_color_mask_variant,
+            selected_pattern_name=selected_pattern_name,
         )
 
     def restore_render_settings(self, current: RenderSettings) -> RenderSettings:

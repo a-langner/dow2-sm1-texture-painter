@@ -218,6 +218,7 @@ class ArmyPainter(tk.Tk):
         self.workspace_history = WorkspaceHistory()
         self._history_recording_suspended = False
         self._slider_edit_start = None
+        self._history_pattern_selection_name = None
 
     def _configure_main_window(self):
         """Configure root-window geometry, identity, and lifecycle hook."""
@@ -1109,9 +1110,18 @@ class ArmyPainter(tk.Tk):
 
     def capture_editable_workspace_state(self) -> EditableWorkspaceState:
         """Capture the current lightweight state for one history boundary."""
+        pattern_panel = getattr(self, "frame_army_pattern", None)
+        selected_pattern_name = None
+        if pattern_panel is not None:
+            if hasattr(pattern_panel, "get_selected_pattern_name"):
+                selected_pattern_name = pattern_panel.get_selected_pattern_name()
+            elif hasattr(pattern_panel, "get_selected_pattern"):
+                selection = pattern_panel.get_selected_pattern()
+                selected_pattern_name = selection.name if selection else None
         return EditableWorkspaceState.from_render_settings(
             self.render_settings,
             getattr(self, "active_team_color_mask_variant", None),
+            selected_pattern_name,
         )
 
     def record_workspace_edit(self, previous: EditableWorkspaceState) -> bool:
@@ -1124,6 +1134,7 @@ class ArmyPainter(tk.Tk):
             self.workspace_history = history
         current = ArmyPainter.capture_editable_workspace_state(self)
         recorded = history.record_edit(previous, current)
+        self._history_pattern_selection_name = current.selected_pattern_name
         ArmyPainter.sync_history_action_states(self)
         return recorded
 
@@ -1178,6 +1189,15 @@ class ArmyPainter(tk.Tk):
         if hasattr(self, "apply_spec"):
             self.apply_spec.set(state.apply_spec)
         ArmyPainter.sync_team_color_mask_variant_selector(self)
+        current_pattern_name = self.frame_army_pattern.get_selected_pattern_name()
+        restored_pattern_name = state.selected_pattern_name
+        if restored_pattern_name != current_pattern_name:
+            if restored_pattern_name is None:
+                self.frame_army_pattern.clear_selection()
+            elif self.frame_army_pattern.select_pattern(restored_pattern_name) is None:
+                self.frame_army_pattern.clear_selection()
+                restored_pattern_name = None
+        self._history_pattern_selection_name = restored_pattern_name
         self.update_pattern_action_states()
         self.refresh_workspace()
 
@@ -1443,6 +1463,13 @@ class ArmyPainter(tk.Tk):
             if hasattr(self, "render_settings")
             else None
         )
+        if previous is not None:
+            previous = replace(
+                previous,
+                selected_pattern_name=getattr(
+                    self, "_history_pattern_selection_name", None
+                ),
+            )
         for color, color_box in zip(color_list, self.frame_color_chooser.color_boxes):
             color_box["bg"] = color
         self.frame_color_chooser.draw_rgb_value()

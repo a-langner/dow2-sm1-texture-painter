@@ -115,6 +115,7 @@ class WorkspaceHistoryTests(unittest.TestCase):
                 "apply_dirt",
                 "apply_spec",
                 "team_color_mask_variant",
+                "selected_pattern_name",
             },
         )
         source = Path(__file__).resolve().parents[1] / "src" / "workspace_history.py"
@@ -245,6 +246,11 @@ class WorkspaceHistoryTests(unittest.TestCase):
                 lb=listbox,
                 apply_alpha=SimpleNamespace(set=Mock()),
             ),
+            frame_army_pattern=SimpleNamespace(
+                get_selected_pattern_name=Mock(return_value=None),
+                clear_selection=Mock(),
+                select_pattern=Mock(return_value="pattern-item"),
+            ),
             edit_menu=Mock(),
             update_pattern_action_states=Mock(),
             refresh_workspace=Mock(),
@@ -319,6 +325,57 @@ class WorkspaceHistoryTests(unittest.TestCase):
                 call("Redo", state="disabled"),
             ]
         )
+
+    def test_undo_pattern_application_clears_selection_and_modified_state(self):
+        history = WorkspaceHistory()
+        selected_name = "Applied Pattern"
+        pattern_panel = SimpleNamespace()
+        pattern_panel.selected_name = selected_name
+        pattern_panel.get_selected_pattern_name = lambda: pattern_panel.selected_name
+        pattern_panel.get_selected_pattern = lambda: (
+            SimpleNamespace(name=pattern_panel.selected_name, is_user=False)
+            if pattern_panel.selected_name is not None
+            else None
+        )
+        pattern_panel.clear_selection = lambda: setattr(
+            pattern_panel, "selected_name", None
+        )
+        pattern_panel.select_pattern = lambda name: setattr(
+            pattern_panel, "selected_name", name
+        )
+        listbox = Mock()
+        listbox.curselection.return_value = ()
+        painter = SimpleNamespace(
+            render_settings=DEFAULT_RENDER_SETTINGS,
+            active_team_color_mask_variant=None,
+            workspace_history=history,
+            _history_recording_suspended=False,
+            _history_pattern_selection_name=None,
+            frame_army_pattern=pattern_panel,
+            frame_color_chooser=SimpleNamespace(
+                color_boxes=[{"bg": "#808080"} for _ in range(4)],
+                draw_rgb_value=Mock(),
+            ),
+            frame_channel_select=SimpleNamespace(
+                lb=listbox,
+                apply_alpha=SimpleNamespace(set=Mock()),
+            ),
+            update_pattern_action_states=Mock(),
+            refresh_workspace=Mock(),
+        )
+
+        ArmyPainter._apply_pattern_colors(
+            painter,
+            ["#102030", "#405060", "#708090", "#a0b0c0"],
+        )
+        self.assertEqual(pattern_panel.selected_name, selected_name)
+        with patch.object(ArmyPainter, "refresh_processing_controls"), patch.object(
+            ArmyPainter, "sync_team_color_mask_variant_selector"
+        ):
+            self.assertTrue(ArmyPainter.undo(painter))
+
+        self.assertIsNone(pattern_panel.selected_name)
+        self.assertFalse(ArmyPainter.is_selected_pattern_dirty(painter))
 
 
 if __name__ == "__main__":
