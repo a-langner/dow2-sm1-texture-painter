@@ -24,6 +24,7 @@ from src.color_pattern_handler import (
     PatternMarkerColor,
     get_pattern_marker_color,
     set_user_pattern_marker_color,
+    reorder_user_pattern,
     color_key,
     get_all_patterns,
     load_builtin_patterns,
@@ -338,6 +339,67 @@ class ColorPatternSavingTests(unittest.TestCase):
             self.assertEqual(reloaded["Renamed"]["marker_color"], "yellow")
             self.assertIs(
                 get_pattern_marker_color("Renamed"), PatternMarkerColor.YELLOW
+            )
+
+    def test_manual_user_order_survives_persistence_reload(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            for name in ("First", "Second", "Third"):
+                pattern_handler.save(name, self.colors(), pattern_path)
+
+            changed = reorder_user_pattern("Third", 0, pattern_path)
+
+            self.assertTrue(changed)
+            self.assertEqual(
+                list(pattern_handler.user_color_patterns),
+                ["Third", "First", "Second"],
+            )
+            self.assertEqual(
+                list(load_user_patterns(pattern_path)),
+                ["Third", "First", "Second"],
+            )
+            combined = get_all_patterns(
+                pattern_handler.builtin_color_patterns,
+                load_user_patterns(pattern_path),
+            )
+            self.assertEqual(
+                list(combined)[-3:], ["Third", "First", "Second"]
+            )
+
+    def test_reorder_rejects_builtin_and_outside_user_block(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            pattern_handler.save("User", self.colors(), pattern_path)
+
+            with self.assertRaises(
+                pattern_handler.BuiltinPatternModificationError
+            ):
+                reorder_user_pattern("Blood Ravens", 0, pattern_path)
+            with self.assertRaisesRegex(ValueError, "user Pattern block"):
+                reorder_user_pattern("User", -1, pattern_path)
+            with self.assertRaisesRegex(ValueError, "user Pattern block"):
+                reorder_user_pattern("User", 1, pattern_path)
+
+            self.assertEqual(list(load_user_patterns(pattern_path)), ["User"])
+
+    def test_rename_update_and_marker_change_do_not_reorder_users(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            for name in ("First", "Second", "Third"):
+                pattern_handler.save(name, self.colors(), pattern_path)
+            reorder_user_pattern("Third", 0, pattern_path)
+
+            pattern_handler.rename_user_pattern("First", "Renamed", pattern_path)
+            pattern_handler.update_user_pattern(
+                "Second", list(pattern("#abcdef").values()), pattern_path
+            )
+            set_user_pattern_marker_color(
+                "Third", PatternMarkerColor.BLUE, pattern_path
+            )
+
+            self.assertEqual(
+                list(load_user_patterns(pattern_path)),
+                ["Third", "Renamed", "Second"],
             )
 
     def test_saved_pattern_can_be_loaded_from_disk(self):

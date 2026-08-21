@@ -827,6 +827,54 @@ def rename_user_pattern(
     return normalized_new_name
 
 
+def reorder_user_pattern(
+    name: str,
+    target_index: int,
+    pattern_path: Path | None = None,
+) -> bool:
+    """Move one user Pattern within the persisted user-only order."""
+    normalized_name = normalize_pattern_name(name)
+    if normalized_name in builtin_color_patterns:
+        raise BuiltinPatternModificationError(
+            f"Built-in pattern '{normalized_name}' cannot be reordered"
+        )
+    if normalized_name not in user_color_patterns:
+        raise PatternNotFoundError(f"Pattern '{normalized_name}' was not found")
+    if type(target_index) is not int:
+        raise TypeError("target_index must be an integer")
+    if not 0 <= target_index < len(user_color_patterns):
+        raise ValueError("target_index is outside the user Pattern block")
+
+    current_names = list(user_color_patterns)
+    current_index = current_names.index(normalized_name)
+    if current_index == target_index:
+        return False
+    current_names.pop(current_index)
+    current_names.insert(target_index, normalized_name)
+    reordered_patterns = OrderedDict(
+        (pattern_name, user_color_patterns[pattern_name])
+        for pattern_name in current_names
+    )
+
+    if pattern_path is None:
+        pattern_path = get_user_patterns_path(create_parent=True)
+    pattern_path = Path(pattern_path)
+    _ensure_user_pattern_file_is_writable(pattern_path)
+    try:
+        _write_user_patterns(reordered_patterns, pattern_path)
+    except OSError as exc:
+        raise UserPatternPersistenceError(
+            f"Could not reorder user pattern '{normalized_name}': {exc}"
+        ) from exc
+
+    user_color_patterns.clear()
+    user_color_patterns.update(reordered_patterns)
+    army_color_pattern.clear()
+    army_color_pattern.update(builtin_color_patterns)
+    army_color_pattern.update(user_color_patterns)
+    return True
+
+
 def replace_user_patterns(
     patterns: Mapping[str, PatternInput],
     pattern_path: Path | None = None,
