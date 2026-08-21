@@ -143,6 +143,7 @@ ActionCallback = Callable[[], None]
 BooleanChangedCallback = Callable[[bool], None]
 ColorChangedCallback = Callable[[int, str], None]
 ColorSlotSelectedCallback = Callable[[int], None]
+ColorSlotActionCallback = Callable[[int], object]
 ColorSlotsSwappedCallback = Callable[[int, int], object]
 ColorPickerCallback = Callable[[str], Optional[str]]
 PaintSelectedCallback = Callable[[PaintColor], None]
@@ -2386,6 +2387,7 @@ class FrameColorChooser(tk.Frame):
         on_color_changed: ColorChangedCallback,
         on_slot_selected: ColorSlotSelectedCallback,
         on_slots_swapped: Optional[ColorSlotsSwappedCallback] = None,
+        on_color_copied: Optional[ColorSlotActionCallback] = None,
         color_picker: Optional[ColorPickerCallback] = None,
         paint_catalog: Optional[PaintCatalog] = None,
         settings=None,
@@ -2396,6 +2398,7 @@ class FrameColorChooser(tk.Frame):
         self._on_color_changed = on_color_changed
         self._on_slot_selected = on_slot_selected
         self._on_slots_swapped = on_slots_swapped
+        self._on_color_copied = on_color_copied
         self._color_picker = (
             self._open_color_picker if color_picker is None else color_picker
         )
@@ -2622,6 +2625,11 @@ class FrameColorChooser(tk.Frame):
             command=partial(self.apply_color, slot_index),
         )
         menu.add_separator()
+        menu.add_command(
+            label="Copy Color",
+            command=partial(self._request_color_copy, slot_index),
+        )
+        menu.add_separator()
         for target_index in range(len(self.color_slots)):
             if target_index == slot_index:
                 continue
@@ -2633,6 +2641,12 @@ class FrameColorChooser(tk.Frame):
             menu.tk_popup(Event.x_root, Event.y_root)
         finally:
             menu.grab_release()
+
+    def _request_color_copy(self, slot_index: int):
+        """Delegate a colour-only copy for one fixed Color Slot."""
+        if self._on_color_copied is not None:
+            return self._on_color_copied(slot_index)
+        return None
 
     def _request_slot_swap(self, source_index: int, target_index: int):
         """Delegate one UI swap request to the application operation."""

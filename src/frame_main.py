@@ -208,6 +208,7 @@ class ArmyPainter(tk.Tk):
         self.closing = False
         self._handling_callback_exception = False
         self.user_pattern_warning_shown = False
+        self._color_slot_clipboard_color = None
 
     def _configure_main_window(self):
         """Configure root-window geometry, identity, and lifecycle hook."""
@@ -369,6 +370,7 @@ class ArmyPainter(tk.Tk):
             on_color_changed=self.on_color_changed,
             on_slot_selected=self.on_color_slot_selected,
             on_slots_swapped=self.swap_color_slots,
+            on_color_copied=self.copy_color_slot,
             settings=self.settings,
             drag_binding_owner=self,
             width=COLOR_BOX_SIZE * 4 + 12,
@@ -835,6 +837,13 @@ class ArmyPainter(tk.Tk):
         self.update_pattern_action_states()
         self.refresh_workspace()
         return True
+
+    def copy_color_slot(self, slot_index: int) -> None:
+        """Copy one slot colour into the application-scoped session clipboard."""
+        slot = ColorSlot.from_index(slot_index)
+        self._color_slot_clipboard_color = ArmyPainter.get_current_pattern_colors(
+            self
+        )[slot.index].lower()
 
     def save(self, Event=None):
         """Save image from current workspace

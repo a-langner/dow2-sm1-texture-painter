@@ -174,6 +174,7 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         chooser.color_slots = [Mock() for _ in range(4)]
         chooser.select_slot = Mock()
         chooser.apply_color = Mock()
+        chooser._on_color_copied = Mock()
         chooser._on_slots_swapped = Mock()
         menu = FakeMenu(chooser)
 
@@ -189,10 +190,35 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         menu.entries[0][1]["command"]()
         chooser.apply_color.assert_called_once_with(2)
         self.assertEqual(menu.entries[1][0], "separator")
+        self.assertEqual(menu.entries[2][1]["label"], "Copy Color")
+        menu.entries[2][1]["command"]()
+        chooser._on_color_copied.assert_called_once_with(2)
+        self.assertEqual(menu.entries[3][0], "separator")
         self.assertEqual(
-            [entry[1]["label"] for entry in menu.entries[2:]],
+            [entry[1]["label"] for entry in menu.entries[4:]],
             ["Swap with Color 1", "Swap with Color 2", "Swap with Color 4"],
         )
+
+    def test_copy_color_stores_only_color_without_refreshing_state(self):
+        painter = SimpleNamespace(
+            frame_color_chooser=SimpleNamespace(
+                color_boxes=[
+                    {"bg": "#112233"},
+                    {"bg": "#AABBCC"},
+                    {"bg": "#445566"},
+                    {"bg": "#778899"},
+                ]
+            ),
+            _color_slot_clipboard_color=None,
+            update_pattern_action_states=Mock(),
+            refresh_workspace=Mock(),
+        )
+
+        ArmyPainter.copy_color_slot(painter, 1)
+
+        self.assertEqual(painter._color_slot_clipboard_color, "#aabbcc")
+        painter.update_pattern_action_states.assert_not_called()
+        painter.refresh_workspace.assert_not_called()
 
     @patch("src.widget.tk.Checkbutton", side_effect=FakeWidget)
     @patch("src.widget.tk.BooleanVar", return_value=ValueVariable(0))
