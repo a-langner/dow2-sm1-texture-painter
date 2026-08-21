@@ -40,6 +40,18 @@ class WorkspaceHistoryTests(unittest.TestCase):
 
         self.assertFalse(history.can_redo)
 
+    def test_no_op_after_undo_preserves_redo(self):
+        history = WorkspaceHistory()
+        first = state_with_brightness(10)
+        second = state_with_brightness(20)
+        history.record_edit(first, second)
+        history.undo(second)
+
+        self.assertFalse(history.record_edit(first, first))
+
+        self.assertTrue(history.can_redo)
+        self.assertEqual(history.redo(first), second)
+
     def test_history_discards_oldest_state_above_limit(self):
         history = WorkspaceHistory()
         states = [
