@@ -989,9 +989,16 @@ class ArmyPainter(tk.Tk):
         slot = ColorSlot.from_index(slot_index)
         ArmyPainter.sync_render_settings(self)
         previous = ArmyPainter.capture_editable_workspace_state(self)
+        default_state = DEFAULT_RENDER_SETTINGS.color_slot_states[slot.index]
+        current_state = self.render_settings.color_slot_states[slot.index]
+        if current_state == default_state and (
+            self.render_settings.per_color_processing_initialized
+            or self.render_settings.global_processing
+            == DEFAULT_RENDER_SETTINGS.global_processing
+        ):
+            return
         self.render_settings = self.render_settings.initialize_per_color_processing()
         states = list(self.render_settings.color_slot_states)
-        default_state = DEFAULT_RENDER_SETTINGS.color_slot_states[slot.index]
         states[slot.index] = default_state
         self.render_settings = self.render_settings.with_color_slot_states(
             (states[0], states[1], states[2], states[3])

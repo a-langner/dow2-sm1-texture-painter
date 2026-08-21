@@ -1,7 +1,7 @@
 import unittest
 from dataclasses import replace
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from src.color_slot import ColorSlot
 from src.frame_main import ArmyPainter
@@ -140,6 +140,44 @@ class WorkspaceHistoryTests(unittest.TestCase):
         )
         self.assertEqual(history.undo(after), before)
         self.assertEqual(history.redo(before), after)
+
+    def test_resetting_an_already_default_slot_is_not_recorded(self):
+        history = WorkspaceHistory()
+        painter = SimpleNamespace(
+            render_settings=DEFAULT_RENDER_SETTINGS,
+            active_team_color_mask_variant=None,
+            workspace_history=history,
+            _history_recording_suspended=False,
+            frame_color_chooser=SimpleNamespace(
+                color_boxes=[{"bg": "#808080"} for _ in range(4)],
+                draw_rgb_value=Mock(),
+            ),
+            update_pattern_action_states=Mock(),
+            refresh_workspace=Mock(),
+        )
+
+        with patch.object(ArmyPainter, "sync_render_settings"):
+            ArmyPainter.reset_color_slot(painter, 0)
+
+        self.assertFalse(history.can_undo)
+        painter.frame_color_chooser.draw_rgb_value.assert_not_called()
+        painter.refresh_workspace.assert_not_called()
+
+    def test_slider_press_and_release_without_change_is_not_recorded(self):
+        history = WorkspaceHistory()
+        painter = SimpleNamespace(
+            render_settings=DEFAULT_RENDER_SETTINGS,
+            active_team_color_mask_variant=None,
+            workspace_history=history,
+            _history_recording_suspended=False,
+            _processing_controls_refreshing=False,
+            _slider_edit_start=None,
+        )
+
+        ArmyPainter.begin_slider_edit(painter)
+        ArmyPainter.end_slider_edit(painter)
+
+        self.assertFalse(history.can_undo)
 
 
 if __name__ == "__main__":
