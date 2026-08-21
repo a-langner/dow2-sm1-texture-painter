@@ -11,6 +11,7 @@ from src.widget import (
     FramePatternList,
     calculate_pattern_separator_x,
     find_treeview_body_boundary,
+    pattern_marker_display_color,
 )
 
 
@@ -115,6 +116,25 @@ class FakePositionTree:
 
 
 class PatternTreeviewLayoutTests(unittest.TestCase):
+    def test_assigned_marker_colors_remain_distinct_on_selected_rows(self):
+        selected_colors = {
+            pattern_marker_display_color(marker, True)
+            for marker in PatternMarkerColor
+            if marker is not PatternMarkerColor.DEFAULT
+        }
+
+        self.assertEqual(len(selected_colors), 5)
+        self.assertNotIn(None, selected_colors)
+        self.assertEqual(
+            pattern_marker_display_color(
+                PatternMarkerColor.DEFAULT, True
+            ).casefold(),
+            "#ffffff",
+        )
+        self.assertIsNone(
+            pattern_marker_display_color(PatternMarkerColor.DEFAULT, False)
+        )
+
     def test_context_menu_targets_right_clicked_user_pattern(self):
         tree = SimpleNamespace(
             identify_row=Mock(return_value="user-item"),

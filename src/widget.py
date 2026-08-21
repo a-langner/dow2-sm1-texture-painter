@@ -79,6 +79,13 @@ from src.window_geometry import safe_window_geometry
 COLOR_BOX_SIZE = 90
 COLOR_BTN_HEIGHT = 26
 PATTERN_MARKER_COLUMN_WIDTH = 28
+PATTERN_MARKER_COLORS = {
+    PatternMarkerColor.YELLOW: ("#b07d00", "#ffd75a"),
+    PatternMarkerColor.RED: ("#c62828", "#ff7b7b"),
+    PatternMarkerColor.GREEN: ("#218739", "#70dc86"),
+    PatternMarkerColor.BLUE: ("#1565c0", "#78beff"),
+    PatternMarkerColor.PURPLE: ("#7b1fa2", "#dc91ff"),
+}
 HEADER_SEPARATOR_STARTUP_RETRIES = 3
 COLOR_PICKER_DEFAULT_WIDTH = 1196
 COLOR_PICKER_DEFAULT_HEIGHT = 760
@@ -2295,6 +2302,14 @@ def pattern_name_to_restore(preferred_name, current_name, available_names):
     return candidate if candidate in available_names else None
 
 
+def pattern_marker_display_color(marker_color, selected):
+    """Return a readable assigned star colour for the row background."""
+    colors = PATTERN_MARKER_COLORS.get(marker_color)
+    if colors is None:
+        return APP_SELECTION_FOREGROUND if selected else None
+    return colors[1 if selected else 0]
+
+
 def calculate_pattern_separator_x(tree_x, tree_width, marker_width, border_width=0):
     """Return the marker-column boundary within the Treeview parent."""
     return max(tree_x, tree_x + tree_width - marker_width - border_width)
@@ -3120,7 +3135,7 @@ class FramePatternList(tk.Frame):
             show="headings",
             selectmode="browse",
             style="Pattern.Treeview",
-            yscrollcommand=self.scrollbar.set,
+            yscrollcommand=self._set_pattern_scroll,
         )
         self.tree.heading("pattern_name", text="Pattern", anchor=tk.W)
         self.tree.heading("marker", text="", anchor=tk.E)
@@ -3132,8 +3147,9 @@ class FramePatternList(tk.Frame):
             minwidth=PATTERN_MARKER_COLUMN_WIDTH,
             stretch=False,
         )
-        self.scrollbar.config(command=self.tree.yview)
+        self.scrollbar.config(command=self._scroll_pattern_tree)
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.marker_labels = []
         self.marker_menu = tk.Menu(self, tearoff=False)
         self.marker_color_menu = tk.Menu(self.marker_menu, tearoff=False)
         for marker_color in PatternMarkerColor:
@@ -3243,18 +3259,36 @@ class FramePatternList(tk.Frame):
         self.delete_button.grid(row=2, column=1, sticky=tk.EW, padx=2, pady=2)
 
     def _notify_selection_changed(self, Event=None):
+        if hasattr(self, "marker_labels"):
+            self._redraw_pattern_markers()
         if self._external_callbacks_enabled and self._on_selection_changed is not None:
             self._on_selection_changed()
 
+    def _set_pattern_scroll(self, first, last):
+        self.scrollbar.set(first, last)
+        self.after_idle(self._redraw_pattern_markers)
+
+    def _scroll_pattern_tree(self, *args):
+        self.tree.yview(*args)
+        self.after_idle(self._redraw_pattern_markers)
+
     def _show_pattern_context_menu(self, Event):
         item_id = self.tree.identify_row(Event.y)
+        return FramePatternList._show_pattern_item_context_menu(
+            self,
+            item_id,
+            getattr(Event, "x_root", 0),
+            getattr(Event, "y_root", 0),
+        )
+
+    def _show_pattern_item_context_menu(self, item_id, x_root, y_root):
         if not item_id or not self.tree.is_user_item(item_id):
             self._context_pattern_item = None
             return
         self._context_pattern_item = item_id
         self.tree.selection_set(item_id)
         self.tree.focus(item_id)
-        self.marker_menu.tk_popup(Event.x_root, Event.y_root)
+        self.marker_menu.tk_popup(x_root, y_root)
         return "break"
 
     def _assign_context_marker(self, marker_color):
@@ -3268,6 +3302,72 @@ class FramePatternList(tk.Frame):
         if self._on_marker_changed(pattern_name, marker_color) is False:
             return
         self.tree.set_pattern_marker(item_id, marker_color)
+        if hasattr(self, "marker_labels"):
+            self._redraw_pattern_markers()
+
+    def _select_pattern_item(self, item_id):
+        self.tree.selection_set(item_id)
+        self.tree.focus(item_id)
+        return "break"
+
+    def _redraw_pattern_markers(self):
+        for label in self.marker_labels:
+            label.destroy()
+        self.marker_labels.clear()
+
+        selected_items = set(self.tree.selection())
+        tree_font = self.pattern_style.lookup("Pattern.Treeview", "font")
+        normal_background = (
+            self.pattern_style.lookup("Pattern.Treeview", "background") or "white"
+        )
+        for item_id in self.tree.get_children():
+            metadata = self.tree.pattern_metadata.get(item_id)
+            if metadata is None:
+                continue
+            marker_color = metadata.get(
+                "marker_color", PatternMarkerColor.DEFAULT
+            )
+            if marker_color is PatternMarkerColor.DEFAULT:
+                continue
+            bbox = self.tree.bbox(item_id, "marker")
+            if not bbox:
+                continue
+            x, y, width, height = bbox
+            selected = item_id in selected_items
+            label = tk.Label(
+                self.tree_frame,
+                text="★",
+                anchor=tk.CENTER,
+                borderwidth=0,
+                highlightthickness=0,
+                font=tree_font or "TkDefaultFont",
+                foreground=pattern_marker_display_color(marker_color, selected),
+                background=(
+                    APP_SELECTION_BACKGROUND if selected else normal_background
+                ),
+            )
+            overlay_width = min(width, PATTERN_MARKER_COLUMN_WIDTH - 2)
+            label.place(
+                x=self.tree.winfo_x() + x + width - overlay_width,
+                y=self.tree.winfo_y() + y,
+                width=overlay_width,
+                height=height,
+            )
+            label.bind(
+                "<Button-1>",
+                lambda Event, item=item_id: self._select_pattern_item(item),
+            )
+            label.bind(
+                "<Button-3>",
+                lambda Event, item=item_id: self._show_pattern_item_context_menu(
+                    item, Event.x_root, Event.y_root
+                ),
+            )
+            label.bind("<MouseWheel>", self._scroll_tree_through_separator)
+            label.bind("<Button-4>", self._scroll_tree_up_through_separator)
+            label.bind("<Button-5>", self._scroll_tree_down_through_separator)
+            label.lift()
+            self.marker_labels.append(label)
 
     def _tree_border_width(self):
         border_width = self.pattern_style.lookup(
@@ -3332,6 +3432,7 @@ class FramePatternList(tk.Frame):
     def _schedule_separator_position(self, Event=None):
         self.after_idle(self._position_column_separator)
         self.after_idle(self._position_header_separator)
+        self.after_idle(self._redraw_pattern_markers)
 
     def _on_tree_mapped(self, Event=None):
         self._schedule_initial_header_separator_position()
@@ -3425,6 +3526,8 @@ class FramePatternList(tk.Frame):
             self.select_pattern(pattern_name)
         if hasattr(self, "header_separator"):
             self.after_idle(self._position_header_separator)
+        if hasattr(self, "marker_labels"):
+            self.after_idle(self._redraw_pattern_markers)
         if (
             notify_state
             and self._external_callbacks_enabled
