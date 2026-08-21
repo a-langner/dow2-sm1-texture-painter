@@ -123,6 +123,14 @@ class FakePositionTree:
 
 
 class PatternTreeviewLayoutTests(unittest.TestCase):
+    def test_initial_scroll_callback_precedes_separator_construction_safely(self):
+        scrollbar = SimpleNamespace(set=Mock())
+        frame = SimpleNamespace(scrollbar=scrollbar)
+
+        FramePatternList._set_pattern_scroll(frame, "0.0", "1.0")
+
+        scrollbar.set.assert_called_once_with("0.0", "1.0")
+
     def test_user_block_separator_spans_tree_above_first_user_row(self):
         tree = SimpleNamespace(
             get_children=Mock(

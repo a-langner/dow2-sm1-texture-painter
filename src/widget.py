@@ -3329,7 +3329,8 @@ class FramePatternList(tk.Frame):
         self.scrollbar.set(first, last)
         if hasattr(self, "marker_labels"):
             self._redraw_pattern_markers()
-        self._position_user_block_separator()
+        if hasattr(self, "user_block_separator"):
+            self._position_user_block_separator()
 
     def _scroll_pattern_tree(self, *args):
         self.tree.yview(*args)
