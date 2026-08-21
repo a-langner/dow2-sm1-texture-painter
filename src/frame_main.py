@@ -743,7 +743,7 @@ class ArmyPainter(tk.Tk):
             toolmenu.add_command(
                 label="Batch Edit Tools",
                 command=self.open_batch_edit_tools,
-                accelerator="Ctrl+D",
+                accelerator="Ctrl+B",
             )
             menubar.add_cascade(label="Tools", menu=toolmenu)
 
@@ -767,7 +767,7 @@ class ArmyPainter(tk.Tk):
         self.bind("<Control-a>", self.open_channel)
         self.bind("<Control-s>", self.save)
         self.bind("<Control-e>", self.close)
-        self.bind("<Control-d>", self.open_batch_edit_tools)
+        self.bind("<Control-b>", self.open_batch_edit_tools)
         self.bind("<Control-r>", self.reset_workspace)
         self.bind("<Control-z>", self.undo)
         self.bind("<Control-y>", self.redo)

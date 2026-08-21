@@ -232,7 +232,7 @@ class PatternMenuStateTests(unittest.TestCase):
             ],
         )
         painter.bind.assert_any_call(
-            "<Control-d>", handlers["open_batch_edit_tools"]
+            "<Control-b>", handlers["open_batch_edit_tools"]
         )
 
         labels = [
