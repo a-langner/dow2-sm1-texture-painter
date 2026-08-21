@@ -246,12 +246,14 @@ class WorkspaceHistoryTests(unittest.TestCase):
         painter.frame_channel_select.apply_alpha.set.assert_called_once_with(True)
         refresh.assert_called_once_with(painter)
         painter.refresh_workspace.assert_called_once_with()
+        painter.update_pattern_action_states.assert_called_once_with()
         self.assertTrue(history.can_redo)
 
         painter.frame_color_chooser.draw_rgb_value.reset_mock()
         listbox.reset_mock()
         painter.frame_channel_select.apply_alpha.set.reset_mock()
         painter.refresh_workspace.reset_mock()
+        painter.update_pattern_action_states.reset_mock()
         with patch.object(
             ArmyPainter, "refresh_processing_controls"
         ) as redo_refresh, patch.object(
@@ -269,6 +271,7 @@ class WorkspaceHistoryTests(unittest.TestCase):
         painter.frame_channel_select.apply_alpha.set.assert_called_once_with(False)
         redo_refresh.assert_called_once_with(painter)
         painter.refresh_workspace.assert_called_once_with()
+        painter.update_pattern_action_states.assert_called_once_with()
         self.assertTrue(history.can_undo)
         self.assertFalse(history.can_redo)
 
