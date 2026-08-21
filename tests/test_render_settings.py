@@ -559,6 +559,54 @@ class RenderSettingsTests(unittest.TestCase):
         painter.update_pattern_action_states.assert_called_once_with()
         painter.refresh_workspace.assert_called_once_with()
 
+    def test_copy_color_and_settings_captures_complete_slot_only(self):
+        from src.frame_main import ArmyPainter
+
+        copied_processing = ColorProcessingSettings(
+            ColorOps.MULTIPLY, 70, 110, 60, 85
+        )
+        global_processing = ColorProcessingSettings(
+            ColorOps.SCREEN, 85, 120, 95, 130
+        )
+        settings = RenderSettings(
+            primary_color=COLORS[0],
+            secondary_color=COLORS[1],
+            tint_color=COLORS[2],
+            extra_color=COLORS[3],
+            color_op=global_processing.blend_mode,
+            brightness=global_processing.brightness,
+            contrast=global_processing.contrast,
+            opacity=global_processing.opacity,
+            saturation=global_processing.saturation,
+            active_color_slot=ColorSlot.COLOR_4,
+            per_color_processing=(
+                ColorProcessingSettings(),
+                copied_processing,
+                ColorProcessingSettings(),
+                ColorProcessingSettings(),
+            ),
+            _per_color_processing_initialized=True,
+        )
+        painter = SimpleNamespace(
+            render_settings=settings,
+            _color_slot_clipboard_state=None,
+            update_pattern_action_states=Mock(),
+            refresh_workspace=Mock(),
+        )
+
+        with patch.object(ArmyPainter, "sync_render_settings") as sync:
+            ArmyPainter.copy_color_slot_with_settings(painter, 1)
+
+        sync.assert_called_once_with(painter)
+        copied = painter._color_slot_clipboard_state
+        self.assertEqual(copied.color, COLORS[1])
+        self.assertEqual(copied.processing, copied_processing)
+        self.assertIs(painter.render_settings, settings)
+        self.assertIs(painter.render_settings.active_color_slot, ColorSlot.COLOR_4)
+        self.assertEqual(painter.render_settings.global_processing, global_processing)
+        painter.update_pattern_action_states.assert_not_called()
+        painter.refresh_workspace.assert_not_called()
+
     def test_model_has_no_tkinter_or_image_dependency(self):
         source_path = Path(__file__).resolve().parents[1] / "src" / "render_settings.py"
         tree = ast.parse(source_path.read_text(encoding="utf-8"))

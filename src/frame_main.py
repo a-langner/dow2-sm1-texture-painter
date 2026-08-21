@@ -210,6 +210,7 @@ class ArmyPainter(tk.Tk):
         self._handling_callback_exception = False
         self.user_pattern_warning_shown = False
         self._color_slot_clipboard_color = None
+        self._color_slot_clipboard_state = None
 
     def _configure_main_window(self):
         """Configure root-window geometry, identity, and lifecycle hook."""
@@ -372,6 +373,7 @@ class ArmyPainter(tk.Tk):
             on_slot_selected=self.on_color_slot_selected,
             on_slots_swapped=self.swap_color_slots,
             on_color_copied=self.copy_color_slot,
+            on_color_and_settings_copied=self.copy_color_slot_with_settings,
             on_color_pasted=self.paste_color_slot,
             color_paste_available=self.is_color_paste_available,
             settings=self.settings,
@@ -851,6 +853,14 @@ class ArmyPainter(tk.Tk):
     def is_color_paste_available(self) -> bool:
         """Report whether the session clipboard contains a copied colour."""
         return self._color_slot_clipboard_color is not None
+
+    def copy_color_slot_with_settings(self, slot_index: int) -> None:
+        """Copy one complete immutable slot snapshot for this application run."""
+        slot = ColorSlot.from_index(slot_index)
+        ArmyPainter.sync_render_settings(self)
+        self._color_slot_clipboard_state = self.render_settings.color_slot_states[
+            slot.index
+        ]
 
     def paste_color_slot(self, slot_index: int) -> bool:
         """Replace one slot colour while retaining all processing contexts."""
