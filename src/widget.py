@@ -3240,6 +3240,24 @@ class FramePatternList(tk.Frame):
         self.user_block_separator = ttk.Separator(
             self.tree_frame, orient=tk.HORIZONTAL, takefocus=False
         )
+        self.user_block_separator.bind(
+            "<ButtonPress-1>", self._block_user_separator_drag_start
+        )
+        self.user_block_separator.bind(
+            "<B1-Motion>", self._on_pattern_drag_motion
+        )
+        self.user_block_separator.bind(
+            "<ButtonRelease-1>", self._on_pattern_drag_release
+        )
+        self.user_block_separator.bind(
+            "<MouseWheel>", self._scroll_tree_through_separator
+        )
+        self.user_block_separator.bind(
+            "<Button-4>", self._scroll_tree_up_through_separator
+        )
+        self.user_block_separator.bind(
+            "<Button-5>", self._scroll_tree_down_through_separator
+        )
         self.header_separator_startup_retries = HEADER_SEPARATOR_STARTUP_RETRIES
         self.header_separator_startup_after_id = None
         self.header_separator_map_binding_id = self.tree.bind(
@@ -3385,6 +3403,10 @@ class FramePatternList(tk.Frame):
             return
         self._drag_pattern_item = item_id
         self._drag_pattern_start = (Event.x_root, Event.y_root)
+
+    def _block_user_separator_drag_start(self, Event=None):
+        self._cancel_pattern_drag()
+        return "break"
 
     def _on_pattern_drag_motion(self, Event):
         if self._drag_pattern_item is None or self._drag_pattern_start is None:

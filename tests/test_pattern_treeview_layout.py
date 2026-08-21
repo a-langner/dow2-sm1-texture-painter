@@ -193,6 +193,22 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
             pattern_drop_destination(users, "user-a", "builtin", 45, bbox)
         )
 
+    def test_user_separator_cannot_start_an_independent_drag(self):
+        frame = object.__new__(FramePatternList)
+        frame._drag_pattern_item = "user-a"
+        frame._drag_pattern_start = (1, 1)
+        frame._drag_pattern_target = "user-b"
+        frame._drag_pattern_target_index = 1
+        frame._pattern_drag_started = True
+        frame.pattern_drop_indicator = SimpleNamespace(place_forget=Mock())
+
+        result = FramePatternList._block_user_separator_drag_start(frame)
+
+        self.assertEqual(result, "break")
+        self.assertIsNone(frame._drag_pattern_item)
+        self.assertIsNone(frame._drag_pattern_target_index)
+        frame.pattern_drop_indicator.place_forget.assert_called_once_with()
+
     def test_drag_release_reorders_only_within_user_items_and_restores_name(self):
         frame = object.__new__(FramePatternList)
         frame._drag_pattern_item = "user-b"
