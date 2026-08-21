@@ -333,6 +333,13 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
         )[0]
 
         self.assertIn('label="Marker Color", state=tk.DISABLED', class_source)
+        self.assertIn(
+            'activebackground=self.marker_menu.cget("background")', class_source
+        )
+        self.assertIn(
+            'activeforeground=self.marker_menu.cget("disabledforeground")',
+            class_source,
+        )
         for label in ("Save New", "Update", "Rename", "Delete"):
             self.assertIn(f'("{label}", self._on_', class_source)
         self.assertIn('accelerator="★"', class_source)

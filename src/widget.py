@@ -3201,6 +3201,11 @@ class FramePatternList(tk.Frame):
         self.marker_menu.add_separator()
         self.marker_menu.add_command(label="Marker Color", state=tk.DISABLED)
         self._marker_menu_heading_index = self.marker_menu.index(tk.END)
+        self.marker_menu.entryconfigure(
+            self._marker_menu_heading_index,
+            activebackground=self.marker_menu.cget("background"),
+            activeforeground=self.marker_menu.cget("disabledforeground"),
+        )
         self.marker_menu.bind("<<MenuSelect>>", self._suppress_marker_menu_heading)
         self.marker_menu.bind("<Motion>", self._suppress_marker_menu_heading, add="+")
         self.marker_menu.add_separator()
