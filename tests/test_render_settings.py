@@ -3,7 +3,7 @@ import unittest
 from dataclasses import FrozenInstanceError, replace
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.constant import ColorOps
@@ -495,6 +495,65 @@ class RenderSettingsTests(unittest.TestCase):
         self.assertEqual(
             [color_box["bg"] for color_box in color_boxes],
             [COLORS[2], COLORS[1], COLORS[0], COLORS[3]],
+        )
+        painter.frame_color_chooser.draw_rgb_value.assert_called_once_with()
+        painter.update_pattern_action_states.assert_called_once_with()
+        painter.refresh_workspace.assert_called_once_with()
+
+    def test_paste_color_preserves_target_processing_and_global_settings(self):
+        from src.frame_main import ArmyPainter
+
+        global_processing = ColorProcessingSettings(ColorOps.SCREEN, 85, 120, 95, 130)
+        target_processing = ColorProcessingSettings(
+            ColorOps.SOFT_LIGHT, 90, 95, 80, 120
+        )
+        per_color_processing = (
+            ColorProcessingSettings(ColorOps.MULTIPLY, 70, 110, 60, 85),
+            ColorProcessingSettings(),
+            target_processing,
+            ColorProcessingSettings(),
+        )
+        color_boxes = [{"bg": color} for color in COLORS]
+        painter = SimpleNamespace(
+            _color_slot_clipboard_color="#010203",
+            render_settings=RenderSettings(
+                primary_color=COLORS[0],
+                secondary_color=COLORS[1],
+                tint_color=COLORS[2],
+                extra_color=COLORS[3],
+                color_op=global_processing.blend_mode,
+                brightness=global_processing.brightness,
+                contrast=global_processing.contrast,
+                opacity=global_processing.opacity,
+                saturation=global_processing.saturation,
+                per_color_processing=per_color_processing,
+                _per_color_processing_initialized=True,
+            ),
+            frame_color_chooser=SimpleNamespace(
+                color_boxes=color_boxes,
+                draw_rgb_value=Mock(),
+            ),
+            update_pattern_action_states=Mock(),
+            refresh_workspace=Mock(),
+        )
+
+        with patch.object(ArmyPainter, "sync_render_settings") as sync:
+            changed = ArmyPainter.paste_color_slot(painter, 2)
+
+        self.assertTrue(changed)
+        sync.assert_called_once_with(painter)
+        self.assertEqual(
+            painter.render_settings.colors,
+            (COLORS[0], COLORS[1], "#010203", COLORS[3]),
+        )
+        self.assertEqual(
+            painter.render_settings.per_color_processing,
+            per_color_processing,
+        )
+        self.assertEqual(painter.render_settings.global_processing, global_processing)
+        self.assertEqual(
+            [color_box["bg"] for color_box in color_boxes],
+            [COLORS[0], COLORS[1], "#010203", COLORS[3]],
         )
         painter.frame_color_chooser.draw_rgb_value.assert_called_once_with()
         painter.update_pattern_action_states.assert_called_once_with()

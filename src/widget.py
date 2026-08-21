@@ -140,6 +140,7 @@ APP_ENTRY_STYLE = "AppSelection.TEntry"
 APP_SPINBOX_STYLE = "AppSelection.TSpinbox"
 
 ActionCallback = Callable[[], None]
+AvailabilityCallback = Callable[[], bool]
 BooleanChangedCallback = Callable[[bool], None]
 ColorChangedCallback = Callable[[int, str], None]
 ColorSlotSelectedCallback = Callable[[int], None]
@@ -2388,6 +2389,8 @@ class FrameColorChooser(tk.Frame):
         on_slot_selected: ColorSlotSelectedCallback,
         on_slots_swapped: Optional[ColorSlotsSwappedCallback] = None,
         on_color_copied: Optional[ColorSlotActionCallback] = None,
+        on_color_pasted: Optional[ColorSlotActionCallback] = None,
+        color_paste_available: Optional[AvailabilityCallback] = None,
         color_picker: Optional[ColorPickerCallback] = None,
         paint_catalog: Optional[PaintCatalog] = None,
         settings=None,
@@ -2399,6 +2402,8 @@ class FrameColorChooser(tk.Frame):
         self._on_slot_selected = on_slot_selected
         self._on_slots_swapped = on_slots_swapped
         self._on_color_copied = on_color_copied
+        self._on_color_pasted = on_color_pasted
+        self._color_paste_available = color_paste_available
         self._color_picker = (
             self._open_color_picker if color_picker is None else color_picker
         )
@@ -2629,6 +2634,16 @@ class FrameColorChooser(tk.Frame):
             label="Copy Color",
             command=partial(self._request_color_copy, slot_index),
         )
+        menu.add_command(
+            label="Paste Color",
+            command=partial(self._request_color_paste, slot_index),
+            state=(
+                tk.NORMAL
+                if self._color_paste_available is not None
+                and self._color_paste_available()
+                else tk.DISABLED
+            ),
+        )
         menu.add_separator()
         for target_index in range(len(self.color_slots)):
             if target_index == slot_index:
@@ -2646,6 +2661,12 @@ class FrameColorChooser(tk.Frame):
         """Delegate a colour-only copy for one fixed Color Slot."""
         if self._on_color_copied is not None:
             return self._on_color_copied(slot_index)
+        return None
+
+    def _request_color_paste(self, slot_index: int):
+        """Delegate a colour-only paste for one fixed Color Slot."""
+        if self._on_color_pasted is not None:
+            return self._on_color_pasted(slot_index)
         return None
 
     def _request_slot_swap(self, source_index: int, target_index: int):

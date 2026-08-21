@@ -175,6 +175,8 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         chooser.select_slot = Mock()
         chooser.apply_color = Mock()
         chooser._on_color_copied = Mock()
+        chooser._on_color_pasted = Mock()
+        chooser._color_paste_available = Mock(return_value=False)
         chooser._on_slots_swapped = Mock()
         menu = FakeMenu(chooser)
 
@@ -193,9 +195,11 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         self.assertEqual(menu.entries[2][1]["label"], "Copy Color")
         menu.entries[2][1]["command"]()
         chooser._on_color_copied.assert_called_once_with(2)
-        self.assertEqual(menu.entries[3][0], "separator")
+        self.assertEqual(menu.entries[3][1]["label"], "Paste Color")
+        self.assertEqual(menu.entries[3][1]["state"], "disabled")
+        self.assertEqual(menu.entries[4][0], "separator")
         self.assertEqual(
-            [entry[1]["label"] for entry in menu.entries[4:]],
+            [entry[1]["label"] for entry in menu.entries[5:]],
             ["Swap with Color 1", "Swap with Color 2", "Swap with Color 4"],
         )
 

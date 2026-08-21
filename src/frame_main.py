@@ -54,6 +54,7 @@ from src.color_pattern_handler import (
     pattern_colors_equal,
 )
 from src.color_slot import ColorSlot
+from src.color_slot_state import ColorSlotState
 from src.color_processing_settings import ColorProcessingSettings
 from src.image_process import (
     TextureValidationError,
@@ -371,6 +372,8 @@ class ArmyPainter(tk.Tk):
             on_slot_selected=self.on_color_slot_selected,
             on_slots_swapped=self.swap_color_slots,
             on_color_copied=self.copy_color_slot,
+            on_color_pasted=self.paste_color_slot,
+            color_paste_available=self.is_color_paste_available,
             settings=self.settings,
             drag_binding_owner=self,
             width=COLOR_BOX_SIZE * 4 + 12,
@@ -844,6 +847,28 @@ class ArmyPainter(tk.Tk):
         self._color_slot_clipboard_color = ArmyPainter.get_current_pattern_colors(
             self
         )[slot.index].lower()
+
+    def is_color_paste_available(self) -> bool:
+        """Report whether the session clipboard contains a copied colour."""
+        return self._color_slot_clipboard_color is not None
+
+    def paste_color_slot(self, slot_index: int) -> bool:
+        """Replace one slot colour while retaining all processing contexts."""
+        color = self._color_slot_clipboard_color
+        if color is None:
+            return False
+        slot = ColorSlot.from_index(slot_index)
+        ArmyPainter.sync_render_settings(self)
+        states = list(self.render_settings.color_slot_states)
+        states[slot.index] = ColorSlotState(color, states[slot.index].processing)
+        self.render_settings = self.render_settings.with_color_slot_states(
+            (states[0], states[1], states[2], states[3])
+        )
+        self.frame_color_chooser.color_boxes[slot.index]["bg"] = color
+        self.frame_color_chooser.draw_rgb_value()
+        self.update_pattern_action_states()
+        self.refresh_workspace()
+        return True
 
     def save(self, Event=None):
         """Save image from current workspace
