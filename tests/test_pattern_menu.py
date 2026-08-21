@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.action_state import PatternActionContext, derive_pattern_action_state
@@ -141,6 +141,13 @@ class PatternMenuStateTests(unittest.TestCase):
         )
 
         ArmyPainter.define_menu(painter)
+
+        painter.bind.assert_has_calls(
+            [
+                call("<Control-z>", handlers["undo"]),
+                call("<Control-y>", handlers["redo"]),
+            ]
+        )
 
         menubar = painter.config.call_args.kwargs["menu"]
         cascades = {

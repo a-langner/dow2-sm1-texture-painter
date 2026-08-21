@@ -766,6 +766,8 @@ class ArmyPainter(tk.Tk):
         self.bind("<Control-e>", self.close)
         self.bind("<Control-d>", self.batch_edit)
         self.bind("<Control-r>", self.reset_workspace)
+        self.bind("<Control-z>", self.undo)
+        self.bind("<Control-y>", self.redo)
 
     def select_game_profile(self, profile_id: str):
         """Persist and activate the naming policy selected in the Game menu."""
