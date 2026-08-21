@@ -366,6 +366,30 @@ class ColorPatternSavingTests(unittest.TestCase):
                 list(combined)[-3:], ["Third", "First", "Second"]
             )
 
+    def test_marker_changes_and_reordering_remain_independent_after_reload(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            pattern_path = Path(temporary_directory) / "user_patterns.json"
+            for name in ("First", "Second", "Third"):
+                pattern_handler.save(name, self.colors(), pattern_path)
+            set_user_pattern_marker_color(
+                "First", PatternMarkerColor.RED, pattern_path
+            )
+            set_user_pattern_marker_color(
+                "Second", PatternMarkerColor.GREEN, pattern_path
+            )
+
+            reorder_user_pattern("Third", 0, pattern_path)
+            reorder_user_pattern("First", 2, pattern_path)
+            set_user_pattern_marker_color(
+                "Second", PatternMarkerColor.PURPLE, pattern_path
+            )
+
+            reloaded = load_user_patterns(pattern_path)
+            self.assertEqual(list(reloaded), ["Third", "Second", "First"])
+            self.assertNotIn("marker_color", reloaded["Third"])
+            self.assertEqual(reloaded["First"]["marker_color"], "red")
+            self.assertEqual(reloaded["Second"]["marker_color"], "purple")
+
     def test_reorder_rejects_builtin_and_outside_user_block(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             pattern_path = Path(temporary_directory) / "user_patterns.json"
