@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 from dataclasses import dataclass
+from dataclasses import replace
 
 from src.color_processing_settings import ColorProcessingSettings
 from src.color_slot_state import ColorSlotStates
@@ -45,6 +46,35 @@ class EditableWorkspaceState:
             apply_dirt=settings.apply_dirt,
             apply_spec=settings.apply_spec,
             team_color_mask_variant=team_color_mask_variant,
+        )
+
+    def restore_render_settings(self, current: RenderSettings) -> RenderSettings:
+        """Restore editable values while retaining transient active-slot focus."""
+        return replace(
+            current,
+            primary_color=self.color_slot_states[0].color,
+            secondary_color=self.color_slot_states[1].color,
+            tint_color=self.color_slot_states[2].color,
+            extra_color=self.color_slot_states[3].color,
+            color_op=self.global_processing.blend_mode,
+            brightness=self.global_processing.brightness,
+            contrast=self.global_processing.contrast,
+            opacity=self.global_processing.opacity,
+            saturation=self.global_processing.saturation,
+            processing_mode=self.processing_mode,
+            tem_selected=self.selected_channels,
+            per_color_processing=(
+                self.color_slot_states[0].processing,
+                self.color_slot_states[1].processing,
+                self.color_slot_states[2].processing,
+                self.color_slot_states[3].processing,
+            ),
+            _per_color_processing_initialized=(
+                self.per_color_processing_initialized
+            ),
+            apply_alpha=self.apply_alpha,
+            apply_dirt=self.apply_dirt,
+            apply_spec=self.apply_spec,
         )
 
 

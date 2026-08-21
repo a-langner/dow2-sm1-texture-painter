@@ -1,7 +1,7 @@
 import unittest
 from dataclasses import replace
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 from src.color_slot import ColorSlot
 from src.frame_main import ArmyPainter
@@ -178,6 +178,63 @@ class WorkspaceHistoryTests(unittest.TestCase):
         ArmyPainter.end_slider_edit(painter)
 
         self.assertFalse(history.can_undo)
+
+    def test_undo_restores_controls_and_refreshes_once(self):
+        history = WorkspaceHistory()
+        before_settings = replace(
+            DEFAULT_RENDER_SETTINGS,
+            primary_color="#102030",
+            brightness=61.0,
+            tem_selected=(0, 2),
+            apply_alpha=True,
+        )
+        after_settings = replace(
+            before_settings,
+            primary_color="#405060",
+            brightness=82.0,
+            tem_selected=(1, 3),
+            apply_alpha=False,
+        )
+        before = EditableWorkspaceState.from_render_settings(before_settings, None)
+        after = EditableWorkspaceState.from_render_settings(after_settings, None)
+        history.record_edit(before, after)
+        listbox = Mock()
+        painter = SimpleNamespace(
+            render_settings=after_settings,
+            active_team_color_mask_variant=None,
+            workspace_history=history,
+            _history_recording_suspended=False,
+            frame_color_chooser=SimpleNamespace(
+                color_boxes=[{"bg": color} for color in after_settings.colors],
+                draw_rgb_value=Mock(),
+            ),
+            frame_channel_select=SimpleNamespace(
+                lb=listbox,
+                apply_alpha=SimpleNamespace(set=Mock()),
+            ),
+            edit_menu=Mock(),
+            update_pattern_action_states=Mock(),
+            refresh_workspace=Mock(),
+        )
+
+        with patch.object(
+            ArmyPainter, "refresh_processing_controls"
+        ) as refresh, patch.object(
+            ArmyPainter, "sync_team_color_mask_variant_selector"
+        ):
+            self.assertTrue(ArmyPainter.undo(painter))
+
+        self.assertEqual(painter.render_settings, before_settings)
+        self.assertEqual(
+            [box["bg"] for box in painter.frame_color_chooser.color_boxes],
+            list(before_settings.colors),
+        )
+        listbox.selection_clear.assert_called_once_with(0, "end")
+        listbox.selection_set.assert_has_calls([call(0), call(2)])
+        painter.frame_channel_select.apply_alpha.set.assert_called_once_with(True)
+        refresh.assert_called_once_with(painter)
+        painter.refresh_workspace.assert_called_once_with()
+        self.assertTrue(history.can_redo)
 
 
 if __name__ == "__main__":

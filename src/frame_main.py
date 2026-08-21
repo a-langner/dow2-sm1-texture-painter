@@ -1106,7 +1106,77 @@ class ArmyPainter(tk.Tk):
             history = WorkspaceHistory()
             self.workspace_history = history
         current = ArmyPainter.capture_editable_workspace_state(self)
-        return history.record_edit(previous, current)
+        recorded = history.record_edit(previous, current)
+        ArmyPainter.sync_history_action_states(self)
+        return recorded
+
+    def sync_history_action_states(self) -> None:
+        """Synchronize Undo/Redo actions when their Edit-menu entries exist."""
+        menu = getattr(self, "edit_menu", None)
+        if menu is None:
+            return
+        history = self.workspace_history
+        menu.entryconfigure("Undo", state=tk.NORMAL if history.can_undo else tk.DISABLED)
+        menu.entryconfigure("Redo", state=tk.NORMAL if history.can_redo else tk.DISABLED)
+
+    def restore_editable_workspace_state(
+        self, state: EditableWorkspaceState
+    ) -> None:
+        """Restore one complete snapshot and schedule one consolidated preview."""
+        target_variant = state.team_color_mask_variant
+        if target_variant != getattr(self, "active_team_color_mask_variant", None):
+            result = self.texture_loading.load_channel_file(
+                self.active_texture_set,
+                target_variant.path,
+            )
+            self.preview_controller.invalidate()
+            self.active_texture_set = result.texture_set
+            self.active_team_color_mask_variant = target_variant
+
+        self.render_settings = state.restore_render_settings(self.render_settings)
+        for slot_state, color_box in zip(
+            state.color_slot_states, self.frame_color_chooser.color_boxes
+        ):
+            color_box["bg"] = slot_state.color
+        self.frame_color_chooser.draw_rgb_value()
+        ArmyPainter.refresh_processing_controls(self)
+
+        listbox = self.frame_channel_select.lb
+        listbox.selection_clear(0, tk.END)
+        for index in state.selected_channels:
+            listbox.selection_set(index)
+        self.frame_channel_select.apply_alpha.set(state.apply_alpha)
+        if hasattr(self, "apply_dirt"):
+            self.apply_dirt.set(state.apply_dirt)
+        if hasattr(self, "apply_spec"):
+            self.apply_spec.set(state.apply_spec)
+        ArmyPainter.sync_team_color_mask_variant_selector(self)
+        self.update_pattern_action_states()
+        self.refresh_workspace()
+
+    def undo(self, Event=None) -> bool:
+        """Restore the previous editable workspace state, if one exists."""
+        history = self.workspace_history
+        current = ArmyPainter.capture_editable_workspace_state(self)
+        previous = history.undo(current)
+        if previous is None:
+            ArmyPainter.sync_history_action_states(self)
+            return False
+
+        self._history_recording_suspended = True
+        try:
+            ArmyPainter.restore_editable_workspace_state(self, previous)
+        except TextureValidationError as exc:
+            history.redo(previous)
+            self.dialogs.show_error(
+                title="Cannot undo team-colour mask change",
+                message=str(exc),
+            )
+            return False
+        finally:
+            self._history_recording_suspended = False
+            ArmyPainter.sync_history_action_states(self)
+        return True
 
     def get_processing_settings_from_controls(self) -> ColorProcessingSettings:
         """Read the processing controls, falling back to current state."""
