@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
+from PIL import Image
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.color_processing_settings import ColorProcessingSettings
@@ -20,7 +21,8 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
     def test_original_preview_hold_switches_cached_display_without_rendering(
         self, photo_image
     ):
-        original = object()
+        original = Image.new("RGBA", (2, 1))
+        original.putdata(((200, 100, 50, 0), (100, 50, 20, 128)))
         processed = object()
         painter = SimpleNamespace(
             active_texture_set=SimpleNamespace(diffuse=original),
@@ -35,19 +37,22 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
         ArmyPainter.begin_show_original_preview(painter)
 
         self.assertTrue(painter.show_original_preview)
-        self.assertIs(painter.img_dif, original)
-        painter.label_img_dif.config.assert_called_with(image=original)
+        flattened = painter.img_dif
+        self.assertEqual(flattened.getpixel((0, 0)), (0, 0, 0, 255))
+        self.assertEqual(flattened.getpixel((1, 0)), (50, 25, 10, 255))
+        self.assertEqual(original.getpixel((0, 0)), (200, 100, 50, 0))
+        painter.label_img_dif.config.assert_called_with(image=flattened)
 
         ArmyPainter.end_show_original_preview(painter)
 
         self.assertFalse(painter.show_original_preview)
         self.assertIs(painter.img_dif, processed)
         painter.label_img_dif.config.assert_called_with(image=processed)
-        photo_image.assert_called_once_with(original)
+        photo_image.assert_called_once_with(flattened)
         painter.preview_controller.assert_not_called()
 
     def test_interrupted_original_preview_cleanup_is_idempotent(self):
-        original = object()
+        original = Image.new("RGBA", (1, 1), (10, 20, 30, 128))
         processed = object()
         painter = SimpleNamespace(
             show_original_preview=True,
@@ -104,7 +109,7 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
     def test_original_comparison_does_not_mutate_workspace_or_dirty_state(
         self, photo_image
     ):
-        original = object()
+        original = Image.new("RGBA", (1, 1), (10, 20, 30, 128))
         processed = object()
         render_settings = DEFAULT_RENDER_SETTINGS.with_processing_mode(
             ProcessingMode.PER_COLOR
@@ -151,7 +156,10 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
         painter.request_workspace_preview.assert_not_called()
         painter.refresh_workspace.assert_not_called()
         painter.swap_color_slots.assert_not_called()
-        photo_image.assert_called_once_with(original)
+        self.assertEqual(
+            photo_image.call_args.args[0].getpixel((0, 0)),
+            (5, 10, 15, 255),
+        )
 
     def test_preview_request_requires_an_active_texture(self):
         painter = SimpleNamespace(

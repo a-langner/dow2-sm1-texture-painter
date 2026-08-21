@@ -5,6 +5,7 @@ import threading
 from dataclasses import replace
 from concurrent.futures import ThreadPoolExecutor
 from PIL import (
+    Image,
     ImageTk,
 )
 import tkinter as tk
@@ -1135,8 +1136,11 @@ class ArmyPainter(tk.Tk):
         if self.active_texture_set is None:
             return
         if self.original_preview_image is None:
+            diffuse = self.active_texture_set.diffuse.convert("RGBA")
+            opaque_original = Image.new("RGBA", diffuse.size, (0, 0, 0, 255))
+            opaque_original = Image.alpha_composite(opaque_original, diffuse)
             self.original_preview_image = ImageTk.PhotoImage(
-                self.active_texture_set.diffuse
+                opaque_original
             )
         self.show_original_preview = True
         self.img_dif = self.original_preview_image
