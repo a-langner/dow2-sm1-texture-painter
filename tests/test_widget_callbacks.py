@@ -101,6 +101,25 @@ class FakeWidget:
         self.bindings[event] = callback
 
 
+class FakeMenu:
+    def __init__(self, parent, **options):
+        self.parent = parent
+        self.options = options
+        self.entries = []
+
+    def add_command(self, **options):
+        self.entries.append(("command", options))
+
+    def add_separator(self):
+        self.entries.append(("separator", {}))
+
+    def tk_popup(self, x, y):
+        self.popup_position = (x, y)
+
+    def grab_release(self):
+        self.released = True
+
+
 class RemainingWidgetCallbackTests(unittest.TestCase):
     @patch(
         "src.widget.color_slot_presentation",
@@ -149,6 +168,31 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         chooser.color_buttons[2].options["command"]()
         picker.assert_called_once_with("#808080")
         changed.assert_not_called()
+
+    def test_slot_context_edit_targets_the_right_clicked_slot(self):
+        chooser = object.__new__(FrameColorChooser)
+        chooser.color_slots = [Mock() for _ in range(4)]
+        chooser.select_slot = Mock()
+        chooser.apply_color = Mock()
+        chooser._on_slots_swapped = Mock()
+        menu = FakeMenu(chooser)
+
+        with patch("src.widget.tk.Menu", return_value=menu):
+            FrameColorChooser._show_slot_context_menu(
+                chooser,
+                2,
+                SimpleNamespace(x_root=20, y_root=30),
+            )
+
+        chooser.select_slot.assert_called_once_with(2)
+        self.assertEqual(menu.entries[0][1]["label"], "Edit Color...")
+        menu.entries[0][1]["command"]()
+        chooser.apply_color.assert_called_once_with(2)
+        self.assertEqual(menu.entries[1][0], "separator")
+        self.assertEqual(
+            [entry[1]["label"] for entry in menu.entries[2:]],
+            ["Swap with Color 1", "Swap with Color 2", "Swap with Color 4"],
+        )
 
     @patch("src.widget.tk.Checkbutton", side_effect=FakeWidget)
     @patch("src.widget.tk.BooleanVar", return_value=ValueVariable(0))

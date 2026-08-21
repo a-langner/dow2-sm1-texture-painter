@@ -2612,11 +2612,16 @@ class FrameColorChooser(tk.Frame):
                 pass
 
     def _show_slot_context_menu(self, slot_index: int, Event=None):
-        """Offer explicit swaps from one slot to each other fixed position."""
+        """Offer actions for the right-clicked fixed Color Slot."""
         if Event is None:
             return
         self.select_slot(slot_index)
         menu = tk.Menu(self, tearoff=0)
+        menu.add_command(
+            label="Edit Color...",
+            command=partial(self.apply_color, slot_index),
+        )
+        menu.add_separator()
         for target_index in range(len(self.color_slots)):
             if target_index == slot_index:
                 continue
