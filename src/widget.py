@@ -2316,6 +2316,12 @@ def pattern_item_has_marker(metadata):
     return bool(metadata and metadata.get("is_user"))
 
 
+def clipped_pattern_marker_height(y, height, tree_height, border_width):
+    """Keep frame-owned marker overlays inside the Treeview's lower border."""
+    available_height = tree_height - border_width - y
+    return max(0, min(height, available_height))
+
+
 def calculate_pattern_separator_x(tree_x, tree_width, marker_width, border_width=0):
     """Return the marker-column boundary within the Treeview parent."""
     return max(tree_x, tree_x + tree_width - marker_width - border_width)
@@ -3347,6 +3353,14 @@ class FramePatternList(tk.Frame):
             if not bbox:
                 continue
             x, y, width, height = bbox
+            visible_height = clipped_pattern_marker_height(
+                y,
+                height,
+                self.tree.winfo_height(),
+                max(self._tree_border_width(), 1),
+            )
+            if visible_height <= 0:
+                continue
             selected = item_id in selected_items
             label = tk.Label(
                 self.tree_frame,
@@ -3364,7 +3378,7 @@ class FramePatternList(tk.Frame):
                 x=self.tree.winfo_x() + x,
                 y=self.tree.winfo_y() + y,
                 width=width,
-                height=height,
+                height=visible_height,
             )
             label.bind(
                 "<Button-1>",
@@ -3381,6 +3395,10 @@ class FramePatternList(tk.Frame):
             label.bind("<Button-5>", self._scroll_tree_down_through_separator)
             label.lift()
             self.marker_labels.append(label)
+        if hasattr(self, "column_separator"):
+            self.column_separator.lift()
+        if hasattr(self, "header_separator"):
+            self.header_separator.lift()
 
     def _tree_border_width(self):
         border_width = self.pattern_style.lookup(

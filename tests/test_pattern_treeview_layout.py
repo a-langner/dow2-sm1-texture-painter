@@ -10,6 +10,7 @@ from src.color_pattern_handler import PatternMarkerColor
 from src.widget import (
     FramePatternList,
     calculate_pattern_separator_x,
+    clipped_pattern_marker_height,
     find_treeview_body_boundary,
     pattern_marker_display_color,
     pattern_item_has_marker,
@@ -117,6 +118,11 @@ class FakePositionTree:
 
 
 class PatternTreeviewLayoutTests(unittest.TestCase):
+    def test_marker_overlay_is_clipped_before_tree_bottom_border(self):
+        self.assertEqual(clipped_pattern_marker_height(170, 20, 181, 1), 10)
+        self.assertEqual(clipped_pattern_marker_height(120, 20, 181, 1), 20)
+        self.assertEqual(clipped_pattern_marker_height(181, 20, 181, 1), 0)
+
     def test_only_user_pattern_rows_receive_marker_overlays(self):
         self.assertTrue(pattern_item_has_marker({"is_user": True}))
         self.assertFalse(pattern_item_has_marker({"is_user": False}))
@@ -136,6 +142,7 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
         self.assertIn('values=(pattern_name, "")', tree_source)
         self.assertIn('x=self.tree.winfo_x() + x', redraw_source)
         self.assertIn("width=width", redraw_source)
+        self.assertIn("self.column_separator.lift()", redraw_source)
 
     def test_assigned_marker_colors_remain_distinct_on_selected_rows(self):
         selected_colors = {
