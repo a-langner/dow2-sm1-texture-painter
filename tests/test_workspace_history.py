@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, call, patch
 
 from src.color_slot import ColorSlot
+from src.color_pattern_handler import PatternMarkerColor
 from src.frame_main import ArmyPainter
 from src.render_settings import DEFAULT_RENDER_SETTINGS
 from src.workspace_history import (
@@ -88,6 +89,35 @@ class WorkspaceHistoryTests(unittest.TestCase):
 
         self.assertFalse(history.can_undo)
         self.assertFalse(history.can_redo)
+
+    def test_pattern_marker_and_reorder_leave_workspace_history_unchanged(self):
+        history = WorkspaceHistory()
+        first = state_with_brightness(10)
+        second = state_with_brightness(20)
+        history.record_edit(first, second)
+        history.undo(second)
+        before = (history.undo_count, history.redo_count)
+        controller = Mock()
+        controller.set_marker_color.return_value = SimpleNamespace(changed=True)
+        controller.reorder_pattern.return_value = SimpleNamespace(changed=True)
+        painter = SimpleNamespace(
+            workspace_history=history,
+            pattern_controller=controller,
+            dialogs=Mock(),
+        )
+
+        marker_changed = ArmyPainter.set_pattern_marker_color(
+            painter, "User", PatternMarkerColor.BLUE
+        )
+        reordered = ArmyPainter.reorder_user_pattern(painter, "User", 0)
+
+        self.assertTrue(marker_changed)
+        self.assertTrue(reordered)
+        self.assertEqual((history.undo_count, history.redo_count), before)
+        controller.set_marker_color.assert_called_once_with(
+            "User", PatternMarkerColor.BLUE
+        )
+        controller.reorder_pattern.assert_called_once_with("User", 0)
 
     def test_capture_excludes_active_slot_focus(self):
         first = EditableWorkspaceState.from_render_settings(
