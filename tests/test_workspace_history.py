@@ -1,7 +1,10 @@
 import unittest
 from dataclasses import replace
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 from src.color_slot import ColorSlot
+from src.frame_main import ArmyPainter
 from src.render_settings import DEFAULT_RENDER_SETTINGS
 from src.workspace_history import (
     UNDO_HISTORY_LIMIT,
@@ -85,6 +88,28 @@ class WorkspaceHistoryTests(unittest.TestCase):
         )
 
         self.assertEqual(first, second)
+
+    def test_color_picker_edit_uses_central_history_boundary(self):
+        history = WorkspaceHistory()
+        painter = SimpleNamespace(
+            render_settings=DEFAULT_RENDER_SETTINGS,
+            active_team_color_mask_variant=None,
+            workspace_history=history,
+            _history_recording_suspended=False,
+            update_pattern_action_states=Mock(),
+            refresh_workspace=Mock(),
+        )
+        before = EditableWorkspaceState.from_render_settings(
+            DEFAULT_RENDER_SETTINGS, None
+        )
+
+        ArmyPainter.on_color_changed(painter, 0, "#102030")
+
+        after = EditableWorkspaceState.from_render_settings(
+            painter.render_settings, None
+        )
+        self.assertEqual(history.undo(after), before)
+        self.assertEqual(painter.render_settings.primary_color, "#102030")
 
 
 if __name__ == "__main__":

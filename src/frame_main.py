@@ -97,6 +97,7 @@ from src.pattern_controller import PatternController
 from src.preview_controller import PreviewController, PreviewRequest, PreviewResult
 from src.processing_mode import ProcessingMode
 from src.render_settings import DEFAULT_RENDER_SETTINGS
+from src.workspace_history import EditableWorkspaceState, WorkspaceHistory
 from src.settings_handler import SettingsHandler
 from src.texture_naming import (
     DEFAULT_TEXTURE_NAMING,
@@ -214,6 +215,8 @@ class ArmyPainter(tk.Tk):
         self._color_slot_clipboard_state = None
         self.show_original_preview = False
         self.original_preview_image = None
+        self.workspace_history = WorkspaceHistory()
+        self._history_recording_suspended = False
 
     def _configure_main_window(self):
         """Configure root-window geometry, identity, and lifecycle hook."""
@@ -563,6 +566,11 @@ class ArmyPainter(tk.Tk):
             ArmyPainter.sync_team_color_mask_variant_selector(self)
             return
 
+        previous = (
+            ArmyPainter.capture_editable_workspace_state(self)
+            if hasattr(getattr(self, "render_settings", None), "color_slot_states")
+            else None
+        )
         try:
             result = self.texture_loading.load_channel_file(
                 self.active_texture_set,
@@ -580,6 +588,8 @@ class ArmyPainter(tk.Tk):
         self.active_texture_set = result.texture_set
         self.active_team_color_mask_variant = selected_variant
         ArmyPainter.sync_team_color_mask_variant_selector(self)
+        if previous is not None:
+            ArmyPainter.record_workspace_edit(self, previous)
         self.select_channel()
 
     def reset_team_color_mask_variant(self):
@@ -822,6 +832,11 @@ class ArmyPainter(tk.Tk):
     ):
         if getattr(self, "_processing_controls_refreshing", False):
             return
+        previous = (
+            ArmyPainter.capture_editable_workspace_state(self)
+            if hasattr(self, "render_settings")
+            else None
+        )
         if hasattr(self, "render_settings"):
             active = self.render_settings.active_processing
             self.render_settings = self.render_settings.with_active_processing(
@@ -833,9 +848,22 @@ class ArmyPainter(tk.Tk):
                     saturation,
                 )
             )
+        if previous is not None:
+            ArmyPainter.record_workspace_edit(self, previous)
         self.request_workspace_preview()
 
     def on_color_changed(self, slot_index: int, color: str):
+        if not hasattr(self, "render_settings"):
+            self.update_pattern_action_states()
+            self.refresh_workspace()
+            return
+        previous = ArmyPainter.capture_editable_workspace_state(self)
+        states = list(self.render_settings.color_slot_states)
+        states[slot_index] = ColorSlotState(color, states[slot_index].processing)
+        self.render_settings = self.render_settings.with_color_slot_states(
+            (states[0], states[1], states[2], states[3])
+        )
+        ArmyPainter.record_workspace_edit(self, previous)
         self.update_pattern_action_states()
         self.refresh_workspace()
 
@@ -854,6 +882,7 @@ class ArmyPainter(tk.Tk):
             return False
 
         ArmyPainter.sync_render_settings(self)
+        previous = ArmyPainter.capture_editable_workspace_state(self)
         states = list(self.render_settings.color_slot_states)
         states[source_slot.index], states[target_slot.index] = (
             states[target_slot.index],
@@ -869,6 +898,7 @@ class ArmyPainter(tk.Tk):
             color_box["bg"] = state.color
         self.frame_color_chooser.draw_rgb_value()
         ArmyPainter.refresh_processing_controls(self)
+        ArmyPainter.record_workspace_edit(self, previous)
         self.update_pattern_action_states()
         self.refresh_workspace()
         return True
@@ -903,6 +933,7 @@ class ArmyPainter(tk.Tk):
             return False
         slot = ColorSlot.from_index(slot_index)
         ArmyPainter.sync_render_settings(self)
+        previous = ArmyPainter.capture_editable_workspace_state(self)
         states = list(self.render_settings.color_slot_states)
         states[slot.index] = ColorSlotState(color, states[slot.index].processing)
         self.render_settings = self.render_settings.with_color_slot_states(
@@ -910,6 +941,7 @@ class ArmyPainter(tk.Tk):
         )
         self.frame_color_chooser.color_boxes[slot.index]["bg"] = color
         self.frame_color_chooser.draw_rgb_value()
+        ArmyPainter.record_workspace_edit(self, previous)
         self.update_pattern_action_states()
         self.refresh_workspace()
         return True
@@ -921,6 +953,7 @@ class ArmyPainter(tk.Tk):
             return False
         slot = ColorSlot.from_index(slot_index)
         ArmyPainter.sync_render_settings(self)
+        previous = ArmyPainter.capture_editable_workspace_state(self)
         self.render_settings = self.render_settings.initialize_per_color_processing()
         states = list(self.render_settings.color_slot_states)
         states[slot.index] = copied
@@ -930,6 +963,7 @@ class ArmyPainter(tk.Tk):
         self.frame_color_chooser.color_boxes[slot.index]["bg"] = copied.color
         self.frame_color_chooser.draw_rgb_value()
         ArmyPainter.refresh_processing_controls(self)
+        ArmyPainter.record_workspace_edit(self, previous)
         self.update_pattern_action_states()
         self.refresh_workspace()
         return True
@@ -938,6 +972,7 @@ class ArmyPainter(tk.Tk):
         """Restore one positional slot from the authoritative defaults."""
         slot = ColorSlot.from_index(slot_index)
         ArmyPainter.sync_render_settings(self)
+        previous = ArmyPainter.capture_editable_workspace_state(self)
         self.render_settings = self.render_settings.initialize_per_color_processing()
         states = list(self.render_settings.color_slot_states)
         default_state = DEFAULT_RENDER_SETTINGS.color_slot_states[slot.index]
@@ -950,6 +985,7 @@ class ArmyPainter(tk.Tk):
         )
         self.frame_color_chooser.draw_rgb_value()
         ArmyPainter.refresh_processing_controls(self)
+        ArmyPainter.record_workspace_edit(self, previous)
         self.update_pattern_action_states()
         self.refresh_workspace()
 
@@ -1030,6 +1066,24 @@ class ArmyPainter(tk.Tk):
             extra_color=colors[3],
             tem_selected=tuple(self.frame_channel_select.lb.curselection()),
         )
+
+    def capture_editable_workspace_state(self) -> EditableWorkspaceState:
+        """Capture the current lightweight state for one history boundary."""
+        return EditableWorkspaceState.from_render_settings(
+            self.render_settings,
+            getattr(self, "active_team_color_mask_variant", None),
+        )
+
+    def record_workspace_edit(self, previous: EditableWorkspaceState) -> bool:
+        """Record one completed effective edit through the central history."""
+        if getattr(self, "_history_recording_suspended", False):
+            return False
+        history = getattr(self, "workspace_history", None)
+        if history is None:
+            history = WorkspaceHistory()
+            self.workspace_history = history
+        current = ArmyPainter.capture_editable_workspace_state(self)
+        return history.record_edit(previous, current)
 
     def get_processing_settings_from_controls(self) -> ColorProcessingSettings:
         """Read the processing controls, falling back to current state."""
@@ -1166,6 +1220,7 @@ class ArmyPainter(tk.Tk):
     def color_operation_update(self, color_op: str):
         if getattr(self, "_processing_controls_refreshing", False):
             return
+        previous = ArmyPainter.capture_editable_workspace_state(self)
         current = self.render_settings.active_processing
         self.render_settings = self.render_settings.with_active_processing(
             ColorProcessingSettings(
@@ -1176,35 +1231,44 @@ class ArmyPainter(tk.Tk):
                 current.saturation,
             )
         )
+        ArmyPainter.record_workspace_edit(self, previous)
         self.refresh_workspace()
 
     def processing_mode_update(self, processing_mode: str):
         ArmyPainter.sync_processing_settings_from_controls(self)
+        previous = ArmyPainter.capture_editable_workspace_state(self)
         self.render_settings = self.render_settings.with_processing_mode(
             ProcessingMode.parse(processing_mode)
         )
         ArmyPainter.refresh_processing_controls(self)
+        ArmyPainter.record_workspace_edit(self, previous)
         self.refresh_workspace()
 
     def on_apply_alpha_toggle(self, apply_alpha: bool):
+        previous = ArmyPainter.capture_editable_workspace_state(self)
         self.render_settings = replace(
             self.render_settings,
             apply_alpha=apply_alpha,
         )
+        ArmyPainter.record_workspace_edit(self, previous)
         self.refresh_workspace()
 
     def on_dirt_toggle(self):
+        previous = ArmyPainter.capture_editable_workspace_state(self)
         self.render_settings = replace(
             self.render_settings,
             apply_dirt=bool(self.apply_dirt.get()),
         )
+        ArmyPainter.record_workspace_edit(self, previous)
         self.refresh_workspace()
 
     def on_spec_toggle(self):
+        previous = ArmyPainter.capture_editable_workspace_state(self)
         self.render_settings = replace(
             self.render_settings,
             apply_spec=bool(self.apply_spec.get()),
         )
+        ArmyPainter.record_workspace_edit(self, previous)
         self.refresh_workspace()
 
     def on_pattern_select(self, Event=None):
@@ -1230,6 +1294,11 @@ class ArmyPainter(tk.Tk):
 
     def _apply_pattern_colors(self, color_list, selection=None):
         """Apply controller-provided colours and stored processing state."""
+        previous = (
+            ArmyPainter.capture_editable_workspace_state(self)
+            if hasattr(self, "render_settings")
+            else None
+        )
         for color, color_box in zip(color_list, self.frame_color_chooser.color_boxes):
             color_box["bg"] = color
         self.frame_color_chooser.draw_rgb_value()
@@ -1245,6 +1314,16 @@ class ArmyPainter(tk.Tk):
                     processing.per_color_processing,
                 )
                 ArmyPainter.refresh_processing_controls(self)
+        if previous is not None:
+            normalized_colors = normalize_pattern_colors(color_list)
+            self.render_settings = replace(
+                self.render_settings,
+                primary_color=normalized_colors[0],
+                secondary_color=normalized_colors[1],
+                tint_color=normalized_colors[2],
+                extra_color=normalized_colors[3],
+            )
+            ArmyPainter.record_workspace_edit(self, previous)
         self.update_pattern_action_states(selection)
         self.refresh_workspace()
 
@@ -1254,6 +1333,15 @@ class ArmyPainter(tk.Tk):
         :param Event: event triggered from widget, defaults to None
         :type Event: [type], optional
         """
+        previous = ArmyPainter.capture_editable_workspace_state(self)
+        listbox = self.frame_channel_select.lb
+        selected = (
+            tuple(listbox.curselection())
+            if hasattr(listbox, "curselection")
+            else self.render_settings.tem_selected
+        )
+        self.render_settings = replace(self.render_settings, tem_selected=selected)
+        ArmyPainter.record_workspace_edit(self, previous)
         self.refresh_workspace()
 
     def load_file(self, filepath: str):
@@ -1517,21 +1605,42 @@ class ArmyPainter(tk.Tk):
         )
 
     def reset_workspace(self, Event=None):
-        ArmyPainter.reset_original_preview_state(self)
-        self.frame_army_pattern.clear_selection()
-        default_processing = DEFAULT_RENDER_SETTINGS.global_processing
-        self.render_settings = self.render_settings.with_processing_state(
-            ProcessingMode.GLOBAL,
-            default_processing,
-            (default_processing,) * 4,
+        previous = ArmyPainter.capture_editable_workspace_state(self)
+        self._history_recording_suspended = True
+        try:
+            ArmyPainter.reset_original_preview_state(self)
+            self.frame_army_pattern.clear_selection()
+            default_processing = DEFAULT_RENDER_SETTINGS.global_processing
+            self.render_settings = self.render_settings.with_processing_state(
+                ProcessingMode.GLOBAL,
+                default_processing,
+                (default_processing,) * 4,
+            )
+            ArmyPainter.refresh_processing_controls(self)
+            ArmyPainter.reset_team_color_mask_variant(self)
+            for color_box in self.frame_color_chooser.color_boxes:
+                color_box["bg"] = "#808080"
+            self.frame_channel_select.lb.selection_set(first=0, last=3)
+            self.select_channel()
+            self.update_pattern_action_states()
+        finally:
+            self._history_recording_suspended = False
+        colors = ArmyPainter.get_current_pattern_colors(self)
+        listbox = self.frame_channel_select.lb
+        selected = (
+            tuple(listbox.curselection())
+            if hasattr(listbox, "curselection")
+            else self.render_settings.tem_selected
         )
-        ArmyPainter.refresh_processing_controls(self)
-        ArmyPainter.reset_team_color_mask_variant(self)
-        for color_box in self.frame_color_chooser.color_boxes:
-            color_box["bg"] = "#808080"
-        self.frame_channel_select.lb.selection_set(first=0, last=3)
-        self.select_channel()
-        self.update_pattern_action_states()
+        self.render_settings = replace(
+            self.render_settings,
+            primary_color=colors[0],
+            secondary_color=colors[1],
+            tint_color=colors[2],
+            extra_color=colors[3],
+            tem_selected=selected,
+        )
+        ArmyPainter.record_workspace_edit(self, previous)
         self.refresh_workspace()
 
     def save_pattern(self):
