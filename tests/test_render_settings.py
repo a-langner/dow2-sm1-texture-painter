@@ -590,6 +590,7 @@ class RenderSettingsTests(unittest.TestCase):
         )
         painter = SimpleNamespace(
             render_settings=settings,
+            _color_slot_clipboard_color=None,
             _color_slot_clipboard_state=None,
             update_pattern_action_states=Mock(),
             refresh_workspace=Mock(),
@@ -602,6 +603,9 @@ class RenderSettingsTests(unittest.TestCase):
         copied = painter._color_slot_clipboard_state
         self.assertEqual(copied.color, COLORS[1])
         self.assertEqual(copied.processing, copied_processing)
+        self.assertEqual(painter._color_slot_clipboard_color, COLORS[1])
+        self.assertTrue(ArmyPainter.is_color_paste_available(painter))
+        self.assertTrue(ArmyPainter.is_color_and_settings_paste_available(painter))
         self.assertIs(painter.render_settings, settings)
         self.assertIs(painter.render_settings.active_color_slot, ColorSlot.COLOR_4)
         self.assertEqual(painter.render_settings.global_processing, global_processing)

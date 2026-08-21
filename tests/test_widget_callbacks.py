@@ -234,6 +234,30 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         painter.update_pattern_action_states.assert_not_called()
         painter.refresh_workspace.assert_not_called()
 
+    def test_context_menu_enables_only_available_clipboard_actions(self):
+        chooser = object.__new__(FrameColorChooser)
+        chooser.color_slots = [Mock() for _ in range(4)]
+        chooser.select_slot = Mock()
+        chooser.apply_color = Mock()
+        chooser._on_color_copied = Mock()
+        chooser._on_color_and_settings_copied = Mock()
+        chooser._on_color_pasted = Mock()
+        chooser._on_color_and_settings_pasted = Mock()
+        chooser._color_paste_available = Mock(return_value=True)
+        chooser._color_and_settings_paste_available = Mock(return_value=True)
+        chooser._on_slots_swapped = Mock()
+        menu = FakeMenu(chooser)
+
+        with patch("src.widget.tk.Menu", return_value=menu):
+            FrameColorChooser._show_slot_context_menu(
+                chooser,
+                0,
+                SimpleNamespace(x_root=20, y_root=30),
+            )
+
+        self.assertEqual(menu.entries[3][1]["state"], "normal")
+        self.assertEqual(menu.entries[5][1]["state"], "normal")
+
     @patch("src.widget.tk.Checkbutton", side_effect=FakeWidget)
     @patch("src.widget.tk.BooleanVar", return_value=ValueVariable(0))
     @patch("src.widget.tk.Listbox", side_effect=FakeWidget)

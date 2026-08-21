@@ -862,9 +862,9 @@ class ArmyPainter(tk.Tk):
         """Copy one complete immutable slot snapshot for this application run."""
         slot = ColorSlot.from_index(slot_index)
         ArmyPainter.sync_render_settings(self)
-        self._color_slot_clipboard_state = self.render_settings.color_slot_states[
-            slot.index
-        ]
+        copied = self.render_settings.color_slot_states[slot.index]
+        self._color_slot_clipboard_state = copied
+        self._color_slot_clipboard_color = copied.color
 
     def is_color_and_settings_paste_available(self) -> bool:
         """Report whether a complete slot snapshot has been copied."""
