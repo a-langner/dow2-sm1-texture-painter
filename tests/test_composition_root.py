@@ -28,6 +28,7 @@ class ArmyPainterCompositionTests(unittest.TestCase):
         dialog_gateway_type.assert_called_once_with(painter)
         self.assertIs(painter.dialogs, dialog_gateway_type.return_value)
         self.assertEqual(painter.application_log_path, "application.log")
+        self.assertFalse(painter.show_original_preview)
 
     def test_constructor_runs_explicit_stages_in_order(self):
         order = []

@@ -166,6 +166,7 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
     def test_startup_reset_without_texture_never_submits_preview(self):
         painter = SimpleNamespace(
             active_texture_set=None,
+            show_original_preview=True,
             available_team_color_mask_variants=(),
             active_team_color_mask_variant=None,
             preview_controller=Mock(),
@@ -216,6 +217,7 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
             painter.render_settings.processing_mode,
             ProcessingMode.GLOBAL,
         )
+        self.assertFalse(painter.show_original_preview)
         self.assertEqual(
             painter.render_settings.global_processing,
             DEFAULT_RENDER_SETTINGS.global_processing,
@@ -250,6 +252,7 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
         )
         painter = SimpleNamespace(
             active_texture_set=Mock(spec=TextureSet),
+            show_original_preview=True,
             preview_controller=controller,
             sync_render_settings=Mock(),
             label_img_dif=Mock(),
@@ -262,6 +265,7 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
 
         self.assertEqual(callbacks, {})
         self.assertIsNone(painter.active_texture_set)
+        self.assertFalse(painter.show_original_preview)
         self.assertEqual(painter.available_team_color_mask_variants, ())
         self.assertIsNone(painter.active_team_color_mask_variant)
         snapshot_provider.assert_not_called()
@@ -276,6 +280,7 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
         create_placeholder.side_effect = (diffuse_placeholder, channel_placeholder)
         painter = SimpleNamespace(
             active_texture_set=Mock(spec=TextureSet),
+            show_original_preview=True,
             available_team_color_mask_variants=(Mock(),),
             active_team_color_mask_variant=Mock(),
             preview_controller=Mock(),
@@ -286,6 +291,7 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
         ArmyPainter.close(painter)
 
         self.assertIsNone(painter.active_texture_set)
+        self.assertFalse(painter.show_original_preview)
         self.assertEqual(painter.available_team_color_mask_variants, ())
         self.assertIsNone(painter.active_team_color_mask_variant)
         painter.preview_controller.invalidate.assert_called_once_with()
@@ -317,6 +323,7 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
         )
         painter = SimpleNamespace(
             active_texture_set=Mock(spec=TextureSet),
+            show_original_preview=True,
             texture_loading=Mock(
                 load_diffuse_and_companions=Mock(return_value=result)
             ),
@@ -333,6 +340,7 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
         ArmyPainter.load_file(painter, "marine_dif.png")
 
         self.assertIs(painter.active_texture_set, replacement)
+        self.assertFalse(painter.show_original_preview)
         self.assertEqual(painter.available_team_color_mask_variants, (variant,))
         self.assertIs(painter.active_team_color_mask_variant, variant)
         self.assertIs(painter.render_settings, render_settings)

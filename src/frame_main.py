@@ -211,6 +211,7 @@ class ArmyPainter(tk.Tk):
         self.user_pattern_warning_shown = False
         self._color_slot_clipboard_color = None
         self._color_slot_clipboard_state = None
+        self.show_original_preview = False
 
     def _configure_main_window(self):
         """Configure root-window geometry, identity, and lifecycle hook."""
@@ -977,6 +978,7 @@ class ArmyPainter(tk.Tk):
             )
 
     def close(self, Event=None):
+        ArmyPainter.reset_original_preview_state(self)
         self.preview_controller.invalidate()
         self.active_texture_set = None
         self.available_team_color_mask_variants = ()
@@ -1071,6 +1073,10 @@ class ArmyPainter(tk.Tk):
     def refresh_workspace(self):
         """Schedule an immediate background workspace refresh."""
         self.request_workspace_preview(immediate=True)
+
+    def reset_original_preview_state(self) -> None:
+        """Return the transient comparison source to the processed preview."""
+        self.show_original_preview = False
 
     def apply_preview_result(self, result: PreviewResult):
         """Apply a completed preview on Tk's event thread."""
@@ -1185,6 +1191,7 @@ class ArmyPainter(tk.Tk):
         ):
             self.select_game_profile(detected_profile.profile_id)
         result = self.texture_loading.load_diffuse_and_companions(Path(filepath))
+        ArmyPainter.reset_original_preview_state(self)
         self.preview_controller.invalidate()
         self.active_texture_set = result.texture_set
         self.available_team_color_mask_variants = (
@@ -1435,6 +1442,7 @@ class ArmyPainter(tk.Tk):
         )
 
     def reset_workspace(self, Event=None):
+        ArmyPainter.reset_original_preview_state(self)
         self.frame_army_pattern.clear_selection()
         default_processing = DEFAULT_RENDER_SETTINGS.global_processing
         self.render_settings = self.render_settings.with_processing_state(
