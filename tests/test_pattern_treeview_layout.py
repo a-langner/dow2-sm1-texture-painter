@@ -14,6 +14,7 @@ from src.widget import (
     find_treeview_body_boundary,
     pattern_marker_display_color,
     pattern_item_has_marker,
+    pattern_drop_destination,
 )
 
 
@@ -118,12 +119,30 @@ class FakePositionTree:
 
 
 class PatternTreeviewLayoutTests(unittest.TestCase):
+    def test_drop_destination_uses_before_and_after_half_rows(self):
+        users = ["user-a", "user-b", "user-c"]
+        bbox = (0, 40, 200, 20)
+
+        self.assertEqual(
+            pattern_drop_destination(users, "user-c", "user-a", 45, bbox),
+            (0, 40),
+        )
+        self.assertEqual(
+            pattern_drop_destination(users, "user-a", "user-c", 55, bbox),
+            (2, 60),
+        )
+        self.assertIsNone(
+            pattern_drop_destination(users, "user-a", "builtin", 45, bbox)
+        )
+
     def test_drag_release_reorders_only_within_user_items_and_restores_name(self):
         frame = object.__new__(FramePatternList)
         frame._drag_pattern_item = "user-b"
         frame._drag_pattern_target = "user-a"
+        frame._drag_pattern_target_index = 0
         frame._drag_pattern_start = (0, 0)
         frame._pattern_drag_started = True
+        frame.pattern_drop_indicator = SimpleNamespace(place_forget=Mock())
         frame._on_pattern_reordered = Mock(return_value=True)
         frame.load_pattern_list = Mock()
         frame.tree = SimpleNamespace(
@@ -137,12 +156,14 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
         frame._on_pattern_reordered.assert_called_once_with("User B", 0)
         frame.load_pattern_list.assert_called_once_with("User B")
         self.assertIsNone(frame._drag_pattern_item)
+        frame.pattern_drop_indicator.place_forget.assert_called_once_with()
 
     def test_drag_press_ignores_builtin_pattern(self):
         frame = object.__new__(FramePatternList)
         frame._drag_pattern_item = "old"
         frame._drag_pattern_start = (1, 1)
         frame._drag_pattern_target = "old"
+        frame._drag_pattern_target_index = 0
         frame._pattern_drag_started = True
         frame.tree = SimpleNamespace(
             identify_row=Mock(return_value="builtin"),

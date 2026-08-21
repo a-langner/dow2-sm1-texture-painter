@@ -2324,6 +2324,23 @@ def clipped_pattern_marker_height(y, height, tree_height, border_width):
     return max(0, min(height, available_height))
 
 
+def pattern_drop_destination(
+    user_items, source_item, target_item, pointer_y, target_bbox
+):
+    """Return the final user index and insertion-line y for a valid row."""
+    if source_item not in user_items or target_item not in user_items:
+        return None
+    _x, row_y, _width, row_height = target_bbox
+    target_position = user_items.index(target_item)
+    source_position = user_items.index(source_item)
+    insert_after = pointer_y >= row_y + row_height / 2
+    gap_index = target_position + (1 if insert_after else 0)
+    final_index = gap_index - 1 if gap_index > source_position else gap_index
+    final_index = max(0, min(final_index, len(user_items) - 1))
+    line_y = row_y + row_height if insert_after else row_y
+    return final_index, line_y
+
+
 def calculate_pattern_separator_x(tree_x, tree_width, marker_width, border_width=0):
     """Return the marker-column boundary within the Treeview parent."""
     return max(tree_x, tree_x + tree_width - marker_width - border_width)
@@ -3186,6 +3203,7 @@ class FramePatternList(tk.Frame):
         self._drag_pattern_item = None
         self._drag_pattern_start = None
         self._drag_pattern_target = None
+        self._drag_pattern_target_index = None
         self._pattern_drag_started = False
         self.tree.bind("<Button-3>", self._show_pattern_context_menu, add="+")
         self.tree.bind("<ButtonPress-1>", self._on_pattern_drag_press, add="+")
@@ -3209,6 +3227,9 @@ class FramePatternList(tk.Frame):
             self.tree_frame, orient=tk.VERTICAL, takefocus=False
         )
         self.header_separator = ttk.Separator(
+            self.tree_frame, orient=tk.HORIZONTAL, takefocus=False
+        )
+        self.pattern_drop_indicator = ttk.Separator(
             self.tree_frame, orient=tk.HORIZONTAL, takefocus=False
         )
         self.header_separator_startup_retries = HEADER_SEPARATOR_STARTUP_RETRIES
@@ -3292,7 +3313,7 @@ class FramePatternList(tk.Frame):
 
     def _notify_selection_changed(self, Event=None):
         if hasattr(self, "marker_labels"):
-            self._redraw_pattern_markers()
+            self._update_pattern_marker_selection()
         if self._external_callbacks_enabled and self._on_selection_changed is not None:
             self._on_selection_changed()
 
@@ -3368,22 +3389,47 @@ class FramePatternList(tk.Frame):
             self._pattern_drag_started = True
         tree_y = Event.y_root - self.tree.winfo_rooty()
         target_item = self.tree.identify_row(tree_y)
-        self._drag_pattern_target = (
-            target_item
+        user_items = [
+            item
+            for item in self.tree.get_children()
+            if self.tree.is_user_item(item)
+        ]
+        destination = (
+            pattern_drop_destination(
+                user_items,
+                self._drag_pattern_item,
+                target_item,
+                tree_y,
+                self.tree.bbox(target_item),
+            )
             if target_item and self.tree.is_user_item(target_item)
             else None
         )
+        if destination is None:
+            self._drag_pattern_target = None
+            self._drag_pattern_target_index = None
+            self.pattern_drop_indicator.place_forget()
+            return
+        self._drag_pattern_target = target_item
+        self._drag_pattern_target_index, line_y = destination
+        self.pattern_drop_indicator.place(
+            x=self.tree.winfo_x(),
+            y=self.tree.winfo_y() + line_y - 1,
+            width=self.tree.winfo_width(),
+        )
+        self.pattern_drop_indicator.lift()
 
     def _on_pattern_drag_release(self, Event=None):
         source_item = self._drag_pattern_item
         target_item = self._drag_pattern_target
+        target_index = self._drag_pattern_target_index
         dragging = self._pattern_drag_started
         self._cancel_pattern_drag()
         if (
             not dragging
             or source_item is None
             or target_item is None
-            or source_item == target_item
+            or target_index is None
             or self._on_pattern_reordered is None
         ):
             return
@@ -3395,7 +3441,6 @@ class FramePatternList(tk.Frame):
         ]
         if source_name is None or target_item not in user_items:
             return
-        target_index = user_items.index(target_item)
         if self._on_pattern_reordered(source_name, target_index) is False:
             return
         self.load_pattern_list(source_name)
@@ -3404,7 +3449,10 @@ class FramePatternList(tk.Frame):
         self._drag_pattern_item = None
         self._drag_pattern_start = None
         self._drag_pattern_target = None
+        self._drag_pattern_target_index = None
         self._pattern_drag_started = False
+        if hasattr(self, "pattern_drop_indicator"):
+            self.pattern_drop_indicator.place_forget()
 
     def _on_marker_drag_press(self, Event, item_id):
         self._select_pattern_item(item_id)
@@ -3452,6 +3500,7 @@ class FramePatternList(tk.Frame):
                     APP_SELECTION_BACKGROUND if selected else normal_background
                 ),
             )
+            label.pattern_item_id = item_id
             label.place(
                 x=self.tree.winfo_x() + x,
                 y=self.tree.winfo_y() + y,
@@ -3479,6 +3528,27 @@ class FramePatternList(tk.Frame):
             self.column_separator.lift()
         if hasattr(self, "header_separator"):
             self.header_separator.lift()
+
+    def _update_pattern_marker_selection(self):
+        selected_items = set(self.tree.selection())
+        normal_background = (
+            self.pattern_style.lookup("Pattern.Treeview", "background") or "white"
+        )
+        for label in self.marker_labels:
+            item_id = getattr(label, "pattern_item_id", None)
+            metadata = self.tree.pattern_metadata.get(item_id)
+            if not pattern_item_has_marker(metadata):
+                continue
+            selected = item_id in selected_items
+            marker_color = metadata.get(
+                "marker_color", PatternMarkerColor.DEFAULT
+            )
+            label.configure(
+                foreground=pattern_marker_display_color(marker_color, selected),
+                background=(
+                    APP_SELECTION_BACKGROUND if selected else normal_background
+                ),
+            )
 
     def _tree_border_width(self):
         border_width = self.pattern_style.lookup(
