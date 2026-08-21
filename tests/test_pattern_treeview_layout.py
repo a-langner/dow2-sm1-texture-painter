@@ -123,6 +123,31 @@ class FakePositionTree:
 
 
 class PatternTreeviewLayoutTests(unittest.TestCase):
+    def test_reordered_visual_rows_resolve_selection_and_neighbor_by_identity(self):
+        names = {
+            "builtin": "Relic",
+            "user-c": "User C",
+            "user-a": "User A",
+            "user-b": "User B",
+        }
+        tree = SimpleNamespace(
+            selection=Mock(return_value=("user-a",)),
+            get_pattern_name=Mock(side_effect=lambda item: names.get(item)),
+            is_user_item=Mock(side_effect=lambda item: item.startswith("user-")),
+            get_children=Mock(
+                return_value=("builtin", "user-c", "user-a", "user-b")
+            ),
+        )
+        frame = object.__new__(FramePatternList)
+        frame.tree = tree
+
+        selection = FramePatternList.get_selected_pattern(frame)
+        neighbor = FramePatternList.get_selected_neighbor_pattern_name(frame)
+
+        self.assertEqual(selection.name, "User A")
+        self.assertTrue(selection.is_user)
+        self.assertEqual(neighbor, "User B")
+
     def test_initial_scroll_callback_precedes_separator_construction_safely(self):
         scrollbar = SimpleNamespace(set=Mock())
         frame = SimpleNamespace(scrollbar=scrollbar)

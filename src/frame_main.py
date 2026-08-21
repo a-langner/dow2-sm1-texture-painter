@@ -129,6 +129,14 @@ def _get_pattern_processing_or_default(name: str) -> PatternProcessingState:
     except PatternNotFoundError:
         return src.color_pattern_handler.DEFAULT_PATTERN_PROCESSING_STATE
 
+
+def _get_pattern_marker_or_default(name: str) -> PatternMarkerColor:
+    try:
+        return src.color_pattern_handler.get_pattern_marker_color(name)
+    except PatternNotFoundError:
+        return PatternMarkerColor.DEFAULT
+
+
 VERSION = "0.1"
 PREVIEW_DEBOUNCE_MS = 120
 PATTERN_SAVE_MENU_LABEL = "Save Current as New Pattern…"
@@ -348,9 +356,7 @@ class ArmyPainter(tk.Tk):
             store=src.color_pattern_handler,
             get_colors=lambda name: get_pattern_colors(name),
             get_processing=_get_pattern_processing_or_default,
-            get_marker=lambda name: src.color_pattern_handler.get_pattern_marker_color(
-                name
-            ),
+            get_marker=_get_pattern_marker_or_default,
             read_single=lambda path: read_pattern_file(path),
             persist_single_import=lambda pattern, **options: (
                 persist_imported_pattern(pattern, **options)
