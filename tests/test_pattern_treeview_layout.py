@@ -12,6 +12,7 @@ from src.widget import (
     calculate_pattern_separator_x,
     clipped_pattern_marker_height,
     find_treeview_body_boundary,
+    first_user_pattern_item,
     pattern_marker_display_color,
     pattern_item_has_marker,
     pattern_drop_destination,
@@ -68,6 +69,9 @@ class FakeSeparator:
     def lift(self):
         self.lifted = True
 
+    def place_forget(self):
+        self.placement = None
+
 
 class FakeActionFrame:
     def __init__(self):
@@ -119,6 +123,52 @@ class FakePositionTree:
 
 
 class PatternTreeviewLayoutTests(unittest.TestCase):
+    def test_user_block_separator_spans_tree_above_first_user_row(self):
+        tree = SimpleNamespace(
+            get_children=Mock(
+                return_value=("builtin", "first-user", "second-user")
+            ),
+            is_user_item=Mock(
+                side_effect=lambda item: item.endswith("user")
+            ),
+            bbox=Mock(return_value=(0, 84, 300, 20)),
+            winfo_x=Mock(return_value=6),
+            winfo_y=Mock(return_value=4),
+            winfo_width=Mock(return_value=300),
+        )
+        separator = FakeSeparator()
+        frame = SimpleNamespace(tree=tree, user_block_separator=separator)
+
+        result = FramePatternList._position_user_block_separator(frame)
+
+        self.assertTrue(result)
+        self.assertEqual(separator.placement, {"x": 6, "y": 87, "width": 300})
+        self.assertTrue(separator.lifted)
+
+    def test_user_block_separator_is_hidden_without_user_rows(self):
+        tree = SimpleNamespace(
+            get_children=Mock(return_value=("builtin",)),
+            is_user_item=Mock(return_value=False),
+        )
+        separator = FakeSeparator()
+        separator.placement = {"old": True}
+        frame = SimpleNamespace(tree=tree, user_block_separator=separator)
+
+        result = FramePatternList._position_user_block_separator(frame)
+
+        self.assertFalse(result)
+        self.assertIsNone(separator.placement)
+
+    def test_first_user_item_uses_real_rows_without_separator_entry(self):
+        items = ("builtin-a", "builtin-b", "user-a", "user-b")
+
+        result = first_user_pattern_item(
+            items, lambda item: item.startswith("user-")
+        )
+
+        self.assertEqual(result, "user-a")
+        self.assertIsNone(first_user_pattern_item(items[:2], lambda item: False))
+
     def test_drop_destination_uses_before_and_after_half_rows(self):
         users = ["user-a", "user-b", "user-c"]
         bbox = (0, 40, 200, 20)

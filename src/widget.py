@@ -2341,6 +2341,11 @@ def pattern_drop_destination(
     return final_index, line_y
 
 
+def first_user_pattern_item(items, is_user_item):
+    """Return the real first user row without introducing a separator row."""
+    return next((item for item in items if is_user_item(item)), None)
+
+
 def calculate_pattern_separator_x(tree_x, tree_width, marker_width, border_width=0):
     """Return the marker-column boundary within the Treeview parent."""
     return max(tree_x, tree_x + tree_width - marker_width - border_width)
@@ -3232,6 +3237,9 @@ class FramePatternList(tk.Frame):
         self.pattern_drop_indicator = ttk.Separator(
             self.tree_frame, orient=tk.HORIZONTAL, takefocus=False
         )
+        self.user_block_separator = ttk.Separator(
+            self.tree_frame, orient=tk.HORIZONTAL, takefocus=False
+        )
         self.header_separator_startup_retries = HEADER_SEPARATOR_STARTUP_RETRIES
         self.header_separator_startup_after_id = None
         self.header_separator_map_binding_id = self.tree.bind(
@@ -3321,6 +3329,7 @@ class FramePatternList(tk.Frame):
         self.scrollbar.set(first, last)
         if hasattr(self, "marker_labels"):
             self._redraw_pattern_markers()
+        self._position_user_block_separator()
 
     def _scroll_pattern_tree(self, *args):
         self.tree.yview(*args)
@@ -3528,6 +3537,8 @@ class FramePatternList(tk.Frame):
             self.column_separator.lift()
         if hasattr(self, "header_separator"):
             self.header_separator.lift()
+        if hasattr(self, "user_block_separator"):
+            self._position_user_block_separator()
 
     def _update_pattern_marker_selection(self):
         selected_items = set(self.tree.selection())
@@ -3613,6 +3624,7 @@ class FramePatternList(tk.Frame):
     def _schedule_separator_position(self, Event=None):
         self.after_idle(self._position_column_separator)
         self.after_idle(self._position_header_separator)
+        self.after_idle(self._position_user_block_separator)
         self.after_idle(self._redraw_pattern_markers)
 
     def _on_tree_mapped(self, Event=None):
@@ -3658,6 +3670,26 @@ class FramePatternList(tk.Frame):
             width=self.tree.winfo_width(),
         )
         self.header_separator.lift()
+        return True
+
+    def _position_user_block_separator(self, Event=None):
+        first_user_item = first_user_pattern_item(
+            self.tree.get_children(), self.tree.is_user_item
+        )
+        if first_user_item is None:
+            self.user_block_separator.place_forget()
+            return False
+        bbox = self.tree.bbox(first_user_item)
+        if not bbox:
+            self.user_block_separator.place_forget()
+            return False
+        _x, row_y, _width, _height = bbox
+        self.user_block_separator.place(
+            x=self.tree.winfo_x(),
+            y=self.tree.winfo_y() + max(row_y - 1, 0),
+            width=self.tree.winfo_width(),
+        )
+        self.user_block_separator.lift()
         return True
 
     def _select_row_through_separator(self, Event):
@@ -3707,6 +3739,8 @@ class FramePatternList(tk.Frame):
             self.select_pattern(pattern_name)
         if hasattr(self, "header_separator"):
             self.after_idle(self._position_header_separator)
+        if hasattr(self, "user_block_separator"):
+            self.after_idle(self._position_user_block_separator)
         if hasattr(self, "marker_labels"):
             self.after_idle(self._redraw_pattern_markers)
         if (
