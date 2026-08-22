@@ -170,6 +170,9 @@ class FakePaletteGrid:
     def set_selected_paint(self, paint_id):
         self.selected_paint_id = paint_id
 
+    def refresh_favorite_indicators(self):
+        pass
+
 
 class ColorPickerDialogTests(unittest.TestCase):
     def test_window_size_stays_within_a_constrained_screen(self):
@@ -2463,6 +2466,14 @@ class ColorPickerDialogTests(unittest.TestCase):
         grid.set_paints(paints)
 
         grid._rebuild_items.assert_called_once_with()
+
+    def test_swatch_grid_can_refresh_external_favorite_indicators(self):
+        grid = object.__new__(PaintSwatchGrid)
+        grid._schedule_relayout = Mock()
+
+        grid.refresh_favorite_indicators()
+
+        grid._schedule_relayout.assert_called_once_with()
 
     def test_empty_grid_message_changes_only_for_favorites_context(self):
         grid = object.__new__(PaintSwatchGrid)

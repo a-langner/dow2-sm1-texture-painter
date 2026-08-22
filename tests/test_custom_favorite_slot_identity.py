@@ -290,6 +290,7 @@ class CustomFavoriteSlotIdentityTests(unittest.TestCase):
         self.assertEqual(dialog.selected_paint_id, red.id)
         self.assertEqual(dialog.palette_grid.selected_paint_id, red.id)
         self.assertEqual(dialog.palette_paints, (red,))
+        dialog.palette_grid.refresh_favorite_indicators.assert_called_once_with()
 
     def test_favorites_count_tracks_current_visible_search_matches_only(self):
         red = PaintColor("red", "Canonical Red", 200, 10, 10)

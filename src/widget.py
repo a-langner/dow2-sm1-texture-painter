@@ -780,6 +780,10 @@ class PaintSwatchGrid(ttk.Frame):
         self.selected_paint_id = paint_id
         self._apply_selection_highlight()
 
+    def refresh_favorite_indicators(self) -> None:
+        """Redraw stars when Favorite membership changes without new paints."""
+        self._schedule_relayout()
+
     def _apply_selection_highlight(self) -> None:
         self._schedule_relayout()
 
@@ -1574,6 +1578,9 @@ class ColorPickerDialog(tk.Toplevel):
                 self._refresh_favorite_button()
                 return False
         self._refresh_palette_data_source()
+        palette_grid = getattr(self, "palette_grid", None)
+        if palette_grid is not None:
+            palette_grid.refresh_favorite_indicators()
         self._refresh_favorite_button()
         return True
 
