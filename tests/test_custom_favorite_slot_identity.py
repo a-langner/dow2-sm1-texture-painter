@@ -14,6 +14,7 @@ from src.color_pattern_handler import (
 from src.color_processing_settings import DEFAULT_COLOR_PROCESSING_SETTINGS
 from src.color_slot_state import ColorSlotState, CustomFavoriteIdentity
 from src.favorite_color import (
+    CitadelFavoriteColor,
     CustomFavoriteColor,
     FavoriteColorLibrary,
     FavoritePaletteColor,
@@ -289,6 +290,43 @@ class CustomFavoriteSlotIdentityTests(unittest.TestCase):
         self.assertEqual(dialog.selected_paint_id, red.id)
         self.assertEqual(dialog.palette_grid.selected_paint_id, red.id)
         self.assertEqual(dialog.palette_paints, (red,))
+
+    def test_favorites_count_tracks_current_visible_search_matches_only(self):
+        red = PaintColor("red", "Canonical Red", 200, 10, 10)
+        blue = PaintColor("blue", "Canonical Blue", 10, 10, 200)
+        custom = CustomFavoriteColor("custom-1", "Armor Accent", COLOR)
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog((red, blue))
+        dialog.favorite_library = FavoriteColorLibrary(
+            dialog.paint_catalog,
+            (
+                CitadelFavoriteColor(red.id),
+                CitadelFavoriteColor(blue.id),
+                custom,
+            ),
+        )
+        dialog.selected_color_group = PaletteSpecialGroup.FAVORITES
+        dialog.search_query = ""
+        dialog.palette_sort_mode = PaletteSortMode.COLOR
+        dialog.palette_grid = Mock()
+        dialog.palette_count_label = Mock()
+        dialog.event_generate = Mock()
+
+        dialog._refresh_palette_data_source()
+        dialog.palette_count_label.configure.assert_called_with(text="3 colors")
+
+        dialog.set_paint_search("Armor")
+        self.assertEqual(tuple(p.name for p in dialog.palette_paints), ("Armor Accent",))
+        dialog.palette_count_label.configure.assert_called_with(text="1 color")
+
+        dialog.set_paint_search("missing")
+        self.assertEqual(dialog.palette_paints, ())
+        dialog.palette_count_label.configure.assert_called_with(text="0 colors")
+
+        dialog.selected_color_group = None
+        dialog.set_paint_search("")
+        self.assertEqual(dialog.palette_paints, (red, blue))
+        dialog.palette_count_label.configure.assert_called_with(text="2 colors")
 
     def test_confirmed_custom_result_propagates_identity_to_target_slot(self):
         result = SelectedColor(COLOR, IDENTITY)
