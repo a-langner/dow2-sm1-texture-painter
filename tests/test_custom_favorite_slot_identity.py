@@ -20,6 +20,7 @@ from src.favorite_color import (
 )
 from src.frame_main import ArmyPainter
 from src.paint_catalog import PaintCatalog, PaintColor
+from src.paint_color_analysis import ColorGroup, PaletteSortMode
 from src.pattern_exchange import (
     create_pattern_collection_exchange_document,
     create_pattern_exchange_document,
@@ -29,7 +30,10 @@ from src.pattern_exchange import (
 from src.render_settings import DEFAULT_RENDER_SETTINGS
 from src.widget import (
     ColorPickerDialog,
+    CustomFavoriteNameDialog,
     FrameColorChooser,
+    NO_FAVORITE_COLORS_MESSAGE,
+    PaletteSpecialGroup,
     SelectedColor,
     color_slot_presentation,
 )
@@ -172,6 +176,119 @@ class CustomFavoriteSlotIdentityTests(unittest.TestCase):
         self.assertEqual(dialog.current_color, "#010203")
         self.assertEqual(dialog.favorite_library.favorites, ())
         dialog.settings.set_favorite_colors.assert_not_called()
+
+    @patch.object(CustomFavoriteNameDialog, "show", return_value="My Armor Blue")
+    def test_custom_add_and_remove_refresh_pending_identity_immediately(self, _show):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(())
+        dialog.favorite_library = FavoriteColorLibrary(dialog.paint_catalog)
+        dialog.current_color = COLOR
+        dialog.current_custom_favorite = None
+        dialog.selected_paint_id = None
+        dialog.settings = Mock()
+        dialog._refresh_palette_data_source = Mock()
+        dialog._refresh_favorite_button = Mock()
+
+        self.assertTrue(dialog.toggle_current_favorite())
+        added = dialog.favorite_library.custom_for_color(COLOR)
+        self.assertEqual(
+            dialog.current_custom_favorite,
+            CustomFavoriteIdentity(added.id, added.name),
+        )
+        self.assertTrue(dialog.toggle_current_favorite())
+        self.assertIsNone(dialog.current_custom_favorite)
+        self.assertEqual(dialog._refresh_palette_data_source.call_count, 2)
+
+    @patch.object(CustomFavoriteNameDialog, "show", return_value="Aardvark Blue")
+    def test_custom_rename_reorders_active_alphabetical_favorites(self, _show):
+        renamed_source = CustomFavoriteColor("custom-1", "Zulu Blue", COLOR)
+        other = CustomFavoriteColor("custom-2", "Alpha Green", "#008000")
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(())
+        dialog.favorite_library = FavoriteColorLibrary(
+            dialog.paint_catalog, (renamed_source, other)
+        )
+        dialog.current_custom_favorite = CustomFavoriteIdentity(
+            renamed_source.id, renamed_source.name
+        )
+        dialog.selected_color_group = PaletteSpecialGroup.FAVORITES
+        dialog.search_query = ""
+        dialog.palette_sort_mode = PaletteSortMode.ALPHABETICAL
+        dialog.settings = Mock()
+        dialog._refresh_palette_display = Mock()
+        tile = dialog.favorite_library.palette_colors()[0]
+
+        self.assertTrue(dialog.rename_custom_favorite(tile))
+
+        self.assertEqual(
+            tuple(paint.name for paint in dialog.palette_paints),
+            ("Aardvark Blue", "Alpha Green"),
+        )
+        self.assertEqual(
+            dialog.current_custom_favorite,
+            CustomFavoriteIdentity("custom-1", "Aardvark Blue"),
+        )
+        self.assertIs(
+            dialog.selected_color_group, PaletteSpecialGroup.FAVORITES
+        )
+        self.assertIs(dialog.palette_sort_mode, PaletteSortMode.ALPHABETICAL)
+
+    def test_last_custom_removal_refreshes_count_and_empty_state(self):
+        favorite = CustomFavoriteColor("custom-1", "Only Favorite", COLOR)
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(())
+        dialog.favorite_library = FavoriteColorLibrary(
+            dialog.paint_catalog, (favorite,)
+        )
+        dialog.current_color = COLOR
+        dialog.current_custom_favorite = IDENTITY
+        dialog.selected_color_group = PaletteSpecialGroup.FAVORITES
+        dialog.search_query = ""
+        dialog.palette_sort_mode = PaletteSortMode.COLOR
+        dialog.settings = Mock()
+        dialog.palette_grid = Mock()
+        dialog.palette_count_label = Mock()
+        dialog.event_generate = Mock()
+        dialog._refresh_favorite_button = Mock()
+        tile = dialog.favorite_library.palette_colors()[0]
+
+        self.assertTrue(dialog.remove_custom_favorite(tile))
+
+        self.assertEqual(dialog.palette_paints, ())
+        dialog.palette_grid.set_paints.assert_called_once_with(())
+        dialog.palette_grid.set_empty_message.assert_called_once_with(
+            NO_FAVORITE_COLORS_MESSAGE
+        )
+        dialog.palette_count_label.configure.assert_called_once_with(
+            text="0 colors"
+        )
+        self.assertIsNone(dialog.current_custom_favorite)
+
+    def test_citadel_star_refresh_preserves_normal_view_state_and_selection(self):
+        red = PaintColor("red", "Canonical Red", 200, 10, 10)
+        blue = PaintColor("blue", "Canonical Blue", 10, 10, 200)
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog((red, blue))
+        dialog.favorite_library = FavoriteColorLibrary(dialog.paint_catalog)
+        dialog.selected_color_group = ColorGroup.RED
+        dialog.search_query = "Red"
+        dialog.palette_sort_mode = PaletteSortMode.ALPHABETICAL
+        dialog.selected_paint_id = red.id
+        dialog.settings = Mock()
+        dialog.palette_grid = Mock()
+        dialog.palette_grid.selected_paint_id = red.id
+        dialog.palette_count_label = Mock()
+        dialog.event_generate = Mock()
+
+        self.assertTrue(dialog.toggle_citadel_favorite(red))
+
+        self.assertTrue(dialog._is_palette_color_favorite(red))
+        self.assertIs(dialog.selected_color_group, ColorGroup.RED)
+        self.assertEqual(dialog.search_query, "Red")
+        self.assertIs(dialog.palette_sort_mode, PaletteSortMode.ALPHABETICAL)
+        self.assertEqual(dialog.selected_paint_id, red.id)
+        self.assertEqual(dialog.palette_grid.selected_paint_id, red.id)
+        self.assertEqual(dialog.palette_paints, (red,))
 
     def test_confirmed_custom_result_propagates_identity_to_target_slot(self):
         result = SelectedColor(COLOR, IDENTITY)

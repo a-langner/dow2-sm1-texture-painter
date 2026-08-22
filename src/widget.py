@@ -1608,6 +1608,11 @@ class ColorPickerDialog(tk.Toplevel):
                 LOGGER.exception("Could not save Custom Favorite rename")
                 self.favorite_library.rename_custom(favorite.id, favorite.name)
                 return False
+        current_identity = getattr(self, "current_custom_favorite", None)
+        if current_identity is not None and current_identity.id == renamed.id:
+            self.current_custom_favorite = CustomFavoriteIdentity(
+                renamed.id, renamed.name
+            )
         self._refresh_palette_data_source()
         return True
 
@@ -1630,6 +1635,9 @@ class ColorPickerDialog(tk.Toplevel):
                     self.favorite_library.favorites + (removed,),
                 )
                 return False
+        current_identity = getattr(self, "current_custom_favorite", None)
+        if current_identity is not None and current_identity.id == removed.id:
+            self.current_custom_favorite = None
         self._refresh_palette_data_source()
         self._refresh_favorite_button()
         return True
@@ -2041,6 +2049,14 @@ class ColorPickerDialog(tk.Toplevel):
                     )
                 self._refresh_favorite_button()
                 return False
+        if added:
+            self.current_custom_favorite = CustomFavoriteIdentity(
+                custom.id, custom.name
+            )
+        else:
+            current_identity = getattr(self, "current_custom_favorite", None)
+            if current_identity is not None and current_identity.id == custom.id:
+                self.current_custom_favorite = None
         self._refresh_palette_data_source()
         self._refresh_favorite_button()
         return True
