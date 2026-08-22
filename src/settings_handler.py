@@ -5,6 +5,12 @@ from pathlib import Path
 import tempfile
 from typing import Literal, Mapping
 
+from src.favorite_color import (
+    FavoriteColor,
+    serialize_favorite_colors,
+    validate_favorite_colors,
+)
+from src.paint_catalog import load_citadel_catalog
 from src.recent_colors import RecentColors, validate_recent_colors
 from src.texture_naming import DEFAULT_TEXTURE_NAMING, texture_naming_profile_for_id
 from src.user_data import get_settings_path
@@ -30,6 +36,7 @@ COLOR_PICKER_COLOR_SPACE_FIELD = "ui_color_picker_color_space"
 COLOR_PICKER_SORT_MODE_FIELD = "ui_color_picker_sort_mode"
 COLOR_PICKER_SASHES_FIELD = "ui_color_picker_sashes"
 COLOR_PICKER_RECENT_COLORS_FIELD = "ui_color_picker_recent_colors"
+COLOR_FAVORITES_FIELD = "color_favorites"
 MAIN_WINDOW_POSITION_FIELD = "ui_main_window_position"
 GAME_PROFILE_FIELD = "game_profile_id"
 ValidatedSettings = tuple[DirectoryValues, str | None]
@@ -58,6 +65,7 @@ class SettingsHandler:
         self.color_picker_sort_mode: str | None = None
         self.color_picker_sashes: tuple[int, int] | None = None
         self.color_picker_recent_colors: RecentColors = ()
+        self.favorite_colors: tuple[FavoriteColor, ...] = ()
         self.main_window_position: tuple[int, int] | None = None
         self.game_profile_id = DEFAULT_TEXTURE_NAMING.profile_id
         self.load_error: Exception | None = None
@@ -87,6 +95,11 @@ class SettingsHandler:
             self.color_picker_recent_colors = validate_recent_colors(
                 document.get(COLOR_PICKER_RECENT_COLORS_FIELD)
             )
+            if COLOR_FAVORITES_FIELD in document:
+                self.favorite_colors = validate_favorite_colors(
+                    document.get(COLOR_FAVORITES_FIELD),
+                    load_citadel_catalog(),
+                )
             self.main_window_position = self._optional_ui_pair(
                 document, MAIN_WINDOW_POSITION_FIELD
             )
@@ -196,6 +209,14 @@ class SettingsHandler:
         self._update_values({COLOR_PICKER_RECENT_COLORS_FIELD: serialized})
         self.color_picker_recent_colors = validated
 
+    def set_favorite_colors(self, favorites: tuple[FavoriteColor, ...]) -> None:
+        serialized = serialize_favorite_colors(favorites)
+        validated = validate_favorite_colors(serialized, load_citadel_catalog())
+        self._update_values(
+            {COLOR_FAVORITES_FIELD: serialize_favorite_colors(validated)}
+        )
+        self.favorite_colors = validated
+
     @staticmethod
     def _optional_ui_string(
         document: dict[str, object], field: str
@@ -264,6 +285,11 @@ class SettingsHandler:
             COLOR_PICKER_RECENT_COLORS_FIELD: (
                 [list(color) for color in self.color_picker_recent_colors]
                 if self.color_picker_recent_colors
+                else None
+            ),
+            COLOR_FAVORITES_FIELD: (
+                serialize_favorite_colors(self.favorite_colors)
+                if self.favorite_colors
                 else None
             ),
             MAIN_WINDOW_POSITION_FIELD: (

@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
+from src.favorite_color import CitadelFavoriteColor, CustomFavoriteColor
 from src.settings_handler import (
     SETTINGS_FORMAT,
     SETTINGS_VERSION,
@@ -25,6 +26,69 @@ def settings_document(directory, **additional_directories):
 
 
 class SettingsHandlerTests(unittest.TestCase):
+    def test_settings_without_favorites_loads_empty_collection(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_path = root / "settings.json"
+            settings_path.write_text(
+                json.dumps(settings_document(root)), encoding="utf-8"
+            )
+
+            handler = SettingsHandler(settings_path, root)
+
+            self.assertEqual(handler.favorite_colors, ())
+
+    def test_citadel_and_custom_favorites_persist_through_restart(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_path = root / "settings.json"
+            citadel = CitadelFavoriteColor("mephiston-red")
+            custom = CustomFavoriteColor(
+                "custom-1", "My Armor Blue", "#395C71"
+            )
+            handler = SettingsHandler(settings_path, root)
+
+            handler.set_favorite_colors((citadel, custom))
+            reloaded = SettingsHandler(settings_path, root)
+
+            self.assertEqual(reloaded.favorite_colors, (citadel, custom))
+            document = json.loads(settings_path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                document["color_favorites"],
+                [
+                    {"type": "citadel", "citadel_id": "mephiston-red"},
+                    {
+                        "type": "custom",
+                        "id": "custom-1",
+                        "name": "My Armor Blue",
+                        "color": "#395C71",
+                    },
+                ],
+            )
+
+    def test_stale_citadel_and_malformed_custom_favorites_are_ignored(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_path = root / "settings.json"
+            document = settings_document(root)
+            document["color_favorites"] = [
+                {"type": "citadel", "citadel_id": "missing-paint"},
+                {"type": "custom", "id": "bad-color", "color": "#1234"},
+                {"type": "custom", "id": "valid", "color": "#abcdef"},
+                {"type": "custom", "id": "duplicate", "color": "ABCDEF"},
+                {"type": "custom", "color": "#112233"},
+                "bad",
+            ]
+            settings_path.write_text(json.dumps(document), encoding="utf-8")
+
+            handler = SettingsHandler(settings_path, root)
+
+            self.assertEqual(
+                handler.favorite_colors,
+                (CustomFavoriteColor("valid", "#ABCDEF", "#ABCDEF"),),
+            )
+            self.assertIsNone(handler.load_error)
+
     def test_missing_file_uses_home_directory_without_creating_file(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

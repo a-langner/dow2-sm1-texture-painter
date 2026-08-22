@@ -122,7 +122,10 @@ class FavoriteColorLibrary:
 
     def _store_existing(self, favorite: FavoriteColor) -> bool:
         if isinstance(favorite, CitadelFavoriteColor):
-            if favorite.citadel_id in self._citadel_by_id:
+            if (
+                self.catalog.find_by_id(favorite.citadel_id) is None
+                or favorite.citadel_id in self._citadel_by_id
+            ):
                 return False
             self._citadel_by_id[favorite.citadel_id] = favorite
             return True
@@ -163,3 +166,65 @@ class FavoriteColorLibrary:
         self._custom_by_id[custom.id] = custom
         self._custom_by_color[custom.color] = custom
         return FavoriteAddResult(custom, True)
+
+
+def validate_favorite_colors(
+    value: object,
+    catalog: PaintCatalog,
+) -> tuple[FavoriteColor, ...]:
+    """Validate independent persisted entries and safely discard bad records."""
+    if not isinstance(value, list):
+        return ()
+
+    candidates: list[FavoriteColor] = []
+    for entry in value:
+        if not isinstance(entry, dict):
+            continue
+        favorite_type = entry.get("type")
+        try:
+            if favorite_type == FavoriteColorType.CITADEL.value:
+                citadel_id = entry.get("citadel_id")
+                if not isinstance(citadel_id, str):
+                    continue
+                candidates.append(CitadelFavoriteColor(citadel_id))
+            elif favorite_type == FavoriteColorType.CUSTOM.value:
+                favorite_id = entry.get("id")
+                color = entry.get("color")
+                name = entry.get("name", "")
+                if not isinstance(favorite_id, str) or not isinstance(color, str):
+                    continue
+                candidates.append(
+                    CustomFavoriteColor(
+                        favorite_id,
+                        name if isinstance(name, str) else "",
+                        color,
+                    )
+                )
+        except (TypeError, ValueError):
+            continue
+    return FavoriteColorLibrary(catalog, tuple(candidates)).favorites
+
+
+def serialize_favorite_colors(
+    favorites: tuple[FavoriteColor, ...],
+) -> list[dict[str, str]]:
+    """Serialize compact stable identities without duplicating catalog records."""
+    serialized: list[dict[str, str]] = []
+    for favorite in favorites:
+        if isinstance(favorite, CitadelFavoriteColor):
+            serialized.append(
+                {
+                    "type": favorite.type.value,
+                    "citadel_id": favorite.citadel_id,
+                }
+            )
+        else:
+            serialized.append(
+                {
+                    "type": favorite.type.value,
+                    "id": favorite.id,
+                    "name": favorite.name,
+                    "color": favorite.color,
+                }
+            )
+    return serialized
