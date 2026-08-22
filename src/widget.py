@@ -22,6 +22,7 @@ from src.color_pattern_handler import (
 from src.color_slot import ColorSlot
 from src.favorite_color import (
     CitadelFavoriteColor,
+    CustomFavoriteColor,
     FavoriteColorLibrary,
     FavoritePaletteColor,
     resolve_exact_citadel_favorite,
@@ -183,6 +184,7 @@ ColorPickerCallback = Callable[[str], Optional[str]]
 PaintSelectedCallback = Callable[[PaintColor], None]
 PaintFavoriteLabelCallback = Callable[[PaintColor], Optional[str]]
 PaintFavoriteToggleCallback = Callable[[PaintColor], object]
+CustomFavoriteActionCallback = Callable[[FavoritePaletteColor], object]
 RecentColorSelectedCallback = Callable[[str], None]
 LevelsChangedCallback = Callable[[float, float, float, float], None]
 StringChangedCallback = Callable[[str], None]
@@ -664,11 +666,15 @@ class PaintSwatchGrid(ttk.Frame):
         on_paint_selected: PaintSelectedCallback,
         favorite_action_label: Optional[PaintFavoriteLabelCallback] = None,
         on_favorite_toggled: Optional[PaintFavoriteToggleCallback] = None,
+        on_custom_favorite_renamed: Optional[CustomFavoriteActionCallback] = None,
+        on_custom_favorite_removed: Optional[CustomFavoriteActionCallback] = None,
     ):
         super().__init__(parent)
         self._on_paint_selected = on_paint_selected
         self._favorite_action_label = favorite_action_label
         self._on_favorite_toggled = on_favorite_toggled
+        self._on_custom_favorite_renamed = on_custom_favorite_renamed
+        self._on_custom_favorite_removed = on_custom_favorite_removed
         self.paints = ()
         self.empty_message = NO_CITADEL_COLORS_MESSAGE
         self.selected_paint_id = None
@@ -849,11 +855,29 @@ class PaintSwatchGrid(ttk.Frame):
     def _on_canvas_context_menu(self, Event) -> None:
         """Open the exact hit tile's Favorite action without selecting it."""
         paint = self._paint_at(Event.x, Event.y)
+        if paint is None:
+            return
         if (
-            paint is None
-            or self._favorite_action_label is None
-            or self._on_favorite_toggled is None
+            isinstance(paint, FavoritePaletteColor)
+            and isinstance(paint.favorite, CustomFavoriteColor)
+            and self._on_custom_favorite_renamed is not None
+            and self._on_custom_favorite_removed is not None
         ):
+            menu = tk.Menu(self, tearoff=0)
+            menu.add_command(
+                label="Rename Favorite...",
+                command=partial(self._on_custom_favorite_renamed, paint),
+            )
+            menu.add_command(
+                label="Remove from Favorites",
+                command=partial(self._on_custom_favorite_removed, paint),
+            )
+            try:
+                menu.tk_popup(Event.x_root, Event.y_root)
+            finally:
+                menu.grab_release()
+            return
+        if self._favorite_action_label is None or self._on_favorite_toggled is None:
             return
         label = self._favorite_action_label(paint)
         if label is None:
@@ -924,11 +948,17 @@ class PaintSwatchGrid(ttk.Frame):
 class CustomFavoriteNameDialog(tk.Toplevel):
     """Small modal editor for the optional name of one Custom Favorite."""
 
-    def __init__(self, parent: tk.Misc, color: str):
+    def __init__(
+        self,
+        parent: tk.Misc,
+        color: str,
+        initial_name: str = "",
+        title: str = "Save Favorite Color",
+    ):
         super().__init__(parent)
         self.color = normalize_rgb_hex(color)
         self.result: Optional[str] = None
-        self.title("Save Favorite Color")
+        self.title(title)
         self.transient(parent)
         self.resizable(False, False)
 
@@ -943,6 +973,8 @@ class CustomFavoriteNameDialog(tk.Toplevel):
             sticky=tk.EW,
             pady=(2, 10),
         )
+        if initial_name:
+            self.name_entry.insert(0, initial_name)
         ttk.Label(content, text="Color:").grid(row=2, column=0, sticky=tk.W)
         self.color_preview = tk.Canvas(
             content,
@@ -981,9 +1013,15 @@ class CustomFavoriteNameDialog(tk.Toplevel):
         self.wait_window()
 
     @classmethod
-    def show(cls, parent: tk.Misc, color: str) -> Optional[str]:
+    def show(
+        cls,
+        parent: tk.Misc,
+        color: str,
+        initial_name: str = "",
+        title: str = "Save Favorite Color",
+    ) -> Optional[str]:
         """Show the modal and return a trimmed optional name or cancellation."""
-        return cls(parent, color).result
+        return cls(parent, color, initial_name, title).result
 
     def save(self, Event=None) -> None:
         self.result = self.name_entry.get().strip()
@@ -1257,6 +1295,8 @@ class ColorPickerDialog(tk.Toplevel):
             on_paint_selected=self.select_paint,
             favorite_action_label=self._citadel_favorite_action_label,
             on_favorite_toggled=self.toggle_citadel_favorite,
+            on_custom_favorite_renamed=self.rename_custom_favorite,
+            on_custom_favorite_removed=self.remove_custom_favorite,
         )
         self.palette_grid.pack(fill=tk.BOTH, expand=True)
 
@@ -1482,6 +1522,63 @@ class ColorPickerDialog(tk.Toplevel):
                 else:
                     self.favorite_library.remove_citadel(citadel_id)
                 self._refresh_favorite_button()
+                return False
+        self._refresh_palette_data_source()
+        self._refresh_favorite_button()
+        return True
+
+    @staticmethod
+    def _custom_favorite_for_palette_color(
+        paint: FavoritePaletteColor,
+    ) -> Optional[CustomFavoriteColor]:
+        favorite = paint.favorite
+        return favorite if isinstance(favorite, CustomFavoriteColor) else None
+
+    def rename_custom_favorite(self, paint: FavoritePaletteColor) -> bool:
+        """Rename one exact Custom Favorite without changing its RGB or ID."""
+        favorite = self._custom_favorite_for_palette_color(paint)
+        if favorite is None:
+            return False
+        name = CustomFavoriteNameDialog.show(
+            self,
+            favorite.color,
+            favorite.name,
+            "Rename Favorite",
+        )
+        if name is None:
+            return False
+        renamed = self.favorite_library.rename_custom(favorite.id, name)
+        if renamed is None:
+            return False
+        settings = getattr(self, "settings", None)
+        if settings is not None:
+            try:
+                settings.set_favorite_colors(self.favorite_library.favorites)
+            except OSError:
+                LOGGER.exception("Could not save Custom Favorite rename")
+                self.favorite_library.rename_custom(favorite.id, favorite.name)
+                return False
+        self._refresh_palette_data_source()
+        return True
+
+    def remove_custom_favorite(self, paint: FavoritePaletteColor) -> bool:
+        """Remove one exact Custom Favorite without touching applied colors."""
+        favorite = self._custom_favorite_for_palette_color(paint)
+        if favorite is None:
+            return False
+        removed = self.favorite_library.remove_custom(favorite.id)
+        if removed is None:
+            return False
+        settings = getattr(self, "settings", None)
+        if settings is not None:
+            try:
+                settings.set_favorite_colors(self.favorite_library.favorites)
+            except OSError:
+                LOGGER.exception("Could not save Custom Favorite removal")
+                self.favorite_library = FavoriteColorLibrary(
+                    self.paint_catalog,
+                    self.favorite_library.favorites + (removed,),
+                )
                 return False
         self._refresh_palette_data_source()
         self._refresh_favorite_button()

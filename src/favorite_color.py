@@ -183,6 +183,20 @@ class FavoriteColorLibrary:
             self._custom_by_color.pop(favorite.color, None)
         return favorite
 
+    def rename_custom(
+        self,
+        favorite_id: str,
+        name: str,
+    ) -> CustomFavoriteColor | None:
+        """Replace only a Custom Favorite's display name."""
+        existing = self._custom_by_id.get(favorite_id)
+        if existing is None:
+            return None
+        renamed = CustomFavoriteColor(existing.id, name, existing.color)
+        self._custom_by_id[favorite_id] = renamed
+        self._custom_by_color[renamed.color] = renamed
+        return renamed
+
     def _store_existing(self, favorite: FavoriteColor) -> bool:
         if isinstance(favorite, CitadelFavoriteColor):
             if (

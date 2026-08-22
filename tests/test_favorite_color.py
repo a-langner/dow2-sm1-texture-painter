@@ -161,6 +161,23 @@ class FavoriteColorTests(unittest.TestCase):
         self.assertIs(library.remove_custom("custom-1"), favorite)
         self.assertIsNone(library.custom_for_color("#010203"))
 
+    def test_custom_rename_changes_only_name_with_blank_hex_fallback(self):
+        favorite = CustomFavoriteColor("custom-1", "Original", "#010203")
+        library = FavoriteColorLibrary(self.catalog, (favorite,))
+
+        renamed = library.rename_custom("custom-1", "  Renamed  ")
+        fallback = library.rename_custom("custom-1", "   ")
+
+        self.assertEqual(
+            renamed,
+            CustomFavoriteColor("custom-1", "Renamed", "#010203"),
+        )
+        self.assertEqual(
+            fallback,
+            CustomFavoriteColor("custom-1", "#010203", "#010203"),
+        )
+        self.assertIs(library.custom_for_color("#010203"), fallback)
+
 
 if __name__ == "__main__":
     unittest.main()

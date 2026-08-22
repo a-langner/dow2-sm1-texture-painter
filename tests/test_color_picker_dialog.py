@@ -1335,6 +1335,106 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertIsNone(dialog._citadel_favorite_action_label(custom_tile))
         self.assertFalse(dialog.toggle_citadel_favorite(custom_tile))
 
+    @patch.object(CustomFavoriteNameDialog, "show", return_value="  Renamed  ")
+    def test_custom_favorite_rename_preserves_identity_rgb_and_refreshes(self, show):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(paints=())
+        favorite = CustomFavoriteColor("custom-1", "Original", "#010203")
+        dialog.favorite_library = FavoriteColorLibrary(
+            dialog.paint_catalog,
+            (favorite,),
+        )
+        tile = dialog.favorite_library.palette_colors()[0]
+        dialog.settings = Mock()
+        dialog._refresh_palette_data_source = Mock()
+
+        self.assertTrue(dialog.rename_custom_favorite(tile))
+
+        renamed = dialog.favorite_library.custom_for_color("#010203")
+        self.assertEqual(
+            renamed,
+            CustomFavoriteColor("custom-1", "Renamed", "#010203"),
+        )
+        show.assert_called_once_with(
+            dialog,
+            "#010203",
+            "Original",
+            "Rename Favorite",
+        )
+        dialog.settings.set_favorite_colors.assert_called_once_with((renamed,))
+        dialog._refresh_palette_data_source.assert_called_once_with()
+
+    @patch.object(CustomFavoriteNameDialog, "show", return_value=" ")
+    def test_blank_custom_rename_uses_hex_fallback(self, _show):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(paints=())
+        favorite = CustomFavoriteColor("custom-1", "Original", "#010203")
+        dialog.favorite_library = FavoriteColorLibrary(
+            dialog.paint_catalog,
+            (favorite,),
+        )
+        tile = dialog.favorite_library.palette_colors()[0]
+        dialog.settings = Mock()
+        dialog._refresh_palette_data_source = Mock()
+
+        self.assertTrue(dialog.rename_custom_favorite(tile))
+
+        self.assertEqual(
+            dialog.favorite_library.custom_for_color("#010203").name,
+            "#010203",
+        )
+
+    def test_custom_favorite_remove_leaves_current_color_untouched(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(paints=())
+        favorite = CustomFavoriteColor("custom-1", "Original", "#010203")
+        dialog.favorite_library = FavoriteColorLibrary(
+            dialog.paint_catalog,
+            (favorite,),
+        )
+        tile = dialog.favorite_library.palette_colors()[0]
+        dialog.current_color = "#010203"
+        dialog.selected_paint_id = tile.id
+        dialog.settings = Mock()
+        dialog._refresh_palette_data_source = Mock()
+        dialog._refresh_favorite_button = Mock()
+
+        self.assertTrue(dialog.remove_custom_favorite(tile))
+
+        self.assertEqual(dialog.current_color, "#010203")
+        self.assertEqual(dialog.favorite_library.favorites, ())
+        dialog.settings.set_favorite_colors.assert_called_once_with(())
+        dialog._refresh_palette_data_source.assert_called_once_with()
+
+    @patch("src.widget.tk.Menu")
+    def test_custom_tile_context_menu_has_only_rename_and_remove(self, menu):
+        catalog = PaintCatalog(paints=())
+        library = FavoriteColorLibrary(
+            catalog,
+            (CustomFavoriteColor("custom-1", "Custom", "#010203"),),
+        )
+        tile = library.palette_colors()[0]
+        grid = object.__new__(PaintSwatchGrid)
+        grid._paint_at = Mock(return_value=tile)
+        grid._on_custom_favorite_renamed = Mock()
+        grid._on_custom_favorite_removed = Mock()
+        grid._favorite_action_label = Mock()
+        grid._on_favorite_toggled = Mock()
+        event = SimpleNamespace(x=1, y=2, x_root=101, y_root=102)
+
+        grid._on_canvas_context_menu(event)
+
+        commands = menu.return_value.add_command.call_args_list
+        self.assertEqual(
+            [command.kwargs["label"] for command in commands],
+            ["Rename Favorite...", "Remove from Favorites"],
+        )
+        commands[0].kwargs["command"]()
+        commands[1].kwargs["command"]()
+        grid._on_custom_favorite_renamed.assert_called_once_with(tile)
+        grid._on_custom_favorite_removed.assert_called_once_with(tile)
+        grid._favorite_action_label.assert_not_called()
+
     @patch("src.widget.tk.Menu")
     def test_right_click_targets_exact_hit_tile_without_left_click_selection(self, menu):
         red = PaintColor("red", "Red", 255, 0, 0)
