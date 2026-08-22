@@ -165,28 +165,31 @@ PAINT_SWATCH_SELECTED_OUTLINE = APP_SELECTION_BACKGROUND
 FAVORITE_STAR_COLOR = "#E6B800"
 FAVORITE_STAR_MARGIN = 3
 FAVORITE_GROUP_INDICATOR_BACKGROUND = "#FFFFFF"
-FAVORITE_GROUP_STAR_POINTS = (
-    7,
-    2,
-    8.5,
-    5.5,
-    12,
-    5.5,
-    9.25,
-    7.75,
-    10.5,
-    12,
-    7,
-    9.5,
-    3.5,
-    12,
-    4.75,
-    7.75,
-    2,
-    5.5,
-    5.5,
-    5.5,
-)
+
+
+def calculate_centered_five_point_star(
+    center_x: float,
+    center_y: float,
+    outer_radius: float,
+) -> tuple[float, ...]:
+    """Return a regular five-point star centered by its visible bounds."""
+    inner_radius = outer_radius * ((3 - math.sqrt(5)) / 2)
+    coordinates: list[float] = []
+    for index in range(10):
+        radius = outer_radius if index % 2 == 0 else inner_radius
+        angle = -math.pi / 2 + index * math.pi / 5
+        coordinates.extend((radius * math.cos(angle), radius * math.sin(angle)))
+    xs = coordinates[0::2]
+    ys = coordinates[1::2]
+    offset_x = center_x - (min(xs) + max(xs)) / 2
+    offset_y = center_y - (min(ys) + max(ys)) / 2
+    return tuple(
+        coordinate + (offset_x if index % 2 == 0 else offset_y)
+        for index, coordinate in enumerate(coordinates)
+    )
+
+
+FAVORITE_GROUP_STAR_POINTS = calculate_centered_five_point_star(7, 7, 5)
 COLOR_SLOT_DROP_TARGET_OUTLINE = "#00a6d6"
 COLOR_SLOT_DRAG_THRESHOLD = 6
 COLOR_SLOT_DRAG_GHOST_ALPHA = 0.65

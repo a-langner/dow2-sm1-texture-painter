@@ -194,8 +194,13 @@ class ColorPickerDialogTests(unittest.TestCase):
         )
         x_coordinates = FAVORITE_GROUP_STAR_POINTS[0::2]
         y_coordinates = FAVORITE_GROUP_STAR_POINTS[1::2]
-        self.assertEqual((min(x_coordinates), max(x_coordinates)), (2, 12))
-        self.assertEqual((min(y_coordinates), max(y_coordinates)), (2, 12))
+        self.assertEqual(len(FAVORITE_GROUP_STAR_POINTS), 20)
+        self.assertAlmostEqual(min(x_coordinates) + max(x_coordinates), 14)
+        self.assertAlmostEqual(min(y_coordinates) + max(y_coordinates), 14)
+        self.assertGreater(min(x_coordinates), 1)
+        self.assertLess(max(x_coordinates), 13)
+        self.assertGreater(min(y_coordinates), 1)
+        self.assertLess(max(y_coordinates), 13)
 
     def test_window_size_stays_within_a_constrained_screen(self):
         dialog = object.__new__(ColorPickerDialog)
