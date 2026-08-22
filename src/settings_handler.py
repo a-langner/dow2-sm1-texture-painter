@@ -36,7 +36,9 @@ COLOR_PICKER_COLOR_SPACE_FIELD = "ui_color_picker_color_space"
 COLOR_PICKER_SORT_MODE_FIELD = "ui_color_picker_sort_mode"
 COLOR_PICKER_SASHES_FIELD = "ui_color_picker_sashes"
 COLOR_PICKER_RECENT_COLORS_FIELD = "ui_color_picker_recent_colors"
-COLOR_FAVORITES_FIELD = "color_favorites"
+# Application-owned data: workspace resets must preserve this field. A future
+# Factory/Application Reset may intentionally clear it.
+APPLICATION_COLOR_FAVORITES_FIELD = "color_favorites"
 MAIN_WINDOW_POSITION_FIELD = "ui_main_window_position"
 GAME_PROFILE_FIELD = "game_profile_id"
 ValidatedSettings = tuple[DirectoryValues, str | None]
@@ -95,9 +97,9 @@ class SettingsHandler:
             self.color_picker_recent_colors = validate_recent_colors(
                 document.get(COLOR_PICKER_RECENT_COLORS_FIELD)
             )
-            if COLOR_FAVORITES_FIELD in document:
+            if APPLICATION_COLOR_FAVORITES_FIELD in document:
                 self.favorite_colors = validate_favorite_colors(
-                    document.get(COLOR_FAVORITES_FIELD),
+                    document.get(APPLICATION_COLOR_FAVORITES_FIELD),
                     load_citadel_catalog(),
                 )
             self.main_window_position = self._optional_ui_pair(
@@ -213,7 +215,11 @@ class SettingsHandler:
         serialized = serialize_favorite_colors(favorites)
         validated = validate_favorite_colors(serialized, load_citadel_catalog())
         self._update_values(
-            {COLOR_FAVORITES_FIELD: serialize_favorite_colors(validated)}
+            {
+                APPLICATION_COLOR_FAVORITES_FIELD: serialize_favorite_colors(
+                    validated
+                )
+            }
         )
         self.favorite_colors = validated
 
@@ -287,7 +293,7 @@ class SettingsHandler:
                 if self.color_picker_recent_colors
                 else None
             ),
-            COLOR_FAVORITES_FIELD: (
+            APPLICATION_COLOR_FAVORITES_FIELD: (
                 serialize_favorite_colors(self.favorite_colors)
                 if self.favorite_colors
                 else None

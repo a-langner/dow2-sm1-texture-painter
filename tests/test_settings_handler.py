@@ -7,6 +7,7 @@ from unittest.mock import patch
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.favorite_color import CitadelFavoriteColor, CustomFavoriteColor
 from src.settings_handler import (
+    APPLICATION_COLOR_FAVORITES_FIELD,
     SETTINGS_FORMAT,
     SETTINGS_VERSION,
     SettingsHandler,
@@ -54,7 +55,7 @@ class SettingsHandlerTests(unittest.TestCase):
             self.assertEqual(reloaded.favorite_colors, (citadel, custom))
             document = json.loads(settings_path.read_text(encoding="utf-8"))
             self.assertEqual(
-                document["color_favorites"],
+                document[APPLICATION_COLOR_FAVORITES_FIELD],
                 [
                     {"type": "citadel", "citadel_id": "mephiston-red"},
                     {
@@ -64,6 +65,10 @@ class SettingsHandlerTests(unittest.TestCase):
                         "color": "#395C71",
                     },
                 ],
+            )
+            self.assertEqual(
+                APPLICATION_COLOR_FAVORITES_FIELD,
+                "color_favorites",
             )
 
     def test_stale_citadel_and_malformed_custom_favorites_are_ignored(self):

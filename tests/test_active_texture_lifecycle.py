@@ -9,6 +9,7 @@ import test_support  # noqa: F401 - installs the user-data path redirect
 from src.color_processing_settings import ColorProcessingSettings
 from src.constant import ColorOps
 from src.frame_main import ArmyPainter
+from src.favorite_color import CitadelFavoriteColor
 from src.preview_controller import PreviewController, PreviewResult
 from src.processing_mode import ProcessingMode
 from src.render_settings import DEFAULT_RENDER_SETTINGS
@@ -344,6 +345,10 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
             update_pattern_action_states=Mock(),
             after_idle=Mock(),
             show_user_pattern_load_warning=Mock(),
+            settings=SimpleNamespace(
+                favorite_colors=(CitadelFavoriteColor("mephiston-red"),),
+                set_favorite_colors=Mock(),
+            ),
         )
         painter.request_workspace_preview = lambda **options: (
             ArmyPainter.request_workspace_preview(painter, **options)
@@ -361,6 +366,11 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
         painter.frame_sliders.opacity_slider.set.assert_called_once_with(100.0)
         painter.frame_sliders.saturation_slider.set.assert_called_once_with(100.0)
         painter.frame_army_pattern.clear_selection.assert_called_once_with()
+        self.assertEqual(
+            painter.settings.favorite_colors,
+            (CitadelFavoriteColor("mephiston-red"),),
+        )
+        painter.settings.set_favorite_colors.assert_not_called()
         self.assertIs(
             painter.render_settings.processing_mode,
             ProcessingMode.GLOBAL,
