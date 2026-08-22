@@ -1210,6 +1210,69 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog.settings.set_favorite_colors.call_count, 2)
         self.assertEqual(dialog._refresh_palette_data_source.call_count, 2)
 
+    def test_universal_button_uses_exact_citadel_resolution_and_shared_toggle(self):
+        canonical = PaintColor("canonical", "Canonical", 10, 20, 30)
+        explicit = PaintColor("explicit", "Explicit", 10, 20, 30)
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(paints=(canonical, explicit))
+        dialog.favorite_library = FavoriteColorLibrary(dialog.paint_catalog)
+        dialog.current_color = "#0A141E"
+        dialog.selected_paint_id = "explicit"
+        dialog.toggle_citadel_favorite = Mock(return_value=True)
+
+        self.assertEqual(dialog.current_favorite_action_label(), "★ Add Favorite")
+        self.assertTrue(dialog.toggle_current_favorite())
+
+        dialog.toggle_citadel_favorite.assert_called_once_with(explicit)
+
+    def test_universal_button_adds_and_removes_true_custom_color(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(paints=())
+        dialog.favorite_library = FavoriteColorLibrary(dialog.paint_catalog)
+        dialog.current_color = "#395C71"
+        dialog.selected_paint_id = None
+        dialog.settings = Mock()
+        dialog.favorite_button = FakeWidget()
+        dialog._refresh_palette_data_source = Mock()
+
+        self.assertEqual(dialog.current_favorite_action_label(), "★ Add Favorite")
+        self.assertTrue(dialog.toggle_current_favorite())
+        added = dialog.favorite_library.custom_for_color("#395C71")
+        self.assertIsNotNone(added)
+        self.assertEqual(added.name, "#395C71")
+        self.assertEqual(dialog.favorite_button.options["text"], "★ Remove Favorite")
+
+        self.assertTrue(dialog.toggle_current_favorite())
+
+        self.assertIsNone(dialog.favorite_library.custom_for_color("#395C71"))
+        self.assertEqual(dialog.favorite_button.options["text"], "★ Add Favorite")
+        self.assertEqual(dialog.settings.set_favorite_colors.call_count, 2)
+        self.assertEqual(dialog._refresh_palette_data_source.call_count, 2)
+
+    def test_manual_color_change_refreshes_universal_favorite_action(self):
+        favorite = CustomFavoriteColor("custom-1", "Custom", "#395C71")
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(paints=())
+        dialog.favorite_library = FavoriteColorLibrary(
+            dialog.paint_catalog,
+            (favorite,),
+        )
+        dialog.current_color = "#395C71"
+        dialog.selected_paint_id = None
+        dialog.favorite_button = FakeWidget()
+        dialog._updating_color_representations = False
+        dialog._refresh_rgb_controls = Mock()
+        dialog._refresh_color_model_controls = Mock()
+        dialog._refresh_hex_control = Mock()
+        dialog._refresh_visual_picker = Mock()
+        dialog._refresh_current_color_preview = Mock()
+
+        dialog._refresh_favorite_button()
+        self.assertEqual(dialog.favorite_button.options["text"], "★ Remove Favorite")
+        dialog.set_current_color("#395C72")
+
+        self.assertEqual(dialog.favorite_button.options["text"], "★ Add Favorite")
+
     def test_custom_favorite_tile_has_no_citadel_context_action(self):
         dialog = object.__new__(ColorPickerDialog)
         dialog.paint_catalog = PaintCatalog(paints=())
@@ -1312,6 +1375,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog.paint_catalog.paints, catalog_paints)
         self.assertEqual(dialog._refresh_palette_display.call_count, 3)
 
+    @patch("src.widget.ttk.Button", side_effect=FakeWidget)
     @patch("src.widget.tk.Canvas", side_effect=FakeWidget)
     @patch("src.widget.RecentColorSwatchRow", side_effect=FakeWidget)
     @patch("src.widget.ttk.Frame", side_effect=FakeWidget)
@@ -1328,6 +1392,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         _frame_type,
         _recent_color_row_type,
         _canvas_type,
+        _button_type,
     ):
         dialog = object.__new__(ColorPickerDialog)
         dialog.original_color = "#123456"
@@ -1335,6 +1400,8 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.color_space_mode = DEFAULT_COLOR_SPACE_MODE
         dialog.recent_colors = ((150, 12, 9),)
         dialog.paint_catalog = PaintCatalog(paints=())
+        dialog.favorite_library = FavoriteColorLibrary(dialog.paint_catalog)
+        dialog.selected_paint_id = None
         dialog.register = Mock(return_value="rgb-validation-command")
         for attribute in (
             "editor_color_space_area",
@@ -1445,6 +1512,11 @@ class ColorPickerDialogTests(unittest.TestCase):
             dialog.hex_input.grid_options,
             {"row": 0, "column": 1, "sticky": "w"},
         )
+        self.assertEqual(dialog.favorite_button.options["text"], "★ Add Favorite")
+        self.assertEqual(
+            dialog.favorite_button.grid_options,
+            {"row": 0, "column": 2, "sticky": "e", "padx": (8, 0)},
+        )
         for preview in (dialog.original_color_preview, dialog.current_color_preview):
             self.assertEqual(preview.options["height"], 32)
             self.assertEqual(preview.pack_options, {"fill": "x"})
@@ -1479,6 +1551,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog.current_color_preview.options["background"], "#fedcba")
         self.assertEqual(dialog.hex_input.get(), "#FEDCBA")
 
+    @patch("src.widget.ttk.Button", side_effect=FakeWidget)
     @patch("src.widget.tk.Canvas", side_effect=FakeWidget)
     @patch("src.widget.RecentColorSwatchRow", side_effect=FakeWidget)
     @patch("src.widget.ttk.Frame", side_effect=FakeWidget)
@@ -1495,6 +1568,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         _frame_type,
         _recent_color_row_type,
         _canvas_type,
+        _button_type,
     ):
         initial_color = "#808080"
         for restored_mode, expected_title, expected_label in (
@@ -1510,6 +1584,8 @@ class ColorPickerDialogTests(unittest.TestCase):
                 dialog.color_space_mode = restored_mode
                 dialog.recent_colors = ()
                 dialog.paint_catalog = PaintCatalog(paints=())
+                dialog.favorite_library = FavoriteColorLibrary(dialog.paint_catalog)
+                dialog.selected_paint_id = None
                 dialog.register = Mock(return_value="validation-command")
                 for attribute in (
                     "editor_color_space_area",

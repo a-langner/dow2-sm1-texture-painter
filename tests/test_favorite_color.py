@@ -153,6 +153,14 @@ class FavoriteColorTests(unittest.TestCase):
         self.assertFalse(library.has_citadel("unique"))
         self.assertIsNone(library.remove_citadel("unique"))
 
+    def test_custom_lookup_and_removal_use_normalized_rgb_and_stable_id(self):
+        favorite = CustomFavoriteColor("custom-1", "Custom", "#010203")
+        library = FavoriteColorLibrary(self.catalog, (favorite,))
+
+        self.assertIs(library.custom_for_color("010203"), favorite)
+        self.assertIs(library.remove_custom("custom-1"), favorite)
+        self.assertIsNone(library.custom_for_color("#010203"))
+
 
 if __name__ == "__main__":
     unittest.main()

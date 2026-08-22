@@ -172,6 +172,17 @@ class FavoriteColorLibrary:
         """Remove and return one Citadel Favorite, if present."""
         return self._citadel_by_id.pop(citadel_id, None)
 
+    def custom_for_color(self, color: str) -> CustomFavoriteColor | None:
+        """Return the Custom Favorite with one exact normalized RGB value."""
+        return self._custom_by_color.get(normalize_rgb_hex(color))
+
+    def remove_custom(self, favorite_id: str) -> CustomFavoriteColor | None:
+        """Remove and return one Custom Favorite by stable identity."""
+        favorite = self._custom_by_id.pop(favorite_id, None)
+        if favorite is not None:
+            self._custom_by_color.pop(favorite.color, None)
+        return favorite
+
     def _store_existing(self, favorite: FavoriteColor) -> bool:
         if isinstance(favorite, CitadelFavoriteColor):
             if (

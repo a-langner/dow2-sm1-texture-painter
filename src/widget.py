@@ -24,6 +24,7 @@ from src.favorite_color import (
     CitadelFavoriteColor,
     FavoriteColorLibrary,
     FavoritePaletteColor,
+    resolve_exact_citadel_favorite,
 )
 from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.constant import (
@@ -1407,8 +1408,10 @@ class ColorPickerDialog(tk.Toplevel):
                     )
                 else:
                     self.favorite_library.remove_citadel(citadel_id)
+                self._refresh_favorite_button()
                 return False
         self._refresh_palette_data_source()
+        self._refresh_favorite_button()
         return True
 
     def _build_color_editor(self) -> None:
@@ -1574,6 +1577,12 @@ class ColorPickerDialog(tk.Toplevel):
         self.hex_input.grid(row=0, column=1, sticky=tk.W)
         self.hex_input.bind("<Return>", self._on_hex_input_return)
         self.hex_input.bind("<FocusOut>", self._on_hex_input_focus_out)
+        self.favorite_button = ttk.Button(
+            self.editor_hex_area,
+            text="★ Add Favorite",
+            command=self.toggle_current_favorite,
+        )
+        self.favorite_button.grid(row=0, column=2, sticky=tk.E, padx=(8, 0))
 
         self.recent_color_row = RecentColorSwatchRow(
             self.editor_recent_colors_area,
@@ -1613,6 +1622,7 @@ class ColorPickerDialog(tk.Toplevel):
         self.current_color_preview.pack(fill=tk.X)
         self._refresh_rgb_controls()
         self._refresh_hex_control()
+        self._refresh_favorite_button()
         self.select_color_space(self.color_space_mode)
 
     def _on_color_space_selected(self, Event=None) -> None:
@@ -1693,6 +1703,7 @@ class ColorPickerDialog(tk.Toplevel):
         self._refresh_hex_control()
         self._refresh_visual_picker()
         self._refresh_current_color_preview()
+        self._refresh_favorite_button()
 
     def _refresh_rgb_controls(self) -> None:
         controls = getattr(self, "rgb_controls", None)
@@ -1729,6 +1740,64 @@ class ColorPickerDialog(tk.Toplevel):
         control = getattr(self, "hex_input", None)
         if control is not None:
             self._replace_control_text(control, normalize_rgb_hex(self.current_color))
+
+    def _resolved_current_citadel_favorite(self) -> Optional[CitadelFavoriteColor]:
+        return resolve_exact_citadel_favorite(
+            self.paint_catalog,
+            self.current_color,
+            getattr(self, "selected_paint_id", None),
+        )
+
+    def current_favorite_action_label(self) -> str:
+        """Return the universal action for the exact current color identity."""
+        citadel = self._resolved_current_citadel_favorite()
+        is_favorite = (
+            self.favorite_library.has_citadel(citadel.citadel_id)
+            if citadel is not None
+            else self.favorite_library.custom_for_color(self.current_color) is not None
+        )
+        return "★ Remove Favorite" if is_favorite else "★ Add Favorite"
+
+    def _refresh_favorite_button(self) -> None:
+        button = getattr(self, "favorite_button", None)
+        if button is not None:
+            button.configure(text=self.current_favorite_action_label())
+
+    def toggle_current_favorite(self) -> bool:
+        """Toggle the exact current Citadel or Custom Color Favorite."""
+        citadel = self._resolved_current_citadel_favorite()
+        if citadel is not None:
+            paint = self.paint_catalog.find_by_id(citadel.citadel_id)
+            return paint is not None and self.toggle_citadel_favorite(paint)
+
+        existing = self.favorite_library.custom_for_color(self.current_color)
+        if existing is None:
+            result = self.favorite_library.add_color(self.current_color)
+            custom = result.favorite
+            added = True
+        else:
+            custom = self.favorite_library.remove_custom(existing.id)
+            added = False
+        if custom is None:
+            return False
+        settings = getattr(self, "settings", None)
+        if settings is not None:
+            try:
+                settings.set_favorite_colors(self.favorite_library.favorites)
+            except OSError:
+                LOGGER.exception("Could not save Custom Favorite change")
+                if added:
+                    self.favorite_library.remove_custom(custom.id)
+                else:
+                    self.favorite_library = FavoriteColorLibrary(
+                        self.paint_catalog,
+                        self.favorite_library.favorites + (custom,),
+                    )
+                self._refresh_favorite_button()
+                return False
+        self._refresh_palette_data_source()
+        self._refresh_favorite_button()
+        return True
 
     @staticmethod
     def _replace_control_text(control, value: str) -> None:
