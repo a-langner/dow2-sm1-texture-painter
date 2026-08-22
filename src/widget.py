@@ -7,6 +7,7 @@ from tkinter.ttk import Progressbar
 import os
 import math
 from dataclasses import dataclass
+from enum import Enum
 import colorsys
 from tkinter import filedialog
 from functools import partial
@@ -97,7 +98,16 @@ COLOR_PICKER_SCREEN_MARGIN = 80
 COLOR_PICKER_GROUP_PANE_WIDTH = 140
 COLOR_PICKER_PALETTE_PANE_WIDTH = 636
 COLOR_PICKER_EDITOR_PANE_WIDTH = 400
-COLOR_PICKER_GROUP_ENTRIES = ((None, "All Colors"),) + tuple(
+class PaletteSpecialGroup(Enum):
+    """Stable identities for navigation groups outside color families."""
+
+    FAVORITES = "favorites"
+
+
+COLOR_PICKER_GROUP_ENTRIES = (
+    (PaletteSpecialGroup.FAVORITES, "★ Favorites"),
+    (None, "🌈 All Colors"),
+) + tuple(
     (color_group, color_group.value) for color_group in VISUAL_GROUP_ORDER
 )
 COLOR_GROUP_INDICATORS = {
@@ -904,9 +914,13 @@ class ColorPickerDialog(tk.Toplevel):
             saved_mode if saved_mode in COLOR_SPACE_MODES else DEFAULT_COLOR_SPACE_MODE
         )
         saved_group = getattr(settings, "color_picker_group", None)
-        self.selected_color_group = next(
-            (group for group in VISUAL_GROUP_ORDER if group.value == saved_group),
-            None,
+        self.selected_color_group = (
+            PaletteSpecialGroup.FAVORITES
+            if saved_group == PaletteSpecialGroup.FAVORITES.value
+            else next(
+                (group for group in VISUAL_GROUP_ORDER if group.value == saved_group),
+                None,
+            )
         )
         saved_sort_mode = getattr(settings, "color_picker_sort_mode", None)
         self.palette_sort_mode = next(
@@ -1227,7 +1241,10 @@ class ColorPickerDialog(tk.Toplevel):
         self.select_color_group(self.selected_color_group)
 
     def _draw_group_indicator(self, indicator, color_group) -> None:
-        if color_group is not None:
+        if color_group is PaletteSpecialGroup.FAVORITES:
+            indicator.configure(background="#E6B800")
+            return
+        if isinstance(color_group, ColorGroup):
             indicator.configure(background=COLOR_GROUP_INDICATORS[color_group])
             return
 
@@ -1242,7 +1259,7 @@ class ColorPickerDialog(tk.Toplevel):
                 outline="",
             )
 
-    def select_color_group(self, color_group: Optional[ColorGroup]) -> None:
+    def select_color_group(self, color_group) -> None:
         """Select a navigation group for the palette filter."""
         self.selected_color_group = color_group
         for candidate, button in self.group_buttons.items():
@@ -1254,7 +1271,9 @@ class ColorPickerDialog(tk.Toplevel):
 
     def _refresh_palette_data_source(self) -> None:
         paints = self.paint_catalog.paints
-        if self.selected_color_group is not None:
+        if self.selected_color_group is PaletteSpecialGroup.FAVORITES:
+            paints = ()
+        elif self.selected_color_group is not None:
             paints = get_paints_for_group(paints, self.selected_color_group)
         paints = filter_paints_by_name(paints, self.search_query)
         self.palette_paints = sort_palette_paints(

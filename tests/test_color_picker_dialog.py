@@ -35,6 +35,7 @@ from src.widget import (
     RECENT_COLOR_SWATCH_CORNER_RADIUS,
     ColorPickerDialog,
     PaintSwatchGrid,
+    PaletteSpecialGroup,
     RecentColorSwatchRow,
     calculate_paint_swatch_cell_bounds,
     calculate_paint_swatch_columns,
@@ -1032,9 +1033,38 @@ class ColorPickerDialogTests(unittest.TestCase):
         groups = tuple(color_group for color_group, _ in COLOR_PICKER_GROUP_ENTRIES)
         labels = tuple(label for _, label in COLOR_PICKER_GROUP_ENTRIES)
 
-        self.assertEqual(groups, (None,) + VISUAL_GROUP_ORDER)
-        self.assertEqual(labels[0], "All Colors")
+        self.assertEqual(
+            groups,
+            (PaletteSpecialGroup.FAVORITES, None) + VISUAL_GROUP_ORDER,
+        )
+        self.assertEqual(labels[:2], ("★ Favorites", "🌈 All Colors"))
+        self.assertNotIn("Custom Favorites", labels)
         self.assertNotIn("Metallic", labels)
+
+    def test_favorites_navigation_is_permanent_and_safely_empty_before_contents(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(
+            paints=(PaintColor("red", "Red", 255, 0, 0),)
+        )
+        dialog.search_query = ""
+        dialog.palette_sort_mode = PaletteSortMode.COLOR
+        dialog.group_buttons = {
+            group: FakeGroupButton() for group, _ in COLOR_PICKER_GROUP_ENTRIES
+        }
+        dialog.group_button_labels = dict(COLOR_PICKER_GROUP_ENTRIES)
+        dialog._refresh_palette_display = Mock()
+
+        dialog.select_color_group(PaletteSpecialGroup.FAVORITES)
+
+        self.assertIs(
+            dialog.selected_color_group,
+            PaletteSpecialGroup.FAVORITES,
+        )
+        self.assertEqual(dialog.palette_paints, ())
+        self.assertEqual(
+            dialog.group_buttons[PaletteSpecialGroup.FAVORITES].states,
+            ["selected"],
+        )
 
     def test_all_colors_is_default_and_selection_updates_button_state(self):
         dialog = object.__new__(ColorPickerDialog)
