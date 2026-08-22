@@ -25,6 +25,7 @@ from src.widget import (
     COLOR_MODEL_CONTROL_WIDTH,
     COLOR_PICKER_EDITOR_PANE_WIDTH,
     COLOR_PREVIEW_BORDER,
+    FAVORITE_STAR_COLOR,
     COLOR_PICKER_GROUP_PANE_WIDTH,
     COLOR_PICKER_GROUP_ENTRIES,
     COLOR_PICKER_PALETTE_PANE_WIDTH,
@@ -1434,6 +1435,56 @@ class ColorPickerDialogTests(unittest.TestCase):
         grid._on_custom_favorite_renamed.assert_called_once_with(tile)
         grid._on_custom_favorite_removed.assert_called_once_with(tile)
         grid._favorite_action_label.assert_not_called()
+
+    def test_favorite_status_covers_catalog_and_unified_custom_tiles(self):
+        red = PaintColor("red", "Red", 255, 0, 0)
+        blue = PaintColor("blue", "Blue", 0, 0, 255)
+        custom = CustomFavoriteColor("custom-1", "Custom", "#010203")
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(paints=(red, blue))
+        dialog.favorite_library = FavoriteColorLibrary(
+            dialog.paint_catalog,
+            (CitadelFavoriteColor("red"), custom),
+        )
+        custom_tile = next(
+            color
+            for color in dialog.favorite_library.palette_colors()
+            if color.id == "custom:custom-1"
+        )
+
+        self.assertTrue(dialog._is_palette_color_favorite(red))
+        self.assertFalse(dialog._is_palette_color_favorite(blue))
+        self.assertTrue(dialog._is_palette_color_favorite(custom_tile))
+
+    def test_grid_draws_gold_star_only_for_favorite_without_resizing_tiles(self):
+        favorite = PaintColor("favorite", "Favorite", 255, 0, 0)
+        ordinary = PaintColor("ordinary", "Ordinary", 0, 0, 255)
+        grid = object.__new__(PaintSwatchGrid)
+        grid._relayout_after_id = "pending"
+        grid._configured_column_count = 2
+        grid._column_count = 2
+        grid.paints = (favorite, ordinary)
+        grid.selected_paint_id = None
+        grid._is_paint_favorite = lambda paint: paint.id == "favorite"
+        grid.canvas = Mock()
+        grid.canvas.winfo_width.return_value = 192
+        grid._paint_name_font = Mock()
+        grid._paint_name_font.metrics.return_value = 16
+        grid._paint_name_font.measure.side_effect = lambda text: len(text) * 6
+
+        grid._relayout()
+
+        star_calls = [
+            call
+            for call in grid.canvas.create_text.call_args_list
+            if call.kwargs.get("text") == "★"
+        ]
+        self.assertEqual(len(star_calls), 1)
+        self.assertEqual(star_calls[0].kwargs["fill"], FAVORITE_STAR_COLOR)
+        self.assertEqual(star_calls[0].kwargs["anchor"], "ne")
+        grid.canvas.configure.assert_called_once_with(
+            scrollregion=(0, 0, 192, PAINT_SWATCH_PREVIEW_SIZE + 48)
+        )
 
     @patch("src.widget.tk.Menu")
     def test_right_click_targets_exact_hit_tile_without_left_click_selection(self, menu):

@@ -161,6 +161,7 @@ COLOR_MODEL_GROUP_PADDING = (4, 6)
 COLOR_MODEL_CONTROL_WIDTH = 3
 PAINT_SWATCH_OUTLINE = "#606060"
 PAINT_SWATCH_SELECTED_OUTLINE = APP_SELECTION_BACKGROUND
+FAVORITE_STAR_COLOR = "#E6B800"
 COLOR_SLOT_DROP_TARGET_OUTLINE = "#00a6d6"
 COLOR_SLOT_DRAG_THRESHOLD = 6
 COLOR_SLOT_DRAG_GHOST_ALPHA = 0.65
@@ -184,6 +185,7 @@ ColorPickerCallback = Callable[[str], Optional[str]]
 PaintSelectedCallback = Callable[[PaintColor], None]
 PaintFavoriteLabelCallback = Callable[[PaintColor], Optional[str]]
 PaintFavoriteToggleCallback = Callable[[PaintColor], object]
+PaintFavoriteCheckCallback = Callable[[PaintColor], bool]
 CustomFavoriteActionCallback = Callable[[FavoritePaletteColor], object]
 RecentColorSelectedCallback = Callable[[str], None]
 LevelsChangedCallback = Callable[[float, float, float, float], None]
@@ -665,6 +667,7 @@ class PaintSwatchGrid(ttk.Frame):
         *,
         on_paint_selected: PaintSelectedCallback,
         favorite_action_label: Optional[PaintFavoriteLabelCallback] = None,
+        is_paint_favorite: Optional[PaintFavoriteCheckCallback] = None,
         on_favorite_toggled: Optional[PaintFavoriteToggleCallback] = None,
         on_custom_favorite_renamed: Optional[CustomFavoriteActionCallback] = None,
         on_custom_favorite_removed: Optional[CustomFavoriteActionCallback] = None,
@@ -672,6 +675,7 @@ class PaintSwatchGrid(ttk.Frame):
         super().__init__(parent)
         self._on_paint_selected = on_paint_selected
         self._favorite_action_label = favorite_action_label
+        self._is_paint_favorite = is_paint_favorite
         self._on_favorite_toggled = on_favorite_toggled
         self._on_custom_favorite_renamed = on_custom_favorite_renamed
         self._on_custom_favorite_removed = on_custom_favorite_removed
@@ -819,6 +823,17 @@ class PaintSwatchGrid(ttk.Frame):
                 ),
                 width=3 if selected else 1,
             )
+            favorite_check = getattr(self, "_is_paint_favorite", None)
+            if favorite_check is not None and favorite_check(paint):
+                self.canvas.create_text(
+                    preview_x1 + PAINT_SWATCH_PREVIEW_SIZE - 3,
+                    preview_y1 + 1,
+                    text="★",
+                    fill=FAVORITE_STAR_COLOR,
+                    font=("TkDefaultFont", 12, "bold"),
+                    anchor=tk.NE,
+                    tags="paint",
+                )
             name_width = min(PAINT_SWATCH_NAME_WRAP, max(1, x2 - x1 - 4))
             display_name = format_paint_name_for_swatch(
                 paint.name,
@@ -1294,6 +1309,7 @@ class ColorPickerDialog(tk.Toplevel):
             self.palette_grid_area,
             on_paint_selected=self.select_paint,
             favorite_action_label=self._citadel_favorite_action_label,
+            is_paint_favorite=self._is_palette_color_favorite,
             on_favorite_toggled=self.toggle_citadel_favorite,
             on_custom_favorite_renamed=self.rename_custom_favorite,
             on_custom_favorite_removed=self.remove_custom_favorite,
@@ -1494,6 +1510,11 @@ class ColorPickerDialog(tk.Toplevel):
             if self.favorite_library.has_citadel(citadel_id)
             else "Add to Favorites"
         )
+
+    def _is_palette_color_favorite(self, paint: PaintColor) -> bool:
+        if isinstance(paint, FavoritePaletteColor):
+            return True
+        return self.favorite_library.has_citadel(paint.id)
 
     def toggle_citadel_favorite(self, paint: PaintColor) -> bool:
         """Toggle one exact Citadel tile through the shared Favorite library."""
