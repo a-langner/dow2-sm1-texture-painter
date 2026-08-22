@@ -20,7 +20,11 @@ from src.color_pattern_handler import (
     is_user_pattern,
 )
 from src.color_slot import ColorSlot
-from src.favorite_color import FavoriteColorLibrary
+from src.favorite_color import (
+    CitadelFavoriteColor,
+    FavoriteColorLibrary,
+    FavoritePaletteColor,
+)
 from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.constant import (
     APP_SELECTION_BACKGROUND,
@@ -176,6 +180,8 @@ ColorSlotActionCallback = Callable[[int], object]
 ColorSlotsSwappedCallback = Callable[[int, int], object]
 ColorPickerCallback = Callable[[str], Optional[str]]
 PaintSelectedCallback = Callable[[PaintColor], None]
+PaintFavoriteLabelCallback = Callable[[PaintColor], Optional[str]]
+PaintFavoriteToggleCallback = Callable[[PaintColor], object]
 RecentColorSelectedCallback = Callable[[str], None]
 LevelsChangedCallback = Callable[[float, float, float, float], None]
 StringChangedCallback = Callable[[str], None]
@@ -650,9 +656,18 @@ class RecentColorSwatchRow(ttk.Frame):
 class PaintSwatchGrid(ttk.Frame):
     """Vertically scrollable canvas grid that reflows paints on resize."""
 
-    def __init__(self, parent, *, on_paint_selected: PaintSelectedCallback):
+    def __init__(
+        self,
+        parent,
+        *,
+        on_paint_selected: PaintSelectedCallback,
+        favorite_action_label: Optional[PaintFavoriteLabelCallback] = None,
+        on_favorite_toggled: Optional[PaintFavoriteToggleCallback] = None,
+    ):
         super().__init__(parent)
         self._on_paint_selected = on_paint_selected
+        self._favorite_action_label = favorite_action_label
+        self._on_favorite_toggled = on_favorite_toggled
         self.paints = ()
         self.empty_message = NO_CITADEL_COLORS_MESSAGE
         self.selected_paint_id = None
@@ -692,6 +707,7 @@ class PaintSwatchGrid(ttk.Frame):
         self.canvas.bind("<Prior>", partial(self._on_scroll_key, -1, "pages"))
         self.canvas.bind("<Next>", partial(self._on_scroll_key, 1, "pages"))
         self.canvas.bind("<Button-1>", self._on_canvas_click)
+        self.canvas.bind("<Button-3>", self._on_canvas_context_menu)
         self.canvas.bind("<Motion>", self._on_canvas_motion)
         self.canvas.bind("<Leave>", self._on_canvas_leave)
 
@@ -828,6 +844,28 @@ class PaintSwatchGrid(ttk.Frame):
         paint = self._paint_at(Event.x, Event.y)
         if paint is not None:
             self._select_paint(paint)
+
+    def _on_canvas_context_menu(self, Event) -> None:
+        """Open the exact hit tile's Favorite action without selecting it."""
+        paint = self._paint_at(Event.x, Event.y)
+        if (
+            paint is None
+            or self._favorite_action_label is None
+            or self._on_favorite_toggled is None
+        ):
+            return
+        label = self._favorite_action_label(paint)
+        if label is None:
+            return
+        menu = tk.Menu(self, tearoff=0)
+        menu.add_command(
+            label=label,
+            command=partial(self._on_favorite_toggled, paint),
+        )
+        try:
+            menu.tk_popup(Event.x_root, Event.y_root)
+        finally:
+            menu.grab_release()
 
     def _on_canvas_motion(self, Event) -> None:
         paint = self._paint_at(Event.x, Event.y)
@@ -1143,6 +1181,8 @@ class ColorPickerDialog(tk.Toplevel):
         self.palette_grid = PaintSwatchGrid(
             self.palette_grid_area,
             on_paint_selected=self.select_paint,
+            favorite_action_label=self._citadel_favorite_action_label,
+            on_favorite_toggled=self.toggle_citadel_favorite,
         )
         self.palette_grid.pack(fill=tk.BOTH, expand=True)
 
@@ -1323,6 +1363,53 @@ class ColorPickerDialog(tk.Toplevel):
         self.selected_paint_id = paint.id
         self.set_current_color(paint_swatch_presentation(paint).color)
         self.palette_grid.set_selected_paint(paint.id)
+
+    def _citadel_id_for_palette_color(self, paint: PaintColor) -> Optional[str]:
+        if isinstance(paint, FavoritePaletteColor):
+            if isinstance(paint.favorite, CitadelFavoriteColor):
+                return paint.favorite.citadel_id
+            return None
+        return paint.id if self.paint_catalog.find_by_id(paint.id) is not None else None
+
+    def _citadel_favorite_action_label(self, paint: PaintColor) -> Optional[str]:
+        citadel_id = self._citadel_id_for_palette_color(paint)
+        if citadel_id is None:
+            return None
+        return (
+            "Remove from Favorites"
+            if self.favorite_library.has_citadel(citadel_id)
+            else "Add to Favorites"
+        )
+
+    def toggle_citadel_favorite(self, paint: PaintColor) -> bool:
+        """Toggle one exact Citadel tile through the shared Favorite library."""
+        citadel_id = self._citadel_id_for_palette_color(paint)
+        if citadel_id is None:
+            return False
+        was_favorite = self.favorite_library.has_citadel(citadel_id)
+        if was_favorite:
+            self.favorite_library.remove_citadel(citadel_id)
+        else:
+            self.favorite_library.add_color(
+                f"#{paint.r:02X}{paint.g:02X}{paint.b:02X}",
+                explicit_citadel_id=citadel_id,
+            )
+        settings = getattr(self, "settings", None)
+        if settings is not None:
+            try:
+                settings.set_favorite_colors(self.favorite_library.favorites)
+            except OSError:
+                LOGGER.exception("Could not save Citadel Favorite change")
+                if was_favorite:
+                    self.favorite_library.add_color(
+                        f"#{paint.r:02X}{paint.g:02X}{paint.b:02X}",
+                        explicit_citadel_id=citadel_id,
+                    )
+                else:
+                    self.favorite_library.remove_citadel(citadel_id)
+                return False
+        self._refresh_palette_data_source()
+        return True
 
     def _build_color_editor(self) -> None:
         ttk.Label(self.editor_color_space_area, text="Color Space:").pack(

@@ -164,6 +164,14 @@ class FavoriteColorLibrary:
                 )
         return tuple(colors)
 
+    def has_citadel(self, citadel_id: str) -> bool:
+        """Return whether one exact catalog identity is a Favorite."""
+        return citadel_id in self._citadel_by_id
+
+    def remove_citadel(self, citadel_id: str) -> CitadelFavoriteColor | None:
+        """Remove and return one Citadel Favorite, if present."""
+        return self._citadel_by_id.pop(citadel_id, None)
+
     def _store_existing(self, favorite: FavoriteColor) -> bool:
         if isinstance(favorite, CitadelFavoriteColor):
             if (

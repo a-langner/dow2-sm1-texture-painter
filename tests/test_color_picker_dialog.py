@@ -1187,6 +1187,64 @@ class ColorPickerDialogTests(unittest.TestCase):
             ("Color", "Alphabetical"),
         )
 
+    def test_citadel_favorite_toggle_adds_removes_persists_and_refreshes(self):
+        paint = PaintColor("red", "Red", 255, 0, 0)
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(paints=(paint,))
+        dialog.favorite_library = FavoriteColorLibrary(dialog.paint_catalog)
+        dialog.settings = Mock()
+        dialog._refresh_palette_data_source = Mock()
+
+        self.assertEqual(
+            dialog._citadel_favorite_action_label(paint),
+            "Add to Favorites",
+        )
+        self.assertTrue(dialog.toggle_citadel_favorite(paint))
+        self.assertEqual(
+            dialog._citadel_favorite_action_label(paint),
+            "Remove from Favorites",
+        )
+        self.assertTrue(dialog.toggle_citadel_favorite(paint))
+
+        self.assertEqual(dialog.favorite_library.favorites, ())
+        self.assertEqual(dialog.settings.set_favorite_colors.call_count, 2)
+        self.assertEqual(dialog._refresh_palette_data_source.call_count, 2)
+
+    def test_custom_favorite_tile_has_no_citadel_context_action(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(paints=())
+        custom = CustomFavoriteColor("custom-1", "Custom", "#010203")
+        dialog.favorite_library = FavoriteColorLibrary(
+            dialog.paint_catalog,
+            (custom,),
+        )
+        custom_tile = dialog.favorite_library.palette_colors()[0]
+
+        self.assertIsNone(dialog._citadel_favorite_action_label(custom_tile))
+        self.assertFalse(dialog.toggle_citadel_favorite(custom_tile))
+
+    @patch("src.widget.tk.Menu")
+    def test_right_click_targets_exact_hit_tile_without_left_click_selection(self, menu):
+        red = PaintColor("red", "Red", 255, 0, 0)
+        blue = PaintColor("blue", "Blue", 0, 0, 255)
+        grid = object.__new__(PaintSwatchGrid)
+        grid._paint_at = Mock(return_value=blue)
+        grid._favorite_action_label = Mock(return_value="Add to Favorites")
+        grid._on_favorite_toggled = Mock()
+        grid._on_paint_selected = Mock()
+        event = SimpleNamespace(x=12, y=34, x_root=112, y_root=134)
+
+        grid._on_canvas_context_menu(event)
+
+        grid._paint_at.assert_called_once_with(12, 34)
+        grid._favorite_action_label.assert_called_once_with(blue)
+        command = menu.return_value.add_command.call_args.kwargs["command"]
+        command()
+        grid._on_favorite_toggled.assert_called_once_with(blue)
+        grid._on_paint_selected.assert_not_called()
+        menu.return_value.tk_popup.assert_called_once_with(112, 134)
+        menu.return_value.grab_release.assert_called_once_with()
+
     def test_all_colors_is_default_and_selection_updates_button_state(self):
         dialog = object.__new__(ColorPickerDialog)
         dialog.paint_catalog = PaintCatalog(

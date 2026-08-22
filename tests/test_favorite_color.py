@@ -143,6 +143,16 @@ class FavoriteColorTests(unittest.TestCase):
         )
         self.assertEqual([color.favorite for color in colors], [citadel, custom])
 
+    def test_citadel_membership_and_removal_use_exact_stable_id(self):
+        favorite = CitadelFavoriteColor("unique")
+        library = FavoriteColorLibrary(self.catalog, (favorite,))
+
+        removed = library.remove_citadel("unique")
+
+        self.assertIs(removed, favorite)
+        self.assertFalse(library.has_citadel("unique"))
+        self.assertIsNone(library.remove_citadel("unique"))
+
 
 if __name__ == "__main__":
     unittest.main()
