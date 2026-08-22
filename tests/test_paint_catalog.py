@@ -125,6 +125,13 @@ class PaintCatalogTests(unittest.TestCase):
 
         self.assertIs(catalog.find_exact_rgb((10, 20, 30)), first)
 
+    def test_stable_id_lookup_returns_exact_catalog_record(self):
+        catalog = load_citadel_catalog()
+        paint = catalog.paints[10]
+
+        self.assertIs(catalog.find_by_id(paint.id), paint)
+        self.assertIsNone(catalog.find_by_id("missing-paint-id"))
+
     def test_real_duplicate_rgb_uses_first_catalog_entry(self):
         catalog = load_citadel_catalog()
 

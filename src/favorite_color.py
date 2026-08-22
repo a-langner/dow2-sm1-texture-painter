@@ -7,7 +7,8 @@ from enum import Enum
 from typing import TypeAlias
 from uuid import uuid4
 
-from src.color_picker_visual import normalize_rgb_hex
+from src.color_picker_visual import normalize_rgb_hex, rgb_hex_to_channels
+from src.paint_catalog import PaintCatalog
 
 
 class FavoriteColorType(Enum):
@@ -65,3 +66,25 @@ class CustomFavoriteColor:
 
 
 FavoriteColor: TypeAlias = CitadelFavoriteColor | CustomFavoriteColor
+
+
+def resolve_exact_citadel_favorite(
+    catalog: PaintCatalog,
+    color: str,
+    explicit_citadel_id: str | None = None,
+) -> CitadelFavoriteColor | None:
+    """Resolve an exact catalog identity, preferring a matching explicit ID."""
+    channels = rgb_hex_to_channels(normalize_rgb_hex(color))
+    if explicit_citadel_id is not None:
+        explicit_paint = catalog.find_by_id(explicit_citadel_id)
+        if explicit_paint is not None and (
+            explicit_paint.r,
+            explicit_paint.g,
+            explicit_paint.b,
+        ) == channels:
+            return CitadelFavoriteColor(explicit_paint.id)
+
+    canonical_paint = catalog.find_exact_rgb(channels)
+    if canonical_paint is None:
+        return None
+    return CitadelFavoriteColor(canonical_paint.id)

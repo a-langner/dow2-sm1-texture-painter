@@ -42,17 +42,29 @@ class PaintCatalog:
         repr=False,
         compare=False,
     )
+    _id_index: Mapping[str, PaintColor] = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     def __post_init__(self) -> None:
         rgb_index: dict[RGBColor, PaintColor] = {}
+        id_index: dict[str, PaintColor] = {}
         for paint in self.paints:
             # Catalog order is authoritative when multiple products share RGB.
             rgb_index.setdefault((paint.r, paint.g, paint.b), paint)
+            id_index.setdefault(paint.id, paint)
         object.__setattr__(self, "_rgb_index", MappingProxyType(rgb_index))
+        object.__setattr__(self, "_id_index", MappingProxyType(id_index))
 
     def find_exact_rgb(self, rgb: RGBColor) -> PaintColor | None:
         """Return the first catalog paint with exactly matching RGB channels."""
         return self._rgb_index.get(rgb)
+
+    def find_by_id(self, paint_id: str) -> PaintColor | None:
+        """Return the catalog paint with the exact stable identifier."""
+        return self._id_index.get(paint_id)
 
 
 def _required_string(entry: dict[str, object], field: str, index: int) -> str:
