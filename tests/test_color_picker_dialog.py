@@ -1535,6 +1535,15 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertTrue(dialog.favorite_library.has_citadel(favorite.id))
         self.assertFalse(dialog.favorite_library.has_citadel(ordinary.id))
 
+    def test_tile_favorite_check_delegates_to_indexed_library_membership(self):
+        paint = PaintColor("paint-id", "Paint", 1, 2, 3)
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.favorite_library = Mock()
+        dialog.favorite_library.has_citadel.return_value = True
+
+        self.assertTrue(dialog._is_palette_color_favorite(paint))
+        dialog.favorite_library.has_citadel.assert_called_once_with("paint-id")
+
     @patch("src.widget.tk.Menu")
     def test_right_click_targets_exact_hit_tile_without_left_click_selection(self, menu):
         red = PaintColor("red", "Red", 255, 0, 0)

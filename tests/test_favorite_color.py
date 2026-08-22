@@ -161,6 +161,15 @@ class FavoriteColorTests(unittest.TestCase):
         self.assertIs(library.remove_custom("custom-1"), favorite)
         self.assertIsNone(library.custom_for_color("#010203"))
 
+    def test_favorite_membership_indexes_cover_ids_and_normalized_colors(self):
+        citadel = CitadelFavoriteColor("unique")
+        custom = CustomFavoriteColor("custom-1", "Custom", "#010203")
+        library = FavoriteColorLibrary(self.catalog, (citadel, custom))
+
+        self.assertEqual(library._citadel_by_id, {"unique": citadel})
+        self.assertEqual(library._custom_by_id, {"custom-1": custom})
+        self.assertEqual(library._custom_by_color, {"#010203": custom})
+
     def test_custom_rename_changes_only_name_with_blank_hex_fallback(self):
         favorite = CustomFavoriteColor("custom-1", "Original", "#010203")
         library = FavoriteColorLibrary(self.catalog, (favorite,))
