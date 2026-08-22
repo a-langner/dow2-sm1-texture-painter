@@ -165,6 +165,28 @@ PAINT_SWATCH_SELECTED_OUTLINE = APP_SELECTION_BACKGROUND
 FAVORITE_STAR_COLOR = "#E6B800"
 FAVORITE_STAR_MARGIN = 3
 FAVORITE_GROUP_INDICATOR_BACKGROUND = "#FFFFFF"
+FAVORITE_GROUP_STAR_POINTS = (
+    7,
+    2,
+    8.5,
+    5.5,
+    12,
+    5.5,
+    9.25,
+    7.75,
+    10.5,
+    12,
+    7,
+    9.5,
+    3.5,
+    12,
+    4.75,
+    7.75,
+    2,
+    5.5,
+    5.5,
+    5.5,
+)
 COLOR_SLOT_DROP_TARGET_OUTLINE = "#00a6d6"
 COLOR_SLOT_DRAG_THRESHOLD = 6
 COLOR_SLOT_DRAG_GHOST_ALPHA = 0.65
@@ -1463,13 +1485,10 @@ class ColorPickerDialog(tk.Toplevel):
     def _draw_group_indicator(self, indicator, color_group) -> None:
         if color_group is PaletteSpecialGroup.FAVORITES:
             indicator.configure(background=FAVORITE_GROUP_INDICATOR_BACKGROUND)
-            indicator.create_text(
-                7,
-                7,
-                text="★",
+            indicator.create_polygon(
+                FAVORITE_GROUP_STAR_POINTS,
                 fill=FAVORITE_STAR_COLOR,
-                font=("TkDefaultFont", 9, "bold"),
-                anchor=tk.CENTER,
+                outline="",
             )
             return
         if isinstance(color_group, ColorGroup):

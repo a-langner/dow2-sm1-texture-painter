@@ -29,6 +29,7 @@ from src.widget import (
     FAVORITE_STAR_COLOR,
     FAVORITE_STAR_MARGIN,
     FAVORITE_GROUP_INDICATOR_BACKGROUND,
+    FAVORITE_GROUP_STAR_POINTS,
     COLOR_PICKER_GROUP_PANE_WIDTH,
     COLOR_PICKER_GROUP_ENTRIES,
     COLOR_PICKER_PALETTE_PANE_WIDTH,
@@ -186,14 +187,15 @@ class ColorPickerDialogTests(unittest.TestCase):
         indicator.configure.assert_called_once_with(
             background=FAVORITE_GROUP_INDICATOR_BACKGROUND
         )
-        indicator.create_text.assert_called_once_with(
-            7,
-            7,
-            text="★",
+        indicator.create_polygon.assert_called_once_with(
+            FAVORITE_GROUP_STAR_POINTS,
             fill=FAVORITE_STAR_COLOR,
-            font=("TkDefaultFont", 9, "bold"),
-            anchor="center",
+            outline="",
         )
+        x_coordinates = FAVORITE_GROUP_STAR_POINTS[0::2]
+        y_coordinates = FAVORITE_GROUP_STAR_POINTS[1::2]
+        self.assertEqual((min(x_coordinates), max(x_coordinates)), (2, 12))
+        self.assertEqual((min(y_coordinates), max(y_coordinates)), (2, 12))
 
     def test_window_size_stays_within_a_constrained_screen(self):
         dialog = object.__new__(ColorPickerDialog)
