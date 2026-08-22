@@ -29,6 +29,7 @@ from src.pattern_exchange import (
 from src.render_settings import DEFAULT_RENDER_SETTINGS
 from src.widget import (
     ColorPickerDialog,
+    FrameColorChooser,
     SelectedColor,
     color_slot_presentation,
 )
@@ -83,6 +84,77 @@ class CustomFavoriteSlotIdentityTests(unittest.TestCase):
         self.assertIsInstance(result, str)
         self.assertEqual(result, COLOR)
         self.assertEqual(result.custom_favorite, IDENTITY)
+
+    def test_custom_selection_enters_recents_only_after_confirmation(self):
+        favorite = CustomFavoriteColor("custom-1", "My Armor Blue", COLOR)
+        tile = FavoritePaletteColor(
+            "custom:custom-1", "My Armor Blue", 57, 92, 113, favorite
+        )
+        settings = Mock()
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.settings = settings
+        dialog.recent_colors = ((1, 2, 3),)
+        dialog.paint_catalog = PaintCatalog(())
+        dialog.favorite_library = FavoriteColorLibrary(
+            dialog.paint_catalog, (favorite,)
+        )
+        dialog.current_color = "#000000"
+        dialog.current_custom_favorite = None
+        dialog.palette_grid = Mock()
+        dialog._refresh_color_representations = Mock()
+        dialog._save_geometry = Mock()
+        dialog.destroy = Mock()
+
+        dialog.select_paint(tile)
+
+        self.assertEqual(dialog.current_color, "#395c71")
+        settings.set_color_picker_recent_colors.assert_not_called()
+
+        dialog.accept()
+
+        settings.set_color_picker_recent_colors.assert_called_once_with(
+            ((57, 92, 113), (1, 2, 3))
+        )
+
+    def test_cancelled_custom_selection_does_not_enter_recent_colors(self):
+        favorite = CustomFavoriteColor("custom-1", "My Armor Blue", COLOR)
+        tile = FavoritePaletteColor(
+            "custom:custom-1", "My Armor Blue", 57, 92, 113, favorite
+        )
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.settings = Mock()
+        dialog.recent_colors = ()
+        dialog.paint_catalog = PaintCatalog(())
+        dialog.favorite_library = FavoriteColorLibrary(
+            dialog.paint_catalog, (favorite,)
+        )
+        dialog.current_color = "#000000"
+        dialog.current_custom_favorite = None
+        dialog.palette_grid = Mock()
+        dialog._refresh_color_representations = Mock()
+        dialog._save_geometry = Mock()
+        dialog.destroy = Mock()
+
+        dialog.select_paint(tile)
+        dialog.cancel()
+
+        self.assertIsNone(dialog.get_accepted_color())
+        dialog.settings.set_color_picker_recent_colors.assert_not_called()
+
+    def test_confirmed_custom_result_propagates_identity_to_target_slot(self):
+        result = SelectedColor(COLOR, IDENTITY)
+        chooser = object.__new__(FrameColorChooser)
+        chooser.color_boxes = [{"bg": "#000000"} for _ in range(4)]
+        chooser._color_identities = [None] * 4
+        chooser._color_picker = Mock(return_value=result)
+        chooser.draw_rgb_value = Mock()
+        chooser._on_color_changed = Mock()
+
+        chooser.apply_color(2)
+
+        self.assertEqual(chooser.color_boxes[2]["bg"], COLOR)
+        self.assertEqual(chooser._color_identities[2], IDENTITY)
+        chooser._on_color_changed.assert_called_once_with(2, result)
 
     def test_manual_edit_re_resolves_exact_custom_or_clears_stale_identity(self):
         first = CustomFavoriteColor("custom-1", "My Armor Blue", COLOR)
