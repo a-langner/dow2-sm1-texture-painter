@@ -76,6 +76,18 @@ class FavoriteAddResult:
     added: bool
 
 
+@dataclass(frozen=True)
+class FavoritePaletteColor:
+    """Resolved palette presentation shared by both Favorite kinds."""
+
+    id: str
+    name: str
+    r: int
+    g: int
+    b: int
+    favorite: FavoriteColor
+
+
 def resolve_exact_citadel_favorite(
     catalog: PaintCatalog,
     color: str,
@@ -119,6 +131,38 @@ class FavoriteColorLibrary:
         return tuple(self._citadel_by_id.values()) + tuple(
             self._custom_by_id.values()
         )
+
+    def palette_colors(self) -> tuple[FavoritePaletteColor, ...]:
+        """Resolve unified Favorites into the existing RGB palette shape."""
+        colors: list[FavoritePaletteColor] = []
+        for favorite in self.favorites:
+            if isinstance(favorite, CitadelFavoriteColor):
+                paint = self.catalog.find_by_id(favorite.citadel_id)
+                if paint is None:
+                    continue
+                colors.append(
+                    FavoritePaletteColor(
+                        paint.id,
+                        paint.name,
+                        paint.r,
+                        paint.g,
+                        paint.b,
+                        favorite,
+                    )
+                )
+            else:
+                red, green, blue = rgb_hex_to_channels(favorite.color)
+                colors.append(
+                    FavoritePaletteColor(
+                        f"custom:{favorite.id}",
+                        favorite.name,
+                        red,
+                        green,
+                        blue,
+                        favorite,
+                    )
+                )
+        return tuple(colors)
 
     def _store_existing(self, favorite: FavoriteColor) -> bool:
         if isinstance(favorite, CitadelFavoriteColor):

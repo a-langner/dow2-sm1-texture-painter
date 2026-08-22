@@ -20,6 +20,7 @@ from src.color_pattern_handler import (
     is_user_pattern,
 )
 from src.color_slot import ColorSlot
+from src.favorite_color import FavoriteColorLibrary
 from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.constant import (
     APP_SELECTION_BACKGROUND,
@@ -930,6 +931,10 @@ class ColorPickerDialog(tk.Toplevel):
         self.paint_catalog = (
             load_citadel_catalog() if paint_catalog is None else paint_catalog
         )
+        self.favorite_library = FavoriteColorLibrary(
+            self.paint_catalog,
+            getattr(settings, "favorite_colors", ()),
+        )
         self.palette_paints = ()
         self.selected_paint_id: Optional[str] = None
         self.search_query = ""
@@ -1267,12 +1272,21 @@ class ColorPickerDialog(tk.Toplevel):
             button.state(["selected"] if selected else ["!selected"])
             marker = "▸ " if selected else "  "
             button.configure(text=f"{marker}{self.group_button_labels[candidate]}")
+        palette_area = getattr(self, "palette_area", None)
+        if palette_area is not None:
+            palette_area.configure(
+                text=(
+                    "Favorites"
+                    if color_group is PaletteSpecialGroup.FAVORITES
+                    else "Citadel Colors"
+                )
+            )
         self._refresh_palette_data_source()
 
     def _refresh_palette_data_source(self) -> None:
         paints = self.paint_catalog.paints
         if self.selected_color_group is PaletteSpecialGroup.FAVORITES:
-            paints = ()
+            paints = self.favorite_library.palette_colors()
         elif self.selected_color_group is not None:
             paints = get_paints_for_group(paints, self.selected_color_group)
         paints = filter_paints_by_name(paints, self.search_query)

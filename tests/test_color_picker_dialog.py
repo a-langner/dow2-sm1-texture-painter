@@ -10,6 +10,11 @@ from src.color_picker_visual import (
     rgb_hex_to_hsv,
 )
 from src.paint_catalog import PaintCatalog, PaintColor
+from src.favorite_color import (
+    CitadelFavoriteColor,
+    CustomFavoriteColor,
+    FavoriteColorLibrary,
+)
 from src.paint_color_analysis import ColorGroup, PaletteSortMode, VISUAL_GROUP_ORDER
 from src.paint_color_analysis import get_paints_for_group, sort_paints_visually
 from src.widget import (
@@ -1048,6 +1053,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         )
         dialog.search_query = ""
         dialog.palette_sort_mode = PaletteSortMode.COLOR
+        dialog.favorite_library = FavoriteColorLibrary(dialog.paint_catalog)
         dialog.group_buttons = {
             group: FakeGroupButton() for group, _ in COLOR_PICKER_GROUP_ENTRIES
         }
@@ -1065,6 +1071,37 @@ class ColorPickerDialogTests(unittest.TestCase):
             dialog.group_buttons[PaletteSpecialGroup.FAVORITES].states,
             ["selected"],
         )
+
+    def test_favorites_combines_citadel_and_custom_while_normal_groups_exclude_custom(self):
+        red = PaintColor("red", "Catalog Red", 255, 0, 0)
+        blue = PaintColor("blue", "Catalog Blue", 0, 0, 255)
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(paints=(red, blue))
+        dialog.favorite_library = FavoriteColorLibrary(
+            dialog.paint_catalog,
+            (
+                CitadelFavoriteColor("red"),
+                CustomFavoriteColor("custom-1", "My Green", "#00FF00"),
+            ),
+        )
+        dialog.search_query = ""
+        dialog.palette_sort_mode = PaletteSortMode.ALPHABETICAL
+        dialog.group_buttons = {
+            group: FakeGroupButton() for group, _ in COLOR_PICKER_GROUP_ENTRIES
+        }
+        dialog.group_button_labels = dict(COLOR_PICKER_GROUP_ENTRIES)
+        dialog._refresh_palette_display = Mock()
+
+        dialog.select_color_group(PaletteSpecialGroup.FAVORITES)
+        favorite_names = {color.name for color in dialog.palette_paints}
+        dialog.select_color_group(None)
+        all_names = {color.name for color in dialog.palette_paints}
+        dialog.select_color_group(ColorGroup.GREEN)
+        green_names = {color.name for color in dialog.palette_paints}
+
+        self.assertEqual(favorite_names, {"Catalog Red", "My Green"})
+        self.assertEqual(all_names, {"Catalog Red", "Catalog Blue"})
+        self.assertNotIn("My Green", green_names)
 
     def test_all_colors_is_default_and_selection_updates_button_state(self):
         dialog = object.__new__(ColorPickerDialog)

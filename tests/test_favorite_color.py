@@ -127,6 +127,22 @@ class FavoriteColorTests(unittest.TestCase):
         self.assertFalse(duplicate.added)
         self.assertIs(duplicate.favorite, first.favorite)
 
+    def test_palette_projection_combines_citadel_and_custom_favorites(self):
+        citadel = CitadelFavoriteColor("unique")
+        custom = CustomFavoriteColor("custom-1", "My Color", "#010203")
+        library = FavoriteColorLibrary(self.catalog, (citadel, custom))
+
+        colors = library.palette_colors()
+
+        self.assertEqual(
+            [(color.id, color.name, color.r, color.g, color.b) for color in colors],
+            [
+                ("unique", "Unique", 40, 50, 60),
+                ("custom:custom-1", "My Color", 1, 2, 3),
+            ],
+        )
+        self.assertEqual([color.favorite for color in colors], [citadel, custom])
+
 
 if __name__ == "__main__":
     unittest.main()
