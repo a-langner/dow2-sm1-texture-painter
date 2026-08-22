@@ -1141,6 +1141,47 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(blue_favorites, ("Macragge Blue", "My Armor Blue"))
         self.assertEqual(restored_favorites, all_favorites)
 
+    def test_favorites_use_existing_sort_modes_across_both_types(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(
+            paints=(
+                PaintColor("z-red", "Zulu Red", 240, 10, 10),
+                PaintColor("a-blue", "Alpha Blue", 10, 10, 240),
+            )
+        )
+        dialog.favorite_library = FavoriteColorLibrary(
+            dialog.paint_catalog,
+            (
+                CitadelFavoriteColor("z-red"),
+                CitadelFavoriteColor("a-blue"),
+                CustomFavoriteColor("custom-green", "Mike Green", "#00C040"),
+                CustomFavoriteColor("custom-yellow", "Bravo Yellow", "#E0D000"),
+            ),
+        )
+        dialog.selected_color_group = PaletteSpecialGroup.FAVORITES
+        dialog.search_query = ""
+        dialog.palette_sort_mode = PaletteSortMode.COLOR
+        dialog._refresh_palette_display = Mock()
+        dialog._refresh_palette_data_source()
+        projected = dialog.favorite_library.palette_colors()
+
+        color_order = tuple(color.id for color in dialog.palette_paints)
+        dialog.set_palette_sort_mode(PaletteSortMode.ALPHABETICAL)
+        alphabetical_names = tuple(color.name for color in dialog.palette_paints)
+
+        self.assertEqual(
+            color_order,
+            tuple(color.id for color in sort_paints_visually(projected)),
+        )
+        self.assertEqual(
+            alphabetical_names,
+            ("Alpha Blue", "Bravo Yellow", "Mike Green", "Zulu Red"),
+        )
+        self.assertEqual(
+            PALETTE_SORT_DISPLAY_NAMES,
+            ("Color", "Alphabetical"),
+        )
+
     def test_all_colors_is_default_and_selection_updates_button_state(self):
         dialog = object.__new__(ColorPickerDialog)
         dialog.paint_catalog = PaintCatalog(
