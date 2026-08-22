@@ -13,7 +13,11 @@ from src.color_pattern_handler import (
 )
 from src.color_processing_settings import DEFAULT_COLOR_PROCESSING_SETTINGS
 from src.color_slot_state import ColorSlotState, CustomFavoriteIdentity
-from src.favorite_color import CustomFavoriteColor, FavoritePaletteColor
+from src.favorite_color import (
+    CustomFavoriteColor,
+    FavoriteColorLibrary,
+    FavoritePaletteColor,
+)
 from src.frame_main import ArmyPainter
 from src.paint_catalog import PaintCatalog, PaintColor
 from src.pattern_exchange import (
@@ -62,6 +66,10 @@ class CustomFavoriteSlotIdentityTests(unittest.TestCase):
         dialog.selected_paint_id = None
         dialog.current_color = "#000000"
         dialog.current_custom_favorite = None
+        dialog.paint_catalog = PaintCatalog(())
+        dialog.favorite_library = FavoriteColorLibrary(
+            dialog.paint_catalog, (favorite,)
+        )
         dialog.palette_grid = Mock()
         dialog._refresh_color_representations = Mock()
         dialog._remember_accepted_color = Mock()
@@ -75,6 +83,41 @@ class CustomFavoriteSlotIdentityTests(unittest.TestCase):
         self.assertIsInstance(result, str)
         self.assertEqual(result, COLOR)
         self.assertEqual(result.custom_favorite, IDENTITY)
+
+    def test_manual_edit_re_resolves_exact_custom_or_clears_stale_identity(self):
+        first = CustomFavoriteColor("custom-1", "My Armor Blue", COLOR)
+        second = CustomFavoriteColor("custom-2", "Edge Blue", "#395C72")
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(())
+        dialog.favorite_library = FavoriteColorLibrary(
+            dialog.paint_catalog, (first, second)
+        )
+        dialog.current_custom_favorite = IDENTITY
+        dialog._refresh_color_representations = Mock()
+
+        dialog.set_current_color("#395C72")
+        self.assertEqual(
+            dialog.current_custom_favorite,
+            CustomFavoriteIdentity("custom-2", "Edge Blue"),
+        )
+
+        dialog.set_current_color("#395C73")
+        self.assertIsNone(dialog.current_custom_favorite)
+
+    def test_manual_exact_citadel_match_wins_over_custom_identity(self):
+        paint = PaintColor("citadel", "Canonical Blue", 57, 92, 113)
+        custom = CustomFavoriteColor("custom-1", "My Armor Blue", COLOR)
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog((paint,))
+        dialog.favorite_library = FavoriteColorLibrary(
+            dialog.paint_catalog, (custom,)
+        )
+        dialog.current_custom_favorite = IDENTITY
+        dialog._refresh_color_representations = Mock()
+
+        dialog.set_current_color(COLOR)
+
+        self.assertIsNone(dialog.current_custom_favorite)
 
     def test_slot_state_swap_and_workspace_restore_keep_identity(self):
         states = list(DEFAULT_RENDER_SETTINGS.color_slot_states)

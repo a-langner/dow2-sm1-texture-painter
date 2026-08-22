@@ -1521,15 +1521,6 @@ class ColorPickerDialog(tk.Toplevel):
         """Use a catalog paint as the editable color without locking it."""
         self.selected_paint_id = paint.id
         self.set_current_color(paint_swatch_presentation(paint).color)
-        favorite = (
-            paint.favorite
-            if isinstance(paint, FavoritePaletteColor)
-            else None
-        )
-        if isinstance(favorite, CustomFavoriteColor):
-            self.current_custom_favorite = CustomFavoriteIdentity(
-                favorite.id, favorite.name
-            )
         self.palette_grid.set_selected_paint(paint.id)
 
     def _citadel_id_for_palette_color(self, paint: PaintColor) -> Optional[str]:
@@ -1919,12 +1910,31 @@ class ColorPickerDialog(tk.Toplevel):
             return
 
         self.current_color = color
-        self.current_custom_favorite = None
+        self.current_custom_favorite = self._resolve_custom_favorite_identity(
+            color
+        )
         self._updating_color_representations = True
         try:
             self._refresh_color_representations()
         finally:
             self._updating_color_representations = False
+
+    def _resolve_custom_favorite_identity(
+        self, color: str
+    ) -> CustomFavoriteIdentity | None:
+        """Resolve exact slot identity with Citadel taking precedence."""
+        paint_catalog = getattr(self, "paint_catalog", None)
+        if paint_catalog is not None and resolve_exact_citadel_favorite(
+            paint_catalog, color
+        ) is not None:
+            return None
+        favorite_library = getattr(self, "favorite_library", None)
+        if favorite_library is None:
+            return None
+        custom = favorite_library.custom_for_color(color)
+        if custom is None:
+            return None
+        return CustomFavoriteIdentity(custom.id, custom.name)
 
     def _refresh_color_representations(self) -> None:
         """Fan the canonical color out to all editor controls."""
