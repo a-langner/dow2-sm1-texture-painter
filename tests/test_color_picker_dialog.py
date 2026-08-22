@@ -1089,6 +1089,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         blue = PaintColor("blue", "Catalog Blue", 0, 0, 255)
         dialog = object.__new__(ColorPickerDialog)
         dialog.paint_catalog = PaintCatalog(paints=(red, blue))
+        dialog.selected_color_group = None
         dialog.favorite_library = FavoriteColorLibrary(
             dialog.paint_catalog,
             (
@@ -1460,6 +1461,11 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertTrue(dialog._is_palette_color_favorite(red))
         self.assertFalse(dialog._is_palette_color_favorite(blue))
         self.assertTrue(dialog._is_palette_color_favorite(custom_tile))
+
+        dialog.selected_color_group = PaletteSpecialGroup.FAVORITES
+
+        self.assertFalse(dialog._is_palette_color_favorite(red))
+        self.assertFalse(dialog._is_palette_color_favorite(custom_tile))
 
     def test_grid_draws_gold_star_only_for_favorite_without_resizing_tiles(self):
         favorite = PaintColor("favorite", "Favorite", 255, 0, 0)

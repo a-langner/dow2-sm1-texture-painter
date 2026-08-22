@@ -1546,6 +1546,11 @@ class ColorPickerDialog(tk.Toplevel):
         )
 
     def _is_palette_color_favorite(self, paint: PaintColor) -> bool:
+        if (
+            getattr(self, "selected_color_group", None)
+            is PaletteSpecialGroup.FAVORITES
+        ):
+            return False
         if isinstance(paint, FavoritePaletteColor):
             return True
         return self.favorite_library.has_citadel(paint.id)
