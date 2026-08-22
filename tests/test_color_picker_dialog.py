@@ -31,6 +31,7 @@ from src.widget import (
     COLOR_SPACE_MODES,
     DEFAULT_COLOR_SPACE_MODE,
     NO_CITADEL_COLORS_MESSAGE,
+    NO_FAVORITE_COLORS_MESSAGE,
     PAINT_SEARCH_PLACEHOLDER,
     PALETTE_SORT_DISPLAY_NAMES,
     PAINT_SWATCH_OUTLINE,
@@ -155,9 +156,13 @@ class FakePaletteGrid:
     def __init__(self):
         self.paints = ()
         self.selected_paint_id = None
+        self.empty_message = None
 
     def set_paints(self, paints):
         self.paints = tuple(paints)
+
+    def set_empty_message(self, message):
+        self.empty_message = message
 
     def set_selected_paint(self, paint_id):
         self.selected_paint_id = paint_id
@@ -2066,6 +2071,37 @@ class ColorPickerDialogTests(unittest.TestCase):
         grid.set_paints(paints)
 
         grid._rebuild_items.assert_called_once_with()
+
+    def test_empty_grid_message_changes_only_for_favorites_context(self):
+        grid = object.__new__(PaintSwatchGrid)
+        grid.paints = ()
+        grid.empty_message = NO_CITADEL_COLORS_MESSAGE
+        grid._rebuild_items = Mock()
+
+        grid.set_empty_message(NO_FAVORITE_COLORS_MESSAGE)
+        grid.set_empty_message(NO_FAVORITE_COLORS_MESSAGE)
+
+        self.assertEqual(grid.empty_message, "No favorite colors yet.")
+        grid._rebuild_items.assert_called_once_with()
+
+    def test_empty_favorites_refresh_uses_contextual_nonmodal_message(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.selected_color_group = PaletteSpecialGroup.FAVORITES
+        dialog.palette_paints = ()
+        dialog.palette_grid = FakePaletteGrid()
+        dialog.palette_count_label = FakeWidget()
+        dialog.event_generate = Mock()
+
+        dialog._refresh_palette_display()
+
+        self.assertEqual(
+            dialog.palette_grid.empty_message,
+            "No favorite colors yet.",
+        )
+        self.assertEqual(dialog.palette_grid.paints, ())
+        dialog.event_generate.assert_called_once_with(
+            "<<ColorPickerPaletteChanged>>"
+        )
 
     def test_swatch_relayout_draws_paints_without_child_widgets(self):
         grid = object.__new__(PaintSwatchGrid)

@@ -146,6 +146,7 @@ PAINT_SWATCH_CORNER_RADIUS = 20
 PAINT_NAME_ELLIPSIS = "…"
 PAINT_SEARCH_PLACEHOLDER = "Search Citadel colors..."
 NO_CITADEL_COLORS_MESSAGE = "No Citadel colors found."
+NO_FAVORITE_COLORS_MESSAGE = "No favorite colors yet."
 PAINT_TOOLTIP_DELAY_MS = 400
 COLOR_PREVIEW_BORDER = "#707070"
 COLOR_EDITOR_SECTION_GAP = 8
@@ -653,6 +654,7 @@ class PaintSwatchGrid(ttk.Frame):
         super().__init__(parent)
         self._on_paint_selected = on_paint_selected
         self.paints = ()
+        self.empty_message = NO_CITADEL_COLORS_MESSAGE
         self.selected_paint_id = None
         self._paint_regions = []
         self._truncated_paint_ids = set()
@@ -704,6 +706,14 @@ class PaintSwatchGrid(ttk.Frame):
         self.paints = paints
         self._rebuild_items()
 
+    def set_empty_message(self, message: str) -> None:
+        """Set the contextual message used when the current data source is empty."""
+        if message == self.empty_message:
+            return
+        self.empty_message = message
+        if not self.paints:
+            self._rebuild_items()
+
     def _rebuild_items(self) -> None:
         self._hide_tooltip()
         self._schedule_relayout()
@@ -741,7 +751,7 @@ class PaintSwatchGrid(ttk.Frame):
             self.canvas.create_text(
                 width / 2,
                 24,
-                text=NO_CITADEL_COLORS_MESSAGE,
+                text=self.empty_message,
                 anchor=tk.N,
                 tags="paint",
             )
@@ -1297,6 +1307,11 @@ class ColorPickerDialog(tk.Toplevel):
         self._refresh_palette_display()
 
     def _refresh_palette_display(self) -> None:
+        self.palette_grid.set_empty_message(
+            NO_FAVORITE_COLORS_MESSAGE
+            if self.selected_color_group is PaletteSpecialGroup.FAVORITES
+            else NO_CITADEL_COLORS_MESSAGE
+        )
         self.palette_grid.set_paints(self.palette_paints)
         self.palette_count_label.configure(
             text=format_visible_paint_count(len(self.palette_paints))
