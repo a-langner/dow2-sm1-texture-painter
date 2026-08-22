@@ -17,7 +17,11 @@ from src.color_processing_settings import (
     validate_processing_level,
 )
 from src.color_slot import ColorSlot
-from src.color_slot_state import ColorSlotState, ColorSlotStates
+from src.color_slot_state import (
+    ColorSlotState,
+    ColorSlotStates,
+    CustomFavoriteIdentity,
+)
 from src.constant import ColorOps
 from src.processing_mode import ProcessingMode
 
@@ -28,6 +32,12 @@ PerColorProcessingSettings = tuple[
     ColorProcessingSettings,
     ColorProcessingSettings,
     ColorProcessingSettings,
+]
+ColorSlotIdentities = tuple[
+    CustomFavoriteIdentity | None,
+    CustomFavoriteIdentity | None,
+    CustomFavoriteIdentity | None,
+    CustomFavoriteIdentity | None,
 ]
 
 
@@ -62,6 +72,7 @@ class RenderSettings:
     per_color_processing: PerColorProcessingSettings = field(
         default_factory=_default_per_color_processing
     )
+    color_slot_identities: ColorSlotIdentities = (None, None, None, None)
     _per_color_processing_initialized: bool = field(
         default=False,
         repr=False,
@@ -121,6 +132,15 @@ class RenderSettings:
             raise TypeError(
                 "per_color_processing must contain ColorProcessingSettings values."
             )
+        if not isinstance(self.color_slot_identities, tuple) or len(
+            self.color_slot_identities
+        ) != 4 or not all(
+            identity is None or isinstance(identity, CustomFavoriteIdentity)
+            for identity in self.color_slot_identities
+        ):
+            raise TypeError(
+                "color_slot_identities must contain four optional identities."
+            )
         if not isinstance(self._per_color_processing_initialized, bool):
             raise TypeError(
                 "_per_color_processing_initialized must be a boolean."
@@ -149,10 +169,10 @@ class RenderSettings:
     def color_slot_states(self) -> ColorSlotStates:
         """Return each positional slot's complete movable contents."""
         return (
-            ColorSlotState(self.primary_color, self.per_color_processing[0]),
-            ColorSlotState(self.secondary_color, self.per_color_processing[1]),
-            ColorSlotState(self.tint_color, self.per_color_processing[2]),
-            ColorSlotState(self.extra_color, self.per_color_processing[3]),
+            ColorSlotState(self.primary_color, self.per_color_processing[0], self.color_slot_identities[0]),
+            ColorSlotState(self.secondary_color, self.per_color_processing[1], self.color_slot_identities[1]),
+            ColorSlotState(self.tint_color, self.per_color_processing[2], self.color_slot_identities[2]),
+            ColorSlotState(self.extra_color, self.per_color_processing[3], self.color_slot_identities[3]),
         )
 
     def with_color_slot_states(self, states: ColorSlotStates) -> "RenderSettings":
@@ -172,6 +192,12 @@ class RenderSettings:
                 states[1].processing,
                 states[2].processing,
                 states[3].processing,
+            ),
+            color_slot_identities=(
+                states[0].custom_favorite,
+                states[1].custom_favorite,
+                states[2].custom_favorite,
+                states[3].custom_favorite,
             ),
         )
 

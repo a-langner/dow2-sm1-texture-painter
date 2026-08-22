@@ -9,6 +9,7 @@ import src.color_pattern_handler as pattern_store
 from src.color_pattern_handler import (
     InvalidPatternError,
     PatternColors,
+    PatternColorIdentities,
     PatternMarkerColor,
     PatternProcessingState,
     get_pattern_colors,
@@ -43,6 +44,7 @@ class PatternStore(Protocol):
         *,
         processing: PatternProcessingState | None = None,
         marker_color: PatternMarkerColor = PatternMarkerColor.DEFAULT,
+        color_identities: PatternColorIdentities = (None, None, None, None),
     ) -> None: ...
     def update_user_pattern(
         self,
@@ -50,6 +52,7 @@ class PatternStore(Protocol):
         colors: PatternColors,
         *,
         processing: PatternProcessingState | None = None,
+        color_identities: PatternColorIdentities = (None, None, None, None),
     ) -> str: ...
     def rename_user_pattern(self, old_name: str, new_name: str) -> str: ...
     def delete(self, name: str) -> None: ...
@@ -124,6 +127,7 @@ class PatternController:
         store: PatternStore = pattern_store,
         get_colors: Callable[[str], PatternColors] = get_pattern_colors,
         get_processing: Callable[[str], PatternProcessingState] | None = None,
+        get_color_identities: Callable[[str], PatternColorIdentities] | None = None,
         get_marker: Callable[[str], PatternMarkerColor] = get_pattern_marker_color,
         read_single: Callable[[Path], ImportedPattern] = read_pattern_file,
         persist_single_import: PersistSingleImport = import_pattern,
@@ -145,6 +149,7 @@ class PatternController:
         self.store = store
         self.get_colors = get_colors
         self.get_processing = get_processing
+        self.get_color_identities = get_color_identities
         self.get_marker = get_marker
         self.read_single = read_single
         self.persist_single_import = persist_single_import
@@ -159,16 +164,35 @@ class PatternController:
         name: str,
         current_colors: PatternColors,
         processing: PatternProcessingState | None = None,
+        color_identities: PatternColorIdentities = (None, None, None, None),
     ) -> PatternOperationResult:
         normalized_name = normalize_pattern_name(name)
+        has_identities = any(
+            identity is not None for identity in color_identities
+        )
         if processing is None:
-            self.store.save(name=normalized_name, colors=current_colors)
+            if has_identities:
+                self.store.save(
+                    name=normalized_name,
+                    colors=current_colors,
+                    color_identities=color_identities,
+                )
+            else:
+                self.store.save(name=normalized_name, colors=current_colors)
         else:
-            self.store.save(
-                name=normalized_name,
-                colors=current_colors,
-                processing=processing,
-            )
+            if has_identities:
+                self.store.save(
+                    name=normalized_name,
+                    colors=current_colors,
+                    processing=processing,
+                    color_identities=color_identities,
+                )
+            else:
+                self.store.save(
+                    name=normalized_name,
+                    colors=current_colors,
+                    processing=processing,
+                )
         return PatternOperationResult(
             selected_name=normalized_name,
             list_changed=True,
@@ -181,6 +205,7 @@ class PatternController:
         pattern_name: str,
         current_colors: PatternColors,
         processing: PatternProcessingState | None = None,
+        color_identities: PatternColorIdentities = (None, None, None, None),
     ) -> PatternOperationResult:
         stored_colors = self.get_colors(pattern_name)
         processing_matches = (
@@ -188,16 +213,39 @@ class PatternController:
             or self.get_processing is None
             or processing == self.get_processing(pattern_name)
         )
-        if pattern_colors_equal(current_colors, stored_colors) and processing_matches:
+        stored_identities = (
+            self.get_color_identities(pattern_name)
+            if self.get_color_identities is not None
+            else (None, None, None, None)
+        )
+        identities_match = color_identities == stored_identities
+        if (
+            pattern_colors_equal(current_colors, stored_colors)
+            and processing_matches
+            and identities_match
+        ):
             return PatternOperationResult(selected_name=pattern_name)
         if processing is None:
-            self.store.update_user_pattern(pattern_name, current_colors)
+            if any(identity is not None for identity in color_identities):
+                self.store.update_user_pattern(
+                    pattern_name,
+                    current_colors,
+                    color_identities=color_identities,
+                )
+            else:
+                self.store.update_user_pattern(pattern_name, current_colors)
         else:
-            self.store.update_user_pattern(
-                pattern_name,
-                current_colors,
-                processing=processing,
-            )
+            if any(identity is not None for identity in color_identities):
+                self.store.update_user_pattern(
+                    pattern_name,
+                    current_colors,
+                    processing=processing,
+                    color_identities=color_identities,
+                )
+            else:
+                self.store.update_user_pattern(
+                    pattern_name, current_colors, processing=processing
+                )
         return PatternOperationResult(
             selected_name=pattern_name,
             persisted=True,
@@ -209,6 +257,7 @@ class PatternController:
         pattern_name: str,
         current_colors: PatternColors,
         processing: PatternProcessingState | None = None,
+        color_identities: PatternColorIdentities = (None, None, None, None),
     ) -> bool:
         colors_changed = not pattern_colors_equal(
             current_colors, self.get_colors(pattern_name)
@@ -218,7 +267,15 @@ class PatternController:
             and self.get_processing is not None
             and processing != self.get_processing(pattern_name)
         )
-        return colors_changed or processing_changed
+        return (
+            colors_changed
+            or processing_changed
+            or (
+                self.get_color_identities is not None
+                and color_identities
+                != self.get_color_identities(pattern_name)
+            )
+        )
 
     def rename_pattern(self, old_name: str, new_name: str) -> PatternOperationResult:
         normalized_name = normalize_pattern_name(new_name)
@@ -238,19 +295,45 @@ class PatternController:
         stored_colors = self.get_colors(source_name)
         normalized_name = normalize_pattern_name(new_name)
         marker_color = self.get_marker(source_name)
+        color_identities = (
+            self.get_color_identities(source_name)
+            if self.get_color_identities is not None
+            else (None, None, None, None)
+        )
+        has_identities = any(
+            identity is not None for identity in color_identities
+        )
         if self.get_processing is None:
-            self.store.save(
-                normalized_name,
-                stored_colors,
-                marker_color=marker_color,
-            )
+            if has_identities:
+                self.store.save(
+                    normalized_name,
+                    stored_colors,
+                    marker_color=marker_color,
+                    color_identities=color_identities,
+                )
+            else:
+                self.store.save(
+                    normalized_name,
+                    stored_colors,
+                    marker_color=marker_color,
+                )
         else:
-            self.store.save(
-                normalized_name,
-                stored_colors,
-                processing=self.get_processing(source_name),
-                marker_color=marker_color,
-            )
+            processing = self.get_processing(source_name)
+            if has_identities:
+                self.store.save(
+                    normalized_name,
+                    stored_colors,
+                    processing=processing,
+                    marker_color=marker_color,
+                    color_identities=color_identities,
+                )
+            else:
+                self.store.save(
+                    normalized_name,
+                    stored_colors,
+                    processing=processing,
+                    marker_color=marker_color,
+                )
         return PatternOperationResult(
             selected_name=normalized_name,
             colors_to_apply=tuple(stored_colors),

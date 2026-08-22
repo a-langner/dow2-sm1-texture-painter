@@ -72,6 +72,12 @@ class EditableWorkspaceState:
                 self.color_slot_states[2].processing,
                 self.color_slot_states[3].processing,
             ),
+            color_slot_identities=(
+                self.color_slot_states[0].custom_favorite,
+                self.color_slot_states[1].custom_favorite,
+                self.color_slot_states[2].custom_favorite,
+                self.color_slot_states[3].custom_favorite,
+            ),
             _per_color_processing_initialized=(
                 self.per_color_processing_initialized
             ),

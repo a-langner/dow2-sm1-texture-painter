@@ -15,9 +15,11 @@ except ImportError:  # Python 3.10
 
 from src.color_pattern_handler import (
     ARMY_PATTERN_RESOURCE,
+    CUSTOM_FAVORITE_IDENTITIES_KEY,
     InvalidPatternError,
     PatternAlreadyExistsError,
     PatternMarkerColor,
+    PatternColorIdentities,
     PatternProcessingState,
     PatternNameConflictError,
     PatternNotFoundError,
@@ -31,6 +33,7 @@ from src.color_pattern_handler import (
     normalize_pattern_colors,
     normalize_pattern_name,
     parse_pattern_processing_state,
+    parse_pattern_color_identities,
     save_imported_pattern,
     serialize_pattern_processing_state,
     replace_user_patterns,
@@ -56,6 +59,7 @@ class PatternExchangeDocument(TypedDict):
     global_processing: NotRequired[object]
     per_color_processing: NotRequired[object]
     marker_color: NotRequired[str]
+    custom_favorite_identities: NotRequired[object]
 
 WINDOWS_RESERVED_FILENAMES = {
     "CON",
@@ -203,6 +207,7 @@ class ImportedPattern(NamedTuple):
     colors: dict[str, str]
     processing: PatternProcessingState | None = None
     marker_color: PatternMarkerColor = PatternMarkerColor.DEFAULT
+    color_identities: PatternColorIdentities = (None, None, None, None)
 
 
 class ImportedPatternCollection(NamedTuple):
@@ -258,6 +263,10 @@ def create_pattern_exchange_entry(
     marker_color = PatternMarkerColor.parse(pattern.get(MARKER_COLOR_KEY))
     if marker_color is not PatternMarkerColor.DEFAULT:
         entry[MARKER_COLOR_KEY] = marker_color.value
+    if CUSTOM_FAVORITE_IDENTITIES_KEY in pattern:
+        entry[CUSTOM_FAVORITE_IDENTITIES_KEY] = pattern[
+            CUSTOM_FAVORITE_IDENTITIES_KEY
+        ]
     return entry
 
 
@@ -285,6 +294,10 @@ def create_pattern_exchange_document(
     marker_color = PatternMarkerColor.parse(pattern.get(MARKER_COLOR_KEY))
     if marker_color is not PatternMarkerColor.DEFAULT:
         document["marker_color"] = marker_color.value
+    if CUSTOM_FAVORITE_IDENTITIES_KEY in pattern:
+        document["custom_favorite_identities"] = pattern[
+            CUSTOM_FAVORITE_IDENTITIES_KEY
+        ]
     return document
 
 
@@ -367,6 +380,9 @@ def validate_imported_pattern_collection(
             "version": PATTERN_EXCHANGE_VERSION,
             "name": raw_name,
             "colors": entry.get("colors"),
+            CUSTOM_FAVORITE_IDENTITIES_KEY: entry.get(
+                CUSTOM_FAVORITE_IDENTITIES_KEY
+            ),
         }
         single_document.update(
             {
@@ -405,6 +421,9 @@ def validate_imported_pattern_collection(
                 normalized["colors"],
                 processing,
                 PatternMarkerColor.parse(normalized.get(MARKER_COLOR_KEY)),
+                parse_pattern_color_identities(
+                    normalized.get(CUSTOM_FAVORITE_IDENTITIES_KEY)
+                ),
             )
         )
 
@@ -630,10 +649,31 @@ def validate_imported_pattern(data: object) -> PatternExchangeDocument:
         if marker_color is not PatternMarkerColor.DEFAULT
         else {}
     )
+    try:
+        color_identities = parse_pattern_color_identities(
+            data.get(CUSTOM_FAVORITE_IDENTITIES_KEY)
+        )
+    except (TypeError, ValueError) as exc:
+        raise InvalidPatternFileError(
+            "Pattern file has invalid Custom Favorite identities"
+        ) from exc
+    identity_metadata = (
+        {
+            CUSTOM_FAVORITE_IDENTITIES_KEY: data[
+                CUSTOM_FAVORITE_IDENTITIES_KEY
+            ]
+        }
+        if any(identity is not None for identity in color_identities)
+        else {}
+    )
     if not processing_fields:
         return create_pattern_exchange_document(
             normalized_name,
-            {**dict(zip(color_key, normalized_colors)), **marker_metadata},
+            {
+                **dict(zip(color_key, normalized_colors)),
+                **marker_metadata,
+                **identity_metadata,
+            },
         )
     if len(processing_fields) != 3:
         raise InvalidPatternFileError("Pattern processing is incomplete")
@@ -647,6 +687,7 @@ def validate_imported_pattern(data: object) -> PatternExchangeDocument:
             **dict(zip(color_key, normalized_colors)),
             **serialize_pattern_processing_state(processing),
             **marker_metadata,
+            **identity_metadata,
         },
     )
 
@@ -688,6 +729,9 @@ def read_pattern_file(path: Path) -> ImportedPattern:
         document["colors"],
         processing,
         PatternMarkerColor.parse(document.get(MARKER_COLOR_KEY)),
+        parse_pattern_color_identities(
+            document.get(CUSTOM_FAVORITE_IDENTITIES_KEY)
+        ),
     )
 
 
@@ -715,6 +759,7 @@ def import_pattern(
             pattern_path=pattern_path,
             processing=imported_pattern.processing,
             marker_color=imported_pattern.marker_color,
+            color_identities=imported_pattern.color_identities,
         )
     except PatternNameConflictError as exc:
         raise BuiltinPatternImportConflictError(str(exc)) from exc

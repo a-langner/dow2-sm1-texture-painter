@@ -51,6 +51,7 @@ from src.color_pattern_handler import (
     PatternMarkerColor,
     UserPatternPersistenceError,
     get_pattern_colors,
+    get_pattern_color_identities,
     get_pattern_processing_state,
     normalize_pattern_colors,
     pattern_colors_equal,
@@ -128,6 +129,13 @@ def _get_pattern_processing_or_default(name: str) -> PatternProcessingState:
         return get_pattern_processing_state(name)
     except PatternNotFoundError:
         return src.color_pattern_handler.DEFAULT_PATTERN_PROCESSING_STATE
+
+
+def _get_pattern_color_identities_or_default(name: str):
+    try:
+        return get_pattern_color_identities(name)
+    except PatternNotFoundError:
+        return (None, None, None, None)
 
 
 def _get_pattern_marker_or_default(name: str) -> PatternMarkerColor:
@@ -221,6 +229,7 @@ class ArmyPainter(tk.Tk):
         self._handling_callback_exception = False
         self.user_pattern_warning_shown = False
         self._color_slot_clipboard_color = None
+        self._color_slot_clipboard_identity = None
         self._color_slot_clipboard_state = None
         self.show_original_preview = False
         self.original_preview_image = None
@@ -356,6 +365,7 @@ class ArmyPainter(tk.Tk):
             store=src.color_pattern_handler,
             get_colors=lambda name: get_pattern_colors(name),
             get_processing=_get_pattern_processing_or_default,
+            get_color_identities=_get_pattern_color_identities_or_default,
             get_marker=_get_pattern_marker_or_default,
             read_single=lambda path: read_pattern_file(path),
             persist_single_import=lambda pattern, **options: (
@@ -905,7 +915,11 @@ class ArmyPainter(tk.Tk):
             return
         previous = ArmyPainter.capture_editable_workspace_state(self)
         states = list(self.render_settings.color_slot_states)
-        states[slot_index] = ColorSlotState(color, states[slot_index].processing)
+        states[slot_index] = ColorSlotState(
+            color,
+            states[slot_index].processing,
+            getattr(color, "custom_favorite", None),
+        )
         self.render_settings = self.render_settings.with_color_slot_states(
             (states[0], states[1], states[2], states[3])
         )
@@ -942,6 +956,10 @@ class ArmyPainter(tk.Tk):
             self.frame_color_chooser.color_boxes,
         ):
             color_box["bg"] = state.color
+        self.frame_color_chooser._color_identities = [
+            state.custom_favorite
+            for state in self.render_settings.color_slot_states
+        ]
         self.frame_color_chooser.draw_rgb_value()
         ArmyPainter.refresh_processing_controls(self)
         ArmyPainter.record_workspace_edit(self, previous)
@@ -952,9 +970,15 @@ class ArmyPainter(tk.Tk):
     def copy_color_slot(self, slot_index: int) -> None:
         """Copy one slot colour into the application-scoped session clipboard."""
         slot = ColorSlot.from_index(slot_index)
-        self._color_slot_clipboard_color = ArmyPainter.get_current_pattern_colors(
-            self
-        )[slot.index].lower()
+        if hasattr(self, "render_settings"):
+            state = self.render_settings.color_slot_states[slot.index]
+            self._color_slot_clipboard_color = state.color.lower()
+            self._color_slot_clipboard_identity = state.custom_favorite
+        else:
+            self._color_slot_clipboard_color = (
+                ArmyPainter.get_current_pattern_colors(self)[slot.index].lower()
+            )
+            self._color_slot_clipboard_identity = None
 
     def is_color_paste_available(self) -> bool:
         """Report whether the session clipboard contains a copied colour."""
@@ -967,6 +991,7 @@ class ArmyPainter(tk.Tk):
         copied = self.render_settings.color_slot_states[slot.index]
         self._color_slot_clipboard_state = copied
         self._color_slot_clipboard_color = copied.color
+        self._color_slot_clipboard_identity = copied.custom_favorite
 
     def is_color_and_settings_paste_available(self) -> bool:
         """Report whether a complete slot snapshot has been copied."""
@@ -981,11 +1006,19 @@ class ArmyPainter(tk.Tk):
         ArmyPainter.sync_render_settings(self)
         previous = ArmyPainter.capture_editable_workspace_state(self)
         states = list(self.render_settings.color_slot_states)
-        states[slot.index] = ColorSlotState(color, states[slot.index].processing)
+        states[slot.index] = ColorSlotState(
+            color,
+            states[slot.index].processing,
+            getattr(self, "_color_slot_clipboard_identity", None),
+        )
         self.render_settings = self.render_settings.with_color_slot_states(
             (states[0], states[1], states[2], states[3])
         )
         self.frame_color_chooser.color_boxes[slot.index]["bg"] = color
+        if hasattr(self.frame_color_chooser, "_color_identities"):
+            self.frame_color_chooser._color_identities[slot.index] = states[
+                slot.index
+            ].custom_favorite
         self.frame_color_chooser.draw_rgb_value()
         ArmyPainter.record_workspace_edit(self, previous)
         self.update_pattern_action_states()
@@ -1007,6 +1040,10 @@ class ArmyPainter(tk.Tk):
             (states[0], states[1], states[2], states[3])
         )
         self.frame_color_chooser.color_boxes[slot.index]["bg"] = copied.color
+        if hasattr(self.frame_color_chooser, "_color_identities"):
+            self.frame_color_chooser._color_identities[slot.index] = (
+                copied.custom_favorite
+            )
         self.frame_color_chooser.draw_rgb_value()
         ArmyPainter.refresh_processing_controls(self)
         ArmyPainter.record_workspace_edit(self, previous)
@@ -1036,6 +1073,10 @@ class ArmyPainter(tk.Tk):
         self.frame_color_chooser.color_boxes[slot.index]["bg"] = (
             default_state.color
         )
+        if hasattr(self.frame_color_chooser, "_color_identities"):
+            self.frame_color_chooser._color_identities[slot.index] = (
+                default_state.custom_favorite
+            )
         self.frame_color_chooser.draw_rgb_value()
         ArmyPainter.refresh_processing_controls(self)
         ArmyPainter.record_workspace_edit(self, previous)
@@ -1189,6 +1230,9 @@ class ArmyPainter(tk.Tk):
             state.color_slot_states, self.frame_color_chooser.color_boxes
         ):
             color_box["bg"] = slot_state.color
+        self.frame_color_chooser._color_identities = [
+            slot_state.custom_favorite for slot_state in state.color_slot_states
+        ]
         self.frame_color_chooser.draw_rgb_value()
         ArmyPainter.refresh_processing_controls(self)
 
@@ -1485,6 +1529,12 @@ class ArmyPainter(tk.Tk):
             )
         for color, color_box in zip(color_list, self.frame_color_chooser.color_boxes):
             color_box["bg"] = color
+        identities = (
+            _get_pattern_color_identities_or_default(selection.name)
+            if selection is not None
+            else (None, None, None, None)
+        )
+        self.frame_color_chooser._color_identities = list(identities)
         self.frame_color_chooser.draw_rgb_value()
         if selection is not None:
             try:
@@ -1506,6 +1556,7 @@ class ArmyPainter(tk.Tk):
                 secondary_color=normalized_colors[1],
                 tint_color=normalized_colors[2],
                 extra_color=normalized_colors[3],
+                color_slot_identities=identities,
             )
             ArmyPainter.record_workspace_edit(self, previous)
         self.update_pattern_action_states(selection)
@@ -1806,6 +1857,7 @@ class ArmyPainter(tk.Tk):
             ArmyPainter.reset_team_color_mask_variant(self)
             for color_box in self.frame_color_chooser.color_boxes:
                 color_box["bg"] = "#808080"
+            self.frame_color_chooser._color_identities = [None] * 4
             self.frame_channel_select.lb.selection_set(first=0, last=3)
             self.select_channel()
             self.update_pattern_action_states()
@@ -1824,6 +1876,7 @@ class ArmyPainter(tk.Tk):
             secondary_color=colors[1],
             tint_color=colors[2],
             extra_color=colors[3],
+            color_slot_identities=(None, None, None, None),
             tem_selected=selected,
         )
         ArmyPainter.record_workspace_edit(self, previous)
@@ -1848,6 +1901,7 @@ class ArmyPainter(tk.Tk):
                 pattern_name,
                 self.get_current_pattern_colors(),
                 ArmyPainter.get_current_pattern_processing(self),
+                ArmyPainter.get_current_pattern_color_identities(self),
             )
         except PatternError as exc:
             self.dialogs.show_error(title="Cannot Save Pattern", message=str(exc))
@@ -1913,6 +1967,14 @@ class ArmyPainter(tk.Tk):
             self.render_settings.per_color_processing,
         )
 
+    def get_current_pattern_color_identities(self):
+        """Return optional stable display identities in slot order."""
+        return getattr(
+            getattr(self, "render_settings", None),
+            "color_slot_identities",
+            (None, None, None, None),
+        )
+
     def update_selected_pattern(self):
         """Replace the selected user Pattern with the current GUI colors."""
         selection = self.frame_army_pattern.get_selected_pattern()
@@ -1929,6 +1991,7 @@ class ArmyPainter(tk.Tk):
                 pattern_name,
                 current_colors,
                 ArmyPainter.get_current_pattern_processing(self),
+                ArmyPainter.get_current_pattern_color_identities(self),
             )
         except PatternError as exc:
             LOGGER.debug(
@@ -1957,6 +2020,7 @@ class ArmyPainter(tk.Tk):
                 pattern_name,
                 current_colors,
                 ArmyPainter.get_current_pattern_processing(self),
+                ArmyPainter.get_current_pattern_color_identities(self),
             )
         except UserPatternPersistenceError as exc:
             LOGGER.exception("Could not update user Pattern '%s'", pattern_name)
@@ -2189,7 +2253,13 @@ class ArmyPainter(tk.Tk):
                 ArmyPainter.get_current_pattern_processing(self)
                 != _get_pattern_processing_or_default(selection.name)
             )
-            return colors_changed or processing_changed
+            identities_changed = False
+            if hasattr(self, "render_settings"):
+                identities_changed = (
+                    self.render_settings.color_slot_identities
+                    != _get_pattern_color_identities_or_default(selection.name)
+                )
+            return colors_changed or processing_changed or identities_changed
         except PatternError:
             return False
 

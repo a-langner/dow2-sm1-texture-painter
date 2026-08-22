@@ -20,6 +20,7 @@ from src.user_data import get_user_patterns_path
 from src.blend_mode import BlendMode
 from src.color_processing_settings import ColorProcessingSettings
 from src.color_slot import ColorSlot
+from src.color_slot_state import CustomFavoriteIdentity
 from src.processing_mode import ProcessingMode
 from src.render_settings import DEFAULT_RENDER_SETTINGS, PerColorProcessingSettings
 
@@ -43,6 +44,7 @@ processing_state_key = [
     "per_color_processing",
 ]
 MARKER_COLOR_KEY = "marker_color"
+CUSTOM_FAVORITE_IDENTITIES_KEY = "custom_favorite_identities"
 
 COLOR_VALUE_PATTERN = re.compile(r"^#[0-9a-fA-F]{6}$")
 LOGGER = logging.getLogger(__name__)
@@ -51,6 +53,12 @@ PatternColors = list[str]
 StoredPattern = OrderedDict[str, object]
 PatternCollection = OrderedDict[str, StoredPattern]
 PatternInput = Mapping[str, object]
+PatternColorIdentities = tuple[
+    CustomFavoriteIdentity | None,
+    CustomFavoriteIdentity | None,
+    CustomFavoriteIdentity | None,
+    CustomFavoriteIdentity | None,
+]
 
 
 class PatternMarkerColor(Enum):
@@ -302,6 +310,17 @@ def get_pattern_colors(name: str) -> PatternColors:
     return normalize_pattern_colors(colors)
 
 
+def get_pattern_color_identities(name: str) -> PatternColorIdentities:
+    """Return optional Custom Favorite identities, defaulting legacy Patterns."""
+    normalized_name = normalize_pattern_name(name)
+    pattern = get_all_patterns().get(normalized_name)
+    if pattern is None:
+        raise PatternNotFoundError(f"Pattern '{normalized_name}' was not found")
+    return parse_pattern_color_identities(
+        pattern.get(CUSTOM_FAVORITE_IDENTITIES_KEY)
+    )
+
+
 def get_pattern_processing(name: str) -> PatternProcessing:
     """Return global processing, defaulting legacy or invalid stored values safely."""
     state = get_pattern_processing_state(name)
@@ -475,20 +494,30 @@ def _is_valid_pattern_collection(patterns: object) -> bool:
         if not isinstance(pattern, dict):
             return False
         pattern_keys = list(pattern)
-        keys_without_marker = [
-            key for key in pattern_keys if key != MARKER_COLOR_KEY
+        keys_without_metadata = [
+            key
+            for key in pattern_keys
+            if key not in (MARKER_COLOR_KEY, CUSTOM_FAVORITE_IDENTITIES_KEY)
         ]
-        if keys_without_marker not in (
+        if keys_without_metadata not in (
             color_key,
             color_key + processing_key,
             color_key + processing_state_key,
-        ) or pattern_keys.count(MARKER_COLOR_KEY) > 1:
+        ) or pattern_keys.count(MARKER_COLOR_KEY) > 1 or pattern_keys.count(
+            CUSTOM_FAVORITE_IDENTITIES_KEY
+        ) > 1:
             return False
         if MARKER_COLOR_KEY in pattern and not isinstance(
             pattern[MARKER_COLOR_KEY], str
         ):
             return False
-        if keys_without_marker == color_key + processing_state_key:
+        try:
+            parse_pattern_color_identities(
+                pattern.get(CUSTOM_FAVORITE_IDENTITIES_KEY)
+            )
+        except (TypeError, ValueError):
+            return False
+        if keys_without_metadata == color_key + processing_state_key:
             try:
                 _parse_pattern_processing_state(pattern, strict=True)
             except (KeyError, TypeError, ValueError):
@@ -528,6 +557,31 @@ def normalize_pattern_colors(colors: Iterable[object]) -> PatternColors:
     return [color for color in normalized_colors if isinstance(color, str)]
 
 
+def parse_pattern_color_identities(value: object) -> PatternColorIdentities:
+    if value is None:
+        return (None, None, None, None)
+    if not isinstance(value, list) or len(value) != 4:
+        raise TypeError("custom Favorite identities must contain four entries")
+    parsed: list[CustomFavoriteIdentity | None] = []
+    for entry in value:
+        if entry is None:
+            parsed.append(None)
+        elif isinstance(entry, dict) and set(entry) == {"id", "name"}:
+            parsed.append(CustomFavoriteIdentity(entry["id"], entry["name"]))
+        else:
+            raise TypeError("invalid custom Favorite identity")
+    return (parsed[0], parsed[1], parsed[2], parsed[3])
+
+
+def _serialize_pattern_color_identities(
+    identities: PatternColorIdentities,
+) -> list[object]:
+    return [
+        None if identity is None else {"id": identity.id, "name": identity.name}
+        for identity in identities
+    ]
+
+
 def _validate_new_pattern(
     name: str,
     colors: Iterable[object],
@@ -551,8 +605,13 @@ def _stored_pattern(
     colors: PatternColors,
     processing: PatternProcessing | PatternProcessingState | None,
     marker_color: PatternMarkerColor = PatternMarkerColor.DEFAULT,
+    color_identities: PatternColorIdentities = (None, None, None, None),
 ) -> StoredPattern:
     pattern: StoredPattern = OrderedDict(zip(color_key, colors))
+    if any(identity is not None for identity in color_identities):
+        pattern[CUSTOM_FAVORITE_IDENTITIES_KEY] = (
+            _serialize_pattern_color_identities(color_identities)
+        )
     if isinstance(processing, PatternProcessingState):
         pattern.update(serialize_pattern_processing_state(processing))
     elif processing is not None:
@@ -677,6 +736,7 @@ def save(
     *,
     processing: PatternProcessing | PatternProcessingState | None = None,
     marker_color: PatternMarkerColor = PatternMarkerColor.DEFAULT,
+    color_identities: PatternColorIdentities = (None, None, None, None),
 ) -> None:
     normalized_name, normalized_colors = _validate_new_pattern(name, colors)
     if pattern_path is None:
@@ -684,7 +744,9 @@ def save(
     pattern_path = Path(pattern_path)
     _ensure_user_pattern_file_is_writable(pattern_path)
 
-    pattern = _stored_pattern(normalized_colors, processing, marker_color)
+    pattern = _stored_pattern(
+        normalized_colors, processing, marker_color, color_identities
+    )
     updated_user_patterns = OrderedDict(user_color_patterns)
     updated_user_patterns[normalized_name] = pattern
 
@@ -702,6 +764,7 @@ def save_imported_pattern(
     *,
     processing: PatternProcessingState | None = None,
     marker_color: PatternMarkerColor = PatternMarkerColor.DEFAULT,
+    color_identities: PatternColorIdentities = (None, None, None, None),
 ) -> str:
     """Persist an imported user pattern, optionally replacing that user name."""
     normalized_name = normalize_pattern_name(name)
@@ -720,7 +783,9 @@ def save_imported_pattern(
     pattern_path = Path(pattern_path)
     _ensure_user_pattern_file_is_writable(pattern_path)
 
-    pattern = _stored_pattern(normalized_colors, processing, marker_color)
+    pattern = _stored_pattern(
+        normalized_colors, processing, marker_color, color_identities
+    )
     updated_user_patterns = OrderedDict(user_color_patterns)
     updated_user_patterns[normalized_name] = pattern
     _write_user_patterns(updated_user_patterns, pattern_path)
@@ -736,6 +801,7 @@ def update_user_pattern(
     pattern_path: Path | None = None,
     *,
     processing: PatternProcessing | PatternProcessingState | None = None,
+    color_identities: PatternColorIdentities = (None, None, None, None),
 ) -> str:
     """Atomically replace the colors of one existing user-created Pattern."""
     normalized_name = normalize_pattern_name(name)
@@ -758,6 +824,7 @@ def update_user_pattern(
         normalized_colors,
         processing,
         get_pattern_marker_color(normalized_name),
+        color_identities,
     )
     updated_user_patterns = OrderedDict(user_color_patterns)
     updated_user_patterns[normalized_name] = updated_pattern
@@ -923,6 +990,9 @@ def replace_user_patterns(
             normalized_colors,
             processing,
             PatternMarkerColor.parse(pattern.get(MARKER_COLOR_KEY)),
+            parse_pattern_color_identities(
+                pattern.get(CUSTOM_FAVORITE_IDENTITIES_KEY)
+            ),
         )
 
     if pattern_path is None:

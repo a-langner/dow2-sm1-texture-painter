@@ -20,6 +20,7 @@ from src.color_pattern_handler import (
     is_user_pattern,
 )
 from src.color_slot import ColorSlot
+from src.color_slot_state import CustomFavoriteIdentity
 from src.favorite_color import (
     CitadelFavoriteColor,
     CustomFavoriteColor,
@@ -191,6 +192,21 @@ RecentColorSelectedCallback = Callable[[str], None]
 LevelsChangedCallback = Callable[[float, float, float, float], None]
 StringChangedCallback = Callable[[str], None]
 LOGGER = logging.getLogger(__name__)
+
+
+class SelectedColor(str):
+    """String-compatible picker result with optional stable slot metadata."""
+
+    custom_favorite: CustomFavoriteIdentity | None
+
+    def __new__(
+        cls,
+        color: str,
+        custom_favorite: CustomFavoriteIdentity | None = None,
+    ) -> "SelectedColor":
+        instance = str.__new__(cls, color)
+        instance.custom_favorite = custom_favorite
+        return instance
 
 
 class ColorSlotDragGhost:
@@ -463,11 +479,23 @@ def color_slot_presentation(
     paint_catalog: PaintCatalog,
     max_width: float,
     measure: Callable[[str], int],
+    custom_favorite: CustomFavoriteIdentity | None = None,
 ) -> ColorSlotPresentation:
     """Return main-window text and exact-match details for one colour slot."""
     normalized = normalize_rgb_hex(color)
     channels = rgb_hex_to_channels(normalized)
     paint = paint_catalog.find_exact_rgb(channels)
+    if paint is None and custom_favorite is not None:
+        return ColorSlotPresentation(
+            text=format_paint_name_for_swatch(
+                custom_favorite.name, max_width, measure
+            ),
+            foreground=contrasting_text_color(normalized),
+            tooltip=(
+                f"{custom_favorite.name}\n{normalized}\n"
+                f"RGB: {channels[0]}, {channels[1]}, {channels[2]}"
+            ),
+        )
     if paint is None:
         return ColorSlotPresentation(
             text=normalized,
@@ -1061,6 +1089,7 @@ class ColorPickerDialog(tk.Toplevel):
         self.settings = settings
         self.original_color = initial_color
         self.current_color = initial_color
+        self.current_custom_favorite: CustomFavoriteIdentity | None = None
         self._updating_color_representations = False
         self._hsv_field_cache = None
         self._hsl_field_cache = None
@@ -1492,6 +1521,15 @@ class ColorPickerDialog(tk.Toplevel):
         """Use a catalog paint as the editable color without locking it."""
         self.selected_paint_id = paint.id
         self.set_current_color(paint_swatch_presentation(paint).color)
+        favorite = (
+            paint.favorite
+            if isinstance(paint, FavoritePaletteColor)
+            else None
+        )
+        if isinstance(favorite, CustomFavoriteColor):
+            self.current_custom_favorite = CustomFavoriteIdentity(
+                favorite.id, favorite.name
+            )
         self.palette_grid.set_selected_paint(paint.id)
 
     def _citadel_id_for_palette_color(self, paint: PaintColor) -> Optional[str]:
@@ -1881,6 +1919,7 @@ class ColorPickerDialog(tk.Toplevel):
             return
 
         self.current_color = color
+        self.current_custom_favorite = None
         self._updating_color_representations = True
         try:
             self._refresh_color_representations()
@@ -2638,7 +2677,10 @@ class ColorPickerDialog(tk.Toplevel):
         return self.accepted_color
 
     def accept(self, Event=None) -> None:
-        self.accepted_color = self.current_color
+        self.accepted_color = SelectedColor(
+            self.current_color,
+            getattr(self, "current_custom_favorite", None),
+        )
         self._remember_accepted_color()
         self._save_geometry()
         self.destroy()
@@ -2886,6 +2928,7 @@ class FrameColorChooser(tk.Frame):
             font=("Arial", 10, "bold"),
         )
         self._color_tooltips = [None] * 4
+        self._color_identities = [None] * 4
         self._color_tooltip_window = None
         self.color_slots = []
         self.color_boxes = []
@@ -3227,6 +3270,11 @@ class FrameColorChooser(tk.Frame):
     def apply_color(self, btn_idx: int, Event=None):
         color = self._color_picker(str(self.color_boxes[btn_idx]["bg"]))
         if color is not None:
+            if not hasattr(self, "_color_identities"):
+                self._color_identities = [None] * 4
+            self._color_identities[btn_idx] = getattr(
+                color, "custom_favorite", None
+            )
             self.color_boxes[btn_idx]["bg"] = color
             self.draw_rgb_value()
             self._on_color_changed(btn_idx, color)
@@ -3239,6 +3287,7 @@ class FrameColorChooser(tk.Frame):
                 self.paint_catalog,
                 COLOR_BOX_SIZE - 8,
                 self._color_text_font.measure,
+                self._color_identities[index],
             )
             self._color_tooltips[index] = presentation.tooltip
             color_box.delete("all")
