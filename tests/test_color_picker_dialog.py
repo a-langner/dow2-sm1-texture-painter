@@ -9,6 +9,7 @@ from src.color_picker_visual import (
     rgb_hex_to_hsl,
     rgb_hex_to_hsv,
 )
+from src.constant import APP_SELECTION_FOREGROUND
 from src.paint_catalog import PaintCatalog, PaintColor
 from src.favorite_color import (
     CitadelFavoriteColor,
@@ -1485,6 +1486,54 @@ class ColorPickerDialogTests(unittest.TestCase):
         grid.canvas.configure.assert_called_once_with(
             scrollregion=(0, 0, 192, PAINT_SWATCH_PREVIEW_SIZE + 48)
         )
+
+    def test_selected_favorite_keeps_gold_star_independent_of_selection_outline(self):
+        favorite = PaintColor("favorite", "Favorite", 255, 0, 0)
+        grid = object.__new__(PaintSwatchGrid)
+        grid._relayout_after_id = "pending"
+        grid._configured_column_count = 1
+        grid._column_count = 1
+        grid.paints = (favorite,)
+        grid.selected_paint_id = favorite.id
+        grid._is_paint_favorite = lambda paint: paint.id == favorite.id
+        grid.canvas = Mock()
+        grid.canvas.winfo_width.return_value = 96
+        grid._paint_name_font = Mock()
+        grid._paint_name_font.metrics.return_value = 16
+        grid._paint_name_font.measure.side_effect = lambda text: len(text) * 6
+
+        grid._relayout()
+
+        selected_tile = grid.canvas.create_rectangle.call_args
+        self.assertEqual(selected_tile.kwargs["outline"], PAINT_SWATCH_SELECTED_OUTLINE)
+        self.assertEqual(selected_tile.kwargs["width"], 3)
+        star = next(
+            call
+            for call in grid.canvas.create_text.call_args_list
+            if call.kwargs.get("text") == "★"
+        )
+        self.assertEqual(star.kwargs["fill"], FAVORITE_STAR_COLOR)
+        self.assertNotEqual(star.kwargs["fill"], APP_SELECTION_FOREGROUND)
+
+    def test_normal_paint_selection_does_not_change_favorite_membership(self):
+        favorite = PaintColor("favorite", "Favorite", 255, 0, 0)
+        ordinary = PaintColor("ordinary", "Ordinary", 0, 0, 255)
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.favorite_library = FavoriteColorLibrary(
+            PaintCatalog((favorite, ordinary)),
+            (CitadelFavoriteColor(favorite.id),),
+        )
+        dialog.current_color = "#000000"
+        dialog.current_color_preview = FakeWidget()
+        dialog.palette_grid = FakePaletteGrid()
+        favorites_before = dialog.favorite_library.favorites
+
+        dialog.select_paint(favorite)
+        dialog.select_paint(ordinary)
+
+        self.assertEqual(dialog.favorite_library.favorites, favorites_before)
+        self.assertTrue(dialog.favorite_library.has_citadel(favorite.id))
+        self.assertFalse(dialog.favorite_library.has_citadel(ordinary.id))
 
     @patch("src.widget.tk.Menu")
     def test_right_click_targets_exact_hit_tile_without_left_click_selection(self, menu):
