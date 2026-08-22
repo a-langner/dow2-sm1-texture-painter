@@ -141,6 +141,38 @@ class CustomFavoriteSlotIdentityTests(unittest.TestCase):
         self.assertIsNone(dialog.get_accepted_color())
         dialog.settings.set_color_picker_recent_colors.assert_not_called()
 
+    def test_favoriting_does_not_add_color_to_recents(self):
+        paint = PaintColor("citadel", "Canonical Blue", 57, 92, 113)
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog((paint,))
+        dialog.favorite_library = FavoriteColorLibrary(dialog.paint_catalog)
+        dialog.current_color = COLOR
+        dialog.selected_paint_id = None
+        dialog.recent_colors = ((1, 2, 3),)
+        dialog.settings = Mock()
+        dialog._refresh_palette_data_source = Mock()
+        dialog._refresh_favorite_button = Mock()
+
+        self.assertTrue(dialog.toggle_current_favorite())
+
+        self.assertEqual(dialog.recent_colors, ((1, 2, 3),))
+        dialog.settings.set_color_picker_recent_colors.assert_not_called()
+
+    def test_using_recent_color_does_not_automatically_favorite_it(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(())
+        dialog.favorite_library = FavoriteColorLibrary(dialog.paint_catalog)
+        dialog.settings = Mock()
+        dialog.current_color = "#000000"
+        dialog.current_custom_favorite = None
+        dialog._refresh_color_representations = Mock()
+
+        dialog.set_current_color("#010203")
+
+        self.assertEqual(dialog.current_color, "#010203")
+        self.assertEqual(dialog.favorite_library.favorites, ())
+        dialog.settings.set_favorite_colors.assert_not_called()
+
     def test_confirmed_custom_result_propagates_identity_to_target_slot(self):
         result = SelectedColor(COLOR, IDENTITY)
         chooser = object.__new__(FrameColorChooser)
