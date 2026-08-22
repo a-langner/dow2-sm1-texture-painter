@@ -40,6 +40,7 @@ from src.widget import (
     PAINT_SWATCH_SELECTED_OUTLINE,
     RECENT_COLOR_SWATCH_CORNER_RADIUS,
     ColorPickerDialog,
+    CustomFavoriteNameDialog,
     PaintSwatchGrid,
     PaletteSpecialGroup,
     RecentColorSwatchRow,
@@ -1225,7 +1226,8 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         dialog.toggle_citadel_favorite.assert_called_once_with(explicit)
 
-    def test_universal_button_adds_and_removes_true_custom_color(self):
+    @patch.object(CustomFavoriteNameDialog, "show", return_value="My Armor Blue")
+    def test_universal_button_adds_and_removes_true_custom_color(self, show_name):
         dialog = object.__new__(ColorPickerDialog)
         dialog.paint_catalog = PaintCatalog(paints=())
         dialog.favorite_library = FavoriteColorLibrary(dialog.paint_catalog)
@@ -1239,7 +1241,8 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertTrue(dialog.toggle_current_favorite())
         added = dialog.favorite_library.custom_for_color("#395C71")
         self.assertIsNotNone(added)
-        self.assertEqual(added.name, "#395C71")
+        self.assertEqual(added.name, "My Armor Blue")
+        show_name.assert_called_once_with(dialog, "#395C71")
         self.assertEqual(dialog.favorite_button.options["text"], "★ Remove Favorite")
 
         self.assertTrue(dialog.toggle_current_favorite())
@@ -1248,6 +1251,52 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog.favorite_button.options["text"], "★ Add Favorite")
         self.assertEqual(dialog.settings.set_favorite_colors.call_count, 2)
         self.assertEqual(dialog._refresh_palette_data_source.call_count, 2)
+
+    @patch.object(CustomFavoriteNameDialog, "show", return_value="   ")
+    def test_blank_custom_favorite_name_falls_back_to_normalized_hex(self, _show):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(paints=())
+        dialog.favorite_library = FavoriteColorLibrary(dialog.paint_catalog)
+        dialog.current_color = "#395c71"
+        dialog.selected_paint_id = None
+        dialog.settings = Mock()
+        dialog._refresh_palette_data_source = Mock()
+
+        self.assertTrue(dialog.toggle_current_favorite())
+
+        favorite = dialog.favorite_library.custom_for_color("#395C71")
+        self.assertEqual(favorite.name, "#395C71")
+        self.assertEqual(dialog.current_color, "#395c71")
+
+    @patch.object(CustomFavoriteNameDialog, "show", return_value=None)
+    def test_canceling_custom_favorite_name_preserves_color_and_library(self, _show):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(paints=())
+        dialog.favorite_library = FavoriteColorLibrary(dialog.paint_catalog)
+        dialog.current_color = "#395C71"
+        dialog.selected_paint_id = None
+        dialog.settings = Mock()
+        dialog._refresh_palette_data_source = Mock()
+
+        self.assertFalse(dialog.toggle_current_favorite())
+
+        self.assertEqual(dialog.current_color, "#395C71")
+        self.assertEqual(dialog.favorite_library.favorites, ())
+        dialog.settings.set_favorite_colors.assert_not_called()
+        dialog._refresh_palette_data_source.assert_not_called()
+
+    def test_custom_favorite_name_dialog_save_trims_and_cancel_is_distinct(self):
+        dialog = object.__new__(CustomFavoriteNameDialog)
+        dialog.name_entry = FakeWidget()
+        dialog.name_entry.value = "  My Armor Blue  "
+        dialog.destroy = Mock()
+
+        dialog.save()
+
+        self.assertEqual(dialog.result, "My Armor Blue")
+        dialog.cancel()
+        self.assertIsNone(dialog.result)
+        self.assertEqual(dialog.destroy.call_count, 2)
 
     def test_manual_color_change_refreshes_universal_favorite_action(self):
         favorite = CustomFavoriteColor("custom-1", "Custom", "#395C71")

@@ -921,6 +921,79 @@ class PaintSwatchGrid(ttk.Frame):
             self._tooltip_window = None
 
 
+class CustomFavoriteNameDialog(tk.Toplevel):
+    """Small modal editor for the optional name of one Custom Favorite."""
+
+    def __init__(self, parent: tk.Misc, color: str):
+        super().__init__(parent)
+        self.color = normalize_rgb_hex(color)
+        self.result: Optional[str] = None
+        self.title("Save Favorite Color")
+        self.transient(parent)
+        self.resizable(False, False)
+
+        content = ttk.Frame(self, padding=12)
+        content.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(content, text="Name:").grid(row=0, column=0, sticky=tk.W)
+        self.name_entry = ttk.Entry(content, width=28, style=APP_ENTRY_STYLE)
+        self.name_entry.grid(
+            row=1,
+            column=0,
+            columnspan=3,
+            sticky=tk.EW,
+            pady=(2, 10),
+        )
+        ttk.Label(content, text="Color:").grid(row=2, column=0, sticky=tk.W)
+        self.color_preview = tk.Canvas(
+            content,
+            width=22,
+            height=22,
+            background=self.color,
+            bd=0,
+            highlightthickness=1,
+            highlightbackground=COLOR_PREVIEW_BORDER,
+        )
+        self.color_preview.grid(row=3, column=0, sticky=tk.W, pady=(2, 12))
+        ttk.Label(content, text=self.color).grid(
+            row=3,
+            column=1,
+            sticky=tk.W,
+            padx=(6, 0),
+            pady=(2, 12),
+        )
+        ttk.Button(content, text="Cancel", command=self.cancel).grid(
+            row=4,
+            column=1,
+            sticky=tk.E,
+            padx=(0, 6),
+        )
+        ttk.Button(content, text="Save", command=self.save).grid(
+            row=4,
+            column=2,
+            sticky=tk.E,
+        )
+        content.grid_columnconfigure(0, weight=1)
+        self.protocol("WM_DELETE_WINDOW", self.cancel)
+        self.bind("<Return>", self.save)
+        self.bind("<Escape>", self.cancel)
+        self.name_entry.focus_set()
+        self.grab_set()
+        self.wait_window()
+
+    @classmethod
+    def show(cls, parent: tk.Misc, color: str) -> Optional[str]:
+        """Show the modal and return a trimmed optional name or cancellation."""
+        return cls(parent, color).result
+
+    def save(self, Event=None) -> None:
+        self.result = self.name_entry.get().strip()
+        self.destroy()
+
+    def cancel(self, Event=None) -> None:
+        self.result = None
+        self.destroy()
+
+
 class ColorPickerDialog(tk.Toplevel):
     """Modal Citadel browser and RGB/HSV/HSL color editor."""
 
@@ -1772,7 +1845,13 @@ class ColorPickerDialog(tk.Toplevel):
 
         existing = self.favorite_library.custom_for_color(self.current_color)
         if existing is None:
-            result = self.favorite_library.add_color(self.current_color)
+            custom_name = CustomFavoriteNameDialog.show(self, self.current_color)
+            if custom_name is None:
+                return False
+            result = self.favorite_library.add_color(
+                self.current_color,
+                custom_name=custom_name,
+            )
             custom = result.favorite
             added = True
         else:
