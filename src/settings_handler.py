@@ -40,6 +40,9 @@ COLOR_PICKER_RECENT_COLORS_FIELD = "ui_color_picker_recent_colors"
 # Factory/Application Reset may intentionally clear it.
 APPLICATION_COLOR_FAVORITES_FIELD = "color_favorites"
 MAIN_WINDOW_POSITION_FIELD = "ui_main_window_position"
+FAVORITE_SAVE_DIALOG_POSITION_FIELD = "ui_favorite_save_dialog_position"
+FAVORITE_RENAME_DIALOG_POSITION_FIELD = "ui_favorite_rename_dialog_position"
+BATCH_EDITOR_POSITION_FIELD = "ui_batch_editor_position"
 GAME_PROFILE_FIELD = "game_profile_id"
 ValidatedSettings = tuple[DirectoryValues, str | None]
 
@@ -69,6 +72,9 @@ class SettingsHandler:
         self.color_picker_recent_colors: RecentColors = ()
         self.favorite_colors: tuple[FavoriteColor, ...] = ()
         self.main_window_position: tuple[int, int] | None = None
+        self.favorite_save_dialog_position: tuple[int, int] | None = None
+        self.favorite_rename_dialog_position: tuple[int, int] | None = None
+        self.batch_editor_position: tuple[int, int] | None = None
         self.game_profile_id = DEFAULT_TEXTURE_NAMING.profile_id
         self.load_error: Exception | None = None
         self._load()
@@ -104,6 +110,15 @@ class SettingsHandler:
                 )
             self.main_window_position = self._optional_ui_pair(
                 document, MAIN_WINDOW_POSITION_FIELD
+            )
+            self.favorite_save_dialog_position = self._optional_ui_pair(
+                document, FAVORITE_SAVE_DIALOG_POSITION_FIELD
+            )
+            self.favorite_rename_dialog_position = self._optional_ui_pair(
+                document, FAVORITE_RENAME_DIALOG_POSITION_FIELD
+            )
+            self.batch_editor_position = self._optional_ui_pair(
+                document, BATCH_EDITOR_POSITION_FIELD
             )
             profile_id = self._optional_ui_string(document, GAME_PROFILE_FIELD)
             if profile_id is not None:
@@ -198,6 +213,22 @@ class SettingsHandler:
     def set_main_window_position(self, position: tuple[int, int]) -> None:
         self._update_values({MAIN_WINDOW_POSITION_FIELD: list(position)})
         self.main_window_position = position
+
+    def set_favorite_save_dialog_position(
+        self, position: tuple[int, int]
+    ) -> None:
+        self._update_values({FAVORITE_SAVE_DIALOG_POSITION_FIELD: list(position)})
+        self.favorite_save_dialog_position = position
+
+    def set_favorite_rename_dialog_position(
+        self, position: tuple[int, int]
+    ) -> None:
+        self._update_values({FAVORITE_RENAME_DIALOG_POSITION_FIELD: list(position)})
+        self.favorite_rename_dialog_position = position
+
+    def set_batch_editor_position(self, position: tuple[int, int]) -> None:
+        self._update_values({BATCH_EDITOR_POSITION_FIELD: list(position)})
+        self.batch_editor_position = position
 
     def set_game_profile_id(self, profile_id: str) -> None:
         if texture_naming_profile_for_id(profile_id) is None:
@@ -300,6 +331,21 @@ class SettingsHandler:
             ),
             MAIN_WINDOW_POSITION_FIELD: (
                 list(self.main_window_position) if self.main_window_position else None
+            ),
+            FAVORITE_SAVE_DIALOG_POSITION_FIELD: (
+                list(self.favorite_save_dialog_position)
+                if self.favorite_save_dialog_position
+                else None
+            ),
+            FAVORITE_RENAME_DIALOG_POSITION_FIELD: (
+                list(self.favorite_rename_dialog_position)
+                if self.favorite_rename_dialog_position
+                else None
+            ),
+            BATCH_EDITOR_POSITION_FIELD: (
+                list(self.batch_editor_position)
+                if self.batch_editor_position
+                else None
             ),
             GAME_PROFILE_FIELD: self.game_profile_id,
         }

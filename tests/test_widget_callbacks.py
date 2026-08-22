@@ -434,11 +434,12 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         tree.focus.assert_called_once_with("")
 
     @patch.object(BatchEditTopLevel, "initialize")
+    @patch.object(BatchEditTopLevel, "_restore_position")
     @patch("src.widget.tk.Toplevel.title")
     @patch("src.widget.tk.Toplevel.resizable")
     @patch("src.widget.tk.Toplevel.__init__", return_value=None)
     def test_batch_widget_constructs_without_application_root(
-        self, _toplevel_init, _resizable, _title, _initialize
+        self, _toplevel_init, _resizable, _title, _restore_position, _initialize
     ):
         edit = Mock()
         convert = Mock()
@@ -460,6 +461,26 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         edit.assert_called_once_with()
         convert.assert_called_once_with()
         cancel.assert_called_once_with()
+
+    def test_batch_editor_restores_and_saves_position(self):
+        frame = object.__new__(BatchEditTopLevel)
+        frame.settings = Mock(batch_editor_position=(-800, 140))
+        frame.update_idletasks = Mock()
+        frame.winfo_width = Mock(return_value=640)
+        frame.winfo_height = Mock(return_value=180)
+        frame.winfo_vrootx = Mock(return_value=-1920)
+        frame.winfo_vrooty = Mock(return_value=0)
+        frame.winfo_vrootwidth = Mock(return_value=3840)
+        frame.winfo_vrootheight = Mock(return_value=1080)
+        frame.winfo_x = Mock(return_value=-800)
+        frame.winfo_y = Mock(return_value=140)
+        frame.geometry = Mock()
+
+        frame._restore_position()
+        frame._save_position()
+
+        frame.geometry.assert_called_once_with("-800+140")
+        frame.settings.set_batch_editor_position.assert_called_once_with((-800, 140))
 
     def test_controller_receives_alpha_and_color_operation_values(self):
         painter = type(

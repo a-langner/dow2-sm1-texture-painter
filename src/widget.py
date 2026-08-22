@@ -83,7 +83,7 @@ from src.render_settings import (
     MIN_OPACITY,
     MIN_SATURATION,
 )
-from src.window_geometry import safe_window_geometry
+from src.window_geometry import safe_window_geometry, safe_window_position
 
 COLOR_BOX_SIZE = 90
 COLOR_BTN_HEIGHT = 26
@@ -1030,6 +1030,17 @@ class CustomFavoriteNameDialog(tk.Toplevel):
         title: str = "Save Favorite Color",
     ):
         super().__init__(parent)
+        self.settings = getattr(parent, "settings", None)
+        self._position_setting = (
+            "favorite_rename_dialog_position"
+            if title == "Rename Favorite"
+            else "favorite_save_dialog_position"
+        )
+        self._position_setter = (
+            "set_favorite_rename_dialog_position"
+            if title == "Rename Favorite"
+            else "set_favorite_save_dialog_position"
+        )
         self.color = normalize_rgb_hex(color)
         self.result: Optional[str] = None
         self.title(title)
@@ -1082,6 +1093,7 @@ class CustomFavoriteNameDialog(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", self.cancel)
         self.bind("<Return>", self.save)
         self.bind("<Escape>", self.cancel)
+        self._restore_position()
         self.name_entry.focus_set()
         self.grab_set()
         self.wait_window()
@@ -1099,11 +1111,52 @@ class CustomFavoriteNameDialog(tk.Toplevel):
 
     def save(self, Event=None) -> None:
         self.result = self.name_entry.get().strip()
+        self._save_position()
         self.destroy()
 
     def cancel(self, Event=None) -> None:
         self.result = None
+        self._save_position()
         self.destroy()
+
+    def _restore_position(self) -> None:
+        self.update_idletasks()
+        position = safe_window_position(
+            getattr(
+                getattr(self, "settings", None),
+                getattr(
+                    self,
+                    "_position_setting",
+                    "favorite_save_dialog_position",
+                ),
+                None,
+            ),
+            self.winfo_width(),
+            self.winfo_height(),
+            self.winfo_vrootx(),
+            self.winfo_vrooty(),
+            self.winfo_vrootwidth(),
+            self.winfo_vrootheight(),
+        )
+        if position is not None:
+            self.geometry(f"{position[0]:+d}{position[1]:+d}")
+
+    def _save_position(self) -> None:
+        setter = getattr(
+            getattr(self, "settings", None),
+            getattr(
+                self,
+                "_position_setter",
+                "set_favorite_save_dialog_position",
+            ),
+            None,
+        )
+        if setter is None:
+            return
+        try:
+            setter((self.winfo_x(), self.winfo_y()))
+        except OSError:
+            LOGGER.exception("Could not save Custom Favorite dialog position")
 
 
 class ColorPickerDialog(tk.Toplevel):
@@ -4645,15 +4698,48 @@ class BatchEditTopLevel(tk.Toplevel):
         on_batch_edit: ActionCallback,
         on_batch_convert: ActionCallback,
         on_cancel: ActionCallback,
+        settings=None,
         **kw,
     ):
         super(BatchEditTopLevel, self).__init__(master=master, cnf={}, **kw)
         self._on_batch_edit = on_batch_edit
         self._on_batch_convert = on_batch_convert
         self._on_cancel = on_cancel
+        self.settings = settings
         self.resizable(width=False, height=False)
         self.initialize()
         self.title("Batch Edit")
+        self._restore_position()
+
+    def _restore_position(self) -> None:
+        self.update_idletasks()
+        position = safe_window_position(
+            getattr(self.settings, "batch_editor_position", None),
+            self.winfo_width(),
+            self.winfo_height(),
+            self.winfo_vrootx(),
+            self.winfo_vrooty(),
+            self.winfo_vrootwidth(),
+            self.winfo_vrootheight(),
+        )
+        if position is not None:
+            self.geometry(f"{position[0]:+d}{position[1]:+d}")
+
+    def destroy(self) -> None:
+        self._save_position()
+        super().destroy()
+
+    def _save_position(self) -> None:
+        setter = getattr(
+            getattr(self, "settings", None),
+            "set_batch_editor_position",
+            None,
+        )
+        if setter is not None:
+            try:
+                setter((self.winfo_x(), self.winfo_y()))
+            except OSError:
+                LOGGER.exception("Could not save Batch Editor window position")
 
     def get_source_format_selected(self):
         source_format_selected = [

@@ -1331,6 +1331,46 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertIsNone(dialog.result)
         self.assertEqual(dialog.destroy.call_count, 2)
 
+    def test_custom_favorite_dialog_positions_restore_and_save_separately(self):
+        for setting_name, setter_name, saved_position in (
+            (
+                "favorite_save_dialog_position",
+                "set_favorite_save_dialog_position",
+                (120, 130),
+            ),
+            (
+                "favorite_rename_dialog_position",
+                "set_favorite_rename_dialog_position",
+                (220, 230),
+            ),
+        ):
+            with self.subTest(setting_name=setting_name):
+                dialog = object.__new__(CustomFavoriteNameDialog)
+                dialog.settings = Mock()
+                setattr(dialog.settings, setting_name, saved_position)
+                dialog._position_setting = setting_name
+                dialog._position_setter = setter_name
+                dialog.update_idletasks = Mock()
+                dialog.winfo_width = Mock(return_value=260)
+                dialog.winfo_height = Mock(return_value=150)
+                dialog.winfo_vrootx = Mock(return_value=0)
+                dialog.winfo_vrooty = Mock(return_value=0)
+                dialog.winfo_vrootwidth = Mock(return_value=1920)
+                dialog.winfo_vrootheight = Mock(return_value=1080)
+                dialog.winfo_x = Mock(return_value=saved_position[0])
+                dialog.winfo_y = Mock(return_value=saved_position[1])
+                dialog.geometry = Mock()
+
+                dialog._restore_position()
+                dialog._save_position()
+
+                dialog.geometry.assert_called_once_with(
+                    f"+{saved_position[0]}+{saved_position[1]}"
+                )
+                getattr(dialog.settings, setter_name).assert_called_once_with(
+                    saved_position
+                )
+
     def test_manual_color_change_refreshes_universal_favorite_action(self):
         favorite = CustomFavoriteColor("custom-1", "Custom", "#395C71")
         dialog = object.__new__(ColorPickerDialog)

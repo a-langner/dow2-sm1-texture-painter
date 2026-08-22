@@ -849,6 +849,7 @@ class ArmyPainter(tk.Tk):
             on_batch_edit=self.batch_edit,
             on_batch_convert=self.batch_convert,
             on_cancel=self.cancel_batch,
+            settings=self.settings,
             width=DEFAULT_IMG_SIZE * 2,
             height=COLOR_BOX_SIZE + COLOR_BTN_HEIGHT,
             bd=2,
@@ -2652,6 +2653,9 @@ class ArmyPainter(tk.Tk):
             return
         self.closing = True
         try:
+            batch_tools = getattr(self, "frame_batch_tools", None)
+            if batch_tools is not None and batch_tools.winfo_exists():
+                batch_tools._save_position()
             settings = getattr(self, "settings", None)
             if settings is not None:
                 settings.set_main_window_position((self.winfo_x(), self.winfo_y()))

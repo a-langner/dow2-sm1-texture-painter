@@ -329,6 +329,21 @@ class SettingsHandlerTests(unittest.TestCase):
             self.assertEqual(document["ui_main_window_position"], [-800, 120])
             self.assertNotIn("ui_main_window_size", document)
 
+    def test_secondary_window_positions_persist_independently(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_path = root / "settings.json"
+            handler = SettingsHandler(settings_path, root)
+
+            handler.set_favorite_save_dialog_position((100, 110))
+            handler.set_favorite_rename_dialog_position((200, 210))
+            handler.set_batch_editor_position((300, 310))
+            reloaded = SettingsHandler(settings_path, root)
+
+            self.assertEqual(reloaded.favorite_save_dialog_position, (100, 110))
+            self.assertEqual(reloaded.favorite_rename_dialog_position, (200, 210))
+            self.assertEqual(reloaded.batch_editor_position, (300, 310))
+
     def test_game_profile_defaults_to_dow2_and_persists_stable_sm1_id(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
