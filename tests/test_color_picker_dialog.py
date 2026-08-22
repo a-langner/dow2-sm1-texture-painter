@@ -28,6 +28,7 @@ from src.widget import (
     COLOR_PREVIEW_BORDER,
     FAVORITE_STAR_COLOR,
     FAVORITE_STAR_MARGIN,
+    FAVORITE_GROUP_INDICATOR_BACKGROUND,
     COLOR_PICKER_GROUP_PANE_WIDTH,
     COLOR_PICKER_GROUP_ENTRIES,
     COLOR_PICKER_PALETTE_PANE_WIDTH,
@@ -176,6 +177,24 @@ class FakePaletteGrid:
 
 
 class ColorPickerDialogTests(unittest.TestCase):
+    def test_favorites_group_indicator_uses_white_background_and_gold_star(self):
+        dialog = object.__new__(ColorPickerDialog)
+        indicator = Mock()
+
+        dialog._draw_group_indicator(indicator, PaletteSpecialGroup.FAVORITES)
+
+        indicator.configure.assert_called_once_with(
+            background=FAVORITE_GROUP_INDICATOR_BACKGROUND
+        )
+        indicator.create_text.assert_called_once_with(
+            7,
+            7,
+            text="★",
+            fill=FAVORITE_STAR_COLOR,
+            font=("TkDefaultFont", 9, "bold"),
+            anchor="center",
+        )
+
     def test_window_size_stays_within_a_constrained_screen(self):
         dialog = object.__new__(ColorPickerDialog)
         dialog.title = Mock()
