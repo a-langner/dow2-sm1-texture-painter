@@ -1103,6 +1103,44 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(all_names, {"Catalog Red", "Catalog Blue"})
         self.assertNotIn("My Green", green_names)
 
+    def test_favorites_search_filters_citadel_and_custom_names_and_clears(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(
+            paints=(
+                PaintColor("blue", "Macragge Blue", 0, 0, 255),
+                PaintColor("red", "Mephiston Red", 255, 0, 0),
+            )
+        )
+        dialog.favorite_library = FavoriteColorLibrary(
+            dialog.paint_catalog,
+            (
+                CitadelFavoriteColor("blue"),
+                CitadelFavoriteColor("red"),
+                CustomFavoriteColor(
+                    "custom-blue", "My Armor Blue", "#123456"
+                ),
+                CustomFavoriteColor("custom-green", "My Green", "#00FF00"),
+            ),
+        )
+        dialog.selected_color_group = PaletteSpecialGroup.FAVORITES
+        dialog.search_query = ""
+        dialog.palette_sort_mode = PaletteSortMode.ALPHABETICAL
+        dialog._refresh_palette_display = Mock()
+
+        dialog._refresh_palette_data_source()
+        all_favorites = tuple(color.name for color in dialog.palette_paints)
+        dialog.set_paint_search("BLUE")
+        blue_favorites = tuple(color.name for color in dialog.palette_paints)
+        dialog.set_paint_search("")
+        restored_favorites = tuple(color.name for color in dialog.palette_paints)
+
+        self.assertEqual(
+            all_favorites,
+            ("Macragge Blue", "Mephiston Red", "My Armor Blue", "My Green"),
+        )
+        self.assertEqual(blue_favorites, ("Macragge Blue", "My Armor Blue"))
+        self.assertEqual(restored_favorites, all_favorites)
+
     def test_all_colors_is_default_and_selection_updates_button_state(self):
         dialog = object.__new__(ColorPickerDialog)
         dialog.paint_catalog = PaintCatalog(
