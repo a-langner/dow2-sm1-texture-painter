@@ -3,6 +3,7 @@ import unittest
 from src.favorite_color import (
     CitadelFavoriteColor,
     CustomFavoriteColor,
+    FavoriteColorLibrary,
     FavoriteColor,
     FavoriteColorType,
     resolve_exact_citadel_favorite,
@@ -90,6 +91,41 @@ class FavoriteColorTests(unittest.TestCase):
         favorite = resolve_exact_citadel_favorite(self.catalog, "#010203")
 
         self.assertIsNone(favorite)
+
+    def test_duplicate_custom_rgb_returns_existing_favorite(self):
+        library = FavoriteColorLibrary(self.catalog)
+        first = library.add_color("#010203", custom_name="First Name")
+        duplicate = library.add_color("010203", custom_name="Replacement Name")
+
+        self.assertTrue(first.added)
+        self.assertFalse(duplicate.added)
+        self.assertIs(duplicate.favorite, first.favorite)
+        self.assertEqual(len(library.favorites), 1)
+        self.assertEqual(duplicate.favorite.name, "First Name")
+
+    def test_exact_citadel_rgb_takes_precedence_over_custom_creation(self):
+        library = FavoriteColorLibrary(self.catalog)
+        result = library.add_color("#0a141e", custom_name="Not Custom")
+
+        self.assertTrue(result.added)
+        self.assertEqual(result.favorite, CitadelFavoriteColor("first"))
+        self.assertEqual(library.favorites, (CitadelFavoriteColor("first"),))
+
+    def test_existing_library_input_deduplicates_normalized_custom_rgb(self):
+        first = CustomFavoriteColor("first-custom", "First", "#010203")
+        duplicate = CustomFavoriteColor("second-custom", "Second", "010203")
+        library = FavoriteColorLibrary(self.catalog, (first, duplicate))
+
+        self.assertEqual(library.favorites, (first,))
+
+    def test_duplicate_citadel_add_recognizes_existing_identity(self):
+        library = FavoriteColorLibrary(self.catalog)
+        first = library.add_color("#0A141E", explicit_citadel_id="second")
+        duplicate = library.add_color("#0A141E", explicit_citadel_id="second")
+
+        self.assertTrue(first.added)
+        self.assertFalse(duplicate.added)
+        self.assertIs(duplicate.favorite, first.favorite)
 
 
 if __name__ == "__main__":

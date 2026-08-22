@@ -68,6 +68,14 @@ class CustomFavoriteColor:
 FavoriteColor: TypeAlias = CitadelFavoriteColor | CustomFavoriteColor
 
 
+@dataclass(frozen=True)
+class FavoriteAddResult:
+    """Report the resolved Favorite identity and whether it was newly stored."""
+
+    favorite: FavoriteColor
+    added: bool
+
+
 def resolve_exact_citadel_favorite(
     catalog: PaintCatalog,
     color: str,
@@ -88,3 +96,70 @@ def resolve_exact_citadel_favorite(
     if canonical_paint is None:
         return None
     return CitadelFavoriteColor(canonical_paint.id)
+
+
+class FavoriteColorLibrary:
+    """Unified indexed collection with exact Custom RGB deduplication."""
+
+    def __init__(
+        self,
+        catalog: PaintCatalog,
+        favorites: tuple[FavoriteColor, ...] = (),
+    ) -> None:
+        self.catalog = catalog
+        self._citadel_by_id: dict[str, CitadelFavoriteColor] = {}
+        self._custom_by_id: dict[str, CustomFavoriteColor] = {}
+        self._custom_by_color: dict[str, CustomFavoriteColor] = {}
+        for favorite in favorites:
+            self._store_existing(favorite)
+
+    @property
+    def favorites(self) -> tuple[FavoriteColor, ...]:
+        """Return both Favorite kinds in stable insertion order."""
+        return tuple(self._citadel_by_id.values()) + tuple(
+            self._custom_by_id.values()
+        )
+
+    def _store_existing(self, favorite: FavoriteColor) -> bool:
+        if isinstance(favorite, CitadelFavoriteColor):
+            if favorite.citadel_id in self._citadel_by_id:
+                return False
+            self._citadel_by_id[favorite.citadel_id] = favorite
+            return True
+        if (
+            favorite.id in self._custom_by_id
+            or favorite.color in self._custom_by_color
+        ):
+            return False
+        self._custom_by_id[favorite.id] = favorite
+        self._custom_by_color[favorite.color] = favorite
+        return True
+
+    def add_color(
+        self,
+        color: str,
+        *,
+        custom_name: str = "",
+        explicit_citadel_id: str | None = None,
+    ) -> FavoriteAddResult:
+        """Add or resolve one exact current color through the unified rules."""
+        citadel = resolve_exact_citadel_favorite(
+            self.catalog,
+            color,
+            explicit_citadel_id,
+        )
+        if citadel is not None:
+            existing = self._citadel_by_id.get(citadel.citadel_id)
+            if existing is not None:
+                return FavoriteAddResult(existing, False)
+            self._citadel_by_id[citadel.citadel_id] = citadel
+            return FavoriteAddResult(citadel, True)
+
+        normalized_color = normalize_rgb_hex(color)
+        existing_custom = self._custom_by_color.get(normalized_color)
+        if existing_custom is not None:
+            return FavoriteAddResult(existing_custom, False)
+        custom = CustomFavoriteColor.create(custom_name, normalized_color)
+        self._custom_by_id[custom.id] = custom
+        self._custom_by_color[custom.color] = custom
+        return FavoriteAddResult(custom, True)
