@@ -5,9 +5,13 @@ from types import SimpleNamespace
 from unittest.mock import Mock, call, patch
 
 from src.color_slot import ColorSlot
+from src.color_slot_state import CustomFavoriteIdentity
 from src.color_pattern_handler import PatternMarkerColor
+from src.favorite_color import FavoriteColorLibrary
 from src.frame_main import ArmyPainter
+from src.paint_catalog import PaintCatalog, PaintColor
 from src.render_settings import DEFAULT_RENDER_SETTINGS
+from src.widget import SelectedColor
 from src.workspace_history import (
     UNDO_HISTORY_LIMIT,
     EditableWorkspaceState,
@@ -174,6 +178,52 @@ class WorkspaceHistoryTests(unittest.TestCase):
         )
         self.assertEqual(history.undo(after), before)
         self.assertEqual(painter.render_settings.primary_color, "#102030")
+
+    def test_favorite_library_management_does_not_enter_workspace_history(self):
+        history = WorkspaceHistory()
+        paint = PaintColor("citadel-blue", "Citadel Blue", 1, 2, 3)
+        library = FavoriteColorLibrary(PaintCatalog((paint,)))
+
+        library.add_color("#010203")
+        library.remove_citadel(paint.id)
+        added = library.add_color("#102030", custom_name="Armor Blue").favorite
+        library.rename_custom(added.id, "Renamed Blue")
+        library.remove_custom(added.id)
+
+        self.assertEqual(history.undo_count, 0)
+        self.assertEqual(history.redo_count, 0)
+
+    def test_applying_named_custom_favorite_is_undoable_slot_edit(self):
+        history = WorkspaceHistory()
+        identity = CustomFavoriteIdentity("custom-1", "Armor Blue")
+        painter = SimpleNamespace(
+            render_settings=DEFAULT_RENDER_SETTINGS,
+            active_team_color_mask_variant=None,
+            workspace_history=history,
+            _history_recording_suspended=False,
+            update_pattern_action_states=Mock(),
+            refresh_workspace=Mock(),
+        )
+        before = EditableWorkspaceState.from_render_settings(
+            DEFAULT_RENDER_SETTINGS, None
+        )
+
+        ArmyPainter.on_color_changed(
+            painter,
+            0,
+            SelectedColor("#102030", identity),
+        )
+
+        after = EditableWorkspaceState.from_render_settings(
+            painter.render_settings, None
+        )
+        restored_before = history.undo(after)
+        restored_after = history.redo(restored_before)
+        self.assertEqual(restored_before, before)
+        self.assertEqual(
+            restored_after.color_slot_states[0].custom_favorite,
+            identity,
+        )
 
     def test_slider_drag_records_only_press_and_final_release_states(self):
         history = WorkspaceHistory()
