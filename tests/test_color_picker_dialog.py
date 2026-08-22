@@ -27,6 +27,7 @@ from src.widget import (
     COLOR_PICKER_EDITOR_PANE_WIDTH,
     COLOR_PREVIEW_BORDER,
     FAVORITE_STAR_COLOR,
+    FAVORITE_STAR_MARGIN,
     COLOR_PICKER_GROUP_PANE_WIDTH,
     COLOR_PICKER_GROUP_ENTRIES,
     COLOR_PICKER_PALETTE_PANE_WIDTH,
@@ -1486,6 +1487,17 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(len(star_calls), 1)
         self.assertEqual(star_calls[0].kwargs["fill"], FAVORITE_STAR_COLOR)
         self.assertEqual(star_calls[0].kwargs["anchor"], "ne")
+        star_x, star_y = star_calls[0].args[:2]
+        cell_x1, cell_x2 = calculate_paint_swatch_cell_bounds(192, 2, 0)
+        preview_x1 = (
+            cell_x1 + 2 + cell_x2 - 2 - PAINT_SWATCH_PREVIEW_SIZE
+        ) // 2
+        preview_y1 = 6
+        self.assertEqual(
+            preview_x1 + PAINT_SWATCH_PREVIEW_SIZE - star_x,
+            FAVORITE_STAR_MARGIN,
+        )
+        self.assertEqual(star_y - preview_y1, FAVORITE_STAR_MARGIN)
         grid.canvas.configure.assert_called_once_with(
             scrollregion=(0, 0, 192, PAINT_SWATCH_PREVIEW_SIZE + 48)
         )

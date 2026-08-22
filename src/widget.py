@@ -163,6 +163,7 @@ COLOR_MODEL_CONTROL_WIDTH = 3
 PAINT_SWATCH_OUTLINE = "#606060"
 PAINT_SWATCH_SELECTED_OUTLINE = APP_SELECTION_BACKGROUND
 FAVORITE_STAR_COLOR = "#E6B800"
+FAVORITE_STAR_MARGIN = 3
 COLOR_SLOT_DROP_TARGET_OUTLINE = "#00a6d6"
 COLOR_SLOT_DRAG_THRESHOLD = 6
 COLOR_SLOT_DRAG_GHOST_ALPHA = 0.65
@@ -858,8 +859,8 @@ class PaintSwatchGrid(ttk.Frame):
             favorite_check = getattr(self, "_is_paint_favorite", None)
             if favorite_check is not None and favorite_check(paint):
                 self.canvas.create_text(
-                    preview_x1 + PAINT_SWATCH_PREVIEW_SIZE - 3,
-                    preview_y1 + 1,
+                    preview_x1 + PAINT_SWATCH_PREVIEW_SIZE - FAVORITE_STAR_MARGIN,
+                    preview_y1 + FAVORITE_STAR_MARGIN,
                     text="★",
                     fill=FAVORITE_STAR_COLOR,
                     font=("TkDefaultFont", 12, "bold"),
