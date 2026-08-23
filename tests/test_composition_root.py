@@ -1,11 +1,14 @@
 import inspect
+import tempfile
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, call, patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
 from src.frame_main import ArmyPainter
 from src.render_settings import DEFAULT_RENDER_SETTINGS
+from src.settings_handler import SettingsHandler
 from src.widget import PatternSelection
 
 
@@ -233,6 +236,39 @@ class ArmyPainterCompositionTests(unittest.TestCase):
                 ("destroy",),
             ],
         )
+
+    def test_exit_cannot_restore_stale_positions_after_factory_reset(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_path = root / "settings.json"
+            settings = SettingsHandler(settings_path, root)
+            settings.set_main_window_position((320, 180))
+            settings.set_batch_editor_position((440, 260))
+            settings.restore_factory_defaults()
+            batch_tools = SimpleNamespace(
+                winfo_exists=Mock(return_value=True),
+                _save_position=Mock(
+                    side_effect=lambda: settings.set_batch_editor_position((440, 260))
+                ),
+            )
+            painter = SimpleNamespace(
+                closing=False,
+                settings=settings,
+                frame_batch_tools=batch_tools,
+                winfo_x=Mock(return_value=320),
+                winfo_y=Mock(return_value=180),
+                batch_cancel=Mock(),
+                _shutdown_owned_background_workers=Mock(),
+                destroy=Mock(),
+            )
+
+            ArmyPainter.on_exit(painter)
+
+            reloaded = SettingsHandler(settings_path, root)
+            self.assertIsNone(reloaded.main_window_position)
+            self.assertIsNone(reloaded.batch_editor_position)
+            batch_tools._save_position.assert_called_once_with()
+            painter.destroy.assert_called_once_with()
 
     @patch("src.frame_main.derive_pattern_action_state")
     @patch("src.frame_main.src.color_pattern_handler.has_user_patterns")
