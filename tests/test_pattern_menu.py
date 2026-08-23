@@ -532,7 +532,11 @@ class PatternMenuStateTests(unittest.TestCase):
         self.assertEqual(pattern_name_to_restore("Custom", "Built-in", names), "Custom")
         self.assertIsNone(pattern_name_to_restore(None, "Deleted", names))
 
-    def test_export_is_disabled_without_selection(self):
+    @patch(
+        "src.frame_main.src.color_pattern_handler.has_user_patterns",
+        return_value=False,
+    )
+    def test_export_is_disabled_without_selection(self, _has_user_patterns):
         painter = FakePainter()
 
         ArmyPainter.update_pattern_action_states(painter)
