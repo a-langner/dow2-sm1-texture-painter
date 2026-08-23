@@ -4,6 +4,7 @@ import platform
 from pathlib import Path
 import sys
 
+from src.app_identity import APP_VERSION
 from src.user_data import get_user_data_file_path
 
 LOG_DIRECTORY_NAME = "logs"
@@ -82,7 +83,7 @@ def appears_to_run_from_pyinstaller_bundle():
     return bool(getattr(sys, "frozen", False))
 
 
-def log_application_startup(log_path, version="0.1"):
+def log_application_startup(log_path, version=APP_VERSION):
     """Record startup context after logging has been configured."""
     logger = logging.getLogger("src.frame_main")
     logger.info("Application startup")

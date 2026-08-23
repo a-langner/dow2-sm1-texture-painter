@@ -5,8 +5,6 @@ SHELL := /bin/sh
 
 APP_DIR = src
 RES_DIR = resources
-APP_VERSION := 0.1
-APP_NAME := dow2-sm1-texture-painter
 PYTHON ?= python
 VENV_DIR ?= .venv
 VENV_PYTHON := $(VENV_DIR)/bin/python

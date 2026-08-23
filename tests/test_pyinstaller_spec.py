@@ -15,7 +15,8 @@ class PyInstallerSpecTests(unittest.TestCase):
     def test_spec_configures_entry_point_name_icon_and_package_resources(self):
         contents = SPEC_PATH.read_text(encoding="utf-8")
 
-        self.assertIn('APP_NAME = "dow2-sm1-texture-painter-0.1"', contents)
+        self.assertIn("from src.app_identity import BUILD_NAME", contents)
+        self.assertIn("BUNDLE_NAME = BUILD_NAME", contents)
         self.assertIn('PROJECT_ROOT / "src" / "frame_main.py"', contents)
         self.assertIn('PROJECT_ROOT / "src" / "resources" / "icon_64x64.ico"', contents)
         self.assertIn('collect_data_files("src.resources")', contents)

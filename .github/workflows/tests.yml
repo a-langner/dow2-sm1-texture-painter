@@ -83,8 +83,9 @@ jobs:
       - name: Verify Windows application bundle
         shell: pwsh
         run: |
-          $bundle = Join-Path $PWD "dist\dow2-sm1-texture-painter-0.1"
-          $executable = Join-Path $bundle "dow2-sm1-texture-painter-0.1.exe"
+          $appStem = python -c "from src.app_identity import BUILD_NAME; print(BUILD_NAME)"
+          $bundle = Join-Path $PWD "dist\$appStem"
+          $executable = Join-Path $bundle "$appStem.exe"
           if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
             throw "Expected executable was not created: $executable"
           }

@@ -26,6 +26,7 @@ from src.widget import (
     PatternCollectionConflictDialog,
 )
 from src.action_state import PatternActionContext, derive_pattern_action_state
+from src.app_identity import APP_NAME, APP_VERSION
 from src.batch_processing_service import (
     batch_convert_worker,
     BatchProcessingRequest,
@@ -145,7 +146,8 @@ def _get_pattern_marker_or_default(name: str) -> PatternMarkerColor:
         return PatternMarkerColor.DEFAULT
 
 
-VERSION = "0.1"
+# Backward-compatible module alias; app_identity remains authoritative.
+VERSION = APP_VERSION
 PREVIEW_DEBOUNCE_MS = 120
 PATTERN_SAVE_MENU_LABEL = "Save Current as New Pattern…"
 PATTERN_UPDATE_MENU_LABEL = "Update Selected Pattern"
@@ -275,7 +277,7 @@ class ArmyPainter(tk.Tk):
             self.icon_img = tk.PhotoImage(file=str(icon_path))
         self.iconphoto(False, self.icon_img)
         self.minsize(min_width, min_height)
-        self.title(f"Army Painter {VERSION}")
+        self.title(f"{APP_NAME} {APP_VERSION}")
         self.protocol("WM_DELETE_WINDOW", self.on_exit)
 
     def _initialize_services_and_controllers(self):

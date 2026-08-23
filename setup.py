@@ -1,7 +1,8 @@
 from setuptools import setup, find_packages
+from src.app_identity import APP_VERSION, PACKAGE_NAME
 
-setup(name="dow2-sm1-texture-painter",
-      version='0.1',
+setup(name=PACKAGE_NAME,
+      version=APP_VERSION,
       packages=find_packages(),
       include_package_data=True,
       package_data={

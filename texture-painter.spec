@@ -4,9 +4,10 @@ import os
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_data_files
+from src.app_identity import BUILD_NAME
 
 
-APP_NAME = "dow2-sm1-texture-painter-0.1"
+BUNDLE_NAME = BUILD_NAME
 ONE_FILE = os.environ.get("TEXTURE_PAINTER_ONEFILE") == "1"
 PROJECT_ROOT = Path(SPECPATH).resolve()
 ENTRY_POINT = PROJECT_ROOT / "src" / "frame_main.py"
@@ -37,7 +38,7 @@ if ONE_FILE:
         analysis.binaries,
         analysis.datas,
         [],
-        name=APP_NAME,
+        name=BUNDLE_NAME,
         debug=False,
         bootloader_ignore_signals=False,
         strip=False,
@@ -51,7 +52,7 @@ else:
         analysis.scripts,
         [],
         exclude_binaries=True,
-        name=APP_NAME,
+        name=BUNDLE_NAME,
         debug=False,
         bootloader_ignore_signals=False,
         strip=False,
@@ -65,5 +66,5 @@ else:
         analysis.datas,
         strip=False,
         upx=True,
-        name=APP_NAME,
+        name=BUNDLE_NAME,
     )
