@@ -110,6 +110,7 @@ ABOUT_DISCLAIMER = (
     "endorsed by, or associated with Games Workshop, Citadel, Relic "
     "Entertainment, or their respective owners."
 )
+ABOUT_LINK_EXTRA_BOTTOM_GAP = 8
 
 COLOR_BOX_SIZE = 90
 COLOR_BTN_HEIGHT = 26
@@ -1083,7 +1084,9 @@ class AboutDialog(tk.Toplevel):
             ABOUT_MAINTAINER,
             ABOUT_MAINTAINER_URL,
         )
-        self.maintainer_label.pack(pady=(1, 10))
+        self.maintainer_label.pack(
+            pady=(1, 10 + ABOUT_LINK_EXTRA_BOTTOM_GAP)
+        )
 
         ttk.Label(content, text="Based on the original application by:").pack()
         self.original_author_label = self._create_link_label(
@@ -1091,11 +1094,15 @@ class AboutDialog(tk.Toplevel):
             ABOUT_ORIGINAL_AUTHOR,
             ABOUT_ORIGINAL_AUTHOR_URL,
         )
-        self.original_author_label.pack(pady=(1, 10))
+        self.original_author_label.pack(
+            pady=(1, 10 + ABOUT_LINK_EXTRA_BOTTOM_GAP)
+        )
 
         ttk.Label(content, text="Citadel color data:").pack()
         attribution_row = ttk.Frame(content)
-        attribution_row.pack(pady=(1, 14))
+        attribution_row.pack(
+            pady=(1, 14 + ABOUT_LINK_EXTRA_BOTTOM_GAP)
+        )
         self.citadel_attribution_label = self._create_link_label(
             attribution_row,
             "Arcturus5404/miniature-paints",
