@@ -1903,9 +1903,33 @@ class ArmyPainter(tk.Tk):
             return None
         if delete_user_patterns and not FactoryResetPatternDeletionDialog.show(self):
             return None
-        self.settings.restore_factory_defaults()
+        try:
+            self.settings.restore_factory_defaults()
+        except OSError:
+            LOGGER.exception("Could not restore Factory Reset settings")
+            self.dialogs.show_error(
+                title="Factory Reset Failed",
+                message=(
+                    "Army Painter could not reset the application settings.\n\n"
+                    "No user-created Patterns were deleted."
+                ),
+            )
+            return None
         if delete_user_patterns:
-            ArmyPainter._pattern_workflows(self).delete_all_user_patterns()
+            try:
+                ArmyPainter._pattern_workflows(self).delete_all_user_patterns()
+            except (PatternError, OSError):
+                LOGGER.exception("Could not delete user Patterns during Factory Reset")
+                self.dialogs.show_error(
+                    title="Pattern Deletion Failed",
+                    message=(
+                        "Application preferences were reset, but user-created "
+                        "Patterns could not be deleted.\n\n"
+                        "Your user-created Patterns were kept. Restart Army Painter "
+                        "to apply the reset settings."
+                    ),
+                )
+                return None
             self.frame_army_pattern.load_pattern_list()
             self.update_pattern_action_states()
         self.dialogs.show_info(

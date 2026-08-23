@@ -189,6 +189,58 @@ class PatternMenuStateTests(unittest.TestCase):
         painter.settings.restore_factory_defaults.assert_not_called()
         painter.dialogs.show_info.assert_not_called()
 
+    @patch.object(FactoryResetPatternDeletionDialog, "show")
+    @patch.object(FactoryResetDialog, "show", return_value=False)
+    def test_settings_reset_failure_is_reported_without_success(
+        self, _show, show_deletion_confirmation
+    ):
+        painter = SimpleNamespace(settings=Mock(), dialogs=Mock())
+        painter.settings.restore_factory_defaults.side_effect = OSError("disk full")
+
+        result = ArmyPainter.factory_reset(painter)
+
+        self.assertIsNone(result)
+        show_deletion_confirmation.assert_not_called()
+        painter.dialogs.show_error.assert_called_once_with(
+            title="Factory Reset Failed",
+            message=(
+                "Army Painter could not reset the application settings.\n\n"
+                "No user-created Patterns were deleted."
+            ),
+        )
+        painter.dialogs.show_info.assert_not_called()
+
+    @patch.object(FactoryResetPatternDeletionDialog, "show", return_value=True)
+    @patch.object(FactoryResetDialog, "show", return_value=True)
+    def test_pattern_deletion_failure_reports_explicit_partial_outcome(
+        self, _show, _show_deletion_confirmation
+    ):
+        workflows = Mock()
+        workflows.delete_all_user_patterns.side_effect = OSError("read only")
+        painter = SimpleNamespace(
+            settings=Mock(),
+            dialogs=Mock(),
+            pattern_controller=workflows,
+            frame_army_pattern=Mock(),
+            update_pattern_action_states=Mock(),
+        )
+
+        result = ArmyPainter.factory_reset(painter)
+
+        self.assertIsNone(result)
+        painter.settings.restore_factory_defaults.assert_called_once_with()
+        painter.dialogs.show_error.assert_called_once_with(
+            title="Pattern Deletion Failed",
+            message=(
+                "Application preferences were reset, but user-created Patterns "
+                "could not be deleted.\n\n"
+                "Your user-created Patterns were kept. Restart Army Painter to "
+                "apply the reset settings."
+            ),
+        )
+        painter.frame_army_pattern.load_pattern_list.assert_not_called()
+        painter.dialogs.show_info.assert_not_called()
+
     @patch.object(AboutDialog, "show")
     def test_about_callback_opens_modal_dialog(self, show):
         painter = SimpleNamespace()

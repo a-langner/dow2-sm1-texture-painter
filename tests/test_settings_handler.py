@@ -150,6 +150,26 @@ class SettingsHandlerTests(unittest.TestCase):
             self.assertIsNone(reloaded.about_dialog_position)
             self.assertIsNone(reloaded.batch_editor_position)
 
+    def test_factory_reset_write_failure_preserves_file_and_memory(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_path = root / "settings.json"
+            handler = SettingsHandler(settings_path, root)
+            handler.set_main_window_position((320, 180))
+            previous_document = settings_path.read_bytes()
+
+            with patch.object(
+                handler,
+                "_write_atomic",
+                side_effect=OSError("disk full"),
+            ):
+                with self.assertRaises(OSError):
+                    handler.restore_factory_defaults()
+
+            self.assertEqual(settings_path.read_bytes(), previous_document)
+            self.assertEqual(handler.main_window_position, (320, 180))
+            self.assertFalse(handler.factory_reset_pending_restart)
+
     def test_factory_defaults_do_not_rewrite_user_pattern_order(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
