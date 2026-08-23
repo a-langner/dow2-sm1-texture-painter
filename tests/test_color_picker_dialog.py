@@ -1345,11 +1345,20 @@ class ColorPickerDialogTests(unittest.TestCase):
     @patch.object(ClosestCitadelColorDialog, "show")
     def test_using_closest_match_establishes_normal_citadel_selection(self, show):
         paint = PaintColor("canonical", "Canonical Blue", 57, 92, 113)
+        favorite_paint = PaintColor("favorite", "Favorite Red", 120, 30, 20)
+        custom = CustomFavoriteColor("custom", "Custom Blue", "#395D71")
         dialog = object.__new__(ColorPickerDialog)
-        dialog.paint_catalog = PaintCatalog((paint,))
-        dialog.favorite_library = FavoriteColorLibrary(dialog.paint_catalog)
-        dialog.current_color = "#395D71"
-        dialog.current_custom_favorite = None
+        dialog.paint_catalog = PaintCatalog((paint, favorite_paint))
+        dialog.favorite_library = FavoriteColorLibrary(
+            dialog.paint_catalog,
+            (CitadelFavoriteColor(favorite_paint.id), custom),
+        )
+        original_favorites = dialog.favorite_library.favorites
+        dialog.current_color = custom.color
+        dialog.current_custom_favorite = CustomFavoriteIdentity(
+            custom.id,
+            custom.name,
+        )
         dialog.selected_paint_id = None
         dialog.palette_grid = FakePaletteGrid()
         dialog.current_color_preview = FakeWidget()
@@ -1369,6 +1378,8 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(dialog.palette_grid.selected_paint_id, paint.id)
         self.assertIsNone(dialog.current_custom_favorite)
         self.assertEqual(dialog.closest_citadel_button.options["state"], "disabled")
+        self.assertEqual(dialog.favorite_library.favorites, original_favorites)
+        self.assertFalse(dialog.favorite_library.has_citadel(paint.id))
         presentation = color_slot_presentation(
             dialog.current_color,
             dialog.paint_catalog,
