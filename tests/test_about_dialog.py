@@ -1,4 +1,5 @@
 import unittest
+from concurrent.futures import Future
 from unittest.mock import Mock, patch
 
 from src.app_identity import APP_NAME, APP_VERSION
@@ -98,25 +99,77 @@ class AboutDialogTests(unittest.TestCase):
             ],
         )
 
-    def test_manual_update_action_has_dedicated_event_seam(self):
+    def test_manual_update_action_starts_only_one_background_check(self):
         dialog = object.__new__(AboutDialog)
-        dialog.event_generate = Mock()
         dialog.update_check_in_progress = False
         dialog.update_button = Mock()
         dialog.update_status_label = Mock()
         dialog.download_button = Mock()
         dialog.update_download_url = "https://github.com/old"
+        dialog._start_update_check = Mock()
 
         self.assertTrue(dialog.request_update_check())
         self.assertFalse(dialog.request_update_check())
 
-        dialog.event_generate.assert_called_once_with("<<CheckForUpdates>>")
+        dialog._start_update_check.assert_called_once_with()
         dialog.update_button.configure.assert_called_once_with(state="disabled")
         dialog.update_status_label.configure.assert_called_once_with(
             text="Checking..."
         )
         dialog.download_button.pack_forget.assert_called_once_with()
         self.assertIsNone(dialog.update_download_url)
+
+    def test_completed_worker_result_is_delivered_by_tk_poll(self):
+        result = UpdateCheckResult(
+            UpdateStatus.LATEST,
+            "You are using the latest version.",
+        )
+        future = Future()
+        future.set_result(result)
+        dialog = object.__new__(AboutDialog)
+        dialog._update_future = future
+        dialog._update_poll_after_id = "poll-id"
+        dialog.show_update_result = Mock()
+
+        dialog._poll_update_result()
+
+        self.assertIsNone(dialog._update_future)
+        self.assertIsNone(dialog._update_poll_after_id)
+        dialog.show_update_result.assert_called_once_with(result)
+
+    def test_pending_worker_is_polled_without_reading_result(self):
+        dialog = object.__new__(AboutDialog)
+        dialog._update_future = Future()
+        dialog._update_poll_after_id = "poll-id"
+        dialog._schedule_update_poll = Mock()
+        dialog.show_update_result = Mock()
+
+        dialog._poll_update_result()
+
+        dialog._schedule_update_poll.assert_called_once_with()
+        dialog.show_update_result.assert_not_called()
+
+    def test_close_cancels_poll_and_detaches_pending_worker(self):
+        dialog = object.__new__(AboutDialog)
+        dialog._update_poll_after_id = "poll-id"
+        future = Mock()
+        dialog._update_future = future
+        dialog._update_executor = Mock()
+        dialog.after_cancel = Mock()
+        dialog._save_position = Mock()
+        dialog.destroy = Mock()
+
+        dialog.close()
+
+        dialog.after_cancel.assert_called_once_with("poll-id")
+        self.assertIsNone(dialog._update_poll_after_id)
+        future.cancel.assert_called_once_with()
+        self.assertIsNone(dialog._update_future)
+        dialog._update_executor.shutdown.assert_called_once_with(
+            wait=False,
+            cancel_futures=True,
+        )
+        dialog.destroy.assert_called_once_with()
 
     def test_position_restores_with_clamping_and_saves_independently(self):
         dialog = object.__new__(AboutDialog)

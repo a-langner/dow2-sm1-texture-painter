@@ -6,6 +6,7 @@ from tkinter import font as tkfont
 from tkinter.ttk import Progressbar
 import os
 import math
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from enum import Enum
 import colorsys
@@ -87,7 +88,12 @@ from src.render_settings import (
     MIN_SATURATION,
 )
 from src.window_geometry import safe_window_geometry, safe_window_position
-from src.update_check import UpdateCheckResult
+from src.update_check import (
+    UPDATE_FAILURE_MESSAGE,
+    UpdateCheckResult,
+    UpdateStatus,
+    check_for_updates,
+)
 
 ABOUT_DESCRIPTION = (
     "A GUI application for easily colorizing Dawn of War II and "
@@ -1045,6 +1051,12 @@ class AboutDialog(tk.Toplevel):
     def __init__(self, parent: tk.Misc):
         super().__init__(parent)
         self.settings = getattr(parent, "settings", None)
+        self._update_executor = ThreadPoolExecutor(
+            max_workers=1,
+            thread_name_prefix="about-update-check",
+        )
+        self._update_future: Future[UpdateCheckResult] | None = None
+        self._update_poll_after_id: str | None = None
         self.title(f"About {APP_NAME}")
         self.transient(parent)
         self.resizable(False, False)
@@ -1159,8 +1171,31 @@ class AboutDialog(tk.Toplevel):
         self.update_status_label.configure(text="Checking...")
         self.update_download_url = None
         self.download_button.pack_forget()
-        self.event_generate("<<CheckForUpdates>>")
+        self._start_update_check()
         return True
+
+    def _start_update_check(self) -> None:
+        self._update_future = self._update_executor.submit(check_for_updates)
+        self._schedule_update_poll()
+
+    def _schedule_update_poll(self) -> None:
+        self._update_poll_after_id = self.after(50, self._poll_update_result)
+
+    def _poll_update_result(self) -> None:
+        self._update_poll_after_id = None
+        future = self._update_future
+        if future is None:
+            return
+        if not future.done():
+            self._schedule_update_poll()
+            return
+        self._update_future = None
+        try:
+            result = future.result()
+        except Exception:
+            LOGGER.exception("Unexpected update-check worker failure")
+            result = UpdateCheckResult(UpdateStatus.FAILURE, UPDATE_FAILURE_MESSAGE)
+        self.show_update_result(result)
 
     def show_update_result(self, result: UpdateCheckResult) -> None:
         """Show one concise result and only expose downloads for newer releases."""
@@ -1178,6 +1213,16 @@ class AboutDialog(tk.Toplevel):
             self.open_link(self.update_download_url)
 
     def close(self, Event=None) -> None:
+        if self._update_poll_after_id is not None:
+            try:
+                self.after_cancel(self._update_poll_after_id)
+            except tk.TclError:
+                pass
+            self._update_poll_after_id = None
+        if self._update_future is not None:
+            self._update_future.cancel()
+            self._update_future = None
+        self._update_executor.shutdown(wait=False, cancel_futures=True)
         self._save_position()
         self.destroy()
 
