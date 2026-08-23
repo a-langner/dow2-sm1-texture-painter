@@ -96,6 +96,27 @@ class SettingsHandler:
         self._write_atomic(document)
         self._apply_authoritative_defaults()
 
+    def restore_factory_defaults(self) -> None:
+        """Reset preferences while retaining user-created and working-history data."""
+        recent_colors = self.color_picker_recent_colors
+        favorite_colors = self.favorite_colors
+        document: SettingsDocument = {
+            "format": SETTINGS_FORMAT,
+            "version": SETTINGS_VERSION,
+        }
+        if recent_colors:
+            document[COLOR_PICKER_RECENT_COLORS_FIELD] = [
+                list(color) for color in recent_colors
+            ]
+        if favorite_colors:
+            document[APPLICATION_COLOR_FAVORITES_FIELD] = serialize_favorite_colors(
+                favorite_colors
+            )
+        self._write_atomic(document)
+        self._apply_authoritative_defaults()
+        self.color_picker_recent_colors = recent_colors
+        self.favorite_colors = favorite_colors
+
     def _load(self) -> None:
         try:
             with self.path.open("r", encoding="utf-8") as fp:

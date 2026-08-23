@@ -105,33 +105,39 @@ class PatternMenuStateTests(unittest.TestCase):
     def test_factory_reset_without_pattern_deletion_needs_one_confirmation(
         self, show, show_deletion_confirmation
     ):
-        painter = SimpleNamespace()
+        painter = SimpleNamespace(settings=Mock())
 
         result = ArmyPainter.factory_reset(painter)
 
         self.assertFalse(result)
         show.assert_called_once_with(painter)
         show_deletion_confirmation.assert_not_called()
+        painter.settings.restore_factory_defaults.assert_called_once_with()
 
     @patch.object(FactoryResetPatternDeletionDialog, "show", return_value=True)
     @patch.object(FactoryResetDialog, "show", return_value=True)
     def test_factory_reset_with_pattern_deletion_needs_two_confirmations(
         self, show, show_deletion_confirmation
     ):
-        painter = SimpleNamespace()
+        painter = SimpleNamespace(settings=Mock())
 
         result = ArmyPainter.factory_reset(painter)
 
         self.assertTrue(result)
         show.assert_called_once_with(painter)
         show_deletion_confirmation.assert_called_once_with(painter)
+        painter.settings.restore_factory_defaults.assert_called_once_with()
 
     @patch.object(FactoryResetPatternDeletionDialog, "show", return_value=False)
     @patch.object(FactoryResetDialog, "show", return_value=True)
     def test_cancelling_pattern_deletion_aborts_entire_factory_reset(
         self, _show, _show_deletion_confirmation
     ):
-        self.assertIsNone(ArmyPainter.factory_reset(SimpleNamespace()))
+        painter = SimpleNamespace(settings=Mock())
+
+        self.assertIsNone(ArmyPainter.factory_reset(painter))
+
+        painter.settings.restore_factory_defaults.assert_not_called()
 
     @patch.object(AboutDialog, "show")
     def test_about_callback_opens_modal_dialog(self, show):

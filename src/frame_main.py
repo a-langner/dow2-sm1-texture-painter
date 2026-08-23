@@ -1903,6 +1903,7 @@ class ArmyPainter(tk.Tk):
             return None
         if delete_user_patterns and not FactoryResetPatternDeletionDialog.show(self):
             return None
+        self.settings.restore_factory_defaults()
         return delete_user_patterns
 
     def save_pattern(self):

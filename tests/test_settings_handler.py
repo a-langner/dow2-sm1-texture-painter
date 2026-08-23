@@ -60,6 +60,53 @@ class SettingsHandlerTests(unittest.TestCase):
                 {"format": SETTINGS_FORMAT, "version": SETTINGS_VERSION},
             )
 
+    def test_factory_defaults_reset_every_preference_in_current_schema(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_path = root / "settings.json"
+            handler = SettingsHandler(settings_path, root)
+            handler.last_diffuse_directory = root
+            handler.last_pattern_import_directory = root
+            handler.last_pattern_export_directory = root
+            handler.color_picker_geometry = "900x700+20+30"
+            handler.color_picker_group = "Favorites"
+            handler.color_picker_color_space = "HSL"
+            handler.color_picker_sort_mode = "Alphabetical"
+            handler.color_picker_sashes = (200, 700)
+            handler.main_window_position = (20, 30)
+            handler.favorite_save_dialog_position = (21, 31)
+            handler.favorite_rename_dialog_position = (22, 32)
+            handler.closest_citadel_dialog_position = (23, 33)
+            handler.about_dialog_position = (24, 34)
+            handler.batch_editor_position = (25, 35)
+            handler.game_profile_id = "sm1"
+            handler.color_picker_recent_colors = ((1, 2, 3),)
+            handler.favorite_colors = (CitadelFavoriteColor("mephiston-red"),)
+
+            handler.restore_factory_defaults()
+
+            reloaded = SettingsHandler(settings_path, root)
+            self.assertIsNone(reloaded.last_diffuse_directory)
+            self.assertIsNone(reloaded.last_pattern_import_directory)
+            self.assertIsNone(reloaded.last_pattern_export_directory)
+            self.assertIsNone(reloaded.color_picker_geometry)
+            self.assertIsNone(reloaded.color_picker_group)
+            self.assertIsNone(reloaded.color_picker_color_space)
+            self.assertIsNone(reloaded.color_picker_sort_mode)
+            self.assertIsNone(reloaded.color_picker_sashes)
+            self.assertIsNone(reloaded.main_window_position)
+            self.assertIsNone(reloaded.favorite_save_dialog_position)
+            self.assertIsNone(reloaded.favorite_rename_dialog_position)
+            self.assertIsNone(reloaded.closest_citadel_dialog_position)
+            self.assertIsNone(reloaded.about_dialog_position)
+            self.assertIsNone(reloaded.batch_editor_position)
+            self.assertEqual(reloaded.game_profile_id, "dow2")
+            self.assertEqual(reloaded.color_picker_recent_colors, ((1, 2, 3),))
+            self.assertEqual(
+                reloaded.favorite_colors,
+                (CitadelFavoriteColor("mephiston-red"),),
+            )
+
     def test_settings_without_favorites_loads_empty_collection(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
