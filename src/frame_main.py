@@ -688,6 +688,7 @@ class ArmyPainter(tk.Tk):
                 label="Factory Reset...",
                 command=self.factory_reset,
             )
+            self.edit_menu.add_separator()
             self.apply_dirt = tk.BooleanVar()
             self.edit_menu.add_checkbutton(
                 label="Apply Dirt Texture",
