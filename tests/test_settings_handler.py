@@ -107,6 +107,26 @@ class SettingsHandlerTests(unittest.TestCase):
                 (CitadelFavoriteColor("mephiston-red"),),
             )
 
+    def test_factory_defaults_do_not_rewrite_user_pattern_order(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_path = root / "settings.json"
+            pattern_path = root / "user_patterns.json"
+            pattern_document = (
+                '{"format":"dow2-sm1-texture-painter-patterns","version":1,'
+                '"patterns":{"Zulu":{},"Alpha":{},"Middle":{}}}\n'
+            )
+            pattern_path.write_text(pattern_document, encoding="utf-8")
+            handler = SettingsHandler(settings_path, root)
+            handler.set_color_picker_geometry("900x700+20+30")
+
+            handler.restore_factory_defaults()
+
+            self.assertEqual(
+                pattern_path.read_text(encoding="utf-8"),
+                pattern_document,
+            )
+
     def test_settings_without_favorites_loads_empty_collection(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
