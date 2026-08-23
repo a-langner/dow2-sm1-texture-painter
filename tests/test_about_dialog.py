@@ -20,13 +20,17 @@ class AboutDialogTests(unittest.TestCase):
     def test_update_result_only_exposes_download_for_newer_release(self):
         dialog = object.__new__(AboutDialog)
         dialog.update_status_label = Mock()
+        dialog.update_button = Mock()
         dialog.download_button = Mock()
         dialog.update_download_url = None
+        dialog.update_check_in_progress = True
 
         dialog.show_update_result(
             UpdateCheckResult(UpdateStatus.LATEST, "You are using the latest version.")
         )
         self.assertIsNone(dialog.update_download_url)
+        self.assertFalse(dialog.update_check_in_progress)
+        dialog.update_button.configure.assert_called_once_with(state="normal")
         dialog.download_button.pack_forget.assert_called_once_with()
 
         dialog.download_button.reset_mock()
@@ -97,10 +101,22 @@ class AboutDialogTests(unittest.TestCase):
     def test_manual_update_action_has_dedicated_event_seam(self):
         dialog = object.__new__(AboutDialog)
         dialog.event_generate = Mock()
+        dialog.update_check_in_progress = False
+        dialog.update_button = Mock()
+        dialog.update_status_label = Mock()
+        dialog.download_button = Mock()
+        dialog.update_download_url = "https://github.com/old"
 
-        dialog.request_update_check()
+        self.assertTrue(dialog.request_update_check())
+        self.assertFalse(dialog.request_update_check())
 
         dialog.event_generate.assert_called_once_with("<<CheckForUpdates>>")
+        dialog.update_button.configure.assert_called_once_with(state="disabled")
+        dialog.update_status_label.configure.assert_called_once_with(
+            text="Checking..."
+        )
+        dialog.download_button.pack_forget.assert_called_once_with()
+        self.assertIsNone(dialog.update_download_url)
 
     def test_position_restores_with_clamping_and_saves_independently(self):
         dialog = object.__new__(AboutDialog)

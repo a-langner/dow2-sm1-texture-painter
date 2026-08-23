@@ -1105,6 +1105,7 @@ class AboutDialog(tk.Toplevel):
             command=self.request_update_check,
         )
         self.update_button.pack(pady=(12, 0))
+        self.update_check_in_progress = False
         self.update_status_label = ttk.Label(content, text="", justify=tk.CENTER)
         self.update_status_label.pack(pady=(8, 0))
         self.update_download_url: str | None = None
@@ -1149,12 +1150,22 @@ class AboutDialog(tk.Toplevel):
         except (OSError, ValueError):
             LOGGER.exception("Could not open About link: %s", url)
 
-    def request_update_check(self) -> None:
-        """Expose the manual update action for the later update-check job."""
+    def request_update_check(self) -> bool:
+        """Begin one manual request and reject simultaneous duplicates."""
+        if self.update_check_in_progress:
+            return False
+        self.update_check_in_progress = True
+        self.update_button.configure(state=tk.DISABLED)
+        self.update_status_label.configure(text="Checking...")
+        self.update_download_url = None
+        self.download_button.pack_forget()
         self.event_generate("<<CheckForUpdates>>")
+        return True
 
     def show_update_result(self, result: UpdateCheckResult) -> None:
         """Show one concise result and only expose downloads for newer releases."""
+        self.update_check_in_progress = False
+        self.update_button.configure(state=tk.NORMAL)
         self.update_status_label.configure(text=result.message)
         self.update_download_url = result.download_url
         if result.download_url is None:
