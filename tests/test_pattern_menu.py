@@ -97,6 +97,13 @@ class FakePainter:
 
 
 class PatternMenuStateTests(unittest.TestCase):
+    def test_about_callback_uses_dedicated_dialog_event(self):
+        painter = SimpleNamespace(event_generate=Mock())
+
+        ArmyPainter.open_about(painter)
+
+        painter.event_generate.assert_called_once_with("<<OpenAbout>>")
+
     @patch("src.frame_main.tk.BooleanVar", return_value=Mock())
     @patch("src.frame_main.tk.StringVar", return_value=Mock())
     @patch("src.frame_main.tk.Menu", side_effect=FakeBuildMenu)
@@ -128,6 +135,7 @@ class PatternMenuStateTests(unittest.TestCase):
                 "export_all_user_patterns",
                 "open_batch_edit_tools",
                 "open_log_folder",
+                "open_about",
                 "batch_edit",
                 "select_game_profile",
             )
@@ -215,7 +223,14 @@ class PatternMenuStateTests(unittest.TestCase):
                         "label": "Open Log Folder",
                         "command": handlers["open_log_folder"],
                     },
-                )
+                ),
+                (
+                    "command",
+                    {
+                        "label": "About",
+                        "command": handlers["open_about"],
+                    },
+                ),
             ],
         )
         self.assertEqual(

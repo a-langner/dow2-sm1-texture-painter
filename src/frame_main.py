@@ -777,6 +777,10 @@ class ArmyPainter(tk.Tk):
                 label="Open Log Folder",
                 command=self.open_log_folder,
             )
+            helpmenu.add_command(
+                label="About",
+                command=self.open_about,
+            )
             menubar.add_cascade(label="Help", menu=helpmenu)
 
         define_filemenu()
@@ -2614,6 +2618,10 @@ class ArmyPainter(tk.Tk):
                 message=f"The application log folder could not be opened:\n"
                 f"{log_directory}\n\n{exc}",
             )
+
+    def open_about(self):
+        """Request the application About dialog from the Help menu."""
+        self.event_generate("<<OpenAbout>>")
 
     def report_callback_exception(self, exc, val, tb):
         exception_info = (exc, val, tb)
