@@ -81,7 +81,11 @@ class SettingsHandlerTests(unittest.TestCase):
             handler.batch_editor_position = (25, 35)
             handler.game_profile_id = "sm1"
             handler.color_picker_recent_colors = ((1, 2, 3),)
-            handler.favorite_colors = (CitadelFavoriteColor("mephiston-red"),)
+            favorites = (
+                CitadelFavoriteColor("mephiston-red"),
+                CustomFavoriteColor("custom-1", "Veteran Armor", "#395C71"),
+            )
+            handler.favorite_colors = favorites
 
             handler.restore_factory_defaults()
 
@@ -102,10 +106,7 @@ class SettingsHandlerTests(unittest.TestCase):
             self.assertIsNone(reloaded.batch_editor_position)
             self.assertEqual(reloaded.game_profile_id, "dow2")
             self.assertEqual(reloaded.color_picker_recent_colors, ((1, 2, 3),))
-            self.assertEqual(
-                reloaded.favorite_colors,
-                (CitadelFavoriteColor("mephiston-red"),),
-            )
+            self.assertEqual(reloaded.favorite_colors, favorites)
 
     def test_factory_defaults_do_not_rewrite_user_pattern_order(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
