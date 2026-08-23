@@ -14,12 +14,42 @@ GITHUB_LATEST_RELEASE_API_URL = (
 )
 GITHUB_RELEASES_URL = f"https://github.com/{GITHUB_REPOSITORY}/releases"
 UPDATE_CHECK_TIMEOUT_SECONDS = 5.0
+VersionParts = tuple[int, ...]
 
 
 @dataclass(frozen=True)
 class GitHubRelease:
     tag_name: object
     html_url: object
+
+
+def parse_release_version(value: str) -> VersionParts:
+    """Parse a stable dotted numeric version with an optional leading ``v``."""
+    if not isinstance(value, str):
+        raise ValueError("Release version must be a string")
+    normalized = value.strip()
+    if normalized[:1].lower() == "v":
+        normalized = normalized[1:]
+    components = normalized.split(".")
+    if not components or any(
+        not component.isascii() or not component.isdigit()
+        for component in components
+    ):
+        raise ValueError(f"Invalid release version: {value!r}")
+    parts = tuple(int(component) for component in components)
+    while len(parts) > 1 and parts[-1] == 0:
+        parts = parts[:-1]
+    return parts
+
+
+def compare_release_versions(first: str, second: str) -> int:
+    """Compare stable releases numerically, returning -1, 0, or 1."""
+    first_parts = parse_release_version(first)
+    second_parts = parse_release_version(second)
+    width = max(len(first_parts), len(second_parts))
+    first_key = first_parts + (0,) * (width - len(first_parts))
+    second_key = second_parts + (0,) * (width - len(second_parts))
+    return (first_key > second_key) - (first_key < second_key)
 
 
 def fetch_latest_stable_release(
