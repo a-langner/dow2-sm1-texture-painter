@@ -2263,6 +2263,8 @@ class ColorPickerDialog(tk.Toplevel):
                 self.current_color,
                 self.closest_citadel_matches,
             )
+            if self.closest_citadel_selection is not None:
+                self.select_paint(self.closest_citadel_selection)
 
     def toggle_current_favorite(self) -> bool:
         """Toggle the exact current Citadel or Custom Color Favorite."""

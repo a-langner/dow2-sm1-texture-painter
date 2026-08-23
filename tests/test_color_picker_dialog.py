@@ -1285,7 +1285,9 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertTrue(dialog.can_find_closest_citadel_color())
         self.assertEqual(dialog.closest_citadel_button.options["state"], "normal")
 
-        with patch.object(ClosestCitadelColorDialog, "show") as show_dialog:
+        with patch.object(
+            ClosestCitadelColorDialog, "show", return_value=None
+        ) as show_dialog:
             dialog.find_closest_citadel_color()
 
         show_dialog.assert_called_once_with(
@@ -1315,6 +1317,53 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         dialog.close()
         self.assertIsNone(dialog.result)
+
+    @patch.object(ClosestCitadelColorDialog, "show")
+    def test_using_closest_match_establishes_normal_citadel_selection(self, show):
+        paint = PaintColor("canonical", "Canonical Blue", 57, 92, 113)
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog((paint,))
+        dialog.favorite_library = FavoriteColorLibrary(dialog.paint_catalog)
+        dialog.current_color = "#395D71"
+        dialog.current_custom_favorite = None
+        dialog.selected_paint_id = None
+        dialog.palette_grid = FakePaletteGrid()
+        dialog.current_color_preview = FakeWidget()
+        dialog.closest_citadel_button = FakeWidget()
+        dialog.closest_citadel_matches = ()
+        dialog.closest_citadel_selection = None
+        dialog.accepted_color = None
+        dialog._remember_accepted_color = Mock()
+        dialog._save_geometry = Mock()
+        dialog.destroy = Mock()
+        show.return_value = paint
+
+        dialog.find_closest_citadel_color()
+
+        self.assertEqual(dialog.current_color, "#395c71")
+        self.assertEqual(dialog.selected_paint_id, paint.id)
+        self.assertEqual(dialog.palette_grid.selected_paint_id, paint.id)
+        self.assertIsNone(dialog.current_custom_favorite)
+        self.assertEqual(dialog.closest_citadel_button.options["state"], "disabled")
+        presentation = color_slot_presentation(
+            dialog.current_color,
+            dialog.paint_catalog,
+            82,
+            lambda text: len(text) * 5,
+        )
+        self.assertEqual(presentation.text, paint.name)
+
+        dialog.accept()
+        accepted = dialog.get_accepted_color()
+        self.assertEqual(accepted, "#395c71")
+        self.assertIsNone(accepted.custom_favorite)
+        accepted_presentation = color_slot_presentation(
+            accepted,
+            dialog.paint_catalog,
+            82,
+            lambda text: len(text) * 5,
+        )
+        self.assertEqual(accepted_presentation.text, paint.name)
 
     @patch.object(CustomFavoriteNameDialog, "show", return_value="My Armor Blue")
     def test_universal_button_adds_and_removes_true_custom_color(self, show_name):
