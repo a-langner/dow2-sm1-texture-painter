@@ -121,6 +121,31 @@ class PatternMenuStateTests(unittest.TestCase):
             ),
         )
 
+    @patch.object(FactoryResetPatternDeletionDialog, "show")
+    @patch.object(FactoryResetDialog, "show", return_value=False)
+    def test_factory_reset_does_not_reset_active_texture_workspace(
+        self, _show, show_deletion_confirmation
+    ):
+        active_texture_set = object()
+        render_settings = object()
+        active_mask_variant = object()
+        painter = SimpleNamespace(
+            settings=Mock(),
+            dialogs=Mock(),
+            reset_workspace=Mock(),
+            active_texture_set=active_texture_set,
+            render_settings=render_settings,
+            active_team_color_mask_variant=active_mask_variant,
+        )
+
+        ArmyPainter.factory_reset(painter)
+
+        painter.reset_workspace.assert_not_called()
+        self.assertIs(painter.active_texture_set, active_texture_set)
+        self.assertIs(painter.render_settings, render_settings)
+        self.assertIs(painter.active_team_color_mask_variant, active_mask_variant)
+        show_deletion_confirmation.assert_not_called()
+
     @patch.object(FactoryResetPatternDeletionDialog, "show", return_value=True)
     @patch.object(FactoryResetDialog, "show", return_value=True)
     def test_factory_reset_with_pattern_deletion_needs_two_confirmations(
