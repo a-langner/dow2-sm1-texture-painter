@@ -1070,7 +1070,7 @@ class AboutDialog(tk.Toplevel):
             content,
             text=f"{APP_NAME} {APP_VERSION}",
             font=("TkDefaultFont", 14, "bold"),
-        ).pack()
+        ).pack(pady=(0, ABOUT_LINK_EXTRA_BOTTOM_GAP))
         ttk.Label(
             content,
             text=ABOUT_DESCRIPTION,
