@@ -119,7 +119,13 @@ class PatternMenuStateTests(unittest.TestCase):
     def test_factory_reset_with_pattern_deletion_needs_two_confirmations(
         self, show, show_deletion_confirmation
     ):
-        painter = SimpleNamespace(settings=Mock())
+        workflows = Mock()
+        painter = SimpleNamespace(
+            settings=Mock(),
+            pattern_controller=workflows,
+            frame_army_pattern=Mock(),
+            update_pattern_action_states=Mock(),
+        )
 
         result = ArmyPainter.factory_reset(painter)
 
@@ -127,6 +133,9 @@ class PatternMenuStateTests(unittest.TestCase):
         show.assert_called_once_with(painter)
         show_deletion_confirmation.assert_called_once_with(painter)
         painter.settings.restore_factory_defaults.assert_called_once_with()
+        workflows.delete_all_user_patterns.assert_called_once_with()
+        painter.frame_army_pattern.load_pattern_list.assert_called_once_with()
+        painter.update_pattern_action_states.assert_called_once_with()
 
     @patch.object(FactoryResetPatternDeletionDialog, "show", return_value=False)
     @patch.object(FactoryResetDialog, "show", return_value=True)

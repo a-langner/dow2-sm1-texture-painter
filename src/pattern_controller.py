@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 import logging
 from pathlib import Path
-from typing import Callable, Protocol
+from typing import Callable, Mapping, Protocol
 
 import src.color_pattern_handler as pattern_store
 from src.color_pattern_handler import (
@@ -60,6 +60,9 @@ class PatternStore(Protocol):
         self, name: str, marker_color: PatternMarkerColor
     ) -> None: ...
     def reorder_user_pattern(self, name: str, target_index: int) -> bool: ...
+    def replace_user_patterns(
+        self, patterns: Mapping[str, Mapping[str, object]]
+    ) -> None: ...
 
 
 class PatternDirectoryRecorder(Protocol):
@@ -348,6 +351,16 @@ class PatternController:
         self.store.delete(name)
         return PatternOperationResult(
             selected_name=fallback_name,
+            list_changed=True,
+            persisted=True,
+            changed=True,
+        )
+
+    def delete_all_user_patterns(self) -> PatternOperationResult:
+        """Atomically replace only the mutable user collection with an empty one."""
+        self.store.replace_user_patterns({})
+        return PatternOperationResult(
+            selected_name=None,
             list_changed=True,
             persisted=True,
             changed=True,

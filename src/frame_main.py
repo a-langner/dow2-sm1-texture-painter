@@ -1904,6 +1904,10 @@ class ArmyPainter(tk.Tk):
         if delete_user_patterns and not FactoryResetPatternDeletionDialog.show(self):
             return None
         self.settings.restore_factory_defaults()
+        if delete_user_patterns:
+            ArmyPainter._pattern_workflows(self).delete_all_user_patterns()
+            self.frame_army_pattern.load_pattern_list()
+            self.update_pattern_action_states()
         return delete_user_patterns
 
     def save_pattern(self):

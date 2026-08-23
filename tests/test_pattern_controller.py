@@ -72,6 +72,9 @@ class PathStore:
             name, target_index, pattern_path=self.path
         )
 
+    def replace_user_patterns(self, patterns):
+        return pattern_handler.replace_user_patterns(patterns, pattern_path=self.path)
+
 
 class PatternControllerTests(unittest.TestCase):
     def setUp(self):
@@ -125,6 +128,23 @@ class PatternControllerTests(unittest.TestCase):
             pattern_handler.get_pattern_marker_color("User Copy"),
             pattern_handler.PatternMarkerColor.PURPLE,
         )
+
+    def test_delete_all_users_clears_pattern_owned_metadata_but_keeps_builtins(self):
+        self.save("First")
+        self.save("Second", NEW_COLORS)
+        pattern_handler.set_user_pattern_marker_color(
+            "First", pattern_handler.PatternMarkerColor.PURPLE, self.user_path
+        )
+        builtin_names = tuple(pattern_handler.builtin_color_patterns)
+
+        result = self.controller.delete_all_user_patterns()
+
+        self.assertEqual(pattern_handler.user_color_patterns, {})
+        self.assertEqual(tuple(pattern_handler.army_color_pattern), builtin_names)
+        self.assertTrue(result.list_changed and result.persisted and result.changed)
+        self.assertIsNone(result.selected_name)
+        stored = pattern_handler.load_user_patterns(self.user_path)
+        self.assertEqual(stored, {})
 
     def test_duplicate_uses_consistent_append_fallback_for_manual_order(self):
         self.save("Source")
