@@ -1064,7 +1064,7 @@ class AboutDialog(tk.Toplevel):
         content = ttk.Frame(self, padding=16)
         content.pack(fill=tk.BOTH, expand=True)
         self._about_link_font = tkfont.Font(self, font="TkDefaultFont")
-        self._about_link_font.configure(underline=True)
+        self._about_link_font.configure(underline=False)
         ttk.Label(
             content,
             text=f"{APP_NAME} {APP_VERSION}",
@@ -1077,7 +1077,7 @@ class AboutDialog(tk.Toplevel):
             wraplength=410,
         ).pack(pady=(10, 14))
 
-        ttk.Label(content, text="Developed and maintained by").pack()
+        ttk.Label(content, text="Developed and maintained by:").pack()
         self.maintainer_label = self._create_link_label(
             content,
             ABOUT_MAINTAINER,
@@ -1085,7 +1085,7 @@ class AboutDialog(tk.Toplevel):
         )
         self.maintainer_label.pack(pady=(1, 10))
 
-        ttk.Label(content, text="Based on the original application by").pack()
+        ttk.Label(content, text="Based on the original application by:").pack()
         self.original_author_label = self._create_link_label(
             content,
             ABOUT_ORIGINAL_AUTHOR,
@@ -1093,7 +1093,7 @@ class AboutDialog(tk.Toplevel):
         )
         self.original_author_label.pack(pady=(1, 10))
 
-        ttk.Label(content, text="Citadel color data").pack()
+        ttk.Label(content, text="Citadel color data:").pack()
         attribution_row = ttk.Frame(content)
         attribution_row.pack(pady=(1, 14))
         self.citadel_attribution_label = self._create_link_label(
