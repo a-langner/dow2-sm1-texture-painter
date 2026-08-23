@@ -80,7 +80,8 @@ class SettingsHandlerTests(unittest.TestCase):
             handler.about_dialog_position = (24, 34)
             handler.batch_editor_position = (25, 35)
             handler.game_profile_id = "sm1"
-            handler.color_picker_recent_colors = ((1, 2, 3),)
+            recent_colors = ((1, 2, 3), (40, 50, 60), (200, 150, 100))
+            handler.color_picker_recent_colors = recent_colors
             favorites = (
                 CitadelFavoriteColor("mephiston-red"),
                 CustomFavoriteColor("custom-1", "Veteran Armor", "#395C71"),
@@ -105,7 +106,7 @@ class SettingsHandlerTests(unittest.TestCase):
             self.assertIsNone(reloaded.about_dialog_position)
             self.assertIsNone(reloaded.batch_editor_position)
             self.assertEqual(reloaded.game_profile_id, "dow2")
-            self.assertEqual(reloaded.color_picker_recent_colors, ((1, 2, 3),))
+            self.assertEqual(reloaded.color_picker_recent_colors, recent_colors)
             self.assertEqual(reloaded.favorite_colors, favorites)
 
     def test_factory_defaults_do_not_rewrite_user_pattern_order(self):
