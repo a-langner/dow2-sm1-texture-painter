@@ -1093,6 +1093,7 @@ class AboutDialog(tk.Toplevel):
             text=ABOUT_DISCLAIMER,
             justify=tk.CENTER,
             wraplength=410,
+            foreground="#606060",
         ).pack(pady=(0, 12))
         ttk.Label(content, text=f"Version {APP_VERSION}").pack()
 
