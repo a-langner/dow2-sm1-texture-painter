@@ -1043,6 +1043,7 @@ class AboutDialog(tk.Toplevel):
 
     def __init__(self, parent: tk.Misc):
         super().__init__(parent)
+        self.settings = getattr(parent, "settings", None)
         self.title(f"About {APP_NAME}")
         self.transient(parent)
         self.resizable(False, False)
@@ -1106,6 +1107,7 @@ class AboutDialog(tk.Toplevel):
 
         self.protocol("WM_DELETE_WINDOW", self.close)
         self.bind("<Escape>", self.close)
+        self._restore_position()
         self.grab_set()
         self.wait_window()
 
@@ -1143,7 +1145,30 @@ class AboutDialog(tk.Toplevel):
         self.event_generate("<<CheckForUpdates>>")
 
     def close(self, Event=None) -> None:
+        self._save_position()
         self.destroy()
+
+    def _restore_position(self) -> None:
+        self.update_idletasks()
+        position = safe_window_position(
+            getattr(self.settings, "about_dialog_position", None),
+            self.winfo_width(),
+            self.winfo_height(),
+            self.winfo_vrootx(),
+            self.winfo_vrooty(),
+            self.winfo_vrootwidth(),
+            self.winfo_vrootheight(),
+        )
+        if position is not None:
+            self.geometry(f"{position[0]:+d}{position[1]:+d}")
+
+    def _save_position(self) -> None:
+        setter = getattr(self.settings, "set_about_dialog_position", None)
+        if setter is not None:
+            try:
+                setter((self.winfo_x(), self.winfo_y()))
+            except OSError:
+                LOGGER.exception("Could not save About dialog position")
 
 
 class CustomFavoriteNameDialog(tk.Toplevel):

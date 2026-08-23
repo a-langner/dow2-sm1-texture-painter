@@ -69,6 +69,29 @@ class AboutDialogTests(unittest.TestCase):
 
         dialog.event_generate.assert_called_once_with("<<CheckForUpdates>>")
 
+    def test_position_restores_with_clamping_and_saves_independently(self):
+        dialog = object.__new__(AboutDialog)
+        dialog.settings = Mock()
+        dialog.settings.about_dialog_position = (1900, 1000)
+        dialog.update_idletasks = Mock()
+        dialog.winfo_width = Mock(return_value=440)
+        dialog.winfo_height = Mock(return_value=360)
+        dialog.winfo_vrootx = Mock(return_value=0)
+        dialog.winfo_vrooty = Mock(return_value=0)
+        dialog.winfo_vrootwidth = Mock(return_value=1920)
+        dialog.winfo_vrootheight = Mock(return_value=1080)
+        dialog.winfo_x = Mock(return_value=1480)
+        dialog.winfo_y = Mock(return_value=720)
+        dialog.geometry = Mock()
+
+        dialog._restore_position()
+        dialog._save_position()
+
+        dialog.geometry.assert_called_once_with("+1480+720")
+        dialog.settings.set_about_dialog_position.assert_called_once_with(
+            (1480, 720)
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -338,12 +338,14 @@ class SettingsHandlerTests(unittest.TestCase):
             handler.set_favorite_save_dialog_position((100, 110))
             handler.set_favorite_rename_dialog_position((200, 210))
             handler.set_closest_citadel_dialog_position((300, 310))
+            handler.set_about_dialog_position((-500, 320))
             handler.set_batch_editor_position((400, 410))
             reloaded = SettingsHandler(settings_path, root)
 
             self.assertEqual(reloaded.favorite_save_dialog_position, (100, 110))
             self.assertEqual(reloaded.favorite_rename_dialog_position, (200, 210))
             self.assertEqual(reloaded.closest_citadel_dialog_position, (300, 310))
+            self.assertEqual(reloaded.about_dialog_position, (-500, 320))
             self.assertEqual(reloaded.batch_editor_position, (400, 410))
 
     def test_game_profile_defaults_to_dow2_and_persists_stable_sm1_id(self):
