@@ -1258,6 +1258,82 @@ class AboutDialog(tk.Toplevel):
                 LOGGER.exception("Could not save About dialog position")
 
 
+class FactoryResetDialog(tk.Toplevel):
+    """Modal first confirmation for restoring persistent application settings."""
+
+    def __init__(self, parent: tk.Misc):
+        super().__init__(parent)
+        self.result: Optional[bool] = None
+        self.delete_user_patterns = tk.BooleanVar(value=False)
+        self.title("Factory Reset")
+        self.transient(parent)
+        self.resizable(False, False)
+
+        content = ttk.Frame(self, padding=16)
+        content.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(
+            content,
+            text=(
+                "This will restore Army Painter's settings and preferences\n"
+                "to their default values."
+            ),
+            justify=tk.LEFT,
+        ).pack(anchor=tk.W)
+        ttk.Label(
+            content,
+            text=(
+                "Your user-created Patterns will be kept unless you choose\n"
+                "to delete them below."
+            ),
+            justify=tk.LEFT,
+        ).pack(anchor=tk.W, pady=(12, 0))
+        ttk.Checkbutton(
+            content,
+            text="Delete all user-created Patterns",
+            variable=self.delete_user_patterns,
+        ).pack(anchor=tk.W, pady=(12, 0))
+        ttk.Label(
+            content,
+            text=(
+                "Pattern order and Pattern marker colors will otherwise\n"
+                "remain unchanged."
+            ),
+            justify=tk.LEFT,
+        ).pack(anchor=tk.W, pady=(12, 0))
+
+        buttons = ttk.Frame(content)
+        buttons.pack(fill=tk.X, pady=(16, 0))
+        reset_button = ttk.Button(
+            buttons,
+            text="Factory Reset",
+            command=self.confirm,
+        )
+        reset_button.pack(side=tk.RIGHT)
+        ttk.Button(buttons, text="Cancel", command=self.cancel).pack(
+            side=tk.RIGHT, padx=(0, 8)
+        )
+
+        self.protocol("WM_DELETE_WINDOW", self.cancel)
+        self.bind("<Escape>", self.cancel)
+        self.bind("<Return>", self.confirm)
+        reset_button.focus_set()
+        self.grab_set()
+        self.wait_window()
+
+    @classmethod
+    def show(cls, parent: tk.Misc) -> Optional[bool]:
+        """Return deletion choice after confirmation, or None after cancellation."""
+        return cls(parent).result
+
+    def confirm(self, Event=None) -> None:
+        self.result = bool(self.delete_user_patterns.get())
+        self.destroy()
+
+    def cancel(self, Event=None) -> None:
+        self.result = None
+        self.destroy()
+
+
 class CustomFavoriteNameDialog(tk.Toplevel):
     """Small modal editor for the optional name of one Custom Favorite."""
 

@@ -13,6 +13,7 @@ from tkinter import ttk
 from tkinter.messagebox import showerror
 from src.widget import (
     AboutDialog,
+    FactoryResetDialog,
     APP_COMBOBOX_STYLE,
     clear_readonly_combobox_text_selection,
     show_readonly_combobox_value,
@@ -1895,7 +1896,8 @@ class ArmyPainter(tk.Tk):
         self.refresh_workspace()
 
     def factory_reset(self):
-        """Open the Factory Reset workflow (implemented by the next job)."""
+        """Request explicit confirmation before any persistent reset work."""
+        return FactoryResetDialog.show(self)
 
     def save_pattern(self):
         pattern_name = self.dialogs.ask_text(

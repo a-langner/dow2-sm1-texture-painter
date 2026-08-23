@@ -21,6 +21,7 @@ from src.frame_main import (
 from src.texture_naming import DOW2_TEXTURE_NAMING
 from src.widget import (
     AboutDialog,
+    FactoryResetDialog,
     FramePatternList,
     PatternSelection,
     pattern_name_to_restore,
@@ -98,6 +99,15 @@ class FakePainter:
 
 
 class PatternMenuStateTests(unittest.TestCase):
+    @patch.object(FactoryResetDialog, "show", return_value=False)
+    def test_factory_reset_callback_opens_modal_confirmation(self, show):
+        painter = SimpleNamespace()
+
+        result = ArmyPainter.factory_reset(painter)
+
+        self.assertFalse(result)
+        show.assert_called_once_with(painter)
+
     @patch.object(AboutDialog, "show")
     def test_about_callback_opens_modal_dialog(self, show):
         painter = SimpleNamespace()
