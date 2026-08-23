@@ -682,6 +682,10 @@ class ArmyPainter(tk.Tk):
                 command=self.reset_workspace,
                 accelerator="Ctrl+R",
             )
+            self.edit_menu.add_command(
+                label="Factory Reset...",
+                command=self.factory_reset,
+            )
             self.apply_dirt = tk.BooleanVar()
             self.edit_menu.add_checkbutton(
                 label="Apply Dirt Texture",
@@ -1889,6 +1893,9 @@ class ArmyPainter(tk.Tk):
         )
         ArmyPainter.record_workspace_edit(self, previous)
         self.refresh_workspace()
+
+    def factory_reset(self):
+        """Open the Factory Reset workflow (implemented by the next job)."""
 
     def save_pattern(self):
         pattern_name = self.dialogs.ask_text(

@@ -121,6 +121,7 @@ class PatternMenuStateTests(unittest.TestCase):
                 "close",
                 "on_exit",
                 "reset_workspace",
+                "factory_reset",
                 "undo",
                 "redo",
                 "on_dirt_toggle",
@@ -169,7 +170,7 @@ class PatternMenuStateTests(unittest.TestCase):
             list(cascades), ["File", "Edit", "Game", "Patterns", "Tools", "Help"]
         )
         self.assertEqual(
-            cascades["Edit"].items[:4],
+            cascades["Edit"].items[:5],
             [
                 (
                     "command",
@@ -196,6 +197,13 @@ class PatternMenuStateTests(unittest.TestCase):
                         "label": "Reset workspace",
                         "command": handlers["reset_workspace"],
                         "accelerator": "Ctrl+R",
+                    },
+                ),
+                (
+                    "command",
+                    {
+                        "label": "Factory Reset...",
+                        "command": handlers["factory_reset"],
                     },
                 ),
             ],
