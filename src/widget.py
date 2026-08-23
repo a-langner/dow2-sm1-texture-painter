@@ -38,6 +38,7 @@ from src.constant import (
 )
 from src.blend_mode import IMPLEMENTED_BLEND_MODES
 from src.paint_catalog import PaintCatalog, PaintColor, load_citadel_catalog
+from src.paint_color_matching import ClosestPaintMatch, find_closest_paints
 from src.processing_mode import ProcessingMode
 from src.color_picker_visual import (
     ColorVisualizationMode,
@@ -1224,6 +1225,7 @@ class ColorPickerDialog(tk.Toplevel):
             getattr(settings, "favorite_colors", ()),
         )
         self.palette_paints = ()
+        self.closest_citadel_matches: tuple[ClosestPaintMatch, ...] = ()
         self.selected_paint_id: Optional[str] = None
         self.search_query = ""
 
@@ -2139,6 +2141,10 @@ class ColorPickerDialog(tk.Toplevel):
     def find_closest_citadel_color(self) -> None:
         """Request matching for the current canonical Color Editor value."""
         if self.can_find_closest_citadel_color():
+            self.closest_citadel_matches = find_closest_paints(
+                self.current_color,
+                self.paint_catalog,
+            )
             self.event_generate("<<FindClosestCitadelColor>>")
 
     def toggle_current_favorite(self) -> bool:

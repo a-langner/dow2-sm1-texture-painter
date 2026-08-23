@@ -1289,6 +1289,10 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.event_generate.assert_called_once_with(
             "<<FindClosestCitadelColor>>"
         )
+        self.assertEqual(
+            [match.paint.id for match in dialog.closest_citadel_matches],
+            [citadel.id],
+        )
 
     @patch.object(CustomFavoriteNameDialog, "show", return_value="My Armor Blue")
     def test_universal_button_adds_and_removes_true_custom_color(self, show_name):
