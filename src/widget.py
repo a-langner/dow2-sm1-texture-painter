@@ -1241,15 +1241,25 @@ class ClosestCitadelColorDialog(tk.Toplevel):
 
     @staticmethod
     def _create_swatch(parent: tk.Misc, color: str) -> tk.Canvas:
-        return tk.Canvas(
+        canvas = tk.Canvas(
             parent,
             width=28,
             height=22,
-            background=color,
             bd=0,
-            highlightthickness=1,
-            highlightbackground=COLOR_PREVIEW_BORDER,
+            highlightthickness=0,
         )
+        draw_rounded_swatch(
+            canvas,
+            1,
+            1,
+            27,
+            21,
+            fill=color,
+            outline=PAINT_SWATCH_OUTLINE,
+            width=1,
+            corner_radius=RECENT_COLOR_SWATCH_CORNER_RADIUS,
+        )
+        return canvas
 
     @classmethod
     def show(
