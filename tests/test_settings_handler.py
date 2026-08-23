@@ -27,6 +27,39 @@ def settings_document(directory, **additional_directories):
 
 
 class SettingsHandlerTests(unittest.TestCase):
+    def test_restore_authoritative_defaults_matches_clean_first_launch(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_path = root / "settings.json"
+            handler = SettingsHandler(settings_path, root)
+            handler.last_diffuse_directory = root
+            handler.last_pattern_import_directory = root
+            handler.last_pattern_export_directory = root
+            handler.color_picker_geometry = "900x700+20+30"
+            handler.color_picker_group = "Favorites"
+            handler.color_picker_color_space = "HSL"
+            handler.color_picker_sort_mode = "Alphabetical"
+            handler.color_picker_sashes = (200, 700)
+            handler.color_picker_recent_colors = ((1, 2, 3),)
+            handler.favorite_colors = (CitadelFavoriteColor("mephiston-red"),)
+            handler.main_window_position = (20, 30)
+            handler.favorite_save_dialog_position = (21, 31)
+            handler.favorite_rename_dialog_position = (22, 32)
+            handler.closest_citadel_dialog_position = (23, 33)
+            handler.about_dialog_position = (24, 34)
+            handler.batch_editor_position = (25, 35)
+            handler.game_profile_id = "sm1"
+            handler.load_error = ValueError("old invalid settings")
+
+            handler.restore_authoritative_defaults()
+
+            pristine = SettingsHandler(root / "never-created.json", root)
+            self.assertEqual(handler.__dict__, {**pristine.__dict__, "path": settings_path})
+            self.assertEqual(
+                json.loads(settings_path.read_text(encoding="utf-8")),
+                {"format": SETTINGS_FORMAT, "version": SETTINGS_VERSION},
+            )
+
     def test_settings_without_favorites_loads_empty_collection(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

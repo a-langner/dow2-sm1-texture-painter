@@ -63,6 +63,11 @@ class SettingsHandler:
     ) -> None:
         self.path = Path(settings_path or get_settings_path())
         self.home_directory = Path(home_directory or Path.home())
+        self._apply_authoritative_defaults()
+        self._load()
+
+    def _apply_authoritative_defaults(self) -> None:
+        """Set the same in-memory values used by a clean first launch."""
         self.last_diffuse_directory: Path | None = None
         self.last_pattern_import_directory: Path | None = None
         self.last_pattern_export_directory: Path | None = None
@@ -81,7 +86,15 @@ class SettingsHandler:
         self.batch_editor_position: tuple[int, int] | None = None
         self.game_profile_id = DEFAULT_TEXTURE_NAMING.profile_id
         self.load_error: Exception | None = None
-        self._load()
+
+    def restore_authoritative_defaults(self) -> None:
+        """Atomically persist and adopt the clean-first-launch settings state."""
+        document: SettingsDocument = {
+            "format": SETTINGS_FORMAT,
+            "version": SETTINGS_VERSION,
+        }
+        self._write_atomic(document)
+        self._apply_authoritative_defaults()
 
     def _load(self) -> None:
         try:
