@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from src.app_identity import APP_VERSION, PACKAGE_NAME
@@ -14,6 +15,7 @@ GITHUB_LATEST_RELEASE_API_URL = (
 )
 GITHUB_RELEASES_URL = f"https://github.com/{GITHUB_REPOSITORY}/releases"
 UPDATE_CHECK_TIMEOUT_SECONDS = 5.0
+NO_PUBLISHED_RELEASE_MESSAGE = "No published release is available yet."
 VersionParts = tuple[int, ...]
 
 
@@ -54,7 +56,7 @@ def compare_release_versions(first: str, second: str) -> int:
 
 def fetch_latest_stable_release(
     timeout: float = UPDATE_CHECK_TIMEOUT_SECONDS,
-) -> GitHubRelease:
+) -> GitHubRelease | None:
     """Fetch GitHub's latest published non-prerelease release without auth."""
     request = Request(
         GITHUB_LATEST_RELEASE_API_URL,
@@ -64,8 +66,13 @@ def fetch_latest_stable_release(
             "X-GitHub-Api-Version": "2022-11-28",
         },
     )
-    with urlopen(request, timeout=timeout) as response:
-        document: object = json.load(response)
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            document: object = json.load(response)
+    except HTTPError as exc:
+        if exc.code == 404:
+            return None
+        raise
     if not isinstance(document, dict):
         raise ValueError("GitHub release response must be an object")
     return GitHubRelease(

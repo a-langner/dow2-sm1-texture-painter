@@ -2,11 +2,13 @@ import io
 import json
 import unittest
 from unittest.mock import patch
+from urllib.error import HTTPError
 
 from src.update_check import (
     GITHUB_LATEST_RELEASE_API_URL,
     GITHUB_RELEASES_URL,
     GitHubRelease,
+    NO_PUBLISHED_RELEASE_MESSAGE,
     compare_release_versions,
     fetch_latest_stable_release,
     parse_release_version,
@@ -14,6 +16,43 @@ from src.update_check import (
 
 
 class UpdateCheckTests(unittest.TestCase):
+    @patch("src.update_check.urlopen")
+    def test_missing_latest_release_is_a_normal_empty_result(self, urlopen):
+        urlopen.side_effect = HTTPError(
+            GITHUB_LATEST_RELEASE_API_URL,
+            404,
+            "Not Found",
+            hdrs=None,
+            fp=None,
+        )
+
+        release = fetch_latest_stable_release()
+
+        self.assertIsNone(release)
+        self.assertEqual(
+            NO_PUBLISHED_RELEASE_MESSAGE,
+            "No published release is available yet.",
+        )
+
+    @patch("src.update_check.urlopen")
+    def test_non_missing_http_failure_is_not_misreported_as_no_release(
+        self,
+        urlopen,
+    ):
+        failure = HTTPError(
+            GITHUB_LATEST_RELEASE_API_URL,
+            503,
+            "Unavailable",
+            hdrs=None,
+            fp=None,
+        )
+        urlopen.side_effect = failure
+
+        with self.assertRaises(HTTPError) as raised:
+            fetch_latest_stable_release()
+
+        self.assertIs(raised.exception, failure)
+
     def test_semantic_version_comparison_is_numeric_and_normalizes_v_prefix(self):
         self.assertEqual(compare_release_versions("1.0", "v1.0"), 0)
         self.assertGreater(compare_release_versions("1.1", "1.0"), 0)
