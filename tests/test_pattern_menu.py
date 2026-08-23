@@ -105,7 +105,7 @@ class PatternMenuStateTests(unittest.TestCase):
     def test_factory_reset_without_pattern_deletion_needs_one_confirmation(
         self, show, show_deletion_confirmation
     ):
-        painter = SimpleNamespace(settings=Mock())
+        painter = SimpleNamespace(settings=Mock(), dialogs=Mock())
 
         result = ArmyPainter.factory_reset(painter)
 
@@ -113,6 +113,13 @@ class PatternMenuStateTests(unittest.TestCase):
         show.assert_called_once_with(painter)
         show_deletion_confirmation.assert_not_called()
         painter.settings.restore_factory_defaults.assert_called_once_with()
+        painter.dialogs.show_info.assert_called_once_with(
+            title="Factory Reset complete",
+            message=(
+                "Factory Reset complete.\n\n"
+                "Restart Army Painter to apply all default settings."
+            ),
+        )
 
     @patch.object(FactoryResetPatternDeletionDialog, "show", return_value=True)
     @patch.object(FactoryResetDialog, "show", return_value=True)
@@ -125,6 +132,7 @@ class PatternMenuStateTests(unittest.TestCase):
             pattern_controller=workflows,
             frame_army_pattern=Mock(),
             update_pattern_action_states=Mock(),
+            dialogs=Mock(),
         )
 
         result = ArmyPainter.factory_reset(painter)
@@ -136,17 +144,25 @@ class PatternMenuStateTests(unittest.TestCase):
         workflows.delete_all_user_patterns.assert_called_once_with()
         painter.frame_army_pattern.load_pattern_list.assert_called_once_with()
         painter.update_pattern_action_states.assert_called_once_with()
+        painter.dialogs.show_info.assert_called_once_with(
+            title="Factory Reset complete",
+            message=(
+                "Factory Reset complete.\n\n"
+                "Restart Army Painter to apply all default settings."
+            ),
+        )
 
     @patch.object(FactoryResetPatternDeletionDialog, "show", return_value=False)
     @patch.object(FactoryResetDialog, "show", return_value=True)
     def test_cancelling_pattern_deletion_aborts_entire_factory_reset(
         self, _show, _show_deletion_confirmation
     ):
-        painter = SimpleNamespace(settings=Mock())
+        painter = SimpleNamespace(settings=Mock(), dialogs=Mock())
 
         self.assertIsNone(ArmyPainter.factory_reset(painter))
 
         painter.settings.restore_factory_defaults.assert_not_called()
+        painter.dialogs.show_info.assert_not_called()
 
     @patch.object(AboutDialog, "show")
     def test_about_callback_opens_modal_dialog(self, show):

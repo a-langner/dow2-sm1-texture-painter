@@ -1908,6 +1908,13 @@ class ArmyPainter(tk.Tk):
             ArmyPainter._pattern_workflows(self).delete_all_user_patterns()
             self.frame_army_pattern.load_pattern_list()
             self.update_pattern_action_states()
+        self.dialogs.show_info(
+            title="Factory Reset complete",
+            message=(
+                "Factory Reset complete.\n\n"
+                "Restart Army Painter to apply all default settings."
+            ),
+        )
         return delete_user_patterns
 
     def save_pattern(self):
