@@ -20,6 +20,7 @@ from src.frame_main import (
 )
 from src.texture_naming import DOW2_TEXTURE_NAMING
 from src.widget import (
+    AboutDialog,
     FramePatternList,
     PatternSelection,
     pattern_name_to_restore,
@@ -97,12 +98,13 @@ class FakePainter:
 
 
 class PatternMenuStateTests(unittest.TestCase):
-    def test_about_callback_uses_dedicated_dialog_event(self):
-        painter = SimpleNamespace(event_generate=Mock())
+    @patch.object(AboutDialog, "show")
+    def test_about_callback_opens_modal_dialog(self, show):
+        painter = SimpleNamespace()
 
         ArmyPainter.open_about(painter)
 
-        painter.event_generate.assert_called_once_with("<<OpenAbout>>")
+        show.assert_called_once_with(painter)
 
     @patch("src.frame_main.tk.BooleanVar", return_value=Mock())
     @patch("src.frame_main.tk.StringVar", return_value=Mock())

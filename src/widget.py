@@ -13,6 +13,7 @@ from tkinter import filedialog
 from functools import partial
 from typing import Callable, Optional
 from PIL import Image, ImageTk
+from src.app_identity import APP_NAME, APP_VERSION
 from src.color_pattern_handler import (
     PatternMarkerColor,
     get_all_patterns,
@@ -85,6 +86,19 @@ from src.render_settings import (
     MIN_SATURATION,
 )
 from src.window_geometry import safe_window_geometry, safe_window_position
+
+ABOUT_DESCRIPTION = (
+    "A GUI application for easily colorizing Dawn of War II and "
+    "Warhammer 40,000: Space Marine textures."
+)
+ABOUT_MAINTAINER = "a-langner (Andreas Langner)"
+ABOUT_ORIGINAL_AUTHOR = "Jaccouille (Marc Szilagyi)"
+ABOUT_CITADEL_ATTRIBUTION = "Arcturus5404/miniature-paints — MIT License"
+ABOUT_DISCLAIMER = (
+    "Army Painter is an unofficial community tool and is not affiliated with, "
+    "endorsed by, or associated with Games Workshop, Citadel, Relic "
+    "Entertainment, or their respective owners."
+)
 
 COLOR_BOX_SIZE = 90
 COLOR_BTN_HEIGHT = 26
@@ -1018,6 +1032,79 @@ class PaintSwatchGrid(ttk.Frame):
         if self._tooltip_window is not None:
             self._tooltip_window.destroy()
             self._tooltip_window = None
+
+
+class AboutDialog(tk.Toplevel):
+    """Compact application identity, credits, and update entry point."""
+
+    def __init__(self, parent: tk.Misc):
+        super().__init__(parent)
+        self.title(f"About {APP_NAME}")
+        self.transient(parent)
+        self.resizable(False, False)
+
+        content = ttk.Frame(self, padding=16)
+        content.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(
+            content,
+            text=f"{APP_NAME} {APP_VERSION}",
+            font=("TkDefaultFont", 14, "bold"),
+        ).pack()
+        ttk.Label(
+            content,
+            text=ABOUT_DESCRIPTION,
+            justify=tk.CENTER,
+            wraplength=410,
+        ).pack(pady=(10, 14))
+
+        ttk.Label(content, text="Developed and maintained by").pack()
+        self.maintainer_label = ttk.Label(content, text=ABOUT_MAINTAINER)
+        self.maintainer_label.pack(pady=(1, 10))
+
+        ttk.Label(content, text="Based on the original application by").pack()
+        self.original_author_label = ttk.Label(
+            content,
+            text=ABOUT_ORIGINAL_AUTHOR,
+        )
+        self.original_author_label.pack(pady=(1, 10))
+
+        ttk.Label(content, text="Citadel color data").pack()
+        self.citadel_attribution_label = ttk.Label(
+            content,
+            text=ABOUT_CITADEL_ATTRIBUTION,
+        )
+        self.citadel_attribution_label.pack(pady=(1, 14))
+
+        ttk.Label(
+            content,
+            text=ABOUT_DISCLAIMER,
+            justify=tk.CENTER,
+            wraplength=410,
+        ).pack(pady=(0, 12))
+        ttk.Label(content, text=f"Version {APP_VERSION}").pack()
+
+        self.update_button = ttk.Button(
+            content,
+            text="Check for Updates",
+            command=self.request_update_check,
+        )
+        self.update_button.pack(pady=(12, 0))
+
+        self.protocol("WM_DELETE_WINDOW", self.close)
+        self.bind("<Escape>", self.close)
+        self.grab_set()
+        self.wait_window()
+
+    @classmethod
+    def show(cls, parent: tk.Misc) -> None:
+        cls(parent)
+
+    def request_update_check(self) -> None:
+        """Expose the manual update action for the later update-check job."""
+        self.event_generate("<<CheckForUpdates>>")
+
+    def close(self, Event=None) -> None:
+        self.destroy()
 
 
 class CustomFavoriteNameDialog(tk.Toplevel):

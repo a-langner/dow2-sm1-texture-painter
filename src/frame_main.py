@@ -12,6 +12,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter.messagebox import showerror
 from src.widget import (
+    AboutDialog,
     APP_COMBOBOX_STYLE,
     clear_readonly_combobox_text_selection,
     show_readonly_combobox_value,
@@ -2620,8 +2621,8 @@ class ArmyPainter(tk.Tk):
             )
 
     def open_about(self):
-        """Request the application About dialog from the Help menu."""
-        self.event_generate("<<OpenAbout>>")
+        """Open the modal application About dialog."""
+        AboutDialog.show(self)
 
     def report_callback_exception(self, exc, val, tb):
         exception_info = (exc, val, tb)
