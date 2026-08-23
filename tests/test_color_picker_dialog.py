@@ -3,6 +3,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, call, patch
 
+from src.color_slot_state import CustomFavoriteIdentity
 from src.color_picker_visual import (
     color_wheel_geometry,
     hsv_to_rgb_hex,
@@ -1259,6 +1260,36 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         dialog.toggle_citadel_favorite.assert_called_once_with(explicit)
 
+    def test_closest_citadel_action_state_distinguishes_citadel_and_custom(self):
+        citadel = PaintColor("citadel", "Citadel", 10, 20, 30)
+        custom = CustomFavoriteColor("custom", "Custom", "#395C71")
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(paints=(citadel,))
+        dialog.favorite_library = FavoriteColorLibrary(
+            dialog.paint_catalog,
+            (CitadelFavoriteColor(citadel.id), custom),
+        )
+        dialog.closest_citadel_button = FakeWidget()
+        dialog.selected_paint_id = citadel.id
+        dialog.event_generate = Mock()
+
+        dialog.current_color = "#0A141E"
+        dialog._refresh_closest_citadel_button()
+        self.assertFalse(dialog.can_find_closest_citadel_color())
+        self.assertEqual(dialog.closest_citadel_button.options["state"], "disabled")
+        dialog.find_closest_citadel_color()
+        dialog.event_generate.assert_not_called()
+
+        dialog.current_color = custom.color
+        dialog.current_custom_favorite = CustomFavoriteIdentity(custom.id, custom.name)
+        dialog._refresh_closest_citadel_button()
+        self.assertTrue(dialog.can_find_closest_citadel_color())
+        self.assertEqual(dialog.closest_citadel_button.options["state"], "normal")
+        dialog.find_closest_citadel_color()
+        dialog.event_generate.assert_called_once_with(
+            "<<FindClosestCitadelColor>>"
+        )
+
     @patch.object(CustomFavoriteNameDialog, "show", return_value="My Armor Blue")
     def test_universal_button_adds_and_removes_true_custom_color(self, show_name):
         dialog = object.__new__(ColorPickerDialog)
@@ -1861,6 +1892,14 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(
             dialog.favorite_button.grid_options,
             {"row": 0, "column": 2, "sticky": "e", "padx": (8, 0)},
+        )
+        self.assertEqual(
+            dialog.closest_citadel_button.options["text"],
+            "Find Closest Citadel Color",
+        )
+        self.assertEqual(
+            dialog.closest_citadel_button.grid_options,
+            {"row": 0, "column": 3, "sticky": "e", "padx": (8, 0)},
         )
         for preview in (dialog.original_color_preview, dialog.current_color_preview):
             self.assertEqual(preview.options["height"], 32)

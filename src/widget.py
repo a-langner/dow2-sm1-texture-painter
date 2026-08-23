@@ -1908,6 +1908,17 @@ class ColorPickerDialog(tk.Toplevel):
             command=self.toggle_current_favorite,
         )
         self.favorite_button.grid(row=0, column=2, sticky=tk.E, padx=(8, 0))
+        self.closest_citadel_button = ttk.Button(
+            self.editor_hex_area,
+            text="Find Closest Citadel Color",
+            command=self.find_closest_citadel_color,
+        )
+        self.closest_citadel_button.grid(
+            row=0,
+            column=3,
+            sticky=tk.E,
+            padx=(8, 0),
+        )
 
         self.recent_color_row = RecentColorSwatchRow(
             self.editor_recent_colors_area,
@@ -1948,6 +1959,7 @@ class ColorPickerDialog(tk.Toplevel):
         self._refresh_rgb_controls()
         self._refresh_hex_control()
         self._refresh_favorite_button()
+        self._refresh_closest_citadel_button()
         self.select_color_space(self.color_space_mode)
 
     def _on_color_space_selected(self, Event=None) -> None:
@@ -2049,6 +2061,7 @@ class ColorPickerDialog(tk.Toplevel):
         self._refresh_visual_picker()
         self._refresh_current_color_preview()
         self._refresh_favorite_button()
+        self._refresh_closest_citadel_button()
 
     def _refresh_rgb_controls(self) -> None:
         controls = getattr(self, "rgb_controls", None)
@@ -2107,6 +2120,26 @@ class ColorPickerDialog(tk.Toplevel):
         button = getattr(self, "favorite_button", None)
         if button is not None:
             button.configure(text=self.current_favorite_action_label())
+
+    def can_find_closest_citadel_color(self) -> bool:
+        """Return whether the canonical editor color is not a Citadel paint."""
+        return self._resolved_current_citadel_favorite() is None
+
+    def _refresh_closest_citadel_button(self) -> None:
+        button = getattr(self, "closest_citadel_button", None)
+        if button is not None:
+            button.configure(
+                state=(
+                    tk.NORMAL
+                    if self.can_find_closest_citadel_color()
+                    else tk.DISABLED
+                )
+            )
+
+    def find_closest_citadel_color(self) -> None:
+        """Request matching for the current canonical Color Editor value."""
+        if self.can_find_closest_citadel_color():
+            self.event_generate("<<FindClosestCitadelColor>>")
 
     def toggle_current_favorite(self) -> bool:
         """Toggle the exact current Citadel or Custom Color Favorite."""
