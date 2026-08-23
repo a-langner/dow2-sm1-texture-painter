@@ -1,7 +1,8 @@
 import unittest
+from unittest.mock import patch
 
 from src.favorite_color import CustomFavoriteColor, FavoriteColorLibrary
-from src.paint_catalog import PaintCatalog, PaintColor
+from src.paint_catalog import PaintCatalog, PaintColor, load_citadel_catalog
 from src.paint_color_matching import LabColor, ciede2000, find_closest_paints
 
 
@@ -39,6 +40,18 @@ class PaintColorMatchingTests(unittest.TestCase):
         matches = find_closest_paints(custom.color, library.catalog)
 
         self.assertEqual([match.paint.id for match in matches], ["citadel"])
+
+    def test_default_match_evaluates_every_bundled_citadel_paint(self):
+        catalog = load_citadel_catalog()
+
+        with patch(
+            "src.paint_color_matching.ciede2000",
+            wraps=ciede2000,
+        ) as delta_e:
+            matches = find_closest_paints("#395C71", catalog)
+
+        self.assertEqual(len(matches), 3)
+        self.assertEqual(delta_e.call_count, len(catalog.paints))
 
 
 if __name__ == "__main__":
