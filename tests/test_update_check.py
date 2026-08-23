@@ -8,14 +8,61 @@ from src.update_check import (
     GITHUB_LATEST_RELEASE_API_URL,
     GITHUB_RELEASES_URL,
     GitHubRelease,
+    LATEST_VERSION_MESSAGE,
     NO_PUBLISHED_RELEASE_MESSAGE,
+    UPDATE_FAILURE_MESSAGE,
+    UpdateStatus,
+    check_for_updates,
     compare_release_versions,
     fetch_latest_stable_release,
     parse_release_version,
+    interpret_latest_release,
 )
 
 
 class UpdateCheckTests(unittest.TestCase):
+    def test_interprets_latest_newer_and_no_release_states(self):
+        latest = interpret_latest_release(GitHubRelease("v1.0", None), "1.0")
+        newer = interpret_latest_release(
+            GitHubRelease("v1.1", "https://github.com/example/releases/tag/v1.1"),
+            "1.0",
+        )
+        no_release = interpret_latest_release(None, "1.0")
+
+        self.assertEqual(latest.status, UpdateStatus.LATEST)
+        self.assertEqual(latest.message, LATEST_VERSION_MESSAGE)
+        self.assertIsNone(latest.download_url)
+        self.assertEqual(newer.status, UpdateStatus.NEWER)
+        self.assertEqual(newer.message, "Version 1.1 is available.")
+        self.assertEqual(
+            newer.download_url,
+            "https://github.com/example/releases/tag/v1.1",
+        )
+        self.assertEqual(no_release.status, UpdateStatus.NO_RELEASE)
+        self.assertEqual(no_release.message, NO_PUBLISHED_RELEASE_MESSAGE)
+
+    def test_malformed_tag_and_network_failure_return_safe_message(self):
+        malformed = interpret_latest_release(GitHubRelease("release-one", {}))
+        self.assertEqual(malformed.status, UpdateStatus.FAILURE)
+        self.assertEqual(malformed.message, UPDATE_FAILURE_MESSAGE)
+        self.assertNotIn("release-one", malformed.message)
+
+        with patch(
+            "src.update_check.fetch_latest_stable_release",
+            side_effect=OSError("private network detail"),
+        ):
+            failure = check_for_updates()
+
+        self.assertEqual(failure.status, UpdateStatus.FAILURE)
+        self.assertEqual(failure.message, UPDATE_FAILURE_MESSAGE)
+        self.assertNotIn("private network detail", failure.message)
+
+    def test_newer_release_with_unexpected_page_uses_safe_releases_page(self):
+        result = interpret_latest_release(GitHubRelease("v2.0", None), "1.0")
+
+        self.assertEqual(result.status, UpdateStatus.NEWER)
+        self.assertEqual(result.download_url, GITHUB_RELEASES_URL)
+
     @patch("src.update_check.urlopen")
     def test_missing_latest_release_is_a_normal_empty_result(self, urlopen):
         urlopen.side_effect = HTTPError(

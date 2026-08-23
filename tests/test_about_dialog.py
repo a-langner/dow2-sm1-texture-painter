@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from src.app_identity import APP_NAME, APP_VERSION
+from src.update_check import UpdateCheckResult, UpdateStatus
 from src.widget import (
     ABOUT_CITADEL_ATTRIBUTION,
     ABOUT_DESCRIPTION,
@@ -16,6 +17,38 @@ from src.widget import (
 
 
 class AboutDialogTests(unittest.TestCase):
+    def test_update_result_only_exposes_download_for_newer_release(self):
+        dialog = object.__new__(AboutDialog)
+        dialog.update_status_label = Mock()
+        dialog.download_button = Mock()
+        dialog.update_download_url = None
+
+        dialog.show_update_result(
+            UpdateCheckResult(UpdateStatus.LATEST, "You are using the latest version.")
+        )
+        self.assertIsNone(dialog.update_download_url)
+        dialog.download_button.pack_forget.assert_called_once_with()
+
+        dialog.download_button.reset_mock()
+        result = UpdateCheckResult(
+            UpdateStatus.NEWER,
+            "Version 1.1 is available.",
+            "https://github.com/example/releases/tag/v1.1",
+        )
+        dialog.show_update_result(result)
+        self.assertEqual(dialog.update_download_url, result.download_url)
+        dialog.update_status_label.configure.assert_called_with(text=result.message)
+        dialog.download_button.pack.assert_called_once_with(pady=(8, 0))
+
+    @patch.object(AboutDialog, "open_link")
+    def test_open_download_page_uses_validated_result_url(self, open_link):
+        dialog = object.__new__(AboutDialog)
+        dialog.update_download_url = "https://github.com/example/releases/tag/v1.1"
+
+        dialog.open_update_download_page()
+
+        open_link.assert_called_once_with(dialog.update_download_url)
+
     def test_about_content_uses_release_identity_and_required_credits(self):
         self.assertEqual(APP_NAME, "Army Painter")
         self.assertEqual(APP_VERSION, "1.0")

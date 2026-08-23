@@ -87,6 +87,7 @@ from src.render_settings import (
     MIN_SATURATION,
 )
 from src.window_geometry import safe_window_geometry, safe_window_position
+from src.update_check import UpdateCheckResult
 
 ABOUT_DESCRIPTION = (
     "A GUI application for easily colorizing Dawn of War II and "
@@ -1104,6 +1105,14 @@ class AboutDialog(tk.Toplevel):
             command=self.request_update_check,
         )
         self.update_button.pack(pady=(12, 0))
+        self.update_status_label = ttk.Label(content, text="", justify=tk.CENTER)
+        self.update_status_label.pack(pady=(8, 0))
+        self.update_download_url: str | None = None
+        self.download_button = ttk.Button(
+            content,
+            text="Open Download Page",
+            command=self.open_update_download_page,
+        )
 
         self.protocol("WM_DELETE_WINDOW", self.close)
         self.bind("<Escape>", self.close)
@@ -1143,6 +1152,19 @@ class AboutDialog(tk.Toplevel):
     def request_update_check(self) -> None:
         """Expose the manual update action for the later update-check job."""
         self.event_generate("<<CheckForUpdates>>")
+
+    def show_update_result(self, result: UpdateCheckResult) -> None:
+        """Show one concise result and only expose downloads for newer releases."""
+        self.update_status_label.configure(text=result.message)
+        self.update_download_url = result.download_url
+        if result.download_url is None:
+            self.download_button.pack_forget()
+        else:
+            self.download_button.pack(pady=(8, 0))
+
+    def open_update_download_page(self) -> None:
+        if self.update_download_url is not None:
+            self.open_link(self.update_download_url)
 
     def close(self, Event=None) -> None:
         self._save_position()
