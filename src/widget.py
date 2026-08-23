@@ -1063,6 +1063,8 @@ class AboutDialog(tk.Toplevel):
 
         content = ttk.Frame(self, padding=16)
         content.pack(fill=tk.BOTH, expand=True)
+        self._about_link_font = tkfont.Font(self, font="TkDefaultFont")
+        self._about_link_font.configure(underline=True)
         ttk.Label(
             content,
             text=f"{APP_NAME} {APP_VERSION}",
@@ -1148,7 +1150,7 @@ class AboutDialog(tk.Toplevel):
             text=text,
             foreground="#0563C1",
             cursor="hand2",
-            font=("TkDefaultFont", 9, "underline"),
+            font=self._about_link_font,
             takefocus=True,
         )
         label.bind("<Button-1>", lambda Event: self.open_link(url))
