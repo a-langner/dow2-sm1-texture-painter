@@ -12,6 +12,7 @@ from src.color_picker_visual import (
 )
 from src.constant import APP_SELECTION_FOREGROUND
 from src.paint_catalog import PaintCatalog, PaintColor
+from src.paint_color_matching import ClosestPaintMatch
 from src.favorite_color import (
     CitadelFavoriteColor,
     CustomFavoriteColor,
@@ -46,6 +47,7 @@ from src.widget import (
     PAINT_SWATCH_SELECTED_OUTLINE,
     RECENT_COLOR_SWATCH_CORNER_RADIUS,
     ColorPickerDialog,
+    ClosestCitadelColorDialog,
     CustomFavoriteNameDialog,
     PaintSwatchGrid,
     PaletteSpecialGroup,
@@ -1271,28 +1273,48 @@ class ColorPickerDialogTests(unittest.TestCase):
         )
         dialog.closest_citadel_button = FakeWidget()
         dialog.selected_paint_id = citadel.id
-        dialog.event_generate = Mock()
 
         dialog.current_color = "#0A141E"
         dialog._refresh_closest_citadel_button()
         self.assertFalse(dialog.can_find_closest_citadel_color())
         self.assertEqual(dialog.closest_citadel_button.options["state"], "disabled")
-        dialog.find_closest_citadel_color()
-        dialog.event_generate.assert_not_called()
 
         dialog.current_color = custom.color
         dialog.current_custom_favorite = CustomFavoriteIdentity(custom.id, custom.name)
         dialog._refresh_closest_citadel_button()
         self.assertTrue(dialog.can_find_closest_citadel_color())
         self.assertEqual(dialog.closest_citadel_button.options["state"], "normal")
-        dialog.find_closest_citadel_color()
-        dialog.event_generate.assert_called_once_with(
-            "<<FindClosestCitadelColor>>"
+
+        with patch.object(ClosestCitadelColorDialog, "show") as show_dialog:
+            dialog.find_closest_citadel_color()
+
+        show_dialog.assert_called_once_with(
+            dialog,
+            custom.color,
+            dialog.closest_citadel_matches,
         )
-        self.assertEqual(
-            [match.paint.id for match in dialog.closest_citadel_matches],
-            [citadel.id],
+
+    def test_closest_dialog_selects_first_match_and_close_changes_nothing(self):
+        first = PaintColor("first", "First Paint", 10, 20, 30)
+        second = PaintColor("second", "Second Paint", 40, 50, 60)
+        dialog = object.__new__(ClosestCitadelColorDialog)
+        dialog.matches = (
+            ClosestPaintMatch(first, 1.25),
+            ClosestPaintMatch(second, 2.5),
         )
+        dialog.selected_paint_id = FakeWidget()
+        dialog.selected_paint_id.set(first.id)
+        dialog.destroy = Mock()
+
+        dialog.use_selected()
+
+        self.assertIs(dialog.result, first)
+        dialog.selected_paint_id.set(second.id)
+        dialog.use_selected()
+        self.assertIs(dialog.result, second)
+
+        dialog.close()
+        self.assertIsNone(dialog.result)
 
     @patch.object(CustomFavoriteNameDialog, "show", return_value="My Armor Blue")
     def test_universal_button_adds_and_removes_true_custom_color(self, show_name):

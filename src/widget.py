@@ -1160,6 +1160,118 @@ class CustomFavoriteNameDialog(tk.Toplevel):
             LOGGER.exception("Could not save Custom Favorite dialog position")
 
 
+class ClosestCitadelColorDialog(tk.Toplevel):
+    """Compact modal selector for the three closest predefined paints."""
+
+    def __init__(
+        self,
+        parent: tk.Misc,
+        current_color: str,
+        matches: tuple[ClosestPaintMatch, ...],
+    ):
+        super().__init__(parent)
+        self.current_color = normalize_rgb_hex(current_color)
+        self.matches = matches
+        self.result: PaintColor | None = None
+        self.title("Closest Citadel Colors")
+        self.transient(parent)
+        self.resizable(False, False)
+
+        content = ttk.Frame(self, padding=12)
+        content.pack(fill=tk.BOTH, expand=True)
+        current_area = ttk.LabelFrame(content, text="Current Color", padding=8)
+        current_area.pack(fill=tk.X)
+        self.current_swatch = self._create_swatch(current_area, self.current_color)
+        self.current_swatch.grid(row=0, column=0, sticky=tk.W)
+        ttk.Label(current_area, text=self.current_color).grid(
+            row=0, column=1, sticky=tk.W, padx=(8, 0)
+        )
+
+        matches_area = ttk.LabelFrame(content, text="Closest Matches", padding=8)
+        matches_area.pack(fill=tk.X, pady=(10, 0))
+        initial_id = matches[0].paint.id if matches else ""
+        self.selected_paint_id = tk.StringVar(self, value=initial_id)
+        self.match_buttons = []
+        self.match_swatches = []
+        for rank, match in enumerate(matches, start=1):
+            button = ttk.Radiobutton(
+                matches_area,
+                text=f"{rank}.",
+                value=match.paint.id,
+                variable=self.selected_paint_id,
+            )
+            button.grid(row=rank - 1, column=0, sticky=tk.W, pady=3)
+            swatch = self._create_swatch(
+                matches_area,
+                paint_swatch_presentation(match.paint).color,
+            )
+            swatch.grid(row=rank - 1, column=1, padx=(6, 8), pady=3)
+            ttk.Label(matches_area, text=match.paint.name, width=24).grid(
+                row=rank - 1, column=2, sticky=tk.W, padx=(0, 8)
+            )
+            ttk.Label(
+                matches_area,
+                text=paint_swatch_presentation(match.paint).color,
+            ).grid(row=rank - 1, column=3, sticky=tk.W, padx=(0, 8))
+            ttk.Label(matches_area, text=f"ΔE00 {match.delta_e:.2f}").grid(
+                row=rank - 1, column=4, sticky=tk.E
+            )
+            self.match_buttons.append(button)
+            self.match_swatches.append(swatch)
+
+        actions = ttk.Frame(content)
+        actions.pack(fill=tk.X, pady=(12, 0))
+        self.close_button = ttk.Button(actions, text="Close", command=self.close)
+        self.close_button.pack(side=tk.RIGHT)
+        self.use_button = ttk.Button(
+            actions,
+            text="Use Selected",
+            command=self.use_selected,
+            state=tk.NORMAL if matches else tk.DISABLED,
+        )
+        self.use_button.pack(side=tk.RIGHT, padx=(0, 8))
+
+        self.protocol("WM_DELETE_WINDOW", self.close)
+        self.bind("<Return>", self.use_selected)
+        self.bind("<Escape>", self.close)
+        self.grab_set()
+        self.wait_window()
+
+    @staticmethod
+    def _create_swatch(parent: tk.Misc, color: str) -> tk.Canvas:
+        return tk.Canvas(
+            parent,
+            width=28,
+            height=22,
+            background=color,
+            bd=0,
+            highlightthickness=1,
+            highlightbackground=COLOR_PREVIEW_BORDER,
+        )
+
+    @classmethod
+    def show(
+        cls,
+        parent: tk.Misc,
+        current_color: str,
+        matches: tuple[ClosestPaintMatch, ...],
+    ) -> PaintColor | None:
+        """Show the modal and return the chosen predefined paint."""
+        return cls(parent, current_color, matches).result
+
+    def use_selected(self, Event=None) -> None:
+        selected_id = self.selected_paint_id.get()
+        self.result = next(
+            (match.paint for match in self.matches if match.paint.id == selected_id),
+            None,
+        )
+        self.destroy()
+
+    def close(self, Event=None) -> None:
+        self.result = None
+        self.destroy()
+
+
 class ColorPickerDialog(tk.Toplevel):
     """Modal Citadel browser and RGB/HSV/HSL color editor."""
 
@@ -1226,6 +1338,7 @@ class ColorPickerDialog(tk.Toplevel):
         )
         self.palette_paints = ()
         self.closest_citadel_matches: tuple[ClosestPaintMatch, ...] = ()
+        self.closest_citadel_selection: PaintColor | None = None
         self.selected_paint_id: Optional[str] = None
         self.search_query = ""
 
@@ -2145,7 +2258,11 @@ class ColorPickerDialog(tk.Toplevel):
                 self.current_color,
                 self.paint_catalog,
             )
-            self.event_generate("<<FindClosestCitadelColor>>")
+            self.closest_citadel_selection = ClosestCitadelColorDialog.show(
+                self,
+                self.current_color,
+                self.closest_citadel_matches,
+            )
 
     def toggle_current_favorite(self) -> bool:
         """Toggle the exact current Citadel or Custom Color Favorite."""
