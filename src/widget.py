@@ -40,6 +40,7 @@ from src.constant import (
 from src.blend_mode import IMPLEMENTED_BLEND_MODES
 from src.paint_catalog import PaintCatalog, PaintColor, load_citadel_catalog
 from src.paint_color_matching import ClosestPaintMatch, find_closest_paints
+from src.platform_tools import open_url_in_default_browser
 from src.processing_mode import ProcessingMode
 from src.color_picker_visual import (
     ColorVisualizationMode,
@@ -94,6 +95,9 @@ ABOUT_DESCRIPTION = (
 ABOUT_MAINTAINER = "a-langner (Andreas Langner)"
 ABOUT_ORIGINAL_AUTHOR = "Jaccouille (Marc Szilagyi)"
 ABOUT_CITADEL_ATTRIBUTION = "Arcturus5404/miniature-paints — MIT License"
+ABOUT_MAINTAINER_URL = "https://github.com/a-langner/dow2-sm1-texture-painter"
+ABOUT_ORIGINAL_AUTHOR_URL = "https://github.com/Jaccouille/dow2-texture-painter"
+ABOUT_CITADEL_DATA_URL = "https://github.com/Arcturus5404/miniature-paints"
 ABOUT_DISCLAIMER = (
     "Army Painter is an unofficial community tool and is not affiliated with, "
     "endorsed by, or associated with Games Workshop, Citadel, Relic "
@@ -1058,22 +1062,31 @@ class AboutDialog(tk.Toplevel):
         ).pack(pady=(10, 14))
 
         ttk.Label(content, text="Developed and maintained by").pack()
-        self.maintainer_label = ttk.Label(content, text=ABOUT_MAINTAINER)
+        self.maintainer_label = self._create_link_label(
+            content,
+            ABOUT_MAINTAINER,
+            ABOUT_MAINTAINER_URL,
+        )
         self.maintainer_label.pack(pady=(1, 10))
 
         ttk.Label(content, text="Based on the original application by").pack()
-        self.original_author_label = ttk.Label(
+        self.original_author_label = self._create_link_label(
             content,
-            text=ABOUT_ORIGINAL_AUTHOR,
+            ABOUT_ORIGINAL_AUTHOR,
+            ABOUT_ORIGINAL_AUTHOR_URL,
         )
         self.original_author_label.pack(pady=(1, 10))
 
         ttk.Label(content, text="Citadel color data").pack()
-        self.citadel_attribution_label = ttk.Label(
-            content,
-            text=ABOUT_CITADEL_ATTRIBUTION,
+        attribution_row = ttk.Frame(content)
+        attribution_row.pack(pady=(1, 14))
+        self.citadel_attribution_label = self._create_link_label(
+            attribution_row,
+            "Arcturus5404/miniature-paints",
+            ABOUT_CITADEL_DATA_URL,
         )
-        self.citadel_attribution_label.pack(pady=(1, 14))
+        self.citadel_attribution_label.pack(side=tk.LEFT)
+        ttk.Label(attribution_row, text=" — MIT License").pack(side=tk.LEFT)
 
         ttk.Label(
             content,
@@ -1098,6 +1111,31 @@ class AboutDialog(tk.Toplevel):
     @classmethod
     def show(cls, parent: tk.Misc) -> None:
         cls(parent)
+
+    def _create_link_label(
+        self,
+        parent: tk.Misc,
+        text: str,
+        url: str,
+    ) -> ttk.Label:
+        label = ttk.Label(
+            parent,
+            text=text,
+            foreground="#0563C1",
+            cursor="hand2",
+            font=("TkDefaultFont", 9, "underline"),
+            takefocus=True,
+        )
+        label.bind("<Button-1>", lambda Event: self.open_link(url))
+        label.bind("<Return>", lambda Event: self.open_link(url))
+        return label
+
+    @staticmethod
+    def open_link(url: str) -> None:
+        try:
+            open_url_in_default_browser(url)
+        except (OSError, ValueError):
+            LOGGER.exception("Could not open About link: %s", url)
 
     def request_update_check(self) -> None:
         """Expose the manual update action for the later update-check job."""

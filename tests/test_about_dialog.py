@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from src.app_identity import APP_NAME, APP_VERSION
 from src.widget import (
@@ -7,7 +7,10 @@ from src.widget import (
     ABOUT_DESCRIPTION,
     ABOUT_DISCLAIMER,
     ABOUT_MAINTAINER,
+    ABOUT_MAINTAINER_URL,
     ABOUT_ORIGINAL_AUTHOR,
+    ABOUT_ORIGINAL_AUTHOR_URL,
+    ABOUT_CITADEL_DATA_URL,
     AboutDialog,
 )
 
@@ -30,6 +33,33 @@ class AboutDialogTests(unittest.TestCase):
         self.assertIn("unofficial community tool", ABOUT_DISCLAIMER)
         self.assertIn("Games Workshop", ABOUT_DISCLAIMER)
         self.assertIn("Relic Entertainment", ABOUT_DISCLAIMER)
+        self.assertEqual(
+            ABOUT_MAINTAINER_URL,
+            "https://github.com/a-langner/dow2-sm1-texture-painter",
+        )
+        self.assertEqual(
+            ABOUT_ORIGINAL_AUTHOR_URL,
+            "https://github.com/Jaccouille/dow2-texture-painter",
+        )
+        self.assertEqual(
+            ABOUT_CITADEL_DATA_URL,
+            "https://github.com/Arcturus5404/miniature-paints",
+        )
+
+    @patch("src.widget.open_url_in_default_browser")
+    def test_about_links_use_shared_default_browser_helper(self, open_url):
+        AboutDialog.open_link(ABOUT_MAINTAINER_URL)
+        AboutDialog.open_link(ABOUT_ORIGINAL_AUTHOR_URL)
+        AboutDialog.open_link(ABOUT_CITADEL_DATA_URL)
+
+        self.assertEqual(
+            [call.args[0] for call in open_url.call_args_list],
+            [
+                ABOUT_MAINTAINER_URL,
+                ABOUT_ORIGINAL_AUTHOR_URL,
+                ABOUT_CITADEL_DATA_URL,
+            ],
+        )
 
     def test_manual_update_action_has_dedicated_event_seam(self):
         dialog = object.__new__(AboutDialog)

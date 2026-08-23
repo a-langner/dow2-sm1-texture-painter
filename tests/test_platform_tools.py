@@ -7,10 +7,25 @@ from unittest.mock import patch
 import test_support  # noqa: F401 - installs the user-data path redirect
 from fake_dialog_gateway import make_dialog_gateway
 from src.frame_main import ArmyPainter
-from src.platform_tools import open_directory_in_file_manager
+from src.platform_tools import (
+    open_directory_in_file_manager,
+    open_url_in_default_browser,
+)
 
 
 class OpenDirectoryHelperTests(unittest.TestCase):
+    @patch("src.platform_tools.webbrowser.open", return_value=True)
+    def test_url_uses_system_default_browser(self, browser_open):
+        url = "https://github.com/example/project"
+
+        open_url_in_default_browser(url)
+
+        browser_open.assert_called_once_with(url, new=2)
+
+    def test_url_rejects_non_https_targets(self):
+        with self.assertRaisesRegex(ValueError, "HTTPS"):
+            open_url_in_default_browser("file:///tmp/project")
+
     @patch("src.platform_tools.platform.system", return_value="Windows")
     @patch("src.platform_tools.os.startfile", create=True)
     def test_windows_uses_startfile(self, startfile, system):

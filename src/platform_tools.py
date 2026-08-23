@@ -2,6 +2,7 @@ import os
 import platform
 from pathlib import Path
 import subprocess
+import webbrowser
 
 UNIX_DESKTOP_SYSTEMS = {
     "Linux",
@@ -10,6 +11,14 @@ UNIX_DESKTOP_SYSTEMS = {
     "NetBSD",
     "SunOS",
 }
+
+
+def open_url_in_default_browser(url: str) -> None:
+    """Open an HTTPS URL in the user's configured default browser."""
+    if not isinstance(url, str) or not url.startswith("https://"):
+        raise ValueError("Browser URL must use HTTPS")
+    if not webbrowser.open(url, new=2):
+        raise OSError("The default browser could not open the URL")
 
 
 def open_directory_in_file_manager(path: Path) -> None:
