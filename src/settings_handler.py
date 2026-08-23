@@ -86,6 +86,7 @@ class SettingsHandler:
         self.batch_editor_position: tuple[int, int] | None = None
         self.game_profile_id = DEFAULT_TEXTURE_NAMING.profile_id
         self.load_error: Exception | None = None
+        self.factory_reset_pending_restart = False
 
     def restore_authoritative_defaults(self) -> None:
         """Atomically persist and adopt the clean-first-launch settings state."""
@@ -116,6 +117,7 @@ class SettingsHandler:
         self._apply_authoritative_defaults()
         self.color_picker_recent_colors = recent_colors
         self.favorite_colors = favorite_colors
+        self.factory_reset_pending_restart = True
 
     def _load(self) -> None:
         try:
@@ -230,6 +232,8 @@ class SettingsHandler:
         self._set_directory("last_pattern_export_directory", directory)
 
     def set_color_picker_geometry(self, geometry: str) -> None:
+        if self.factory_reset_pending_restart:
+            return
         self._update(COLOR_PICKER_GEOMETRY_FIELD, geometry)
 
     def set_color_picker_ui_state(
@@ -240,6 +244,8 @@ class SettingsHandler:
         sort_mode: str,
         sashes: tuple[int, int],
     ) -> None:
+        if self.factory_reset_pending_restart:
+            return
         values: dict[str, object] = {
             COLOR_PICKER_GEOMETRY_FIELD: geometry,
             COLOR_PICKER_GROUP_FIELD: group,
@@ -255,32 +261,44 @@ class SettingsHandler:
         self.color_picker_sashes = sashes
 
     def set_main_window_position(self, position: tuple[int, int]) -> None:
+        if self.factory_reset_pending_restart:
+            return
         self._update_values({MAIN_WINDOW_POSITION_FIELD: list(position)})
         self.main_window_position = position
 
     def set_favorite_save_dialog_position(
         self, position: tuple[int, int]
     ) -> None:
+        if self.factory_reset_pending_restart:
+            return
         self._update_values({FAVORITE_SAVE_DIALOG_POSITION_FIELD: list(position)})
         self.favorite_save_dialog_position = position
 
     def set_favorite_rename_dialog_position(
         self, position: tuple[int, int]
     ) -> None:
+        if self.factory_reset_pending_restart:
+            return
         self._update_values({FAVORITE_RENAME_DIALOG_POSITION_FIELD: list(position)})
         self.favorite_rename_dialog_position = position
 
     def set_closest_citadel_dialog_position(
         self, position: tuple[int, int]
     ) -> None:
+        if self.factory_reset_pending_restart:
+            return
         self._update_values({CLOSEST_CITADEL_DIALOG_POSITION_FIELD: list(position)})
         self.closest_citadel_dialog_position = position
 
     def set_about_dialog_position(self, position: tuple[int, int]) -> None:
+        if self.factory_reset_pending_restart:
+            return
         self._update_values({ABOUT_DIALOG_POSITION_FIELD: list(position)})
         self.about_dialog_position = position
 
     def set_batch_editor_position(self, position: tuple[int, int]) -> None:
+        if self.factory_reset_pending_restart:
+            return
         self._update_values({BATCH_EDITOR_POSITION_FIELD: list(position)})
         self.batch_editor_position = position
 

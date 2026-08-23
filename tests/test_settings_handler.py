@@ -109,6 +109,47 @@ class SettingsHandlerTests(unittest.TestCase):
             self.assertEqual(reloaded.color_picker_recent_colors, recent_colors)
             self.assertEqual(reloaded.favorite_colors, favorites)
 
+    def test_factory_reset_positions_cannot_be_reintroduced_before_restart(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_path = root / "settings.json"
+            handler = SettingsHandler(settings_path, root)
+            handler.set_color_picker_ui_state(
+                "900x700+20+30", "Favorites", "HSL", "Alphabetical", (200, 700)
+            )
+            handler.set_main_window_position((20, 30))
+            handler.set_favorite_save_dialog_position((21, 31))
+            handler.set_favorite_rename_dialog_position((22, 32))
+            handler.set_closest_citadel_dialog_position((23, 33))
+            handler.set_about_dialog_position((24, 34))
+            handler.set_batch_editor_position((25, 35))
+
+            handler.restore_factory_defaults()
+            self.assertTrue(handler.factory_reset_pending_restart)
+            handler.set_color_picker_geometry("800x600+200+300")
+            handler.set_color_picker_ui_state(
+                "800x600+200+300", "Reds", "HSV / HSB", "Color", (150, 650)
+            )
+            handler.set_main_window_position((200, 300))
+            handler.set_favorite_save_dialog_position((201, 301))
+            handler.set_favorite_rename_dialog_position((202, 302))
+            handler.set_closest_citadel_dialog_position((203, 303))
+            handler.set_about_dialog_position((204, 304))
+            handler.set_batch_editor_position((205, 305))
+
+            reloaded = SettingsHandler(settings_path, root)
+            self.assertIsNone(reloaded.color_picker_geometry)
+            self.assertIsNone(reloaded.color_picker_group)
+            self.assertIsNone(reloaded.color_picker_color_space)
+            self.assertIsNone(reloaded.color_picker_sort_mode)
+            self.assertIsNone(reloaded.color_picker_sashes)
+            self.assertIsNone(reloaded.main_window_position)
+            self.assertIsNone(reloaded.favorite_save_dialog_position)
+            self.assertIsNone(reloaded.favorite_rename_dialog_position)
+            self.assertIsNone(reloaded.closest_citadel_dialog_position)
+            self.assertIsNone(reloaded.about_dialog_position)
+            self.assertIsNone(reloaded.batch_editor_position)
+
     def test_factory_defaults_do_not_rewrite_user_pattern_order(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
