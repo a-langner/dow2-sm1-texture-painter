@@ -14,6 +14,7 @@ from tkinter.messagebox import showerror
 from src.widget import (
     AboutDialog,
     FactoryResetDialog,
+    FactoryResetPatternDeletionDialog,
     APP_COMBOBOX_STYLE,
     clear_readonly_combobox_text_selection,
     show_readonly_combobox_value,
@@ -1897,7 +1898,12 @@ class ArmyPainter(tk.Tk):
 
     def factory_reset(self):
         """Request explicit confirmation before any persistent reset work."""
-        return FactoryResetDialog.show(self)
+        delete_user_patterns = FactoryResetDialog.show(self)
+        if delete_user_patterns is None:
+            return None
+        if delete_user_patterns and not FactoryResetPatternDeletionDialog.show(self):
+            return None
+        return delete_user_patterns
 
     def save_pattern(self):
         pattern_name = self.dialogs.ask_text(

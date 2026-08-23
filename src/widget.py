@@ -1334,6 +1334,57 @@ class FactoryResetDialog(tk.Toplevel):
         self.destroy()
 
 
+class FactoryResetPatternDeletionDialog(tk.Toplevel):
+    """Second modal confirmation for deleting every user-created Pattern."""
+
+    def __init__(self, parent: tk.Misc):
+        super().__init__(parent)
+        self.result = False
+        self.title("Delete all User Patterns?")
+        self.transient(parent)
+        self.resizable(False, False)
+
+        content = ttk.Frame(self, padding=16)
+        content.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(
+            content,
+            text=(
+                "This will permanently delete all user-created Patterns.\n"
+                "This action cannot be undone."
+            ),
+            justify=tk.LEFT,
+        ).pack(anchor=tk.W)
+
+        buttons = ttk.Frame(content)
+        buttons.pack(fill=tk.X, pady=(16, 0))
+        delete_button = ttk.Button(
+            buttons,
+            text="Delete Patterns and Reset",
+            command=self.confirm,
+        )
+        delete_button.pack(side=tk.RIGHT)
+        cancel_button = ttk.Button(buttons, text="Cancel", command=self.cancel)
+        cancel_button.pack(side=tk.RIGHT, padx=(0, 8))
+
+        self.protocol("WM_DELETE_WINDOW", self.cancel)
+        self.bind("<Escape>", self.cancel)
+        cancel_button.focus_set()
+        self.grab_set()
+        self.wait_window()
+
+    @classmethod
+    def show(cls, parent: tk.Misc) -> bool:
+        return cls(parent).result
+
+    def confirm(self) -> None:
+        self.result = True
+        self.destroy()
+
+    def cancel(self, Event=None) -> None:
+        self.result = False
+        self.destroy()
+
+
 class CustomFavoriteNameDialog(tk.Toplevel):
     """Small modal editor for the optional name of one Custom Favorite."""
 

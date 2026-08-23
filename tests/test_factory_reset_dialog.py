@@ -2,7 +2,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from src.widget import FactoryResetDialog
+from src.widget import FactoryResetDialog, FactoryResetPatternDeletionDialog
 
 
 class FactoryResetDialogTests(unittest.TestCase):
@@ -24,6 +24,22 @@ class FactoryResetDialogTests(unittest.TestCase):
         FactoryResetDialog.cancel(dialog)
 
         self.assertIsNone(dialog.result)
+        dialog.destroy.assert_called_once_with()
+
+    def test_pattern_deletion_confirmation_is_explicit(self):
+        dialog = SimpleNamespace(result=False, destroy=Mock())
+
+        FactoryResetPatternDeletionDialog.confirm(dialog)
+
+        self.assertTrue(dialog.result)
+        dialog.destroy.assert_called_once_with()
+
+    def test_pattern_deletion_cancel_is_false(self):
+        dialog = SimpleNamespace(result=True, destroy=Mock())
+
+        FactoryResetPatternDeletionDialog.cancel(dialog)
+
+        self.assertFalse(dialog.result)
         dialog.destroy.assert_called_once_with()
 
 

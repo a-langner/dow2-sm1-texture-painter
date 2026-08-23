@@ -22,6 +22,7 @@ from src.texture_naming import DOW2_TEXTURE_NAMING
 from src.widget import (
     AboutDialog,
     FactoryResetDialog,
+    FactoryResetPatternDeletionDialog,
     FramePatternList,
     PatternSelection,
     pattern_name_to_restore,
@@ -99,14 +100,38 @@ class FakePainter:
 
 
 class PatternMenuStateTests(unittest.TestCase):
+    @patch.object(FactoryResetPatternDeletionDialog, "show")
     @patch.object(FactoryResetDialog, "show", return_value=False)
-    def test_factory_reset_callback_opens_modal_confirmation(self, show):
+    def test_factory_reset_without_pattern_deletion_needs_one_confirmation(
+        self, show, show_deletion_confirmation
+    ):
         painter = SimpleNamespace()
 
         result = ArmyPainter.factory_reset(painter)
 
         self.assertFalse(result)
         show.assert_called_once_with(painter)
+        show_deletion_confirmation.assert_not_called()
+
+    @patch.object(FactoryResetPatternDeletionDialog, "show", return_value=True)
+    @patch.object(FactoryResetDialog, "show", return_value=True)
+    def test_factory_reset_with_pattern_deletion_needs_two_confirmations(
+        self, show, show_deletion_confirmation
+    ):
+        painter = SimpleNamespace()
+
+        result = ArmyPainter.factory_reset(painter)
+
+        self.assertTrue(result)
+        show.assert_called_once_with(painter)
+        show_deletion_confirmation.assert_called_once_with(painter)
+
+    @patch.object(FactoryResetPatternDeletionDialog, "show", return_value=False)
+    @patch.object(FactoryResetDialog, "show", return_value=True)
+    def test_cancelling_pattern_deletion_aborts_entire_factory_reset(
+        self, _show, _show_deletion_confirmation
+    ):
+        self.assertIsNone(ArmyPainter.factory_reset(SimpleNamespace()))
 
     @patch.object(AboutDialog, "show")
     def test_about_callback_opens_modal_dialog(self, show):
