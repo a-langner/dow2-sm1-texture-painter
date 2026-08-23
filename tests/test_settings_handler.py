@@ -148,6 +148,36 @@ class SettingsHandlerTests(unittest.TestCase):
                 pattern_document,
             )
 
+    def test_factory_defaults_preserve_complete_user_pattern_document(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_path = root / "settings.json"
+            pattern_path = root / "user_patterns.json"
+            pattern_document = (
+                '{"format":"dow2-sm1-texture-painter-patterns","version":1,'
+                '"patterns":{"Veteran":{"primary_colour_name":"#102030",'
+                '"secondary_colour_name":"#405060",'
+                '"tint_colour_name":"#708090",'
+                '"extra_colour_name":"#A0B0C0","processing_mode":"global",'
+                '"global_processing":{"blend_mode":"screen","brightness":80,'
+                '"contrast":110,"opacity":90,"saturation":120},'
+                '"marker_color":"blue"},"Scout":{'
+                '"primary_colour_name":"#112233",'
+                '"secondary_colour_name":"#445566",'
+                '"tint_colour_name":"#778899",'
+                '"extra_colour_name":"#AABBCC","marker_color":"yellow"}}}\n'
+            )
+            pattern_path.write_text(pattern_document, encoding="utf-8")
+            handler = SettingsHandler(settings_path, root)
+            handler.set_color_picker_geometry("900x700+20+30")
+
+            handler.restore_factory_defaults()
+
+            self.assertEqual(
+                pattern_path.read_text(encoding="utf-8"),
+                pattern_document,
+            )
+
     def test_settings_without_favorites_loads_empty_collection(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
