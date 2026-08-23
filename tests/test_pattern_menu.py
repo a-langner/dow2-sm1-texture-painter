@@ -1,3 +1,4 @@
+import inspect
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -100,6 +101,14 @@ class FakePainter:
 
 
 class PatternMenuStateTests(unittest.TestCase):
+    def test_factory_reset_has_no_update_or_network_boundary(self):
+        source = inspect.getsource(ArmyPainter.factory_reset)
+
+        self.assertNotIn("AboutDialog", source)
+        self.assertNotIn("update_check", source)
+        self.assertNotIn("request_update", source)
+        self.assertNotIn("http", source)
+
     @patch.object(FactoryResetPatternDeletionDialog, "show")
     @patch.object(FactoryResetDialog, "show", return_value=False)
     def test_factory_reset_without_pattern_deletion_needs_one_confirmation(
