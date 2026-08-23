@@ -1306,6 +1306,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         )
         dialog.selected_paint_id = FakeWidget()
         dialog.selected_paint_id.set(first.id)
+        dialog._save_position = Mock()
         dialog.destroy = Mock()
 
         dialog.use_selected()
@@ -1317,6 +1318,29 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         dialog.close()
         self.assertIsNone(dialog.result)
+
+    def test_closest_dialog_position_uses_secondary_window_safeguards(self):
+        dialog = object.__new__(ClosestCitadelColorDialog)
+        dialog.settings = Mock()
+        dialog.settings.closest_citadel_dialog_position = (1900, 1000)
+        dialog.update_idletasks = Mock()
+        dialog.winfo_width = Mock(return_value=400)
+        dialog.winfo_height = Mock(return_value=240)
+        dialog.winfo_vrootx = Mock(return_value=0)
+        dialog.winfo_vrooty = Mock(return_value=0)
+        dialog.winfo_vrootwidth = Mock(return_value=1920)
+        dialog.winfo_vrootheight = Mock(return_value=1080)
+        dialog.winfo_x = Mock(return_value=1520)
+        dialog.winfo_y = Mock(return_value=840)
+        dialog.geometry = Mock()
+
+        dialog._restore_position()
+        dialog._save_position()
+
+        dialog.geometry.assert_called_once_with("+1520+840")
+        dialog.settings.set_closest_citadel_dialog_position.assert_called_once_with(
+            (1520, 840)
+        )
 
     @patch.object(ClosestCitadelColorDialog, "show")
     def test_using_closest_match_establishes_normal_citadel_selection(self, show):

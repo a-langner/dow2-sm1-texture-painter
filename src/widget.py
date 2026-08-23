@@ -1170,6 +1170,7 @@ class ClosestCitadelColorDialog(tk.Toplevel):
         matches: tuple[ClosestPaintMatch, ...],
     ):
         super().__init__(parent)
+        self.settings = getattr(parent, "settings", None)
         self.current_color = normalize_rgb_hex(current_color)
         self.matches = matches
         self.result: PaintColor | None = None
@@ -1234,6 +1235,7 @@ class ClosestCitadelColorDialog(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", self.close)
         self.bind("<Return>", self.use_selected)
         self.bind("<Escape>", self.close)
+        self._restore_position()
         self.grab_set()
         self.wait_window()
 
@@ -1265,11 +1267,39 @@ class ClosestCitadelColorDialog(tk.Toplevel):
             (match.paint for match in self.matches if match.paint.id == selected_id),
             None,
         )
+        self._save_position()
         self.destroy()
 
     def close(self, Event=None) -> None:
         self.result = None
+        self._save_position()
         self.destroy()
+
+    def _restore_position(self) -> None:
+        self.update_idletasks()
+        position = safe_window_position(
+            getattr(self.settings, "closest_citadel_dialog_position", None),
+            self.winfo_width(),
+            self.winfo_height(),
+            self.winfo_vrootx(),
+            self.winfo_vrooty(),
+            self.winfo_vrootwidth(),
+            self.winfo_vrootheight(),
+        )
+        if position is not None:
+            self.geometry(f"{position[0]:+d}{position[1]:+d}")
+
+    def _save_position(self) -> None:
+        setter = getattr(
+            self.settings,
+            "set_closest_citadel_dialog_position",
+            None,
+        )
+        if setter is not None:
+            try:
+                setter((self.winfo_x(), self.winfo_y()))
+            except OSError:
+                LOGGER.exception("Could not save Closest Citadel dialog position")
 
 
 class ColorPickerDialog(tk.Toplevel):
