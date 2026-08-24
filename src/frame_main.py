@@ -1145,6 +1145,11 @@ class ArmyPainter(tk.Tk):
                 title="Cannot Save Image",
                 message=f"Could not write the output image to:\n{filename}",
             )
+        else:
+            try:
+                self.file_selection.remember_successful_image_export(filename)
+            except OSError:
+                LOGGER.exception("Could not remember image export directory")
 
     def close(self, Event=None):
         ArmyPainter.clear_workspace_history(self)

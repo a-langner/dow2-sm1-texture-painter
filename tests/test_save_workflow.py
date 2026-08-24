@@ -176,7 +176,7 @@ class NormalSaveWorkflowTests(unittest.TestCase):
                 self.assertEqual(saved.tobytes(), expected.tobytes())
 
     @patch("src.frame_main.save_image")
-    def test_image_save_directory_behavior_remains_unremembered(
+    def test_successful_image_save_remembers_export_directory(
         self, save_rendered
     ):
         with tempfile.TemporaryDirectory() as directory:
@@ -185,6 +185,7 @@ class NormalSaveWorkflowTests(unittest.TestCase):
             dialogs = FakeDialogGateway()
             dialogs.save_file_result = destination
             settings = Mock()
+            settings.get_last_image_export_directory.return_value = root
             file_selection = FileSelectionService(
                 settings,
                 dialogs,
@@ -194,8 +195,16 @@ class NormalSaveWorkflowTests(unittest.TestCase):
 
             ArmyPainter.save(self.painter)
 
-        self.assertEqual(settings.mock_calls, [])
+        settings.set_last_image_export_directory.assert_called_once_with(root)
         save_rendered.assert_called_once_with(self.rendered, destination)
+
+    @patch("src.frame_main.save_image", side_effect=OSError("disk failure"))
+    def test_failed_image_save_does_not_remember_export_directory(
+        self, _save_rendered
+    ):
+        ArmyPainter.save(self.painter)
+
+        self.painter.file_selection.remember_successful_image_export.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -105,6 +105,23 @@ class FileSelectionServiceTests(unittest.TestCase):
         )
         self.assertNotEqual(PATTERN_FILETYPES, PATTERN_COLLECTION_FILETYPES)
 
+    def test_image_exports_reuse_directory_and_remember_only_after_success(self):
+        exports = self.root / "rendered"
+        exports.mkdir()
+        destination = exports / "unit_dif.png"
+        self.dialogs.save_file_result = destination
+
+        self.service.choose_image_save_destination("unit_dif.png")
+        self.assertIsNone(self.settings.last_image_export_directory)
+        self.service.remember_successful_image_export(destination)
+        self.service.choose_image_save_destination("other_dif.png")
+
+        self.assertEqual(
+            self.dialogs.calls[-1][1]["initial_directory"], exports.resolve()
+        )
+        reloaded = SettingsHandler(self.settings.path, home_directory=self.home)
+        self.assertEqual(reloaded.last_image_export_directory, exports.resolve())
+
     def test_channel_selection_does_not_read_or_change_remembered_diffuse(self):
         remembered = self.root / "textures"
         remembered.mkdir()

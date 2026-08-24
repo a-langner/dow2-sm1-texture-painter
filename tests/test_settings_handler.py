@@ -33,6 +33,7 @@ class SettingsHandlerTests(unittest.TestCase):
             settings_path = root / "settings.json"
             handler = SettingsHandler(settings_path, root)
             handler.last_diffuse_directory = root
+            handler.last_image_export_directory = root
             handler.last_pattern_import_directory = root
             handler.last_pattern_export_directory = root
             handler.color_picker_geometry = "900x700+20+30"
@@ -66,6 +67,7 @@ class SettingsHandlerTests(unittest.TestCase):
             settings_path = root / "settings.json"
             handler = SettingsHandler(settings_path, root)
             handler.last_diffuse_directory = root
+            handler.last_image_export_directory = root
             handler.last_pattern_import_directory = root
             handler.last_pattern_export_directory = root
             handler.color_picker_geometry = "900x700+20+30"
@@ -92,6 +94,7 @@ class SettingsHandlerTests(unittest.TestCase):
 
             reloaded = SettingsHandler(settings_path, root)
             self.assertIsNone(reloaded.last_diffuse_directory)
+            self.assertIsNone(reloaded.last_image_export_directory)
             self.assertIsNone(reloaded.last_pattern_import_directory)
             self.assertIsNone(reloaded.last_pattern_export_directory)
             self.assertIsNone(reloaded.color_picker_geometry)

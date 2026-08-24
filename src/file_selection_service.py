@@ -89,10 +89,17 @@ class FileSelectionService:
         initial_filename: str,
     ) -> Path | None:
         return self.dialogs.choose_save_file(
-            initial_directory=self._initial_directory(),
+            initial_directory=self._initial_directory(
+                self.settings.get_last_image_export_directory()
+            ),
             filetypes=SAVE_FILETYPES,
             default_extension=SAVE_FILETYPES[0],
             initial_filename=initial_filename,
+        )
+
+    def remember_successful_image_export(self, destination_path: Path) -> None:
+        self.settings.set_last_image_export_directory(
+            Path(destination_path).parent
         )
 
     def choose_pattern_import_file(self) -> Path | None:

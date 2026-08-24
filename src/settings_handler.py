@@ -20,11 +20,13 @@ SETTINGS_VERSION = 1
 LOGGER = logging.getLogger(__name__)
 DIRECTORY_FIELDS = (
     "last_diffuse_directory",
+    "last_image_export_directory",
     "last_pattern_import_directory",
     "last_pattern_export_directory",
 )
 DirectoryField = Literal[
     "last_diffuse_directory",
+    "last_image_export_directory",
     "last_pattern_import_directory",
     "last_pattern_export_directory",
 ]
@@ -69,6 +71,7 @@ class SettingsHandler:
     def _apply_authoritative_defaults(self) -> None:
         """Set the same in-memory values used by a clean first launch."""
         self.last_diffuse_directory: Path | None = None
+        self.last_image_export_directory: Path | None = None
         self.last_pattern_import_directory: Path | None = None
         self.last_pattern_export_directory: Path | None = None
         self.color_picker_geometry: str | None = None
@@ -203,6 +206,8 @@ class SettingsHandler:
     def _get_existing_directory(self, field: DirectoryField) -> Path:
         if field == "last_diffuse_directory":
             directory = self.last_diffuse_directory
+        elif field == "last_image_export_directory":
+            directory = self.last_image_export_directory
         elif field == "last_pattern_import_directory":
             directory = self.last_pattern_import_directory
         else:
@@ -214,6 +219,9 @@ class SettingsHandler:
     def get_diffuse_initial_directory(self) -> Path:
         return self._get_existing_directory("last_diffuse_directory")
 
+    def get_last_image_export_directory(self) -> Path:
+        return self._get_existing_directory("last_image_export_directory")
+
     def get_last_pattern_import_directory(self) -> Path:
         return self._get_existing_directory("last_pattern_import_directory")
 
@@ -224,6 +232,9 @@ class SettingsHandler:
         self._set_directory(
             "last_diffuse_directory", Path(diffuse_file).resolve().parent
         )
+
+    def set_last_image_export_directory(self, directory: Path) -> None:
+        self._set_directory("last_image_export_directory", directory)
 
     def set_last_pattern_import_directory(self, directory: Path) -> None:
         self._set_directory("last_pattern_import_directory", directory)
