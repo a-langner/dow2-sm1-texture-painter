@@ -10,12 +10,18 @@ APP_SELECTION_FOREGROUND = "#FFFFFF"
 
 
 OPEN_FILETYPES = (
-    ("all", (".dds", ".png", ".jpg", ".bmp", ".tga", ".blp")),
+    (
+        "all",
+        (".dds", ".png", ".jpg", ".jpeg", ".bmp", ".tga", ".tif", ".tiff", ".blp"),
+    ),
     ("Direct Draw Surface", ".dds"),
     ("Portable Network Graphics", ".png"),
     ("JPEG Image", ".jpg"),
+    ("JPEG Image", ".jpeg"),
     ("Bitmap", ".bmp"),
     ("True Vision Targa", ".tga"),
+    ("Tagged Image File", ".tif"),
+    ("Tagged Image File", ".tiff"),
     ("Blizzard Texture", ".blp"),
 )
 SAVE_FILETYPES = (

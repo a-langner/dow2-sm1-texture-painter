@@ -162,6 +162,39 @@ class TextureLoadingServiceTests(unittest.TestCase):
 
         self.assertEqual(result.team_color_mask_path, team.resolve())
 
+    def test_dds_diffuse_loads_png_team_color_mask(self):
+        diffuse = self.root / "marine_dif.dds"
+        team = self.root / "marine_tem.png"
+        save_image(diffuse)
+        save_image(team)
+
+        result = self.service.load_diffuse_and_companions(diffuse)
+
+        self.assertEqual(result.team_color_mask_path, team.resolve())
+        self.assertIsNotNone(result.texture_set.team_color)
+
+    def test_jpeg_and_tiff_are_supported_across_diffuse_and_mask_roles(self):
+        for diffuse_extension, mask_extension in (
+            (".jpeg", ".tif"),
+            (".tif", ".jpeg"),
+            (".tiff", ".png"),
+        ):
+            with self.subTest(
+                diffuse_extension=diffuse_extension,
+                mask_extension=mask_extension,
+            ):
+                diffuse = self.root / f"marine_dif{diffuse_extension}"
+                team = self.root / f"marine_tem{mask_extension}"
+                Image.new("RGB", (8, 4), (80, 120, 160)).save(diffuse)
+                Image.new("RGB", (8, 4), (255, 0, 0)).save(team)
+
+                result = self.service.load_diffuse_and_companions(diffuse)
+
+                self.assertEqual(result.team_color_mask_path, team.resolve())
+                self.assertIsNotNone(result.texture_set.team_color)
+                diffuse.unlink()
+                team.unlink()
+
     def test_injected_naming_profile_controls_discovery(self):
         profile = TextureNamingProfile(
             profile_id="test",

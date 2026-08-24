@@ -116,7 +116,7 @@ class TeamColorMaskVariantDiscoveryTests(unittest.TestCase):
             ["unit_pnt.dds", "unit_pnt_4.dds"],
         )
 
-    def test_invalid_lookalikes_and_other_extensions_are_ignored(self):
+    def test_invalid_lookalikes_are_ignored_but_other_texture_formats_are_valid(self):
         self.create_files(
             "unit_tem_backup.dds",
             "unit_tem_test.dds",
@@ -129,7 +129,25 @@ class TeamColorMaskVariantDiscoveryTests(unittest.TestCase):
             "unit_tem_2.png",
         )
 
-        self.assertEqual(discover_team_color_mask_variants(self.diffuse), ())
+        self.assertEqual(
+            [variant.filename for variant in discover_team_color_mask_variants(self.diffuse)],
+            ["unit_tem_2.png"],
+        )
+
+    def test_duplicate_variant_formats_prefer_the_diffuse_extension(self):
+        self.create_files(
+            "unit_tem.png",
+            "unit_tem.dds",
+            "unit_tem_2.tif",
+            "unit_tem_2.dds",
+        )
+
+        variants = discover_team_color_mask_variants(self.diffuse)
+
+        self.assertEqual(
+            [variant.filename for variant in variants],
+            ["unit_tem.dds", "unit_tem_2.dds"],
+        )
 
     def test_matching_is_case_insensitive_and_preserves_real_filename(self):
         self.create_files("unit_TEM.DDS", "unit_TEM_2.DdS")

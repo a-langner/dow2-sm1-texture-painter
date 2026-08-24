@@ -48,7 +48,7 @@ class CompanionTextureDiscoveryTests(unittest.TestCase):
 
             self.assertIsNone(find_companion_texture(source, TextureKind.TEAM_COLOR))
 
-    def test_extension_matching_remains_case_insensitive_but_not_broadened(self):
+    def test_same_extension_is_preferred_when_multiple_formats_match(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             diffuse = root / "marine_DIF.DDS"
@@ -56,6 +56,19 @@ class CompanionTextureDiscoveryTests(unittest.TestCase):
             unrelated = root / "marine_tem.png"
             for path in (diffuse, expected, unrelated):
                 path.touch()
+
+            self.assertEqual(
+                find_companion_texture(diffuse, TextureKind.TEAM_COLOR),
+                expected,
+            )
+
+    def test_mixed_supported_texture_extensions_are_discovered(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            diffuse = root / "marine_dif.dds"
+            expected = root / "marine_tem.png"
+            diffuse.touch()
+            expected.touch()
 
             self.assertEqual(
                 find_companion_texture(diffuse, TextureKind.TEAM_COLOR),
@@ -73,8 +86,8 @@ class CompanionTextureDiscoveryTests(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            diffuse = root / "marine_base.bin"
-            expected = root / "marine_shine.bin"
+            diffuse = root / "marine_base.dds"
+            expected = root / "marine_shine.png"
             diffuse.touch()
             expected.touch()
 

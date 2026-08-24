@@ -26,6 +26,10 @@ LOGGER = logging.getLogger(__name__)
 SUPPORTED_TEXTURE_EXTENSIONS = frozenset(
     f".{extension.casefold()}" for extension in OPEN_EXT_LIST
 )
+SUPPORTED_EXTENSION_PRIORITY = {
+    f".{extension.casefold()}": index
+    for index, extension in enumerate(OPEN_EXT_LIST)
+}
 
 
 class UnsupportedTextureError(TextureValidationError):
@@ -69,7 +73,7 @@ def validate_supported_texture_path(texture_path: Path) -> Path:
     if texture_path.suffix.casefold() not in SUPPORTED_TEXTURE_EXTENSIONS:
         raise UnsupportedTextureError(
             f'Unsupported texture file "{texture_path}". '
-            "Choose a DDS, PNG, JPG, BMP, TGA, or BLP file."
+            "Choose a DDS, PNG, JPEG, BMP, TGA, TIFF, or BLP file."
         )
     return texture_path
 
@@ -99,12 +103,36 @@ def find_companion_texture(
         )
         return None
 
-    expected_name = expected_path.name.casefold()
-    for candidate in diffuse_path.parent.iterdir():
-        if candidate.is_file() and candidate.name.casefold() == expected_name:
-            return candidate
+    expected_stem = expected_path.stem.casefold()
+    candidates = [
+        candidate
+        for candidate in diffuse_path.parent.iterdir()
+        if candidate.is_file()
+        and candidate.stem.casefold() == expected_stem
+        and candidate.suffix.casefold() in SUPPORTED_TEXTURE_EXTENSIONS
+    ]
+    if candidates:
+        return min(
+            candidates,
+            key=lambda candidate: _companion_candidate_sort_key(
+                candidate, diffuse_path.suffix
+            ),
+        )
     LOGGER.debug("Companion texture is absent: %s", expected_path)
     return None
+
+
+def _companion_candidate_sort_key(
+    candidate: Path, diffuse_extension: str
+) -> tuple[bool, int, str, str]:
+    """Prefer the DIF extension, then the canonical supported-format order."""
+    extension = candidate.suffix.casefold()
+    return (
+        extension != diffuse_extension.casefold(),
+        SUPPORTED_EXTENSION_PRIORITY[extension],
+        candidate.name.casefold(),
+        candidate.name,
+    )
 
 
 def discover_team_color_mask_variants(
@@ -126,21 +154,29 @@ def discover_team_color_mask_variants(
         rf"^{re.escape(default_path.stem)}(?:_([1-9]\d*))?$",
         re.IGNORECASE,
     )
-    extension = diffuse_path.suffix.casefold()
-    variants: list[TeamColorMaskVariant] = []
+    candidates_by_index: dict[int | None, Path] = {}
     for candidate in diffuse_path.parent.iterdir():
-        if not candidate.is_file() or candidate.suffix.casefold() != extension:
+        if (
+            not candidate.is_file()
+            or candidate.suffix.casefold() not in SUPPORTED_TEXTURE_EXTENSIONS
+        ):
             continue
         match = stem_pattern.fullmatch(candidate.stem)
         if match is None:
             continue
         numbered_suffix = match.group(1)
-        variants.append(
-            TeamColorMaskVariant(
-                int(numbered_suffix) if numbered_suffix is not None else None,
-                candidate,
-            )
+        variant_index = (
+            int(numbered_suffix) if numbered_suffix is not None else None
         )
+        current = candidates_by_index.get(variant_index)
+        if current is None or _companion_candidate_sort_key(
+            candidate, diffuse_path.suffix
+        ) < _companion_candidate_sort_key(current, diffuse_path.suffix):
+            candidates_by_index[variant_index] = candidate
+    variants = [
+        TeamColorMaskVariant(variant_index, candidate)
+        for variant_index, candidate in candidates_by_index.items()
+    ]
     return tuple(
         sorted(
             variants,
