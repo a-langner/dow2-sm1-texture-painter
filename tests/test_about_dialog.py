@@ -8,6 +8,7 @@ from src.widget import (
     ABOUT_CITADEL_ATTRIBUTION,
     ABOUT_DESCRIPTION,
     ABOUT_DISCLAIMER,
+    ABOUT_LICENSE,
     ABOUT_MAINTAINER,
     ABOUT_MAINTAINER_URL,
     ABOUT_ORIGINAL_AUTHOR,
@@ -64,6 +65,10 @@ class AboutDialogTests(unittest.TestCase):
         )
         self.assertEqual(ABOUT_MAINTAINER, "a-langner (Andreas Langner)")
         self.assertEqual(ABOUT_ORIGINAL_AUTHOR, "Jaccouille (Marc Szilagyi)")
+        self.assertEqual(
+            ABOUT_LICENSE,
+            "Army Painter is licensed under the MIT License.",
+        )
         self.assertEqual(
             ABOUT_CITADEL_ATTRIBUTION,
             "Arcturus5404/miniature-paints — MIT License",

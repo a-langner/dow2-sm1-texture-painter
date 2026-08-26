@@ -105,6 +105,7 @@ ABOUT_CITADEL_ATTRIBUTION = "Arcturus5404/miniature-paints — MIT License"
 ABOUT_MAINTAINER_URL = "https://github.com/a-langner/dow2-sm1-texture-painter"
 ABOUT_ORIGINAL_AUTHOR_URL = "https://github.com/Jaccouille/dow2-texture-painter"
 ABOUT_CITADEL_DATA_URL = "https://github.com/Arcturus5404/miniature-paints"
+ABOUT_LICENSE = "Army Painter is licensed under the MIT License."
 ABOUT_DISCLAIMER = (
     "Army Painter is an unofficial community tool and is not affiliated with, "
     "endorsed by, or associated with Games Workshop, Citadel, Relic "
@@ -1116,6 +1117,11 @@ class AboutDialog(tk.Toplevel):
             text=ABOUT_DISCLAIMER,
             justify=tk.CENTER,
             wraplength=410,
+            foreground="#606060",
+        ).pack(pady=(0, 12))
+        ttk.Label(
+            content,
+            text=ABOUT_LICENSE,
             foreground="#606060",
         ).pack(pady=(0, 12))
         ttk.Label(content, text=f"Version {APP_VERSION}").pack()
