@@ -37,6 +37,17 @@ class PyInstallerSpecTests(unittest.TestCase):
             with self.subTest(excluded_name=excluded_name):
                 self.assertNotIn(excluded_name, contents)
 
+    def test_one_folder_bundle_copies_legal_files_beside_executable(self):
+        contents = SPEC_PATH.read_text(encoding="utf-8")
+
+        self.assertIn('PROJECT_ROOT / "LICENSE"', contents)
+        self.assertIn('PROJECT_ROOT / "THIRD_PARTY_NOTICES.md"', contents)
+        self.assertIn("bundle_directory = Path(DISTPATH) / BUNDLE_NAME", contents)
+        self.assertIn(
+            "copy2(legal_file, bundle_directory / legal_file.name)",
+            contents,
+        )
+
     def test_makefile_uses_only_the_authoritative_spec(self):
         contents = MAKEFILE_PATH.read_text(encoding="utf-8")
 

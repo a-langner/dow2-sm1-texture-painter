@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from shutil import copy2
 
 from PyInstaller.utils.hooks import collect_data_files
 from src.app_identity import BUILD_NAME
@@ -12,6 +13,10 @@ ONE_FILE = os.environ.get("TEXTURE_PAINTER_ONEFILE") == "1"
 PROJECT_ROOT = Path(SPECPATH).resolve()
 ENTRY_POINT = PROJECT_ROOT / "src" / "frame_main.py"
 APP_ICON = PROJECT_ROOT / "src" / "resources" / "icon_64x64.ico"
+LEGAL_FILES = (
+    PROJECT_ROOT / "LICENSE",
+    PROJECT_ROOT / "THIRD_PARTY_NOTICES.md",
+)
 
 # Keep immutable package resources at their importable package destination.
 RESOURCE_DATA = collect_data_files("src.resources")
@@ -68,3 +73,6 @@ else:
         upx=True,
         name=BUNDLE_NAME,
     )
+    bundle_directory = Path(DISTPATH) / BUNDLE_NAME
+    for legal_file in LEGAL_FILES:
+        copy2(legal_file, bundle_directory / legal_file.name)
