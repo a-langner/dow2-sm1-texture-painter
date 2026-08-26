@@ -1347,6 +1347,34 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(polygon.kwargs["outline"], PAINT_SWATCH_OUTLINE)
         self.assertTrue(polygon.kwargs["smooth"])
 
+    @patch("src.widget.tk.Canvas")
+    def test_favorite_dialog_swatch_uses_picker_rounding(self, canvas_type):
+        swatch = CustomFavoriteNameDialog._create_swatch(object(), "#395C71")
+
+        self.assertIs(swatch, canvas_type.return_value)
+        self.assertEqual(
+            canvas_type.call_args.kwargs,
+            {
+                "width": 22,
+                "height": 22,
+                "bd": 0,
+                "highlightthickness": 0,
+            },
+        )
+        polygon = swatch.create_polygon.call_args
+        self.assertEqual(
+            polygon.args[:4],
+            (
+                1 + RECENT_COLOR_SWATCH_CORNER_RADIUS,
+                1,
+                21 - RECENT_COLOR_SWATCH_CORNER_RADIUS,
+                1,
+            ),
+        )
+        self.assertEqual(polygon.kwargs["fill"], "#395C71")
+        self.assertEqual(polygon.kwargs["outline"], PAINT_SWATCH_OUTLINE)
+        self.assertTrue(polygon.kwargs["smooth"])
+
     def test_closest_dialog_position_uses_secondary_window_safeguards(self):
         dialog = object.__new__(ClosestCitadelColorDialog)
         dialog.settings = Mock()

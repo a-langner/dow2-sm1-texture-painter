@@ -1427,15 +1427,7 @@ class CustomFavoriteNameDialog(tk.Toplevel):
         if initial_name:
             self.name_entry.insert(0, initial_name)
         ttk.Label(content, text="Color:").grid(row=2, column=0, sticky=tk.W)
-        self.color_preview = tk.Canvas(
-            content,
-            width=22,
-            height=22,
-            background=self.color,
-            bd=0,
-            highlightthickness=1,
-            highlightbackground=COLOR_PREVIEW_BORDER,
-        )
+        self.color_preview = self._create_swatch(content, self.color)
         self.color_preview.grid(row=3, column=0, sticky=tk.W, pady=(2, 12))
         ttk.Label(content, text=self.color).grid(
             row=3,
@@ -1484,6 +1476,28 @@ class CustomFavoriteNameDialog(tk.Toplevel):
         self.result = None
         self._save_position()
         self.destroy()
+
+    @staticmethod
+    def _create_swatch(parent: tk.Misc, color: str) -> tk.Canvas:
+        canvas = tk.Canvas(
+            parent,
+            width=22,
+            height=22,
+            bd=0,
+            highlightthickness=0,
+        )
+        draw_rounded_swatch(
+            canvas,
+            1,
+            1,
+            21,
+            21,
+            fill=color,
+            outline=PAINT_SWATCH_OUTLINE,
+            width=1,
+            corner_radius=RECENT_COLOR_SWATCH_CORNER_RADIUS,
+        )
+        return canvas
 
     def _restore_position(self) -> None:
         self.update_idletasks()
