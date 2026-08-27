@@ -384,8 +384,9 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         self.assertTrue(frame._editing_indicator_visible)
         self.assertTrue(frame.editing_label.is_packed)
         self.assertEqual(frame.editing_label.options["text"], "Editing: Color 3")
-        self.assertIs(
-            frame.editing_label.pack_options["before"], frame.blend_mode_label
+        self.assertEqual(
+            frame.editing_label.pack_options,
+            {"side": "left", "padx": (8, 6), "pady": 4},
         )
 
         frame.set_processing_context(ProcessingMode.GLOBAL, ColorSlot.COLOR_3)

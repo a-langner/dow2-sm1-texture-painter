@@ -4193,9 +4193,8 @@ class FrameColorOps(tk.LabelFrame):
             if not self._editing_indicator_visible:
                 self.editing_label.pack(
                     side=tk.LEFT,
-                    padx=(4, 6),
+                    padx=(8, 6),
                     pady=4,
-                    before=self.blend_mode_label,
                 )
                 self._editing_indicator_visible = True
         elif self._editing_indicator_visible:
