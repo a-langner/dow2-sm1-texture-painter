@@ -726,7 +726,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.transient.assert_called_once_with(parent)
         dialog.resizable.assert_called_once_with(True, True)
         dialog.geometry.assert_called_once_with("1196x760")
-        dialog.minsize.assert_called_once_with(900, 760)
+        dialog.minsize.assert_called_once_with(1196, 760)
 
     def test_saved_window_geometry_is_restored_before_display(self):
         dialog = object.__new__(ColorPickerDialog)
@@ -747,7 +747,7 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         dialog._configure_window(object())
 
-        dialog.geometry.assert_called_once_with("1000x760-1800+120")
+        dialog.geometry.assert_called_once_with("1196x760-1800+120")
 
     def test_invalid_saved_window_geometry_uses_current_default_size(self):
         dialog = object.__new__(ColorPickerDialog)
@@ -767,16 +767,16 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog._configure_window(object())
 
         dialog.geometry.assert_called_once_with("1196x760")
-        dialog.minsize.assert_called_once_with(900, 760)
+        dialog.minsize.assert_called_once_with(1196, 760)
 
     def test_saved_window_geometry_enforces_each_picker_minimum_dimension(self):
         cases = (
             ("1200x900+200+100", "1200x900+200+100"),
-            ("1000x600+200+100", "1000x760+200+100"),
-            ("700x900+200+100", "900x900+200+100"),
-            ("700x600+200+100", "900x760+200+100"),
-            ("1000x800+2500+1200", "1000x800+920+280"),
-            ("1100x760+120+80", "1100x760+120+80"),
+            ("1000x600+200+100", "1196x760+200+100"),
+            ("700x900+200+100", "1196x900+200+100"),
+            ("700x600+200+100", "1196x760+200+100"),
+            ("1000x800+2500+1200", "1196x800+724+280"),
+            ("1100x760+120+80", "1196x760+120+80"),
         )
         for saved_geometry, expected_geometry in cases:
             with self.subTest(saved_geometry=saved_geometry):
@@ -799,7 +799,7 @@ class ColorPickerDialogTests(unittest.TestCase):
                 dialog._configure_window(object())
 
                 dialog.geometry.assert_called_once_with(expected_geometry)
-                dialog.minsize.assert_called_once_with(900, 760)
+                dialog.minsize.assert_called_once_with(1196, 760)
 
     def test_closing_picker_saves_current_geometry(self):
         dialog = object.__new__(ColorPickerDialog)

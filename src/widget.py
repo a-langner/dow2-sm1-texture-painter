@@ -128,8 +128,6 @@ DEFAULT_PATTERN_MARKER_COLORS = ("#202020", "#505050")
 HEADER_SEPARATOR_STARTUP_RETRIES = 3
 COLOR_PICKER_DEFAULT_WIDTH = 1196
 COLOR_PICKER_DEFAULT_HEIGHT = 760
-COLOR_PICKER_MIN_WIDTH = 900
-COLOR_PICKER_MIN_HEIGHT = 760
 COLOR_PICKER_SCREEN_MARGIN = 80
 COLOR_PICKER_GROUP_PANE_WIDTH = 140
 COLOR_PICKER_PALETTE_PANE_WIDTH = 636
@@ -1815,18 +1813,15 @@ class ColorPickerDialog(tk.Toplevel):
         if saved_geometry is not None:
             geometry = safe_window_geometry(
                 saved_geometry,
-                min(COLOR_PICKER_MIN_WIDTH, width),
-                min(COLOR_PICKER_MIN_HEIGHT, height),
+                width,
+                height,
                 self.winfo_vrootx(),
                 self.winfo_vrooty(),
                 self.winfo_vrootwidth(),
                 self.winfo_vrootheight(),
             )
         self.geometry(geometry or f"{width}x{height}")
-        self.minsize(
-            min(COLOR_PICKER_MIN_WIDTH, width),
-            min(COLOR_PICKER_MIN_HEIGHT, height),
-        )
+        self.minsize(width, height)
 
     def _build_actions(self) -> None:
         actions = ttk.Frame(self, padding=COLOR_EDITOR_SECTION_GAP)
