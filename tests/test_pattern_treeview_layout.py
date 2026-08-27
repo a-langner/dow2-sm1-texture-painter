@@ -75,11 +75,11 @@ class FakeSeparator:
 
 class FakeActionFrame:
     def __init__(self):
-        self.pack_options = None
+        self.grid_options = None
         self.column_weights = {}
 
-    def pack(self, **kwargs):
-        self.pack_options = kwargs
+    def grid(self, **kwargs):
+        self.grid_options = kwargs
 
     def grid_columnconfigure(self, column, weight):
         self.column_weights[column] = weight
@@ -479,6 +479,10 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
 
         frame._create_action_buttons()
 
+        self.assertEqual(
+            frame.action_frame.grid_options,
+            {"row": 1, "column": 0, "sticky": tk.EW},
+        )
         self.assertEqual(frame.action_frame.column_weights, {0: 1, 1: 1})
         self.assertEqual(
             [

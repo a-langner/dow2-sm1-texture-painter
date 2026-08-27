@@ -4323,9 +4323,11 @@ class FramePatternList(tk.Frame):
             background=[("selected", APP_SELECTION_BACKGROUND)],
             foreground=[("selected", APP_SELECTION_FOREGROUND)],
         )
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
 
         self.tree_frame = tk.Frame(self)
-        self.tree_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        self.tree_frame.grid(row=0, column=0, sticky=tk.NSEW)
 
         self.scrollbar = ttk.Scrollbar(self.tree_frame, orient=tk.VERTICAL)
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
@@ -4492,7 +4494,7 @@ class FramePatternList(tk.Frame):
 
     def _create_action_buttons(self):
         self.action_frame = tk.Frame(self)
-        self.action_frame.pack(side=tk.TOP, fill=tk.X)
+        self.action_frame.grid(row=1, column=0, sticky=tk.EW)
         self.action_frame.grid_columnconfigure(0, weight=1)
         self.action_frame.grid_columnconfigure(1, weight=1)
 
