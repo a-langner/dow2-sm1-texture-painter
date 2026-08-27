@@ -279,7 +279,7 @@ class ArmyPainter(tk.Tk):
         with as_file(icon_resource) as icon_path:
             self.icon_img = tk.PhotoImage(file=str(icon_path))
         self.iconphoto(False, self.icon_img)
-        self.minsize(min_width, min_height)
+        self.minsize(initial_width, initial_height)
         self.title(f"{APP_NAME} {APP_VERSION}")
         self.protocol("WM_DELETE_WINDOW", self.on_exit)
 

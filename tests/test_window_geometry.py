@@ -160,6 +160,7 @@ class InitialWindowGeometryTests(unittest.TestCase):
         painter.geometry.assert_called_once_with(
             f"{expected_size[0]}x{expected_size[1]}"
         )
+        painter.minsize.assert_called_once_with(*expected_size)
 
     @staticmethod
     def _main_window_painter():
