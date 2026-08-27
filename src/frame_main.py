@@ -279,6 +279,7 @@ class ArmyPainter(tk.Tk):
         with as_file(icon_resource) as icon_path:
             self.icon_img = tk.PhotoImage(file=str(icon_path))
         self.iconphoto(False, self.icon_img)
+        self._default_min_window_size = (initial_width, initial_height)
         self.minsize(initial_width, initial_height)
         self.title(f"{APP_NAME} {APP_VERSION}")
         self.protocol("WM_DELETE_WINDOW", self.on_exit)
@@ -1158,6 +1159,9 @@ class ArmyPainter(tk.Tk):
         self.active_texture_set = None
         self.available_team_color_mask_variants = ()
         self.active_team_color_mask_variant = None
+        default_minimum = getattr(self, "_default_min_window_size", None)
+        if default_minimum is not None:
+            self.minsize(*default_minimum)
         ArmyPainter.sync_team_color_mask_variant_selector(self)
         self.img_dif = ImageTk.PhotoImage(
             create_placeholder_img("Select Diffuse Texture", "RGBA")
@@ -1643,10 +1647,7 @@ class ArmyPainter(tk.Tk):
 
     def resize_for_diffuse(self, texture_size):
         """Apply one texture-specific resize without disturbing maximized windows."""
-        if is_window_maximized(self):
-            return
-
-        min_width, min_height = self.minsize()
+        min_width, min_height = self._default_min_window_size
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
         target_width, target_height = calculate_diffuse_window_size(
@@ -1657,6 +1658,10 @@ class ArmyPainter(tk.Tk):
             screen_width,
             screen_height,
         )
+        self.minsize(target_width, target_height)
+        if is_window_maximized(self):
+            return
+
         target_x, target_y = clamp_window_position(
             self.winfo_x(),
             self.winfo_y(),

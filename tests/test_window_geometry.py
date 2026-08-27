@@ -1,6 +1,6 @@
 import unittest
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 from unittest.mock import patch
 
 import test_support  # noqa: F401 - installs the user-data path redirect
@@ -21,8 +21,22 @@ from src.texture_naming import DEFAULT_TEXTURE_NAMING
 
 
 class FakeMaximizedPainter:
+    _default_min_window_size = (678, 500)
+
+    def __init__(self):
+        self.minimum_calls = []
+
     def state(self):
         return "zoomed"
+
+    def minsize(self, width, height):
+        self.minimum_calls.append((width, height))
+
+    def winfo_screenwidth(self):
+        return 1920
+
+    def winfo_screenheight(self):
+        return 1080
 
     def geometry(self, value):
         raise AssertionError("A maximized window must not be resized")
@@ -160,6 +174,7 @@ class InitialWindowGeometryTests(unittest.TestCase):
         painter.geometry.assert_called_once_with(
             f"{expected_size[0]}x{expected_size[1]}"
         )
+        self.assertEqual(painter._default_min_window_size, expected_size)
         painter.minsize.assert_called_once_with(*expected_size)
 
     @staticmethod
@@ -230,6 +245,36 @@ class DiffuseWindowGeometryTests(unittest.TestCase):
         painter = FakeMaximizedPainter()
 
         ArmyPainter.resize_for_diffuse(painter, (1024, 1024))
+
+        self.assertEqual(painter.minimum_calls, [(1728, 972)])
+
+    def test_loaded_minimum_can_decrease_but_not_below_startup_minimum(self):
+        painter = SimpleNamespace(
+            _default_min_window_size=(800, 600),
+            winfo_screenwidth=Mock(return_value=1920),
+            winfo_screenheight=Mock(return_value=1080),
+            winfo_x=Mock(return_value=100),
+            winfo_y=Mock(return_value=75),
+            minsize=Mock(),
+            geometry=Mock(),
+            state=Mock(return_value="normal"),
+            attributes=Mock(return_value=False),
+        )
+
+        ArmyPainter.resize_for_diffuse(painter, (600, 700))
+        ArmyPainter.resize_for_diffuse(painter, (64, 64))
+
+        self.assertEqual(
+            painter.minsize.call_args_list,
+            [
+                call(
+                    *calculate_diffuse_window_size(
+                        600, 700, 800, 600, 1920, 1080
+                    )
+                ),
+                call(800, 600),
+            ],
+        )
 
     def test_invalid_diffuse_does_not_reach_resize(self):
         painter = FakeLoadingPainter(TextureValidationError("invalid diffuse"))
