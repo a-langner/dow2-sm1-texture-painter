@@ -2445,7 +2445,7 @@ class ColorPickerDialog(tk.Toplevel):
         self.favorite_button.grid(row=0, column=2, sticky=tk.E, padx=(8, 0))
         self.closest_citadel_button = ttk.Button(
             self.editor_hex_area,
-            text="Find Closest Citadel Color",
+            text="Closest Color",
             command=self.find_closest_citadel_color,
         )
         self.closest_citadel_button.grid(

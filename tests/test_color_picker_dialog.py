@@ -2061,7 +2061,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         )
         self.assertEqual(
             dialog.closest_citadel_button.options["text"],
-            "Find Closest Citadel Color",
+            "Closest Color",
         )
         self.assertEqual(
             dialog.closest_citadel_button.grid_options,
