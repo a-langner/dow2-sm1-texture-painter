@@ -540,8 +540,6 @@ class ArmyPainter(tk.Tk):
         if len(variants) >= 2:
             self.frame_team_color_mask_variant.pack(
                 side=tk.LEFT,
-                fill=tk.X,
-                expand=True,
                 padx=(8, 6),
                 pady=4,
             )

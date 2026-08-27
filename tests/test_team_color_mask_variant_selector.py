@@ -69,7 +69,7 @@ class TeamColorMaskVariantSelectorTests(unittest.TestCase):
             "marine_tem_2.dds"
         )
         painter.frame_team_color_mask_variant.pack.assert_called_once_with(
-            side="left", fill="x", expand=True, padx=(8, 6), pady=4
+            side="left", padx=(8, 6), pady=4
         )
         painter.frame_team_color_mask_variant.pack_forget.assert_not_called()
 
