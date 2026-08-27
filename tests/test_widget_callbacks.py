@@ -35,7 +35,7 @@ class FakeScale:
     def __init__(self, parent, **options):
         self.parent = parent
         self.options = options
-        self.value = 75 if options["label"] == "Brightness" else 100
+        self.value = options["variable"].get()
         self.bindings = {}
 
     def pack(self, **options):
@@ -392,10 +392,21 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         self.assertFalse(frame._editing_indicator_visible)
         self.assertFalse(frame.editing_label.is_packed)
 
+    @patch("src.widget.ttk.Label", side_effect=FakeWidget)
+    @patch("src.widget.tk.Frame", side_effect=FakeWidget)
+    @patch(
+        "src.widget.tk.IntVar",
+        side_effect=lambda master, value: ValueVariable(value),
+    )
     @patch("src.widget.tk.Scale", side_effect=FakeScale)
     @patch("src.widget.tk.Frame.__init__", return_value=None)
     def test_slider_constructs_with_minimal_parent_and_forwards_values(
-        self, _frame_init, _scale_type
+        self,
+        _frame_init,
+        _scale_type,
+        _int_var,
+        frame_type,
+        label_type,
     ):
         callback = Mock()
         started = Mock()
@@ -412,6 +423,20 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         frame.contrast_slider.options["command"]("100")
         frame.saturation_slider.options["command"]("100")
         frame.opacity_slider.options["command"]("100")
+
+        self.assertEqual(frame_type.call_count, 8)
+        self.assertEqual(label_type.call_count, 8)
+        self.assertTrue(
+            all(
+                not slider.options["showvalue"]
+                for slider in (
+                    frame.brightness_slider,
+                    frame.contrast_slider,
+                    frame.saturation_slider,
+                    frame.opacity_slider,
+                )
+            )
+        )
 
         expected = (75.0, 100.0, 100.0, 100.0)
         self.assertEqual(callback.call_args_list[0].args, expected)

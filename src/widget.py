@@ -4052,56 +4052,19 @@ class FrameSlider(tk.Frame):
         self._on_levels_changed = on_levels_changed
         self._on_interaction_started = on_interaction_started
         self._on_interaction_finished = on_interaction_finished
-
-        # Brightness slider
-        self.brightness_slider = tk.Scale(
-            self,
-            label="Brightness",
-            length=150,
-            from_=MIN_BRIGHTNESS,
-            to=MAX_BRIGHTNESS,
-            orient=tk.HORIZONTAL,
-            command=self._notify_levels_changed,
+        self._slider_values = []
+        self.brightness_slider = self._create_slider_block(
+            "Brightness", 75, MIN_BRIGHTNESS, MAX_BRIGHTNESS
         )
-        self.brightness_slider.pack(side=tk.TOP, fill=tk.X)
-
-        # Contrast slider
-        self.contrast_slider = tk.Scale(
-            self,
-            label="Contrast",
-            length=200,
-            from_=MIN_CONTRAST,
-            to=MAX_CONTRAST,
-            orient=tk.HORIZONTAL,
-            command=self._notify_levels_changed,
+        self.contrast_slider = self._create_slider_block(
+            "Contrast", 100, MIN_CONTRAST, MAX_CONTRAST
         )
-        self.contrast_slider.pack(side=tk.TOP, fill=tk.X)
-
-        # Saturation slider
-        self.saturation_slider = tk.Scale(
-            self,
-            label="Saturation",
-            length=200,
-            from_=MIN_SATURATION,
-            to=MAX_SATURATION,
-            orient=tk.HORIZONTAL,
-            command=self._notify_levels_changed,
+        self.saturation_slider = self._create_slider_block(
+            "Saturation", 100, MIN_SATURATION, MAX_SATURATION
         )
-        self.saturation_slider.set(100)
-        self.saturation_slider.pack(side=tk.TOP, fill=tk.X)
-
-        # Opacity slider
-        self.opacity_slider = tk.Scale(
-            self,
-            label="Opacity",
-            length=100,
-            from_=MIN_OPACITY,
-            to=MAX_OPACITY,
-            orient=tk.HORIZONTAL,
-            command=self._notify_levels_changed,
+        self.opacity_slider = self._create_slider_block(
+            "Opacity", 100, MIN_OPACITY, MAX_OPACITY
         )
-        self.opacity_slider.set(100)
-        self.opacity_slider.pack(side=tk.TOP, fill=tk.X)
 
         for slider in (
             self.brightness_slider,
@@ -4111,6 +4074,28 @@ class FrameSlider(tk.Frame):
         ):
             slider.bind("<ButtonPress-1>", self._notify_interaction_started)
             slider.bind("<ButtonRelease-1>", self._notify_interaction_finished)
+
+    def _create_slider_block(self, label, initial_value, minimum, maximum):
+        value = tk.IntVar(self, value=initial_value)
+        self._slider_values.append(value)
+        block = tk.Frame(self)
+        block.pack(side=tk.TOP, fill=tk.X, padx=4, pady=(2, 6))
+        header = tk.Frame(block)
+        header.pack(side=tk.TOP, fill=tk.X)
+        ttk.Label(header, text=label).pack(side=tk.LEFT)
+        ttk.Label(header, textvariable=value).pack(side=tk.RIGHT)
+        slider = tk.Scale(
+            block,
+            variable=value,
+            showvalue=False,
+            length=200,
+            from_=minimum,
+            to=maximum,
+            orient=tk.HORIZONTAL,
+            command=self._notify_levels_changed,
+        )
+        slider.pack(side=tk.TOP, fill=tk.X, pady=(1, 0))
+        return slider
 
     def _notify_levels_changed(self, value=None):
         self._on_levels_changed(
