@@ -482,7 +482,7 @@ class ArmyPainter(tk.Tk):
         self.show_original_button.pack(side=tk.LEFT, padx=6, pady=4)
 
         self.frame_team_color_mask_variant = tk.Frame(
-            self.frame_color_op_option
+            self.frame_preview_controls
         )
         self.frame_team_color_mask_variant.grid_columnconfigure(0, weight=1)
         self.frame_team_color_mask_variant.grid_columnconfigure(3, weight=1)
