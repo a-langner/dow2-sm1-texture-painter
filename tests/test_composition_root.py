@@ -123,7 +123,10 @@ class ArmyPainterCompositionTests(unittest.TestCase):
         self.assertIs(painter.batch_executor, batch_executor)
 
     @patch("src.frame_main.FramePatternList", return_value=FakePatternPanel())
-    @patch("src.frame_main.tk.Frame", side_effect=(FakeFrame(), FakeFrame()))
+    @patch(
+        "src.frame_main.tk.Frame",
+        side_effect=(FakeFrame(), FakeFrame(), FakeFrame()),
+    )
     def test_widgets_receive_callbacks_and_activate_after_assignment(
         self, frame_type, pattern_panel_type
     ):
@@ -150,6 +153,10 @@ class ArmyPainterCompositionTests(unittest.TestCase):
 
         ArmyPainter._create_application_widgets(painter)
 
+        self.assertEqual(
+            painter.frame_preview_controls.pack_options,
+            {"side": "top", "fill": "x"},
+        )
         options = pattern_panel_type.call_args.kwargs
         self.assertIs(options["on_save_new"], painter.save_pattern)
         self.assertIs(options["on_update"], painter.update_selected_pattern)

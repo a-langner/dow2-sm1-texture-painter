@@ -336,6 +336,9 @@ class ArmyPainter(tk.Tk):
         )
         self.frame_img_tools.pack(side=tk.TOP, fill=tk.BOTH)
 
+        self.frame_preview_controls = tk.Frame(self)
+        self.frame_preview_controls.pack(side=tk.TOP, fill=tk.X)
+
         self.define_frame_workspace_tool()
 
         self.frame_img = tk.Frame(self)
@@ -458,7 +461,7 @@ class ArmyPainter(tk.Tk):
         self.frame_sliders.pack(side=tk.LEFT, fill=tk.Y)
 
         self.show_original_button = tk.Button(
-            self.frame_img_tools,
+            self.frame_preview_controls,
             text="Show Original",
             state=tk.DISABLED,
             width=12,
