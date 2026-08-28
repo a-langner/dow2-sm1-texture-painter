@@ -175,6 +175,12 @@ It is not affiliated with, endorsed by, sponsored by, or associated with **Games
 
 Warhammer 40,000, Dawn of War, Space Marine, Citadel, and other related names and properties belong to their respective owners.
 
+## License
+
+Army Painter is released under the MIT License.
+
+See [LICENSE](LICENSE) and [Third-Party Notices](THIRD_PARTY_NOTICES.md).
+
 ## Developing
 
 [Developing Documentation](docs/developing.md)
