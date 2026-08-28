@@ -151,6 +151,22 @@ Open `Tools -> Batch Edit Tools` to process or convert a folder of textures:
 
 Use `Help -> About -> Check for Updates` to check GitHub Releases for a newer published version. Army Painter does not download or install updates automatically.
 
+## Credits
+
+### Current development
+
+**a-langner (Andreas Langner)**
+
+### Original application
+
+**Jaccouille (Marc Szilagyi)**
+
+Army Painter is based on Marc's original [dow2-texture-painter](https://github.com/Jaccouille/dow2-texture-painter).
+
+### Citadel Color Data
+
+Citadel Color data is sourced and adapted from [**Arcturus5404/miniature-paints**](https://github.com/Arcturus5404/miniature-paints) under the MIT License. See [Third-Party Notices](THIRD_PARTY_NOTICES.md) for complete attribution and license information.
+
 ## Developing
 
 [Developing Documentation](docs/developing.md)
