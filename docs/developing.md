@@ -6,6 +6,8 @@ build information for Army Painter.
 For installation, usage, and an overview of the application's features, see
 the [main README](../README.md).
 
+## Development Setup
+
 Create a virtual environment and install the runtime requirements, development
 requirements, and project in editable mode.
 
@@ -37,13 +39,15 @@ On Unix-like systems, `make setup-dev` performs the environment creation and
 installation without requiring activation. Afterward, `make run-dev` starts the
 application through that environment.
 
-### Widget callback rule
+## Architecture
+
+### Widget Callback Rule
 
 Widgets receive behavior through explicit `on_...` callbacks and must not reach
 upward to the application root to invoke controller methods. Callbacks should
 carry domain values, such as color or slider values, rather than Tk widgets.
 
-### Texture naming profiles
+### Texture Naming Profiles
 
 Texture roles and the Dawn of War II and Space Marine 1 filename profiles are
 defined in `src/texture_naming.py`. Each profile has a stable internal ID, a
@@ -56,7 +60,7 @@ persists its stable ID in `settings.json` for the next application start.
 Normal maps are intentionally outside the renderer and profile model. The
 existing `_drt` dirt-map workflow remains distinct and unchanged.
 
-### Texture files, channels, and batch scope
+### Texture Files, Channels, and Batch Scope
 
 Interactive loading accepts DDS, PNG, JPEG, BMP, TGA, TIFF, and BLP images.
 Image export supports PNG, JPEG, BMP, and TGA. Companion discovery searches
@@ -75,7 +79,9 @@ four previously extracted Dawn of War I mask images whose stems end in
 mask using the currently selected naming profile. This converter does not make
 Dawn of War I a supported interactive recolouring profile.
 
-### Pattern persistence
+## Pattern System
+
+### Pattern Persistence
 
 `src/color_pattern_handler.py` owns Pattern validation and persistent storage,
 `src/pattern_exchange.py` owns exchange validation and atomic import/export, and
@@ -130,7 +136,7 @@ current workspace; Update, Rename, Delete, marker changes, and manual reorder
 apply only to User Patterns. Built-ins cannot be modified, overwritten, or
 given marker metadata.
 
-### Pattern exchange formats
+### Pattern Exchange Formats
 
 Single Pattern exchange uses `.pattern.json`, format
 `dow2-sm1-texture-painter-pattern`, version `1`. Both built-in and User Patterns
@@ -187,7 +193,9 @@ conflicts default to skip and may be overwritten only when explicitly chosen.
 A confirmed collection import is committed through one atomic replacement, and
 stale conflict analysis is rejected rather than overwriting newer state.
 
-### Running tests
+## Testing and Validation
+
+### Running Tests
 
 The project uses Python's built-in `unittest` runner. On Unix-like systems,
 run the complete suite with:
@@ -209,7 +217,7 @@ When using the repository's `.venv`, you can run:
 .\.venv\Scripts\python.exe -m unittest discover -s tests
 ```
 
-### Static typing
+### Static Typing
 
 Static typing is enforced incrementally. Core domain and processing modules are
 type-checked first; the Tkinter presentation layer remains intentionally less
@@ -239,12 +247,14 @@ layers. Complex Tkinter presentation and custom-dialog implementations remain
 outside the enforced scope while their interfaces are migrated incrementally.
 New core code must not introduce untyped public interfaces.
 
+### Continuous Integration
+
 GitHub Actions runs the complete test suite on both Linux and Windows and runs
 the canonical mypy command on Linux. The Windows job also performs a PyInstaller
 packaging smoke test that verifies the executable and bundled resources; it does
 not automate the graphical interface.
 
-### Building the application
+## Building
 
 The checked-in `texture-painter.spec` is the authoritative PyInstaller
 configuration. It includes the bundled, read-only resources under
