@@ -4079,7 +4079,7 @@ class FrameSlider(tk.Frame):
         value = tk.IntVar(self, value=initial_value)
         self._slider_values.append(value)
         block = tk.Frame(self)
-        block.pack(side=tk.TOP, fill=tk.X, padx=4, pady=(2, 6))
+        block.pack(side=tk.TOP, fill=tk.X, padx=4, pady=(0, 3))
         header = tk.Frame(block)
         header.pack(side=tk.TOP, fill=tk.X)
         ttk.Label(header, text=label).pack(side=tk.LEFT)
