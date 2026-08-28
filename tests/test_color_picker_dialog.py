@@ -1784,6 +1784,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         grid._column_count = 1
         grid.paints = (favorite,)
         grid.selected_paint_id = favorite.id
+        grid._hovered_paint = favorite
         grid._is_paint_favorite = lambda paint: paint.id == favorite.id
         grid.canvas = Mock()
         grid.canvas.winfo_width.return_value = 96
@@ -1796,6 +1797,10 @@ class ColorPickerDialogTests(unittest.TestCase):
         selected_tile = grid.canvas.create_rectangle.call_args
         self.assertEqual(selected_tile.kwargs["outline"], PAINT_SWATCH_SELECTED_OUTLINE)
         self.assertEqual(selected_tile.kwargs["width"], 3)
+        self.assertEqual(
+            selected_tile.kwargs["fill"],
+            COLOR_PICKER_GROUP_SELECTED_BACKGROUND,
+        )
         star = next(
             call
             for call in grid.canvas.create_text.call_args_list

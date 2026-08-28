@@ -890,12 +890,17 @@ class PaintSwatchGrid(ttk.Frame):
             selected = paint.id == self.selected_paint_id
             hovered = paint is getattr(self, "_hovered_paint", None)
             outline = PAINT_SWATCH_SELECTED_OUTLINE if selected else ""
+            background = (
+                COLOR_PICKER_GROUP_SELECTED_BACKGROUND
+                if selected
+                else (PAINT_SWATCH_HOVER_BACKGROUND if hovered else "")
+            )
             self.canvas.create_rectangle(
                 x1,
                 y1,
                 x2,
                 y2,
-                fill=PAINT_SWATCH_HOVER_BACKGROUND if hovered else "",
+                fill=background,
                 outline=outline,
                 width=3 if selected else 0,
                 tags="paint",
