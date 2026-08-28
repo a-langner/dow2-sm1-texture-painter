@@ -338,8 +338,13 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
         self.assertIn(
             "activebackground=self._marker_menu_background", class_source
         )
-        for label in ("Save New", "Update", "Rename", "Delete"):
-            self.assertIn(f'("{label}", self._on_', class_source)
+        for label, callback in (
+            ("Save New", "_save_context_pattern"),
+            ("Update", "_update_context_pattern"),
+            ("Rename", "_rename_context_pattern"),
+            ("Delete", "_delete_context_pattern"),
+        ):
+            self.assertIn(f'("{label}", self.{callback})', class_source)
         self.assertIn('accelerator="★"', class_source)
         self.assertNotIn("marker_color_menu", class_source)
 
@@ -361,6 +366,7 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
             identify_row=Mock(return_value="user-item"),
             is_user_item=Mock(return_value=True),
             get_pattern_marker=Mock(return_value=PatternMarkerColor.GREEN),
+            selection=Mock(return_value=("active-item",)),
             selection_set=Mock(),
             focus=Mock(),
         )
@@ -368,13 +374,20 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
         frame = SimpleNamespace(
             tree=tree,
             marker_menu=menu,
+            _marker_menu_action_indices={
+                "Save New": 0,
+                "Update": 1,
+                "Rename": 2,
+                "Delete": 3,
+            },
             _marker_menu_marker_indices=[6, 7, 8, 9, 10, 11],
             _marker_menu_color=SimpleNamespace(set=Mock()),
             _marker_menu_background="menu",
             _marker_menu_active_background="active",
+            _marker_menu_active_foreground="active-text",
             _marker_menu_disabled_foreground="disabled",
+            _pattern_action_states=SimpleNamespace(update_enabled=True),
             _context_pattern_item=None,
-            update_idletasks=Mock(),
         )
         event = SimpleNamespace(y=18, x_root=40, y_root=60)
 
@@ -382,13 +395,22 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
 
         self.assertEqual(result, "break")
         self.assertEqual(frame._context_pattern_item, "user-item")
-        tree.selection_set.assert_called_once_with("user-item")
+        tree.selection_set.assert_not_called()
+        tree.focus.assert_not_called()
         menu.tk_popup.assert_called_once_with(40, 60)
-        self.assertEqual(menu.entryconfigure.call_count, 6)
+        self.assertEqual(menu.entryconfigure.call_count, 10)
+        action_states = {
+            call.args[0]: call.kwargs["state"]
+            for call in menu.entryconfigure.call_args_list[:4]
+        }
+        self.assertEqual(
+            action_states,
+            {0: tk.NORMAL, 1: tk.DISABLED, 2: tk.NORMAL, 3: tk.NORMAL},
+        )
         self.assertTrue(
             all(
                 call.kwargs["state"] == tk.NORMAL
-                for call in menu.entryconfigure.call_args_list
+                for call in menu.entryconfigure.call_args_list[4:]
             )
         )
         frame._marker_menu_color.set.assert_called_once_with("green")
@@ -418,11 +440,29 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
         )
         self.assertIsNone(frame._context_pattern_item)
 
+    def test_context_action_uses_clicked_name_without_changing_selection(self):
+        callback = Mock()
+        tree = SimpleNamespace(
+            get_pattern_name=Mock(return_value="Right Clicked"),
+            selection_set=Mock(),
+        )
+        frame = SimpleNamespace(
+            tree=tree,
+            _context_pattern_item="user-item",
+        )
+
+        FramePatternList._invoke_context_pattern_action(frame, callback)
+
+        callback.assert_called_once_with("Right Clicked")
+        tree.selection_set.assert_not_called()
+        self.assertIsNone(frame._context_pattern_item)
+
     def test_builtin_context_menu_disables_marker_choices(self):
         tree = SimpleNamespace(
             identify_row=Mock(return_value="builtin-item"),
             is_user_item=Mock(return_value=False),
             get_pattern_marker=Mock(return_value=PatternMarkerColor.DEFAULT),
+            selection=Mock(return_value=("active-item",)),
             selection_set=Mock(),
             focus=Mock(),
         )
@@ -430,13 +470,20 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
         frame = SimpleNamespace(
             tree=tree,
             marker_menu=menu,
+            _marker_menu_action_indices={
+                "Save New": 0,
+                "Update": 1,
+                "Rename": 2,
+                "Delete": 3,
+            },
             _marker_menu_marker_indices=[6, 7, 8, 9, 10, 11],
             _marker_menu_color=SimpleNamespace(set=Mock()),
             _marker_menu_background="menu",
             _marker_menu_active_background="active",
+            _marker_menu_active_foreground="active-text",
             _marker_menu_disabled_foreground="disabled",
+            _pattern_action_states=SimpleNamespace(update_enabled=True),
             _context_pattern_item="old-item",
-            update_idletasks=Mock(),
         )
 
         result = FramePatternList._show_pattern_context_menu(
@@ -445,11 +492,17 @@ class PatternTreeviewLayoutTests(unittest.TestCase):
 
         self.assertEqual(result, "break")
         self.assertEqual(frame._context_pattern_item, "builtin-item")
-        self.assertEqual(menu.entryconfigure.call_count, 6)
+        tree.selection_set.assert_not_called()
+        tree.focus.assert_not_called()
+        self.assertEqual(menu.entryconfigure.call_count, 10)
+        self.assertEqual(
+            [call.kwargs["state"] for call in menu.entryconfigure.call_args_list[:4]],
+            [tk.NORMAL, tk.DISABLED, tk.DISABLED, tk.DISABLED],
+        )
         self.assertTrue(
             all(
                 call.kwargs["state"] == tk.DISABLED
-                for call in menu.entryconfigure.call_args_list
+                for call in menu.entryconfigure.call_args_list[4:]
             )
         )
         menu.tk_popup.assert_called_once_with(10, 20)

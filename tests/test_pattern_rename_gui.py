@@ -133,6 +133,22 @@ class PatternRenameGuiTests(unittest.TestCase):
         )
         self.assertEqual(painter.state_updates, [None])
 
+    @patch("src.frame_main.src.color_pattern_handler.is_user_pattern", return_value=True)
+    @patch(
+        "src.frame_main.src.color_pattern_handler.rename_user_pattern",
+        return_value="Renamed Target",
+    )
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value="Renamed Target")
+    def test_context_rename_preserves_active_pattern(
+        self, ask_name, rename, _is_user_pattern
+    ):
+        painter = FakePainter(PatternSelection("Active Pattern", True))
+
+        ArmyPainter.rename_selected_pattern(painter, "Right Clicked")
+
+        rename.assert_called_once_with("Right Clicked", "Renamed Target")
+        self.assertEqual(painter.frame_army_pattern.load_calls, ["Active Pattern"])
+
     def test_builtin_and_user_conflicts_show_specific_handler_messages(self):
         errors = (
             PatternNameConflictError("'Built-in' is a built-in pattern name"),

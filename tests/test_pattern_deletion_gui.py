@@ -110,6 +110,25 @@ class PatternDeletionGuiTests(unittest.TestCase):
         )
         self.assertEqual(painter.selection_apply_count, 1)
 
+    @patch("src.frame_main.src.color_pattern_handler.is_user_pattern", return_value=True)
+    @patch("src.dialog_gateway.messagebox.showerror")
+    @patch("src.frame_main.src.color_pattern_handler.delete")
+    @patch("src.dialog_gateway.messagebox.askyesno", return_value=True)
+    def test_context_delete_preserves_active_pattern_without_loading_target(
+        self, askyesno, delete, showerror, _is_user_pattern
+    ):
+        painter = FakePainter("Active Pattern", True)
+
+        ArmyPainter.delete_pattern(painter, "Right Clicked")
+
+        delete.assert_called_once_with("Right Clicked")
+        showerror.assert_not_called()
+        self.assertEqual(painter.frame_army_pattern.load_count, 1)
+        self.assertEqual(
+            painter.frame_army_pattern.selected_names, ["Active Pattern"]
+        )
+        self.assertEqual(painter.selection_apply_count, 0)
+
     @patch("src.dialog_gateway.messagebox.showerror")
     @patch(
         "src.frame_main.src.color_pattern_handler.delete",

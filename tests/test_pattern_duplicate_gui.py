@@ -118,6 +118,25 @@ class PatternDuplicateGuiTests(unittest.TestCase):
         self.assertEqual(painter.refresh_count, 1)
         self.assertEqual(painter.state_updates, [PatternSelection("Duplicate", True)])
 
+    @patch("src.frame_main.src.color_pattern_handler.save")
+    @patch("src.dialog_gateway.simpledialog.askstring", return_value="Copied Target")
+    @patch("src.frame_main.get_pattern_colors", return_value=STORED_COLORS)
+    def test_context_copy_preserves_active_pattern_and_workspace(
+        self, get_colors, ask_name, save
+    ):
+        painter = FakePainter(PatternSelection("Active Pattern", True))
+
+        ArmyPainter.save_pattern(painter, "Right Clicked")
+
+        save.assert_called_once()
+        self.assertEqual(painter.frame_army_pattern.load_calls, ["Active Pattern"])
+        self.assertEqual(
+            [box["bg"] for box in painter.frame_color_chooser.color_boxes],
+            DIRTY_COLORS,
+        )
+        self.assertEqual(painter.refresh_count, 0)
+        self.assertEqual(painter.state_updates, [])
+
     def test_name_conflicts_are_reported_without_refresh(self):
         errors = (
             PatternNameConflictError("'Built-in' is a built-in pattern name"),

@@ -4394,10 +4394,10 @@ class FramePatternList(tk.Frame):
         )
         self._marker_menu_action_indices = {}
         for label, callback in (
-            ("Save New", self._on_save_new),
-            ("Update", self._on_update),
-            ("Rename", self._on_rename),
-            ("Delete", self._on_delete),
+            ("Save New", self._save_context_pattern),
+            ("Update", self._update_context_pattern),
+            ("Rename", self._rename_context_pattern),
+            ("Delete", self._delete_context_pattern),
         ):
             self.marker_menu.add_command(label=label, command=callback)
             self._marker_menu_action_indices[label] = self.marker_menu.index(tk.END)
@@ -4607,10 +4607,21 @@ class FramePatternList(tk.Frame):
             self._context_pattern_item = None
             return
         self._context_pattern_item = item_id
-        self.tree.selection_set(item_id)
-        self.tree.focus(item_id)
-        self.update_idletasks()
         is_user_pattern = self.tree.is_user_item(item_id)
+        selected_items = self.tree.selection()
+        is_active_pattern = item_id in selected_items
+        context_action_states = {
+            "Save New": True,
+            "Update": (
+                is_active_pattern
+                and is_user_pattern
+                and self._pattern_action_states.update_enabled
+            ),
+            "Rename": is_user_pattern,
+            "Delete": is_user_pattern,
+        }
+        for label, enabled in context_action_states.items():
+            FramePatternList._configure_pattern_menu_action(self, label, enabled)
         self._marker_menu_color.set(self.tree.get_pattern_marker(item_id).value)
         marker_state = tk.NORMAL if is_user_pattern else tk.DISABLED
         for marker_color, menu_index in zip(
@@ -4632,6 +4643,25 @@ class FramePatternList(tk.Frame):
             self.marker_menu.entryconfigure(menu_index, **options)
         self.marker_menu.tk_popup(x_root, y_root)
         return "break"
+
+    def _invoke_context_pattern_action(self, callback):
+        item_id = self._context_pattern_item
+        self._context_pattern_item = None
+        pattern_name = self.tree.get_pattern_name(item_id)
+        if pattern_name is not None:
+            callback(pattern_name)
+
+    def _save_context_pattern(self):
+        self._invoke_context_pattern_action(self._on_save_new)
+
+    def _update_context_pattern(self):
+        self._invoke_context_pattern_action(self._on_update)
+
+    def _rename_context_pattern(self):
+        self._invoke_context_pattern_action(self._on_rename)
+
+    def _delete_context_pattern(self):
+        self._invoke_context_pattern_action(self._on_delete)
 
     def _assign_context_marker(self, marker_color):
         item_id = self._context_pattern_item
@@ -5070,6 +5100,7 @@ class FramePatternList(tk.Frame):
 
     def set_pattern_action_states(self, states):
         """Apply centralized Pattern action policy to buttons and row menu."""
+        self._pattern_action_states = states
         action_states = (
             ("Save New", self.save_new_button, states.save_new_enabled),
             ("Update", self.update_button, states.update_enabled),
@@ -5079,22 +5110,25 @@ class FramePatternList(tk.Frame):
         for label, button, enabled in action_states:
             state = tk.NORMAL if enabled else tk.DISABLED
             button.config(state=state)
-            self.marker_menu.entryconfigure(
-                self._marker_menu_action_indices[label],
-                state=state,
-                activebackground=(
-                    self._marker_menu_active_background
-                    if enabled
-                    else self._marker_menu_background
-                ),
-                activeforeground=(
-                    self._marker_menu_active_foreground
-                    if enabled
-                    else self._marker_menu_disabled_foreground
-                ),
-            )
+            self._configure_pattern_menu_action(label, enabled)
         self.modified_label.config(
             text="Modified" if states.modified_indicator_visible else ""
+        )
+
+    def _configure_pattern_menu_action(self, label, enabled):
+        self.marker_menu.entryconfigure(
+            self._marker_menu_action_indices[label],
+            state=tk.NORMAL if enabled else tk.DISABLED,
+            activebackground=(
+                self._marker_menu_active_background
+                if enabled
+                else self._marker_menu_background
+            ),
+            activeforeground=(
+                self._marker_menu_active_foreground
+                if enabled
+                else self._marker_menu_disabled_foreground
+            ),
         )
 
     def select_pattern(self, pattern_name):

@@ -24,6 +24,7 @@ from src.widget import (
     FrameSlider,
     BatchEditTopLevel,
     FramePatternList,
+    PatternSelection,
     PatternImportConflictDialog,
     PatternCollectionImportConfirmationDialog,
     PatternCollectionConflictDialog,
@@ -1946,7 +1947,13 @@ class ArmyPainter(tk.Tk):
         )
         return delete_user_patterns
 
-    def save_pattern(self):
+    def save_pattern(self, source_pattern_name=None):
+        if source_pattern_name is not None:
+            return ArmyPainter._duplicate_pattern(
+                self,
+                source_pattern_name,
+                preserve_active_selection=True,
+            )
         pattern_name = self.dialogs.ask_text(
             title="Pattern Name", prompt="Choose a pattern name"
         )
@@ -2039,9 +2046,16 @@ class ArmyPainter(tk.Tk):
             (None, None, None, None),
         )
 
-    def update_selected_pattern(self):
+    def update_selected_pattern(self, context_pattern_name=None):
         """Replace the selected user Pattern with the current GUI colors."""
         selection = self.frame_army_pattern.get_selected_pattern()
+        if context_pattern_name is not None:
+            if selection is None or selection.name != context_pattern_name:
+                return
+            selection = PatternSelection(
+                context_pattern_name,
+                src.color_pattern_handler.is_user_pattern(context_pattern_name),
+            )
         if selection is None:
             return
         if not selection.is_user:
@@ -2125,9 +2139,15 @@ class ArmyPainter(tk.Tk):
             return
         ArmyPainter._apply_pattern_colors(self, result.colors_to_apply, selection)
 
-    def rename_selected_pattern(self):
+    def rename_selected_pattern(self, context_pattern_name=None):
         """Rename the selected user Pattern while preserving its GUI state."""
-        selection = self.frame_army_pattern.get_selected_pattern()
+        active_selection = self.frame_army_pattern.get_selected_pattern()
+        selection = active_selection
+        if context_pattern_name is not None:
+            selection = PatternSelection(
+                context_pattern_name,
+                src.color_pattern_handler.is_user_pattern(context_pattern_name),
+            )
         if selection is None:
             return
         if not selection.is_user:
@@ -2183,7 +2203,13 @@ class ArmyPainter(tk.Tk):
             self.update_pattern_action_states(selection)
             return
 
-        self.frame_army_pattern.load_pattern_list(result.selected_name)
+        preferred_name = result.selected_name
+        if context_pattern_name is not None:
+            if active_selection is None:
+                preferred_name = None
+            elif active_selection.name != old_name:
+                preferred_name = active_selection.name
+        self.frame_army_pattern.load_pattern_list(preferred_name)
         self.update_pattern_action_states()
 
     def duplicate_selected_pattern(self):
@@ -2192,8 +2218,18 @@ class ArmyPainter(tk.Tk):
         if selection is None:
             return
 
+        return ArmyPainter._duplicate_pattern(
+            self,
+            selection.name,
+            preserve_active_selection=False,
+        )
+
+    def _duplicate_pattern(self, pattern_name, *, preserve_active_selection):
+        """Duplicate one Pattern, optionally retaining the active workspace row."""
+        active_selection = self.frame_army_pattern.get_selected_pattern()
+
         try:
-            ArmyPainter._pattern_workflows(self).get_colors(selection.name)
+            ArmyPainter._pattern_workflows(self).get_colors(pattern_name)
         except PatternError as exc:
             self.dialogs.show_error(title="Cannot Duplicate Pattern", message=str(exc))
             return
@@ -2201,31 +2237,43 @@ class ArmyPainter(tk.Tk):
         requested_name = self.dialogs.ask_text(
             title="Duplicate Pattern",
             prompt="Pattern name:",
-            initial_value=f"{selection.name} Copy",
+            initial_value=f"{pattern_name} Copy",
         )
         if requested_name is None:
             return
 
         try:
             result = ArmyPainter._pattern_workflows(self).duplicate_pattern(
-                selection.name, requested_name
+                pattern_name, requested_name
             )
         except PatternError as exc:
             self.dialogs.show_error(title="Cannot Duplicate Pattern", message=str(exc))
             return
         except OSError as exc:
-            LOGGER.exception("Could not duplicate Pattern '%s'", selection.name)
+            LOGGER.exception("Could not duplicate Pattern '%s'", pattern_name)
             self.dialogs.show_error(
                 title="Cannot Duplicate Pattern",
                 message=f"The Pattern could not be saved:\n{exc}",
             )
             return
 
-        self.frame_army_pattern.load_pattern_list(result.selected_name)
-        self.on_pattern_select()
+        preferred_name = result.selected_name
+        if preserve_active_selection:
+            preferred_name = (
+                active_selection.name if active_selection is not None else None
+            )
+        self.frame_army_pattern.load_pattern_list(preferred_name)
+        if not preserve_active_selection:
+            self.on_pattern_select()
 
-    def delete_pattern(self):
-        selection = self.frame_army_pattern.get_selected_pattern()
+    def delete_pattern(self, context_pattern_name=None):
+        active_selection = self.frame_army_pattern.get_selected_pattern()
+        selection = active_selection
+        if context_pattern_name is not None:
+            selection = PatternSelection(
+                context_pattern_name,
+                src.color_pattern_handler.is_user_pattern(context_pattern_name),
+            )
         if selection is None:
             return
         pattern_name = selection.name
@@ -2241,7 +2289,14 @@ class ArmyPainter(tk.Tk):
         if not confirmed:
             return
 
-        neighboring_name = self.frame_army_pattern.get_selected_neighbor_pattern_name()
+        deleting_active_pattern = bool(
+            active_selection is not None and active_selection.name == pattern_name
+        )
+        neighboring_name = (
+            self.frame_army_pattern.get_selected_neighbor_pattern_name()
+            if deleting_active_pattern
+            else (active_selection.name if active_selection is not None else None)
+        )
         try:
             result = ArmyPainter._pattern_workflows(self).delete_pattern(
                 pattern_name, neighboring_name
@@ -2267,7 +2322,8 @@ class ArmyPainter(tk.Tk):
             return
 
         self.frame_army_pattern.load_pattern_list(result.selected_name)
-        self.on_pattern_select()
+        if context_pattern_name is None or deleting_active_pattern:
+            self.on_pattern_select()
 
     def update_pattern_action_states(self, selection=None):
         if selection is None:
