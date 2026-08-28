@@ -183,4 +183,6 @@ See [LICENSE](LICENSE) and [Third-Party Notices](THIRD_PARTY_NOTICES.md).
 
 ## Developing
 
-[Developing Documentation](docs/developing.md)
+This README is intended for users of Army Painter.
+
+If you want to build Army Painter from source, contribute to the project, understand its architecture, or work on the codebase, see the [Development Documentation](docs/developing.md).
