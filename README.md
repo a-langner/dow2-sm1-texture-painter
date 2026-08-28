@@ -167,6 +167,14 @@ Army Painter is based on Marc's original [dow2-texture-painter](https://github.c
 
 Citadel Color data is sourced and adapted from [**Arcturus5404/miniature-paints**](https://github.com/Arcturus5404/miniature-paints) under the MIT License. See [Third-Party Notices](THIRD_PARTY_NOTICES.md) for complete attribution and license information.
 
+## Disclaimer
+
+**Army Painter is an unofficial community-created tool.**
+
+It is not affiliated with, endorsed by, sponsored by, or associated with **Games Workshop, Citadel, Relic Entertainment**, or their respective owners.
+
+Warhammer 40,000, Dawn of War, Space Marine, Citadel, and other related names and properties belong to their respective owners.
+
 ## Developing
 
 [Developing Documentation](docs/developing.md)
