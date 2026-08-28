@@ -1,5 +1,11 @@
 # Developing
 
+This document contains development, architecture, persistence, testing, and
+build information for Army Painter.
+
+For installation, usage, and an overview of the application's features, see
+the [main README](../README.md).
+
 Create a virtual environment and install the runtime requirements, development
 requirements, and project in editable mode.
 
