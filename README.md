@@ -147,6 +147,10 @@ Open `Tools -> Batch Edit Tools` to process or convert a folder of textures:
 
 **Process Batch Convert** retains the original utility for combining four previously extracted Dawn of War I team-color mask images into one packed team-color mask. This conversion helper does not make Dawn of War I a fully supported Army Painter recoloring target.
 
+## Updates
+
+Use `Help -> About -> Check for Updates` to check GitHub Releases for a newer published version. Army Painter does not download or install updates automatically.
+
 ## Developing
 
 [Developing Documentation](docs/developing.md)
