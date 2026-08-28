@@ -34,6 +34,8 @@ from src.widget import (
     FAVORITE_GROUP_STAR_POINTS,
     COLOR_PICKER_GROUP_PANE_WIDTH,
     COLOR_PICKER_GROUP_ENTRIES,
+    COLOR_PICKER_GROUP_SELECTED_ACTIVE_BACKGROUND,
+    COLOR_PICKER_GROUP_SELECTED_BACKGROUND,
     COLOR_PICKER_PALETTE_PANE_WIDTH,
     COLOR_SPACE_MODES,
     DEFAULT_COLOR_SPACE_MODE,
@@ -118,6 +120,9 @@ class FakeWidget:
 
     def configure(self, **options):
         self.options.update(options)
+
+    def state(self, states):
+        self.states = states
 
 
 class FocusedFakeWidget(FakeWidget):
@@ -1877,6 +1882,68 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertIs(dialog.selected_color_group, ColorGroup.BLUE)
         self.assertEqual(dialog.group_buttons[None].states, ["!selected"])
         self.assertEqual(dialog.group_buttons[ColorGroup.BLUE].states, ["selected"])
+
+    @patch.object(ColorPickerDialog, "select_color_group")
+    @patch.object(ColorPickerDialog, "_draw_group_indicator")
+    @patch("src.widget.COLOR_PICKER_GROUP_ENTRIES", ((ColorGroup.RED, "Reds"),))
+    @patch("src.widget.tk.Button", side_effect=FakeWidget)
+    @patch("src.widget.tk.Canvas", side_effect=FakeWidget)
+    @patch("src.widget.ttk.Button", side_effect=FakeWidget)
+    @patch("src.widget.ttk.Frame", side_effect=FakeWidget)
+    @patch("src.widget.ttk.Style")
+    def test_group_navigation_keeps_native_button_and_adds_selected_variant(
+        self,
+        _style_type,
+        _frame_type,
+        native_button_type,
+        _canvas_type,
+        selected_button_type,
+        _draw_indicator,
+        _select_color_group,
+    ):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.group_navigation = FakeWidget()
+        dialog.selected_color_group = ColorGroup.RED
+
+        dialog._build_group_navigation()
+
+        native_button_type.assert_called_once()
+        self.assertEqual(
+            native_button_type.call_args.kwargs["style"],
+            "ColorPickerGroup.TButton",
+        )
+        self.assertEqual(
+            selected_button_type.call_args.kwargs["background"],
+            COLOR_PICKER_GROUP_SELECTED_BACKGROUND,
+        )
+        self.assertEqual(
+            selected_button_type.call_args.kwargs["activebackground"],
+            COLOR_PICKER_GROUP_SELECTED_ACTIVE_BACKGROUND,
+        )
+
+    def test_only_selected_group_swaps_to_dark_button(self):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.paint_catalog = PaintCatalog(paints=())
+        dialog.search_query = ""
+        dialog._refresh_palette_display = Mock()
+        dialog.group_buttons = {
+            None: FakeWidget(),
+            ColorGroup.RED: FakeWidget(),
+        }
+        dialog.group_selected_buttons = {
+            None: FakeWidget(),
+            ColorGroup.RED: FakeWidget(),
+        }
+        dialog.group_button_labels = {None: "All Colors", ColorGroup.RED: "Reds"}
+
+        dialog.select_color_group(ColorGroup.RED)
+
+        self.assertIsNone(dialog.group_buttons[ColorGroup.RED].pack_options)
+        self.assertIsNotNone(
+            dialog.group_selected_buttons[ColorGroup.RED].pack_options
+        )
+        self.assertIsNotNone(dialog.group_buttons[None].pack_options)
+        self.assertIsNone(dialog.group_selected_buttons[None].pack_options)
 
     def test_group_filtering_reuses_catalog_and_visual_analysis_apis(self):
         catalog_paints = (

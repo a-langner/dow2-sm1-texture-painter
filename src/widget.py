@@ -132,6 +132,10 @@ COLOR_PICKER_SCREEN_MARGIN = 80
 COLOR_PICKER_GROUP_PANE_WIDTH = 140
 COLOR_PICKER_PALETTE_PANE_WIDTH = 636
 COLOR_PICKER_EDITOR_PANE_WIDTH = 400
+COLOR_PICKER_GROUP_SELECTED_BACKGROUND = "#d2d2d2"
+COLOR_PICKER_GROUP_SELECTED_ACTIVE_BACKGROUND = "#c8c8c8"
+
+
 class PaletteSpecialGroup(Enum):
     """Stable identities for navigation groups outside color families."""
 
@@ -2086,6 +2090,7 @@ class ColorPickerDialog(tk.Toplevel):
         )
 
         self.group_buttons = {}
+        self.group_selected_buttons = {}
         self.group_button_labels = {}
         for color_group, label in COLOR_PICKER_GROUP_ENTRIES:
             row = ttk.Frame(self.group_navigation)
@@ -2109,6 +2114,19 @@ class ColorPickerDialog(tk.Toplevel):
             )
             button.pack(side=tk.LEFT, fill=tk.X, expand=True)
             self.group_buttons[color_group] = button
+            selected_button = tk.Button(
+                row,
+                text=label,
+                anchor=tk.W,
+                background=COLOR_PICKER_GROUP_SELECTED_BACKGROUND,
+                activebackground=COLOR_PICKER_GROUP_SELECTED_ACTIVE_BACKGROUND,
+                relief=tk.SUNKEN,
+                borderwidth=1,
+                highlightthickness=0,
+                font="TkDefaultFont",
+                command=partial(self.select_color_group, color_group),
+            )
+            self.group_selected_buttons[color_group] = selected_button
             self.group_button_labels[color_group] = label
 
         self.select_color_group(self.selected_color_group)
@@ -2145,6 +2163,18 @@ class ColorPickerDialog(tk.Toplevel):
             button.state(["selected"] if selected else ["!selected"])
             marker = "▸ " if selected else "  "
             button.configure(text=f"{marker}{self.group_button_labels[candidate]}")
+            selected_buttons = getattr(self, "group_selected_buttons", None)
+            if selected_buttons is not None:
+                selected_button = selected_buttons[candidate]
+                selected_button.configure(
+                    text=f"{marker}{self.group_button_labels[candidate]}"
+                )
+                if selected:
+                    button.pack_forget()
+                    selected_button.pack(side=tk.LEFT, fill=tk.X, expand=True)
+                else:
+                    selected_button.pack_forget()
+                    button.pack(side=tk.LEFT, fill=tk.X, expand=True)
         palette_area = getattr(self, "palette_area", None)
         if palette_area is not None:
             palette_area.configure(
