@@ -5361,22 +5361,24 @@ class BatchEditTopLevel(tk.Toplevel):
             *[fmt.upper() for fmt in SAVE_EXT_LIST],
         )
         self.dest_menu.pack(side=tk.LEFT)
+
+        self.frame_actions = tk.Frame(self)
         self.batch_edit_button = tk.Button(
-            self.frame_destination_format,
+            self.frame_actions,
             text="Process Batch Edit",
             command=self._on_batch_edit,
         )
         self.batch_edit_button.pack(side=tk.LEFT)
 
         self.batch_convert_button = tk.Button(
-            self.frame_destination_format,
+            self.frame_actions,
             text="Process Batch Convert",
             command=self._on_batch_convert,
         )
         self.batch_convert_button.pack(side=tk.LEFT)
 
         self.cancel_button = tk.Button(
-            self.frame_destination_format,
+            self.frame_actions,
             text="Cancel",
             command=self._on_cancel,
             state=tk.DISABLED,
@@ -5417,8 +5419,14 @@ class BatchEditTopLevel(tk.Toplevel):
             entry_button.pack(side=tk.LEFT)
             return entry_frame
 
-        self.frame_batch_src_path = widget_entry_template(self, "Source folder:")
-        self.frame_batch_dest_path = widget_entry_template(self, "Destination folder:")
+        self.frame_folders = tk.Frame(self)
+        self.frame_folders.pack(side=tk.TOP, fill=tk.X)
+        self.frame_batch_src_path = widget_entry_template(
+            self.frame_folders, "Source folder:"
+        )
+        self.frame_batch_dest_path = widget_entry_template(
+            self.frame_folders, "Destination folder:"
+        )
 
         self.frame_progress_bar = tk.LabelFrame(
             self, relief=tk.RIDGE, bd=2, text="Awaiting process"
@@ -5432,6 +5440,7 @@ class BatchEditTopLevel(tk.Toplevel):
             mode="determinate",
         )
         self.progress_bar.pack(side=tk.LEFT)
+        self.frame_actions.pack(side=tk.TOP, fill=tk.X)
 
     def update_progress_bar_label(self, current: int):
         maximum = self.progress_bar["maximum"]
