@@ -3561,7 +3561,7 @@ class FrameChannelList(tk.LabelFrame):
         self.lb.insert(1, "1 Green")
         self.lb.insert(2, "2 Blue")
         self.lb.insert(3, "3 Alpha")
-        self.lb.pack(side=tk.TOP, fill=tk.Y)
+        self.lb.pack(side=tk.TOP, padx=6, pady=(4, 0))
 
         # Add alpha BTN
         self.apply_alpha = tk.BooleanVar()
@@ -3574,7 +3574,12 @@ class FrameChannelList(tk.LabelFrame):
             height=2,
             command=self._notify_apply_alpha_changed,
         )
-        self.add_alpha.pack(side=tk.TOP, fill=tk.X)
+        self.add_alpha.pack(
+            side=tk.TOP,
+            anchor=tk.W,
+            padx=4,
+            pady=(6, 4),
+        )
 
     def _notify_apply_alpha_changed(self):
         self._on_alpha_changed(bool(self.apply_alpha.get()))

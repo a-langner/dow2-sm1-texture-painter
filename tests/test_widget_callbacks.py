@@ -290,6 +290,19 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         self.assertIs(frame.lb.options["exportselection"], False)
         self.assertEqual(frame.lb.options["activestyle"], "none")
         self.assertEqual(frame.lb.options["selectmode"], "multiple")
+        self.assertEqual(
+            frame.lb.pack_options,
+            {"side": "top", "padx": 6, "pady": (4, 0)},
+        )
+        self.assertEqual(
+            frame.add_alpha.pack_options,
+            {
+                "side": "top",
+                "anchor": "w",
+                "padx": 4,
+                "pady": (6, 4),
+            },
+        )
 
     def test_alpha_toggle_forwards_boolean_value(self):
         frame = object.__new__(FrameChannelList)
