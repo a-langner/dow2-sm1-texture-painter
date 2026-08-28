@@ -10,6 +10,8 @@ Army Painter is based on the original **dow2-texture-painter** by **Jaccouille (
 
 **[Download the latest release](https://github.com/a-langner/dow2-sm1-texture-painter/releases)**
 
+[View the Army Painter repository on GitHub](https://github.com/a-langner/dow2-sm1-texture-painter)
+
 <!-- TODO 1.0 screenshot: Main Army Painter window with a representative loaded texture -->
 
 ## Features
