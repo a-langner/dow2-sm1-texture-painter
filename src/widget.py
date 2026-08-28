@@ -1279,7 +1279,7 @@ class FactoryResetDialog(tk.Toplevel):
         ttk.Label(
             content,
             text="Reset Army Painter to factory defaults?",
-            font=("TkDefaultFont", 11, "bold"),
+            font=("TkDefaultFont", 12, "bold"),
             anchor=tk.CENTER,
         ).pack(fill=tk.X, pady=(0, 16))
         ttk.Label(
