@@ -9,6 +9,7 @@ from src.action_state import PatternActionContext, derive_pattern_action_state
 from src.color_pattern_handler import PatternMarkerColor
 from src.widget import (
     FramePatternList,
+    PATTERN_HOVER_TAG,
     calculate_pattern_separator_x,
     clipped_pattern_marker_height,
     find_treeview_body_boundary,
@@ -123,6 +124,60 @@ class FakePositionTree:
 
 
 class PatternTreeviewLayoutTests(unittest.TestCase):
+    def test_pattern_hover_moves_tag_without_disturbing_marker_tags(self):
+        item_tags = {
+            "first": ("marker-red",),
+            "second": ("marker-blue",),
+        }
+
+        def item(item_id, option=None, **options):
+            if "tags" in options:
+                item_tags[item_id] = options["tags"]
+            elif option == "tags":
+                return item_tags[item_id]
+
+        frame = SimpleNamespace(
+            tree=SimpleNamespace(
+                exists=lambda item_id: item_id in item_tags,
+                item=item,
+            ),
+            _hover_pattern_item=None,
+            _update_pattern_marker_selection=Mock(),
+        )
+
+        FramePatternList._set_pattern_hover_item(frame, "first")
+        FramePatternList._set_pattern_hover_item(frame, "second")
+
+        self.assertEqual(item_tags["first"], ("marker-red",))
+        self.assertEqual(
+            item_tags["second"], ("marker-blue", PATTERN_HOVER_TAG)
+        )
+        self.assertEqual(frame._hover_pattern_item, "second")
+        self.assertEqual(frame._update_pattern_marker_selection.call_count, 2)
+
+    def test_pattern_hover_clears_when_pointer_leaves_rows(self):
+        item_tags = {"row": (PATTERN_HOVER_TAG,)}
+
+        def item(item_id, option=None, **options):
+            if "tags" in options:
+                item_tags[item_id] = options["tags"]
+            elif option == "tags":
+                return item_tags[item_id]
+
+        frame = SimpleNamespace(
+            tree=SimpleNamespace(exists=lambda _item_id: True, item=item),
+            _hover_pattern_item="row",
+            _update_pattern_marker_selection=Mock(),
+        )
+        frame._set_pattern_hover_item = lambda item_id: (
+            FramePatternList._set_pattern_hover_item(frame, item_id)
+        )
+
+        FramePatternList._clear_pattern_hover(frame)
+
+        self.assertEqual(item_tags["row"], ())
+        self.assertIsNone(frame._hover_pattern_item)
+
     def test_reordered_visual_rows_resolve_selection_and_neighbor_by_identity(self):
         names = {
             "builtin": "Relic",

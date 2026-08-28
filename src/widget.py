@@ -117,6 +117,8 @@ COLOR_BOX_SIZE = 90
 COLOR_BTN_HEIGHT = 26
 PATTERN_MARKER_COLUMN_WIDTH = 28
 PATTERN_DRAG_THRESHOLD = 6
+PATTERN_HOVER_TAG = "pattern-hover"
+PATTERN_HOVER_BACKGROUND = "#dbeeff"
 PATTERN_MARKER_COLORS = {
     PatternMarkerColor.YELLOW: ("#efd80e", "#ffd864"),
     PatternMarkerColor.RED: ("#e92525", "#f74d4d"),
@@ -4396,6 +4398,11 @@ class FramePatternList(tk.Frame):
             style="Pattern.Treeview",
             yscrollcommand=self._set_pattern_scroll,
         )
+        self.pattern_hover_background = PATTERN_HOVER_BACKGROUND
+        self.tree.tag_configure(
+            PATTERN_HOVER_TAG, background=self.pattern_hover_background
+        )
+        self._hover_pattern_item = None
         self.tree.heading("pattern_name", text="Pattern", anchor=tk.W)
         self.tree.heading("marker", text="", anchor=tk.E)
         self.tree.column("pattern_name", anchor=tk.W, stretch=True)
@@ -4481,7 +4488,9 @@ class FramePatternList(tk.Frame):
             add="+",
         )
         self.tree.bind("<Motion>", self._update_header_separator_cursor, add="+")
+        self.tree.bind("<Motion>", self._update_pattern_hover, add="+")
         self.tree.bind("<Leave>", self._restore_tree_cursor, add="+")
+        self.tree.bind("<Leave>", self._clear_pattern_hover, add="+")
 
         self.column_separator = ttk.Separator(
             self.tree_frame, orient=tk.VERTICAL, takefocus=False
@@ -4597,6 +4606,31 @@ class FramePatternList(tk.Frame):
             self._update_pattern_marker_selection()
         if self._external_callbacks_enabled and self._on_selection_changed is not None:
             self._on_selection_changed()
+
+    def _update_pattern_hover(self, Event):
+        self._set_pattern_hover_item(self.tree.identify_row(Event.y) or None)
+
+    def _clear_pattern_hover(self, Event=None):
+        self._set_pattern_hover_item(None)
+
+    def _set_pattern_hover_item(self, item_id):
+        previous_item = self._hover_pattern_item
+        if previous_item == item_id:
+            return
+        for candidate, hovered in (
+            (previous_item, False),
+            (item_id, True),
+        ):
+            if candidate is None or not self.tree.exists(candidate):
+                continue
+            tags = tuple(self.tree.item(candidate, "tags"))
+            if hovered and PATTERN_HOVER_TAG not in tags:
+                tags += (PATTERN_HOVER_TAG,)
+            elif not hovered:
+                tags = tuple(tag for tag in tags if tag != PATTERN_HOVER_TAG)
+            self.tree.item(candidate, tags=tags)
+        self._hover_pattern_item = item_id
+        self._update_pattern_marker_selection()
 
     def _set_pattern_scroll(self, first, last):
         self.scrollbar.set(first, last)
@@ -4835,6 +4869,7 @@ class FramePatternList(tk.Frame):
             if visible_height <= 0:
                 continue
             selected = item_id in selected_items
+            hovered = item_id == self._hover_pattern_item
             label = tk.Label(
                 self.tree_frame,
                 text="★",
@@ -4844,7 +4879,13 @@ class FramePatternList(tk.Frame):
                 font=tree_font or "TkDefaultFont",
                 foreground=pattern_marker_display_color(marker_color, selected),
                 background=(
-                    APP_SELECTION_BACKGROUND if selected else normal_background
+                    APP_SELECTION_BACKGROUND
+                    if selected
+                    else (
+                        self.pattern_hover_background
+                        if hovered
+                        else normal_background
+                    )
                 ),
             )
             label.pattern_item_id = item_id
@@ -4866,6 +4907,11 @@ class FramePatternList(tk.Frame):
                     item, Event.x_root, Event.y_root
                 ),
             )
+            label.bind(
+                "<Enter>",
+                lambda Event, item=item_id: self._set_pattern_hover_item(item),
+            )
+            label.bind("<Leave>", self._clear_pattern_hover)
             label.bind("<MouseWheel>", self._scroll_tree_through_separator)
             label.bind("<Button-4>", self._scroll_tree_up_through_separator)
             label.bind("<Button-5>", self._scroll_tree_down_through_separator)
@@ -4889,13 +4935,20 @@ class FramePatternList(tk.Frame):
             if not pattern_item_has_marker(metadata):
                 continue
             selected = item_id in selected_items
+            hovered = item_id == self._hover_pattern_item
             marker_color = metadata.get(
                 "marker_color", PatternMarkerColor.DEFAULT
             )
             label.configure(
                 foreground=pattern_marker_display_color(marker_color, selected),
                 background=(
-                    APP_SELECTION_BACKGROUND if selected else normal_background
+                    APP_SELECTION_BACKGROUND
+                    if selected
+                    else (
+                        self.pattern_hover_background
+                        if hovered
+                        else normal_background
+                    )
                 ),
             )
 
@@ -5060,6 +5113,7 @@ class FramePatternList(tk.Frame):
     def load_pattern_list(self, preferred_pattern_name=None, notify_state=True):
         selection = self.get_selected_pattern()
         current_pattern_name = selection.name if selection else None
+        self._hover_pattern_item = None
         self.tree.clear_patterns()
         rows = build_pattern_rows()
         for row in rows:

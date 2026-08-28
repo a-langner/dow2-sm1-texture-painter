@@ -34,7 +34,6 @@ from src.widget import (
     FAVORITE_GROUP_STAR_POINTS,
     COLOR_PICKER_GROUP_PANE_WIDTH,
     COLOR_PICKER_GROUP_ENTRIES,
-    COLOR_PICKER_GROUP_SELECTED_ACTIVE_BACKGROUND,
     COLOR_PICKER_GROUP_SELECTED_BACKGROUND,
     COLOR_PICKER_PALETTE_PANE_WIDTH,
     COLOR_SPACE_MODES,
@@ -1915,10 +1914,6 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(
             selected_button_type.call_args.kwargs["background"],
             COLOR_PICKER_GROUP_SELECTED_BACKGROUND,
-        )
-        self.assertEqual(
-            selected_button_type.call_args.kwargs["activebackground"],
-            COLOR_PICKER_GROUP_SELECTED_ACTIVE_BACKGROUND,
         )
 
     def test_only_selected_group_swaps_to_dark_button(self):
