@@ -248,7 +248,7 @@ class ArmyPainter(tk.Tk):
     def _configure_main_window(self):
         """Configure root-window geometry, identity, and lifecycle hook."""
         min_width = 256 * 2 + PATTERN_LIST_DEFAULT_WIDTH
-        min_height = DEFAULT_IMG_SIZE + FRAME_TOOL_HEIGHT
+        min_height = DEFAULT_IMG_SIZE + FRAME_TOOL_HEIGHT + 5
         initial_width, initial_height = calculate_initial_window_size(
             min_width,
             min_height,

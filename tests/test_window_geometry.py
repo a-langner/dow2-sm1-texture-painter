@@ -148,7 +148,7 @@ class InitialWindowGeometryTests(unittest.TestCase):
             ArmyPainter._configure_main_window(painter)
 
         expected_size = calculate_initial_window_size(
-            678, DEFAULT_IMG_SIZE + FRAME_TOOL_HEIGHT, 1920, 1080
+            678, DEFAULT_IMG_SIZE + FRAME_TOOL_HEIGHT + 5, 1920, 1080
         )
         painter.geometry.assert_called_once_with(
             f"{expected_size[0]}x{expected_size[1]}+320+180"
@@ -169,7 +169,7 @@ class InitialWindowGeometryTests(unittest.TestCase):
             ArmyPainter._configure_main_window(painter)
 
         expected_size = calculate_initial_window_size(
-            678, DEFAULT_IMG_SIZE + FRAME_TOOL_HEIGHT, 1920, 1080
+            678, DEFAULT_IMG_SIZE + FRAME_TOOL_HEIGHT + 5, 1920, 1080
         )
         painter.geometry.assert_called_once_with(
             f"{expected_size[0]}x{expected_size[1]}"
