@@ -44,7 +44,7 @@ If Army Painter finds multiple compatible masks for the DIF texture, use the **T
 
 ### Choose colors
 
-The four Color Slots represent the texture's four team-color channels. Click **Edit Color** for a slot to enter a manual/custom color or browse the Citadel Color Picker. Drag one Color Slot onto another to swap their complete colors and settings.
+The four Color Slots represent the texture's four team-color channels. Click **Edit Color** for a slot to create a custom color or browse the Citadel Color Picker. Drag one Color Slot onto another to swap their complete colors and settings.
 
 ### Choose a Pattern
 
@@ -145,7 +145,7 @@ Open `Tools -> Batch Edit Tools` to process or convert a folder of textures:
 4. Choose the **Destination folder**.
 5. Select **Process Batch Edit** to apply the current color scheme and processing settings to compatible DIF textures, or **Process Batch Convert** to convert compatible legacy mask groups.
 
-**Process Batch Convert** retains the original utility for combining four previously extracted Dawn of War I team-color mask images into one packed team-color mask. This conversion helper does not make Dawn of War I a fully supported Army Painter recoloring target.
+**Process Batch Convert** retains the original utility for combining four previously extracted Dawn of War I team-color mask images into one compatible Team Color Mask. This conversion helper does not make Dawn of War I a fully supported Army Painter recoloring target.
 
 ## Updates
 
