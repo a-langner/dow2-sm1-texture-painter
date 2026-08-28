@@ -132,8 +132,7 @@ COLOR_PICKER_SCREEN_MARGIN = 80
 COLOR_PICKER_GROUP_PANE_WIDTH = 140
 COLOR_PICKER_PALETTE_PANE_WIDTH = 636
 COLOR_PICKER_EDITOR_PANE_WIDTH = 400
-COLOR_PICKER_GROUP_SELECTED_BACKGROUND = "#d2d2d2"
-COLOR_PICKER_GROUP_SELECTED_ACTIVE_BACKGROUND = "#c8c8c8"
+COLOR_PICKER_GROUP_SELECTED_BACKGROUND = "#bfbfbf"
 
 
 class PaletteSpecialGroup(Enum):
@@ -2119,7 +2118,6 @@ class ColorPickerDialog(tk.Toplevel):
                 text=label,
                 anchor=tk.W,
                 background=COLOR_PICKER_GROUP_SELECTED_BACKGROUND,
-                activebackground=COLOR_PICKER_GROUP_SELECTED_ACTIVE_BACKGROUND,
                 relief=tk.SUNKEN,
                 borderwidth=1,
                 highlightthickness=0,
