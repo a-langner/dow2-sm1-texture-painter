@@ -50,6 +50,137 @@ persists its stable ID in `settings.json` for the next application start.
 Normal maps are intentionally outside the renderer and profile model. The
 existing `_drt` dirt-map workflow remains distinct and unchanged.
 
+### Texture files, channels, and batch scope
+
+Interactive loading accepts DDS, PNG, JPEG, BMP, TGA, TIFF, and BLP images.
+Image export supports PNG, JPEG, BMP, and TGA. Companion discovery searches
+exact sibling stems and permits the DIF and its TEM/PNT, DRT, and SPC files to
+use different supported extensions. Optional missing companions are treated as
+absent; explicitly selected invalid files are errors.
+
+The four positional Color Slots map to the mask's red, green, blue, and alpha
+channels in that order. RGB masks receive an empty alpha channel. NRM, EMI, and
+OCL files are not inputs to the recolouring renderer.
+
+Batch Edit discovers matching DIF files only in the selected source directory;
+it does not recurse into subdirectories. The legacy Batch Convert path accepts
+four previously extracted Dawn of War I mask images whose stems end in
+`_Primary`, `_Secondary`, `_Trim`, and `_Weapon`, then writes one team-colour
+mask using the currently selected naming profile. This converter does not make
+Dawn of War I a supported interactive recolouring profile.
+
+### Pattern persistence
+
+`src/color_pattern_handler.py` owns Pattern validation and persistent storage,
+`src/pattern_exchange.py` owns exchange validation and atomic import/export, and
+`src/pattern_controller.py` coordinates those operations for the GUI.
+
+Built-in Patterns are ordered, read-only package data in
+`src/resources/army_pattern.json`. User Patterns retain insertion/manual order
+and are stored outside the executable in `user_patterns.json` under the
+`DOW2-SM1 Texture Painter` platform data directory:
+
+- Windows: `%LOCALAPPDATA%\DOW2-SM1 Texture Painter\user_patterns.json`
+- Linux: `$XDG_DATA_HOME/DOW2-SM1 Texture Painter/user_patterns.json`, or
+  `~/.local/share/DOW2-SM1 Texture Painter/user_patterns.json` by default
+- macOS: `~/Library/Application Support/DOW2-SM1 Texture Painter/user_patterns.json`
+
+The current persistence wrapper uses format
+`dow2-sm1-texture-painter-user-patterns`, version `1`, and an ordered `patterns`
+object. Writes use a flushed temporary file followed by `os.replace`. The
+loader also accepts the legacy unwrapped Pattern mapping for backward
+compatibility. Replacing the application executable does not normally affect
+this per-user file.
+
+Each stored Pattern has four required `#RRGGBB` fields in stable order:
+
+```json
+{
+  "primary_colour_name": "#112233",
+  "secondary_colour_name": "#445566",
+  "tint_colour_name": "#778899",
+  "extra_colour_name": "#aabbcc"
+}
+```
+
+A complete current Pattern may additionally contain:
+
+- `processing_mode`: `global` or `per_color`
+- `global_processing`: blend mode, brightness, contrast, opacity, and saturation
+- `per_color_processing`: the same fields for `color_1` through `color_4`
+- `marker_color`: `yellow`, `red`, `green`, `blue`, or `purple`; missing,
+  `default`, and unknown values resolve to Default
+- `custom_favorite_identities`: four optional `{id, name}` entries aligned with
+  the Color Slots
+
+Legacy colour-only Patterns and the earlier flat blend/brightness/contrast
+shape remain supported. Missing opacity or saturation resolves to `100`.
+Pattern data deliberately excludes active TEM/PNT variant identity and DRT/SPC
+state.
+
+The Pattern panel marks a selected Pattern as `Modified` when current workspace
+state differs from its stored state. Save New creates a User Pattern from the
+current workspace; Update, Rename, Delete, marker changes, and manual reorder
+apply only to User Patterns. Built-ins cannot be modified, overwritten, or
+given marker metadata.
+
+### Pattern exchange formats
+
+Single Pattern exchange uses `.pattern.json`, format
+`dow2-sm1-texture-painter-pattern`, version `1`. Both built-in and User Patterns
+can be exported. A minimal valid colour-only document is:
+
+```json
+{
+  "format": "dow2-sm1-texture-painter-pattern",
+  "version": 1,
+  "name": "Example Pattern",
+  "colors": {
+    "primary_colour_name": "#112233",
+    "secondary_colour_name": "#445566",
+    "tint_colour_name": "#778899",
+    "extra_colour_name": "#aabbcc"
+  }
+}
+```
+
+The optional current processing, marker, and Custom Favorite identity fields
+listed above are preserved during single exchange. Imports validate the entire
+document before persistence. A built-in name cannot be overwritten; a User
+Pattern conflict can be renamed, overwritten, or cancelled through the UI.
+Imported files are copied into application-owned persistence rather than used
+as live external sources.
+
+Pattern Collection exchange uses `.pattern-collection.json`, format
+`dow2-sm1-texture-painter-pattern-collection`, version `1`:
+
+```json
+{
+  "format": "dow2-sm1-texture-painter-pattern-collection",
+  "version": 1,
+  "name": "My Patterns",
+  "patterns": [
+    {
+      "name": "Example Pattern",
+      "colors": {
+        "primary_colour_name": "#112233",
+        "secondary_colour_name": "#445566",
+        "tint_colour_name": "#778899",
+        "extra_colour_name": "#aabbcc"
+      }
+    }
+  ]
+}
+```
+
+Collections contain User Patterns only and preserve deterministic/manual order.
+The collection name is informational and is not prefixed to Pattern names. The
+whole document, including duplicate names and every Pattern entry, is validated
+before changes are applied. Built-in conflicts are always skipped. User
+conflicts default to skip and may be overwritten only when explicitly chosen.
+A confirmed collection import is committed through one atomic replacement, and
+stale conflict analysis is rejected rather than overwriting newer state.
+
 ### Running tests
 
 The project uses Python's built-in `unittest` runner. On Unix-like systems,
