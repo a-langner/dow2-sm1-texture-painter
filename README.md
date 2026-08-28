@@ -12,7 +12,11 @@ Army Painter is based on the original **dow2-texture-painter** by **Jaccouille (
 
 [View the Army Painter repository on GitHub](https://github.com/a-langner/dow2-sm1-texture-painter)
 
-<!-- TODO 1.0 screenshot: Main Army Painter window with a representative loaded texture -->
+<p align="center">
+  <img src="docs/images/army-painter-main.png"
+       alt="Army Painter 1.0 main window"
+       width="900">
+</p>
 
 ## Features
 
@@ -68,7 +72,11 @@ Army Painter includes a color picker designed specifically for miniature and War
 
 Browse or search the bundled Citadel Color library through **Reds**, **Oranges**, **Yellows**, **Greens**, **Teals/Cyans**, **Blues**, **Purples**, **Pinks**, **Browns**, **Neutrals**, **All Colors**, and **Favorites**. You can also create a color manually using RGB, HSV, or Hex values.
 
-<!-- TODO 1.0 screenshot: Citadel Color Picker -->
+<p align="center">
+  <img src="docs/images/color-picker.png"
+       alt="Army Painter Citadel Color Picker"
+       width="900">
+</p>
 
 ### Favorites
 
