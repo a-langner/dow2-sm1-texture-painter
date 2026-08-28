@@ -427,6 +427,18 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
 
         self.assertEqual(frame_type.call_count, 8)
         self.assertEqual(label_type.call_count, 8)
+        self.assertEqual(
+            {
+                slider.options["length"]
+                for slider in (
+                    frame.brightness_slider,
+                    frame.contrast_slider,
+                    frame.saturation_slider,
+                    frame.opacity_slider,
+                )
+            },
+            {300},
+        )
         self.assertTrue(
             all(
                 not slider.options["showvalue"]

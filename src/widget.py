@@ -4083,7 +4083,7 @@ class FrameSlider(tk.Frame):
             block,
             variable=value,
             showvalue=False,
-            length=200,
+            length=300,
             from_=minimum,
             to=maximum,
             orient=tk.HORIZONTAL,
