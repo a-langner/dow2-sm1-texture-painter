@@ -5327,7 +5327,12 @@ class BatchEditTopLevel(tk.Toplevel):
         # Source format Checkbox list
         self.source_format_list = []
         self.frame_source_format = tk.LabelFrame(self, text="Source formats")
-        self.frame_source_format.pack(side=tk.TOP, fill=tk.BOTH)
+        self.frame_source_format.pack(
+            side=tk.TOP,
+            fill=tk.X,
+            padx=10,
+            pady=(10, 6),
+        )
         # Tuple list to save btn widget & the checkbox state variable
         for idx, filetype in enumerate(OPEN_FILETYPES[1:]):
             checkbox_state = tk.IntVar()
@@ -5343,7 +5348,11 @@ class BatchEditTopLevel(tk.Toplevel):
                     checkbox_state,
                 )
             )
-            self.source_format_list[idx][0].pack(side=tk.LEFT)
+            self.source_format_list[idx][0].pack(
+                side=tk.LEFT,
+                padx=6,
+                pady=6,
+            )
         # Setting default input format
         self.source_format_list[0][0].toggle()
 
