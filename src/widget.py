@@ -5448,10 +5448,19 @@ class BatchEditTopLevel(tk.Toplevel):
             row_padding=(2, 0),
         )
 
-        self.frame_progress_bar = tk.LabelFrame(
-            self, relief=tk.RIDGE, bd=2, text="Awaiting process"
+        self.frame_progress_bar = tk.Frame(self, relief=tk.RIDGE, bd=2)
+        self.frame_progress_bar.pack(
+            side=tk.TOP,
+            fill=tk.X,
+            padx=10,
+            pady=(0, 6),
         )
-        self.frame_progress_bar.pack(side=tk.TOP, fill=tk.BOTH)
+        self.status_label = tk.Label(
+            self.frame_progress_bar,
+            text="Status: Awaiting process",
+            anchor=tk.W,
+        )
+        self.status_label.pack(side=tk.TOP, fill=tk.X, padx=6, pady=(4, 2))
 
         self.progress_bar = Progressbar(
             self.frame_progress_bar,
@@ -5459,13 +5468,16 @@ class BatchEditTopLevel(tk.Toplevel):
             length=self.cget("width"),
             mode="determinate",
         )
-        self.progress_bar.pack(side=tk.LEFT)
+        self.progress_bar.pack(side=tk.TOP, fill=tk.X, padx=6, pady=(2, 6))
         self.frame_actions.pack(side=tk.TOP, fill=tk.X)
+
+    def set_status(self, status: str):
+        self.status_label.configure(text=f"Status: {status}")
 
     def update_progress_bar_label(self, current: int):
         maximum = self.progress_bar["maximum"]
         self.progress_bar["value"] = current
-        self.frame_progress_bar.configure(text=f"Completed {current}/{maximum} file(s)")
+        self.set_status(f"Completed {current}/{maximum} file(s)")
 
     def set_running(self, running):
         normal_state = tk.DISABLED if running else tk.NORMAL

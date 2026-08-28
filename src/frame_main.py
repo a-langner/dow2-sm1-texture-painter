@@ -876,7 +876,7 @@ class ArmyPainter(tk.Tk):
         self.frame_batch_tools.protocol("WM_DELETE_WINDOW", self.close_batch_edit_tools)
         if self.batch_future is not None and not self.batch_future.done():
             self.frame_batch_tools.set_running(True)
-            self.frame_batch_tools.frame_progress_bar.configure(text="Batch running...")
+            self.frame_batch_tools.set_status("Batch running...")
 
     def close_batch_edit_tools(self):
         self.batch_cancel.set()
@@ -1754,7 +1754,7 @@ class ArmyPainter(tk.Tk):
         self.batch_events = queue.Queue()
         self.frame_batch_tools.set_running(True)
         self.frame_batch_tools.progress_bar["value"] = 0
-        self.frame_batch_tools.frame_progress_bar.configure(text="Starting...")
+        self.frame_batch_tools.set_status("Starting...")
         self.batch_future = self.batch_executor.submit(
             worker, *args, self.batch_cancel, self.batch_events
         )
@@ -1764,9 +1764,7 @@ class ArmyPainter(tk.Tk):
         if self.batch_future is not None and not self.batch_future.done():
             self.batch_cancel.set()
             if self.frame_batch_tools is not None:
-                self.frame_batch_tools.frame_progress_bar.configure(
-                    text="Cancelling after current file..."
-                )
+                self.frame_batch_tools.set_status("Cancelling after current file...")
 
     def poll_batch_job(self):
         if self.closing:
@@ -1805,17 +1803,11 @@ class ArmyPainter(tk.Tk):
         if self.frame_batch_tools is not None:
             self.frame_batch_tools.set_running(False)
             if cancelled:
-                self.frame_batch_tools.frame_progress_bar.configure(
-                    text="Batch cancelled"
-                )
+                self.frame_batch_tools.set_status("Batch cancelled")
             elif errors:
-                self.frame_batch_tools.frame_progress_bar.configure(
-                    text="Batch completed with errors"
-                )
+                self.frame_batch_tools.set_status("Batch completed with errors")
             else:
-                self.frame_batch_tools.frame_progress_bar.configure(
-                    text="Batch completed"
-                )
+                self.frame_batch_tools.set_status("Batch completed")
             self.frame_batch_tools.lift()
             self.frame_batch_tools.focus_force()
 

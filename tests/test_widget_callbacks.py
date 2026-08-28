@@ -536,6 +536,23 @@ class RemainingWidgetCallbackTests(unittest.TestCase):
         frame.geometry.assert_called_once_with("-800+140")
         frame.settings.set_batch_editor_position.assert_called_once_with((-800, 140))
 
+    def test_batch_status_label_reuses_existing_progress_state(self):
+        frame = object.__new__(BatchEditTopLevel)
+        frame.status_label = Mock()
+
+        frame.set_status("Awaiting process")
+
+        frame.status_label.configure.assert_called_once_with(
+            text="Status: Awaiting process"
+        )
+
+        frame.progress_bar = {"maximum": 3, "value": 0}
+        frame.set_status = Mock()
+        frame.update_progress_bar_label(2)
+
+        self.assertEqual(frame.progress_bar["value"], 2)
+        frame.set_status.assert_called_once_with("Completed 2/3 file(s)")
+
     def test_controller_receives_alpha_and_color_operation_values(self):
         painter = type(
             "Painter",
