@@ -123,19 +123,17 @@ NRM normal maps are not part of Army Painter's recoloring workflow and are inten
 
 You can replace color by transparency with selecting the color mask in the list and checking the `Apply alpha` box.
 
-You can color multiple diffuse textures by using the batch edit tool, select the source directory where your textures are located, input format, output format and the destination directory, the name of the colored files will be the same as the original one, if input & output file have the same format, the output will overwrite the original diffuse texture. Batch edit tool does not process subfolder. Batch edit only works for diffuse texture ending with "\_dif", such as {unit_name}\_dif.dds, because it's the name format for Dawn of War 2 diffuse texture.
+## Batch Edit
 
-## Dawn of War 1 Texture
+Open `Tools -> Batch Edit Tools` to process or convert a folder of textures:
 
-Dawn of War 1 uses a different format to store their tem textures, the 4 masks are separated into individual file stored in a RTX file, once you extract them with a third party tool, you can merge them into a single file using the batch tool editor. The converted texture can then be used to color Dawn of War 1 diffuse grayscale texture.
+1. Choose one or more **Source formats**.
+2. Choose the **Destination format**.
+3. Choose the **Source folder**.
+4. Choose the **Destination folder**.
+5. Select **Process Batch Edit** to apply the current color scheme and processing settings to compatible DIF textures, or **Process Batch Convert** to convert compatible legacy mask groups.
 
-This tool is experimental and only process files from a folder in a "batch" manner.
-
-Click `Tools` -> `Batch Edit Tools` -> `Process Batch Convert` to convert Dawn of War 1 tem textures to Dawn of War 2 tem format.
-
-![example4](https://user-images.githubusercontent.com/7768858/148760310-08c01d18-182b-4680-a092-9e7689f4cb93.jpg)
-
-Dawn of War 1 Trim 2 & Eye coloring aren't handled yet.
+**Process Batch Convert** retains the original utility for combining four previously extracted Dawn of War I team-color mask images into one packed team-color mask. This conversion helper does not make Dawn of War I a fully supported Army Painter recoloring target.
 
 ## Developing
 
