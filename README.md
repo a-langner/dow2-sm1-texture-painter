@@ -12,6 +12,20 @@ Army Painter is based on the original **dow2-texture-painter** by **Jaccouille (
 
 <!-- TODO 1.0 screenshot: Main Army Painter window with a representative loaded texture -->
 
+## Features
+
+- Recolor **Dawn of War II** and **Space Marine 1** textures with four independently configurable team-color channels.
+- Automatically find compatible **TEM/PNT, SPC, and DRT** companion textures where available.
+- Discover multiple **TEM/PNT team-color masks** for a DIF texture and switch between available variants.
+- See changes immediately with live preview, or hold **Show Original** to compare the source texture.
+- Choose from **12 Blend Modes** and use Global or Per Color Brightness, Contrast, Saturation, and Opacity controls.
+- Apply built-in Patterns or create, manage, import, and export User Patterns and Pattern Collections.
+- Browse and search the Citadel Color library, including color categories, Citadel Favorites, named Custom Favorites, Recent Colors, and Closest Citadel Color matching.
+- Rearrange complete Color Slot settings with drag-and-drop, or reuse colors and settings with copy and paste.
+- Correct workspace edits with Undo and Redo.
+- Process or convert folders of textures with Batch Edit tools.
+- Check GitHub Releases for updates from within Army Painter.
+
 ## How to use
 
 This tool was made to precisely work with Dawn of War 2 textures to reduce editing time.
