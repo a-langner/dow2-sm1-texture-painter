@@ -152,6 +152,7 @@ def _get_pattern_marker_or_default(name: str) -> PatternMarkerColor:
 # Backward-compatible module alias; app_identity remains authoritative.
 VERSION = APP_VERSION
 PREVIEW_DEBOUNCE_MS = 120
+DIFFUSE_PLACEHOLDER_TEXT = "Select DIF Texture"
 PATTERN_SAVE_MENU_LABEL = "Save Current as New Pattern…"
 PATTERN_UPDATE_MENU_LABEL = "Update Selected Pattern"
 PATTERN_RESET_MENU_LABEL = "Reset to Selected Pattern"
@@ -830,7 +831,7 @@ class ArmyPainter(tk.Tk):
 
     def define_frame_workspace(self):
         self.img_dif = ImageTk.PhotoImage(
-            create_placeholder_img("Select Diffuse Texture", "RGBA")
+            create_placeholder_img(DIFFUSE_PLACEHOLDER_TEXT, "RGBA")
         )
         self.processed_preview_image = self.img_dif
         self.label_img_dif = tk.Label(
@@ -1165,7 +1166,7 @@ class ArmyPainter(tk.Tk):
             self.minsize(*default_minimum)
         ArmyPainter.sync_team_color_mask_variant_selector(self)
         self.img_dif = ImageTk.PhotoImage(
-            create_placeholder_img("Select Diffuse Texture", "RGBA")
+            create_placeholder_img(DIFFUSE_PLACEHOLDER_TEXT, "RGBA")
         )
         self.processed_preview_image = self.img_dif
         self.label_img_dif.config(image=self.img_dif)

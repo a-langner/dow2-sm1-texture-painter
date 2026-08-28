@@ -462,6 +462,10 @@ class ActiveTextureLifecycleTests(unittest.TestCase):
             image=channel_placeholder
         )
         self.assertEqual(
+            create_placeholder.call_args_list[0].args,
+            ("Select DIF Texture", "RGBA"),
+        )
+        self.assertEqual(
             create_placeholder.call_args_list[-1].args,
             ("Select Team Color Mask", "L"),
         )
