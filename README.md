@@ -1,16 +1,16 @@
-https://user-images.githubusercontent.com/7768858/124058067-f3dfa780-da28-11eb-8335-7c35456467c7.mov
+# Army Painter
 
-# Dawn of War 2 texture painter
+**Army Painter** is an easy-to-use texture recoloring tool for **Warhammer 40,000: Dawn of War II** and **Warhammer 40,000: Space Marine (Space Marine 1)**.
 
-This is a GUI desktop application that allows the user to recolor Dawn of War 2 grayscale diffuse texture using the default army color pattern from the game.
+It allows you to quickly create and preview custom color schemes using the games' existing team-color masks. Choose your colors, apply a Pattern, fine-tune the result and export the finished texture — without having to manually edit individual mask channels in an image editor.
 
-Dawn of War 2 engine uses shader & pre-defined color pattern to colorize their texture. Those textures are grayscaled by default.
+Army Painter is based on the original **dow2-texture-painter** by **Jaccouille (Marc Szilagyi)** and has since been expanded with support for **Space Marine 1** textures, Patterns, Citadel colors, additional image processing options, and many other features.
 
-The goal is to reproduce the engine coloring to export those textures with their color pattern.
+> **Army Painter is an unofficial community tool and is not affiliated with, endorsed by, or associated with Games Workshop, Citadel, Relic Entertainment, or their respective owners.**
 
-Users can also make their custom army pattern and save it. Batch editing is supported, you can set a pattern to apply it to every texture in a folder.
+**[Download the latest release](https://github.com/a-langner/dow2-sm1-texture-painter/releases)**
 
-![](https://i.imgur.com/VXFjzkh.jpg) _dow2 texture painter application loaded with the hormagaunt grayscale diffuse texture._
+<!-- TODO 1.0 screenshot: Main Army Painter window with a representative loaded texture -->
 
 ## How to use
 
