@@ -123,6 +123,12 @@ NRM normal maps are not part of Army Painter's recoloring workflow and are inten
 
 You can replace color by transparency with selecting the color mask in the list and checking the `Apply alpha` box.
 
+## Undo, Redo, and Reset Workspace
+
+Use **Undo** (`Ctrl+Z`) and **Redo** (`Ctrl+Y`) to move backward or forward through changes to the current editing workspace.
+
+**Reset Workspace** restores the current workspace to its editing defaults. It does not delete persistent User Patterns or application settings.
+
 ## Batch Edit
 
 Open `Tools -> Batch Edit Tools` to process or convert a folder of textures:
