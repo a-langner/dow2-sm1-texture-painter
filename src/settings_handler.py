@@ -46,6 +46,7 @@ FAVORITE_SAVE_DIALOG_POSITION_FIELD = "ui_favorite_save_dialog_position"
 FAVORITE_RENAME_DIALOG_POSITION_FIELD = "ui_favorite_rename_dialog_position"
 CLOSEST_CITADEL_DIALOG_POSITION_FIELD = "ui_closest_citadel_dialog_position"
 ABOUT_DIALOG_POSITION_FIELD = "ui_about_dialog_position"
+FACTORY_RESET_DIALOG_POSITION_FIELD = "ui_factory_reset_dialog_position"
 BATCH_EDITOR_POSITION_FIELD = "ui_batch_editor_position"
 GAME_PROFILE_FIELD = "game_profile_id"
 ValidatedSettings = tuple[DirectoryValues, str | None]
@@ -86,6 +87,7 @@ class SettingsHandler:
         self.favorite_rename_dialog_position: tuple[int, int] | None = None
         self.closest_citadel_dialog_position: tuple[int, int] | None = None
         self.about_dialog_position: tuple[int, int] | None = None
+        self.factory_reset_dialog_position: tuple[int, int] | None = None
         self.batch_editor_position: tuple[int, int] | None = None
         self.game_profile_id = DEFAULT_TEXTURE_NAMING.profile_id
         self.load_error: Exception | None = None
@@ -165,6 +167,9 @@ class SettingsHandler:
             )
             self.about_dialog_position = self._optional_ui_pair(
                 document, ABOUT_DIALOG_POSITION_FIELD
+            )
+            self.factory_reset_dialog_position = self._optional_ui_pair(
+                document, FACTORY_RESET_DIALOG_POSITION_FIELD
             )
             self.batch_editor_position = self._optional_ui_pair(
                 document, BATCH_EDITOR_POSITION_FIELD
@@ -307,6 +312,12 @@ class SettingsHandler:
         self._update_values({ABOUT_DIALOG_POSITION_FIELD: list(position)})
         self.about_dialog_position = position
 
+    def set_factory_reset_dialog_position(self, position: tuple[int, int]) -> None:
+        if self.factory_reset_pending_restart:
+            return
+        self._update_values({FACTORY_RESET_DIALOG_POSITION_FIELD: list(position)})
+        self.factory_reset_dialog_position = position
+
     def set_batch_editor_position(self, position: tuple[int, int]) -> None:
         if self.factory_reset_pending_restart:
             return
@@ -433,6 +444,11 @@ class SettingsHandler:
             ABOUT_DIALOG_POSITION_FIELD: (
                 list(self.about_dialog_position)
                 if self.about_dialog_position
+                else None
+            ),
+            FACTORY_RESET_DIALOG_POSITION_FIELD: (
+                list(self.factory_reset_dialog_position)
+                if self.factory_reset_dialog_position
                 else None
             ),
             BATCH_EDITOR_POSITION_FIELD: (

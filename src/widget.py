@@ -1267,6 +1267,7 @@ class FactoryResetDialog(tk.Toplevel):
 
     def __init__(self, parent: tk.Misc):
         super().__init__(parent)
+        self.settings = getattr(parent, "settings", None)
         self.result: Optional[bool] = None
         self.delete_user_patterns = tk.BooleanVar(value=False)
         self.title("Factory Reset")
@@ -1326,6 +1327,7 @@ class FactoryResetDialog(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", self.cancel)
         self.bind("<Escape>", self.cancel)
         self.bind("<Return>", self.confirm)
+        self._restore_position()
         reset_button.focus_set()
         self.grab_set()
         self.wait_window()
@@ -1341,7 +1343,39 @@ class FactoryResetDialog(tk.Toplevel):
 
     def cancel(self, Event=None) -> None:
         self.result = None
+        self._save_position()
         self.destroy()
+
+    def _restore_position(self) -> None:
+        self.update_idletasks()
+        position = safe_window_position(
+            getattr(
+                getattr(self, "settings", None),
+                "factory_reset_dialog_position",
+                None,
+            ),
+            self.winfo_width(),
+            self.winfo_height(),
+            self.winfo_vrootx(),
+            self.winfo_vrooty(),
+            self.winfo_vrootwidth(),
+            self.winfo_vrootheight(),
+        )
+        if position is not None:
+            self.geometry(f"{position[0]:+d}{position[1]:+d}")
+
+    def _save_position(self) -> None:
+        setter = getattr(
+            getattr(self, "settings", None),
+            "set_factory_reset_dialog_position",
+            None,
+        )
+        if setter is None:
+            return
+        try:
+            setter((self.winfo_x(), self.winfo_y()))
+        except OSError:
+            LOGGER.exception("Could not save Factory Reset dialog position")
 
 
 class FactoryResetPatternDeletionDialog(tk.Toplevel):

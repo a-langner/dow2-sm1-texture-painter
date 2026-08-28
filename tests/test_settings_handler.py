@@ -48,6 +48,7 @@ class SettingsHandlerTests(unittest.TestCase):
             handler.favorite_rename_dialog_position = (22, 32)
             handler.closest_citadel_dialog_position = (23, 33)
             handler.about_dialog_position = (24, 34)
+            handler.factory_reset_dialog_position = (26, 36)
             handler.batch_editor_position = (25, 35)
             handler.game_profile_id = "sm1"
             handler.load_error = ValueError("old invalid settings")
@@ -80,6 +81,7 @@ class SettingsHandlerTests(unittest.TestCase):
             handler.favorite_rename_dialog_position = (22, 32)
             handler.closest_citadel_dialog_position = (23, 33)
             handler.about_dialog_position = (24, 34)
+            handler.factory_reset_dialog_position = (26, 36)
             handler.batch_editor_position = (25, 35)
             handler.game_profile_id = "sm1"
             recent_colors = ((1, 2, 3), (40, 50, 60), (200, 150, 100))
@@ -107,6 +109,7 @@ class SettingsHandlerTests(unittest.TestCase):
             self.assertIsNone(reloaded.favorite_rename_dialog_position)
             self.assertIsNone(reloaded.closest_citadel_dialog_position)
             self.assertIsNone(reloaded.about_dialog_position)
+            self.assertIsNone(reloaded.factory_reset_dialog_position)
             self.assertIsNone(reloaded.batch_editor_position)
             self.assertEqual(reloaded.game_profile_id, "dow2")
             self.assertEqual(reloaded.color_picker_recent_colors, recent_colors)
@@ -125,6 +128,7 @@ class SettingsHandlerTests(unittest.TestCase):
             handler.set_favorite_rename_dialog_position((22, 32))
             handler.set_closest_citadel_dialog_position((23, 33))
             handler.set_about_dialog_position((24, 34))
+            handler.set_factory_reset_dialog_position((26, 36))
             handler.set_batch_editor_position((25, 35))
 
             handler.restore_factory_defaults()
@@ -138,6 +142,7 @@ class SettingsHandlerTests(unittest.TestCase):
             handler.set_favorite_rename_dialog_position((202, 302))
             handler.set_closest_citadel_dialog_position((203, 303))
             handler.set_about_dialog_position((204, 304))
+            handler.set_factory_reset_dialog_position((206, 306))
             handler.set_batch_editor_position((205, 305))
 
             reloaded = SettingsHandler(settings_path, root)
@@ -151,6 +156,7 @@ class SettingsHandlerTests(unittest.TestCase):
             self.assertIsNone(reloaded.favorite_rename_dialog_position)
             self.assertIsNone(reloaded.closest_citadel_dialog_position)
             self.assertIsNone(reloaded.about_dialog_position)
+            self.assertIsNone(reloaded.factory_reset_dialog_position)
             self.assertIsNone(reloaded.batch_editor_position)
 
     def test_factory_reset_write_failure_preserves_file_and_memory(self):
@@ -556,6 +562,7 @@ class SettingsHandlerTests(unittest.TestCase):
             handler.set_favorite_rename_dialog_position((200, 210))
             handler.set_closest_citadel_dialog_position((300, 310))
             handler.set_about_dialog_position((-500, 320))
+            handler.set_factory_reset_dialog_position((500, 510))
             handler.set_batch_editor_position((400, 410))
             reloaded = SettingsHandler(settings_path, root)
 
@@ -563,6 +570,7 @@ class SettingsHandlerTests(unittest.TestCase):
             self.assertEqual(reloaded.favorite_rename_dialog_position, (200, 210))
             self.assertEqual(reloaded.closest_citadel_dialog_position, (300, 310))
             self.assertEqual(reloaded.about_dialog_position, (-500, 320))
+            self.assertEqual(reloaded.factory_reset_dialog_position, (500, 510))
             self.assertEqual(reloaded.batch_editor_position, (400, 410))
 
     def test_game_profile_defaults_to_dow2_and_persists_stable_sm1_id(self):
