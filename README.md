@@ -98,10 +98,28 @@ You can export an individual built-in or User Pattern to share it, and import sh
 
 A Pattern Collection packages all of your User Patterns together for backup or sharing. Use `Patterns -> Export All User Patterns…` to create a Collection and `Patterns -> Import Pattern Collection…` to restore or import one. Built-in Patterns remain separate and are not included in User Pattern Collections.
 
-You can apply dirt & specular texture by clicking on `Edit -> Apply dirt/specular`, those textures must be in the same folder as the diffuse ones and their filenames must follow the following pattern.
+## Supported Games and Textures
 
-- {unit_name}\_drt.dds -> dirt
-- {unit_name}\_spc.dds -> specular
+### Dawn of War II
+
+| Texture | Purpose |
+|---|---|
+| **DIF** | Base/diffuse texture |
+| **TEM** | Team-color mask |
+| **SPC** | Specular information |
+| **DRT** | Dirt information |
+
+### Space Marine 1
+
+| Texture | Purpose |
+|---|---|
+| **DIF** | Base/diffuse texture |
+| **PNT** | Team-color mask |
+| **SPC** | Specular information |
+
+### NRM
+
+NRM normal maps are not part of Army Painter's recoloring workflow and are intentionally ignored.
 
 You can replace color by transparency with selecting the color mask in the list and checking the `Apply alpha` box.
 
