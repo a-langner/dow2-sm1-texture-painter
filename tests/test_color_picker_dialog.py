@@ -35,6 +35,7 @@ from src.widget import (
     COLOR_PICKER_GROUP_PANE_WIDTH,
     COLOR_PICKER_GROUP_ENTRIES,
     COLOR_PICKER_GROUP_SELECTED_BACKGROUND,
+    COLOR_PICKER_SWATCH_SELECTED_BACKGROUND,
     COLOR_PICKER_PALETTE_PANE_WIDTH,
     COLOR_SPACE_MODES,
     DEFAULT_COLOR_SPACE_MODE,
@@ -1799,7 +1800,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(selected_tile.kwargs["width"], 3)
         self.assertEqual(
             selected_tile.kwargs["fill"],
-            COLOR_PICKER_GROUP_SELECTED_BACKGROUND,
+            COLOR_PICKER_SWATCH_SELECTED_BACKGROUND,
         )
         star = next(
             call

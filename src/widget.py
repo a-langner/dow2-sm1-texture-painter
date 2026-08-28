@@ -135,6 +135,7 @@ COLOR_PICKER_GROUP_PANE_WIDTH = 140
 COLOR_PICKER_PALETTE_PANE_WIDTH = 636
 COLOR_PICKER_EDITOR_PANE_WIDTH = 400
 COLOR_PICKER_GROUP_SELECTED_BACKGROUND = "#bfbfbf"
+COLOR_PICKER_SWATCH_SELECTED_BACKGROUND = "#d9d9d9"
 
 
 class PaletteSpecialGroup(Enum):
@@ -891,7 +892,7 @@ class PaintSwatchGrid(ttk.Frame):
             hovered = paint is getattr(self, "_hovered_paint", None)
             outline = PAINT_SWATCH_SELECTED_OUTLINE if selected else ""
             background = (
-                COLOR_PICKER_GROUP_SELECTED_BACKGROUND
+                COLOR_PICKER_SWATCH_SELECTED_BACKGROUND
                 if selected
                 else (PAINT_SWATCH_HOVER_BACKGROUND if hovered else "")
             )
