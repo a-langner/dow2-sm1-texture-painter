@@ -1584,12 +1584,12 @@ class ClosestCitadelColorDialog(tk.Toplevel):
                 value=match.paint.id,
                 variable=self.selected_paint_id,
             )
-            button.grid(row=rank - 1, column=0, sticky=tk.W, pady=3)
+            button.grid(row=rank - 1, column=0, sticky=tk.W, pady=4)
             swatch = self._create_swatch(
                 matches_area,
                 paint_swatch_presentation(match.paint).color,
             )
-            swatch.grid(row=rank - 1, column=1, padx=(6, 8), pady=3)
+            swatch.grid(row=rank - 1, column=1, padx=(6, 8), pady=4)
             ttk.Label(matches_area, text=match.paint.name, width=24).grid(
                 row=rank - 1, column=2, sticky=tk.W, padx=(0, 8)
             )
