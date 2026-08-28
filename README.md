@@ -121,7 +121,7 @@ A Pattern Collection packages all of your User Patterns together for backup or s
 
 NRM normal maps are not part of Army Painter's recoloring workflow and are intentionally ignored.
 
-You can replace color by transparency with selecting the color mask in the list and checking the `Apply alpha` box.
+To make selected team-color channels transparent in the exported texture, select the channels and enable **Apply alpha**.
 
 ## Undo, Redo, and Reset Workspace
 
