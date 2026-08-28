@@ -60,6 +60,26 @@ Hold **Show Original** to compare your current live preview with the unprocessed
 
 Choose `File -> Save as` or press `Ctrl+S`, select a destination and one of the supported output formats, then save the rendered texture.
 
+## Color Picker
+
+Army Painter includes a color picker designed specifically for miniature and Warhammer 40,000 color schemes.
+
+Browse or search the bundled Citadel Color library through **Reds**, **Oranges**, **Yellows**, **Greens**, **Teals/Cyans**, **Blues**, **Purples**, **Pinks**, **Browns**, **Neutrals**, **All Colors**, and **Favorites**. You can also create a color manually using RGB, HSV, or Hex values.
+
+<!-- TODO 1.0 screenshot: Citadel Color Picker -->
+
+### Favorites
+
+Add Citadel paints to Favorites for quick access. Manual RGB, HSV, or Hex colors can also be saved with a name as Custom Favorites.
+
+### Recent Colors
+
+Recent Colors keeps your latest confirmed Color Picker choices close at hand.
+
+### Closest Citadel Color
+
+**Closest Color** compares the current color with the Citadel palette and shows the three closest matches. Each result includes its perceptual color difference (**ΔE00 / CIEDE2000**), and you can select the match you want to use.
+
 ### Saved color patterns
 
 Built-in patterns are bundled with the application and are read-only. Custom patterns are stored persistently outside the executable and are marked with `★` in the pattern list.
