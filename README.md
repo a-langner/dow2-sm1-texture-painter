@@ -129,6 +129,12 @@ Use **Undo** (`Ctrl+Z`) and **Redo** (`Ctrl+Y`) to move backward or forward thro
 
 **Reset Workspace** restores the current workspace to its editing defaults. It does not delete persistent User Patterns or application settings.
 
+## Settings and Factory Reset
+
+Army Painter remembers relevant preferences and persistent user data between sessions.
+
+Use `Edit -> Factory Reset...` to restore application settings and preferences. User Patterns are preserved by default; the confirmation dialog provides a separate option to delete them when explicitly selected.
+
 ## Batch Edit
 
 Open `Tools -> Batch Edit Tools` to process or convert a folder of textures:
