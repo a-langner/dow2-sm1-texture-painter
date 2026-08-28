@@ -5404,17 +5404,19 @@ class BatchEditTopLevel(tk.Toplevel):
             starting_value="",
             entry_width=60,
             label_width=len("Destination folder:"),
+            row_padding=(0, 0),
         ):
             entry_frame = tk.Frame(frame)
-            entry_frame.pack(side=tk.TOP, fill=tk.X)
+            entry_frame.pack(side=tk.TOP, fill=tk.X, pady=row_padding)
             tk.Label(entry_frame, text=label, width=label_width, anchor=tk.W).pack(
-                side=tk.LEFT
+                side=tk.LEFT,
+                padx=(0, 6),
             )
             entry_frame.entry_value = tk.StringVar(value=starting_value)
             entry_path = tk.Entry(
                 entry_frame,
                 textvariable=entry_frame.entry_value,
-                width=60,
+                width=entry_width,
                 exportselection=0,
             )
             entry_frame.entry_path = entry_path
@@ -5425,16 +5427,25 @@ class BatchEditTopLevel(tk.Toplevel):
                 command=lambda: (_select_folder(entry_frame.entry_value)),
             )
             entry_frame.entry_button = entry_button
-            entry_button.pack(side=tk.LEFT)
+            entry_button.pack(side=tk.LEFT, padx=(6, 0))
             return entry_frame
 
         self.frame_folders = tk.Frame(self)
-        self.frame_folders.pack(side=tk.TOP, fill=tk.X)
+        self.frame_folders.pack(
+            side=tk.TOP,
+            fill=tk.X,
+            padx=10,
+            pady=(0, 6),
+        )
         self.frame_batch_src_path = widget_entry_template(
-            self.frame_folders, "Source folder:"
+            self.frame_folders,
+            "Source folder:",
+            row_padding=(0, 2),
         )
         self.frame_batch_dest_path = widget_entry_template(
-            self.frame_folders, "Destination folder:"
+            self.frame_folders,
+            "Destination folder:",
+            row_padding=(2, 0),
         )
 
         self.frame_progress_bar = tk.LabelFrame(
