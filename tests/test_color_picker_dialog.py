@@ -44,6 +44,7 @@ from src.widget import (
     PALETTE_SORT_DISPLAY_NAMES,
     PAINT_SWATCH_OUTLINE,
     PAINT_SWATCH_CORNER_RADIUS,
+    PAINT_SWATCH_HOVER_BACKGROUND,
     PAINT_SWATCH_PREVIEW_SIZE,
     PAINT_SWATCH_SELECTED_OUTLINE,
     RECENT_COLOR_SWATCH_CORNER_RADIUS,
@@ -1803,6 +1804,31 @@ class ColorPickerDialogTests(unittest.TestCase):
         self.assertEqual(star.kwargs["fill"], FAVORITE_STAR_COLOR)
         self.assertNotEqual(star.kwargs["fill"], APP_SELECTION_FOREGROUND)
 
+    def test_hovered_swatch_box_uses_light_blue_background(self):
+        hovered = PaintColor("hovered", "Hovered", 255, 0, 0)
+        ordinary = PaintColor("ordinary", "Ordinary", 0, 0, 255)
+        grid = object.__new__(PaintSwatchGrid)
+        grid._relayout_after_id = "pending"
+        grid._configured_column_count = 2
+        grid._column_count = 2
+        grid.paints = (hovered, ordinary)
+        grid.selected_paint_id = None
+        grid._hovered_paint = hovered
+        grid._is_paint_favorite = None
+        grid.canvas = Mock()
+        grid.canvas.winfo_width.return_value = 192
+        grid._paint_name_font = Mock()
+        grid._paint_name_font.metrics.return_value = 16
+        grid._paint_name_font.measure.side_effect = lambda text: len(text) * 6
+
+        grid._relayout()
+
+        tile_calls = grid.canvas.create_rectangle.call_args_list
+        self.assertEqual(
+            tile_calls[0].kwargs["fill"], PAINT_SWATCH_HOVER_BACKGROUND
+        )
+        self.assertEqual(tile_calls[1].kwargs["fill"], "")
+
     def test_normal_paint_selection_does_not_change_favorite_membership(self):
         favorite = PaintColor("favorite", "Favorite", 255, 0, 0)
         ordinary = PaintColor("ordinary", "Ordinary", 0, 0, 255)
@@ -3530,6 +3556,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         grid._paint_at = Mock(side_effect=(short, truncated))
         grid._hide_tooltip = Mock()
         grid._schedule_tooltip = Mock()
+        grid._schedule_relayout = Mock()
 
         first_event = SimpleNamespace(x=10, y=10, x_root=100, y_root=100)
         grid._on_canvas_motion(first_event)
@@ -3538,6 +3565,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         second_event = SimpleNamespace(x=20, y=20, x_root=120, y_root=120)
         grid._on_canvas_motion(second_event)
         grid._schedule_tooltip.assert_called_once_with(truncated, second_event)
+        self.assertEqual(grid._schedule_relayout.call_count, 2)
 
     def test_exact_catalog_color_uses_paint_name_and_detailed_tooltip(self):
         paint = PaintColor("mephiston", "Mephiston Red", 150, 12, 9)

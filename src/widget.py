@@ -193,6 +193,7 @@ COLOR_MODEL_GROUP_PADDING = (4, 6)
 COLOR_MODEL_CONTROL_WIDTH = 3
 PAINT_SWATCH_OUTLINE = "#606060"
 PAINT_SWATCH_SELECTED_OUTLINE = APP_SELECTION_BACKGROUND
+PAINT_SWATCH_HOVER_BACKGROUND = PATTERN_HOVER_BACKGROUND
 FAVORITE_STAR_COLOR = "#E6B800"
 FAVORITE_STAR_MARGIN = 3
 FAVORITE_GROUP_INDICATOR_BACKGROUND = "#FFFFFF"
@@ -887,12 +888,14 @@ class PaintSwatchGrid(ttk.Frame):
             x2 = cell_x2 - 2
             y2 = y1 + row_height - 4
             selected = paint.id == self.selected_paint_id
+            hovered = paint is getattr(self, "_hovered_paint", None)
             outline = PAINT_SWATCH_SELECTED_OUTLINE if selected else ""
             self.canvas.create_rectangle(
                 x1,
                 y1,
                 x2,
                 y2,
+                fill=PAINT_SWATCH_HOVER_BACKGROUND if hovered else "",
                 outline=outline,
                 width=3 if selected else 0,
                 tags="paint",
@@ -1004,12 +1007,16 @@ class PaintSwatchGrid(ttk.Frame):
             return
         self._hide_tooltip()
         self._hovered_paint = paint
+        self._schedule_relayout()
         if paint is not None and paint.id in self._truncated_paint_ids:
             self._schedule_tooltip(paint, Event)
 
     def _on_canvas_leave(self, Event=None) -> None:
+        had_hovered_paint = self._hovered_paint is not None
         self._hovered_paint = None
         self._hide_tooltip()
+        if had_hovered_paint:
+            self._schedule_relayout()
 
     def _on_mousewheel(self, Event):
         self.canvas.yview_scroll(int(-Event.delta / 120), "units")
