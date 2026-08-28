@@ -4,7 +4,7 @@
 
 It allows you to quickly create and preview custom color schemes using the games' existing team-color masks. Choose your colors, apply a Pattern, fine-tune the result and export the finished texture — without having to manually edit individual mask channels in an image editor.
 
-Army Painter is based on the original **dow2-texture-painter** by **Jaccouille (Marc Szilagyi)** and has since been expanded with support for **Space Marine 1** textures, Patterns, Citadel colors, additional image processing options, and many other features.
+Army Painter is based on the original **dow2-texture-painter** by **Jaccouille (Marc Szilagyi)** and has since been expanded with support for **Space Marine 1** textures, Patterns, the Citadel Color library, additional image processing options, and many other features.
 
 > **Army Painter is an unofficial community tool and is not affiliated with, endorsed by, or associated with Games Workshop, Citadel, Relic Entertainment, or their respective owners.**
 
@@ -78,7 +78,7 @@ Recent Colors keeps your latest confirmed Color Picker choices close at hand.
 
 ### Closest Citadel Color
 
-**Closest Color** compares the current color with the Citadel palette and shows the three closest matches. Each result includes its perceptual color difference (**ΔE00 / CIEDE2000**), and you can select the match you want to use.
+**Closest Color** compares the current color with the Citadel Color palette and shows the three closest matches. Each result includes its perceptual color difference (**ΔE00 / CIEDE2000**), and you can select the match you want to use.
 
 ## Patterns
 
