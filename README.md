@@ -26,36 +26,39 @@ Army Painter is based on the original **dow2-texture-painter** by **Jaccouille (
 - Process or convert folders of textures with Batch Edit tools.
 - Check GitHub Releases for updates from within Army Painter.
 
-## How to use
+## Getting Started
 
-This tool was made to precisely work with Dawn of War 2 textures to reduce editing time.
+Recoloring a texture takes five basic steps:
 
-Dawn of War 2 unit textures are composed of the following files:
+1. Open a DIF texture.
+2. Choose colors.
+3. Choose a Pattern.
+4. Fine-tune the result.
+5. Save the finished texture.
 
-- {unit_name}\_dif.dds -> diffuse
-- {unit_name}\_tem.dds -> team color mask
-- {unit_name}\_drt.dds -> dirt
-- {unit_name}\_spc.dds -> specular
-- {unit_name}\_emi.dds -> emissive
-- {unit_name}\_ocl.dds -> oclusion
-- {unit_name}\_nrm.dds -> normal map
+### Open a texture
 
-This tool assumes that the textures are located in the unit folder, e.g a folder named "space marine" contains all textures for a space marine model. Emissive, oclusion and normal map textures are not useful to color the diffuse texture.
+Select the game profile, then click **Select DIF Texture** and choose the base texture you want to recolor. Army Painter searches the same folder for compatible companion textures where available. Dawn of War II uses a **TEM** team-color mask, while Space Marine 1 uses a **PNT** mask.
 
-Click on `File -> Open` and select a diffuse texture, it will load the {unit_name}\_tem.dds texture located in the same folder, the team color file contains RGBA color masks which are necessary for mapping the colored part of the diffuse texture. Can open following format: DDS, PNG, JPG, BMP, TGA and BLP.
+If Army Painter finds multiple compatible masks for the DIF texture, use the **Team Color Mask** selector to switch between the available variants. The preview updates to show the selected mask.
 
-Click on the top left boxes to pick a color that correspond to the following mask of the team color texture:
+### Choose colors
 
-- Color 1 -> red mask
-- Color 2 -> green mask
-- Color 3 -> blue mask
-- Color 4 -> alpha mask
+The four Color Slots represent the texture's four team-color channels. Click **Edit Color** for a slot to enter a manual/custom color or browse the Citadel Color Picker. Drag one Color Slot onto another to swap their complete colors and settings.
 
-![dow2-texture-mask](https://user-images.githubusercontent.com/7768858/124062661-5fc60e00-da31-11eb-97f7-2e8f04c45974.png) _Using red, green and white for the coloring._
+### Choose a Pattern
 
-Once you're done, you can save your edit by clicking on `File -> Save`, can save with the following format: PNG, JPG, BMP and TGA.
+Select a built-in Pattern for a ready-made color scheme, or choose one of your reusable User Patterns. Applying a Pattern updates the live preview immediately.
 
-The application loads the default color pattern from Dawn of War 2, you can select them on the list located bottom right.
+### Fine-tune the result
+
+Choose from **12 Blend Modes** and fine-tune the result using Brightness, Contrast, Saturation, and Opacity. **Global** processing applies one set of controls to the whole scheme; **Per Color** lets you configure each Color Slot independently.
+
+Hold **Show Original** to compare your current live preview with the unprocessed DIF texture.
+
+### Save or export
+
+Choose `File -> Save as` or press `Ctrl+S`, select a destination and one of the supported output formats, then save the rendered texture.
 
 ### Saved color patterns
 
