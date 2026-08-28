@@ -5368,14 +5368,12 @@ class BatchEditTopLevel(tk.Toplevel):
             text="Process Batch Edit",
             command=self._on_batch_edit,
         )
-        self.batch_edit_button.pack(side=tk.LEFT)
 
         self.batch_convert_button = tk.Button(
             self.frame_actions,
             text="Process Batch Convert",
             command=self._on_batch_convert,
         )
-        self.batch_convert_button.pack(side=tk.LEFT)
 
         self.cancel_button = tk.Button(
             self.frame_actions,
@@ -5383,7 +5381,9 @@ class BatchEditTopLevel(tk.Toplevel):
             command=self._on_cancel,
             state=tk.DISABLED,
         )
-        self.cancel_button.pack(side=tk.LEFT)
+        self.cancel_button.pack(side=tk.LEFT, padx=(0, 8))
+        self.batch_edit_button.pack(side=tk.LEFT, padx=(0, 4))
+        self.batch_convert_button.pack(side=tk.LEFT)
 
         def _select_folder(folder_path, Event=None):
             folder_path.set(filedialog.askdirectory(initialdir=os.curdir))
