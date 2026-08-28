@@ -130,5 +130,9 @@ zeprofile_project/backend_ui/node_modules
 # Allow icon file
 !icon_64x64.png
 
+# Allow README screenshots
+!army-painter-main.png
+!color-picker.png
+
 # Input files
 docs/jobs/
