@@ -80,90 +80,23 @@ Recent Colors keeps your latest confirmed Color Picker choices close at hand.
 
 **Closest Color** compares the current color with the Citadel palette and shows the three closest matches. Each result includes its perceptual color difference (**ΔE00 / CIEDE2000**), and you can select the match you want to use.
 
-### Saved color patterns
+## Patterns
 
-Built-in patterns are bundled with the application and are read-only. Custom patterns are stored persistently outside the executable and are marked with `★` in the pattern list.
+Patterns let you save and reuse complete color schemes. Army Painter includes a separate set of built-in Patterns, which are always available and read-only, as well as your own editable User Patterns.
 
-The custom-pattern file is stored at:
+Use the Pattern panel to:
 
-- Windows: `%LOCALAPPDATA%\DOW2-SM1 Texture Painter\user_patterns.json`
-- Linux: `$XDG_DATA_HOME/DOW2-SM1 Texture Painter/user_patterns.json`, or `~/.local/share/DOW2-SM1 Texture Painter/user_patterns.json` by default
-- macOS: `~/Library/Application Support/DOW2-SM1 Texture Painter/user_patterns.json`
+- create a User Pattern with **Save New**;
+- apply changes to it with **Update**;
+- **Rename** or **Delete** it;
+- drag User Patterns into your preferred order; and
+- mark User Patterns with colored stars to organize or highlight them.
 
-Updating or replacing the application executable does not normally remove custom patterns because this file is stored separately.
-
-### Editing color patterns
-
-The Pattern panel uses a 2×2 button layout: `Save New`, `Update`, `Rename`, and `Delete`.
-
-- `Save New` creates a custom Pattern from the colors currently shown, whether a built-in or custom Pattern is selected.
-- `Update` replaces the stored colors of the selected custom Pattern.
-- `Rename` changes only the selected custom Pattern's name.
-- `Delete` permanently removes the selected custom Pattern.
-
-Only custom, user-created Patterns can be updated, renamed, or deleted. Built-in Patterns remain read-only. Editing operations are stored persistently and remain available after restarting the application.
-
-`Modified` appears when the current colors differ from the selected Pattern's stored colors. Color changes are not saved automatically: use `Update` to keep them, or `Edit -> Reset to Selected Pattern` to discard them. To create a new custom Pattern from any selected Pattern's stored colors, use `Edit -> Duplicate Selected Pattern…`.
-
-Pattern import and export behavior is unchanged.
-
-### Importing and exporting patterns
-
-The `Patterns` menu contains commands for single patterns and Pattern Collections:
-
-- `Import Pattern…`
-- `Export Selected Pattern…`
-- `Import Pattern Collection…`
-- `Export All User Patterns…`
-
-For single-pattern exchange, both built-in and custom patterns can be exported. Pattern exchange files use the `.pattern.json` suffix and contain versioned JSON, for example:
-
-```json
-{
-    "format": "dow2-sm1-texture-painter-pattern",
-    "version": 1,
-    "name": "Example Pattern",
-    "colors": {
-        "primary_colour_name": "#112233",
-        "secondary_colour_name": "#445566",
-        "tint_colour_name": "#778899",
-        "extra_colour_name": "#aabbcc"
-    }
-}
-```
-
-Imported patterns become custom, user-created patterns and receive the `★` marker in the pattern list. They are copied into persistent user storage, so deleting the original `.pattern.json` file later does not delete the imported pattern.
-
-Built-in patterns cannot be overwritten. If an imported name matches an existing custom pattern, the application asks whether to rename the import, overwrite the existing pattern, or cancel. Nothing is overwritten without confirmation.
+You can export an individual built-in or User Pattern to share it, and import shared Patterns into your User Patterns. Use `Patterns -> Export Selected Pattern…` or `Patterns -> Import Pattern…`.
 
 ### Pattern Collections
 
-`Export All User Patterns…` saves all custom, user-created patterns in one versioned JSON file with the `.pattern-collection.json` suffix. Built-in patterns are never included. The Collection name is informational and is not added to the names of its patterns.
-
-```json
-{
-    "format": "dow2-sm1-texture-painter-pattern-collection",
-    "version": 1,
-    "name": "My Space Marine Patterns",
-    "patterns": [
-        {
-            "name": "Blood Ravens Veteran",
-            "colors": {
-                "primary_colour_name": "#7f1919",
-                "secondary_colour_name": "#d1b989",
-                "tint_colour_name": "#242424",
-                "extra_colour_name": "#ffffff"
-            }
-        }
-    ]
-}
-```
-
-`Import Pattern Collection…` validates the entire Collection before saving anything. If one pattern is invalid, or if names are duplicated within the Collection, the whole Collection is rejected. A confirmed import is atomic, so it is saved as one operation rather than as a series of partial imports.
-
-Names that conflict with built-in patterns are always skipped because built-in patterns cannot be overwritten. For names that conflict with existing custom patterns, you can skip or overwrite them; **Skip existing user patterns** is the default. Collection import does not automatically rename conflicting patterns.
-
-Single-pattern import and export remain available separately through `Import Pattern…` and `Export Selected Pattern…`.
+A Pattern Collection packages all of your User Patterns together for backup or sharing. Use `Patterns -> Export All User Patterns…` to create a Collection and `Patterns -> Import Pattern Collection…` to restore or import one. Built-in Patterns remain separate and are not included in User Pattern Collections.
 
 You can apply dirt & specular texture by clicking on `Edit -> Apply dirt/specular`, those textures must be in the same folder as the diffuse ones and their filenames must follow the following pattern.
 
