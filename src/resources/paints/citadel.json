@@ -33,9 +33,9 @@
       "id": "administratum-grey",
       "name": "Administratum Grey",
       "rgb": {
-        "r": 152,
+        "r": 153,
         "g": 156,
-        "b": 148
+        "b": 149
       }
     },
     {
@@ -60,9 +60,9 @@
       "id": "agrax-earthshade",
       "name": "Agrax Earthshade",
       "rgb": {
-        "r": 169,
-        "g": 157,
-        "b": 141
+        "r": 135,
+        "g": 121,
+        "b": 106
       }
     },
     {
@@ -80,25 +80,25 @@
       "rgb": {
         "r": 179,
         "g": 158,
-        "b": 128
+        "b": 127
       }
     },
     {
       "id": "agrellan-earth",
       "name": "Agrellan Earth",
       "rgb": {
-        "r": 179,
-        "g": 158,
-        "b": 128
+        "r": 163,
+        "g": 143,
+        "b": 114
       }
     },
     {
       "id": "ahriman-blue",
       "name": "Ahriman Blue",
       "rgb": {
-        "r": 0,
-        "g": 112,
-        "b": 138
+        "r": 22,
+        "g": 146,
+        "b": 170
       }
     },
     {
@@ -114,16 +114,16 @@
       "id": "akhelian-green",
       "name": "Akhelian Green",
       "rgb": {
-        "r": 0,
-        "g": 79,
-        "b": 99
+        "r": 1,
+        "g": 89,
+        "b": 113
       }
     },
     {
       "id": "alaitoc-blue",
       "name": "Alaitoc Blue",
       "rgb": {
-        "r": 47,
+        "r": 48,
         "g": 79,
         "b": 133
       }
@@ -142,7 +142,7 @@
       "name": "Angron Red Clear",
       "rgb": {
         "r": 226,
-        "g": 24,
+        "g": 25,
         "b": 35
       }
     },
@@ -150,9 +150,9 @@
       "id": "apothecary-white",
       "name": "Apothecary White",
       "rgb": {
-        "r": 165,
-        "g": 190,
-        "b": 212
+        "r": 194,
+        "g": 212,
+        "b": 227
       }
     },
     {
@@ -168,9 +168,9 @@
       "id": "armageddon-dust",
       "name": "Armageddon Dust",
       "rgb": {
-        "r": 210,
-        "g": 173,
-        "b": 0
+        "r": 208,
+        "g": 169,
+        "b": 3
       }
     },
     {
@@ -186,9 +186,9 @@
       "id": "astrogranite",
       "name": "Astrogranite",
       "rgb": {
-        "r": 118,
-        "g": 118,
-        "b": 117
+        "r": 116,
+        "g": 116,
+        "b": 114
       }
     },
     {
@@ -222,18 +222,18 @@
       "id": "athonian-camoshade",
       "name": "Athonian Camoshade",
       "rgb": {
-        "r": 182,
-        "g": 183,
-        "b": 136
+        "r": 109,
+        "g": 142,
+        "b": 68
       }
     },
     {
       "id": "auric-armour-gold",
       "name": "Auric Armour Gold",
       "rgb": {
-        "r": 255,
-        "g": 196,
-        "b": 81
+        "r": 232,
+        "g": 188,
+        "b": 109
       }
     },
     {
@@ -258,25 +258,25 @@
       "id": "bad-moon-yellow",
       "name": "Bad Moon Yellow",
       "rgb": {
-        "r": 255,
-        "g": 242,
-        "b": 0
+        "r": 251,
+        "g": 178,
+        "b": 23
       }
     },
     {
       "id": "badab-black-wash",
       "name": "Badab Black Wash",
       "rgb": {
-        "r": 0,
-        "g": 0,
-        "b": 0
+        "r": 11,
+        "g": 10,
+        "b": 9
       }
     },
     {
       "id": "baharroth-blue",
       "name": "Baharroth Blue",
       "rgb": {
-        "r": 84,
+        "r": 83,
         "g": 189,
         "b": 202
       }
@@ -285,7 +285,7 @@
       "id": "balor-brown",
       "name": "Balor Brown",
       "rgb": {
-        "r": 135,
+        "r": 136,
         "g": 84,
         "b": 8
       }
@@ -294,16 +294,16 @@
       "id": "balthasar-gold",
       "name": "Balthasar Gold",
       "rgb": {
-        "r": 167,
-        "g": 115,
-        "b": 83
+        "r": 164,
+        "g": 117,
+        "b": 82
       }
     },
     {
       "id": "baneblade-brown",
       "name": "Baneblade Brown",
       "rgb": {
-        "r": 143,
+        "r": 142,
         "g": 124,
         "b": 104
       }
@@ -357,9 +357,9 @@
       "id": "biel-tan-green",
       "name": "Biel-Tan Green",
       "rgb": {
-        "r": 125,
-        "g": 165,
-        "b": 122
+        "r": 96,
+        "g": 133,
+        "b": 97
       }
     },
     {
@@ -375,27 +375,27 @@
       "id": "black-ink",
       "name": "Black Ink",
       "rgb": {
-        "r": 0,
-        "g": 0,
-        "b": 0
+        "r": 3,
+        "g": 3,
+        "b": 3
       }
     },
     {
       "id": "black-legion",
       "name": "Black Legion",
       "rgb": {
-        "r": 35,
-        "g": 35,
-        "b": 36
+        "r": 33,
+        "g": 33,
+        "b": 34
       }
     },
     {
       "id": "black-templar",
       "name": "Black Templar",
       "rgb": {
-        "r": 23,
-        "g": 23,
-        "b": 23
+        "r": 20,
+        "g": 20,
+        "b": 20
       }
     },
     {
@@ -430,8 +430,8 @@
       "name": "Blood For The Blood God",
       "rgb": {
         "r": 96,
-        "g": 1,
-        "b": 6
+        "g": 0,
+        "b": 4
       }
     },
     {
@@ -458,16 +458,16 @@
       "rgb": {
         "r": 106,
         "g": 72,
-        "b": 72
+        "b": 71
       }
     },
     {
       "id": "blue-horror",
       "name": "Blue Horror",
       "rgb": {
-        "r": 158,
+        "r": 157,
         "g": 181,
-        "b": 206
+        "b": 205
       }
     },
     {
@@ -483,9 +483,9 @@
       "id": "brass-scorpion",
       "name": "Brass Scorpion",
       "rgb": {
-        "r": 166,
+        "r": 141,
         "g": 93,
-        "b": 44
+        "b": 76
       }
     },
     {
@@ -547,7 +547,7 @@
       "name": "Caledor Sky",
       "rgb": {
         "r": 54,
-        "g": 102,
+        "g": 101,
         "b": 153
       }
     },
@@ -555,9 +555,9 @@
       "id": "calgar-blue",
       "name": "Calgar Blue",
       "rgb": {
-        "r": 42,
-        "g": 73,
-        "b": 127
+        "r": 66,
+        "g": 116,
+        "b": 184
       }
     },
     {
@@ -600,27 +600,27 @@
       "id": "canoptek-alloy",
       "name": "Canoptek Alloy",
       "rgb": {
-        "r": 195,
-        "g": 178,
-        "b": 172
+        "r": 176,
+        "g": 151,
+        "b": 146
       }
     },
     {
       "id": "carroburg-crimson",
       "name": "Carroburg Crimson",
       "rgb": {
-        "r": 190,
-        "g": 128,
-        "b": 164
+        "r": 152,
+        "g": 95,
+        "b": 121
       }
     },
     {
-      "id": "cassandora-yellow",
-      "name": "Cassandora Yellow",
+      "id": "casandora-yellow",
+      "name": "Casandora Yellow",
       "rgb": {
-        "r": 245,
-        "g": 204,
-        "b": 146
+        "r": 254,
+        "g": 206,
+        "b": 90
       }
     },
     {
@@ -628,7 +628,7 @@
       "name": "Castellan Green",
       "rgb": {
         "r": 38,
-        "g": 71,
+        "g": 70,
         "b": 21
       }
     },
@@ -636,9 +636,9 @@
       "id": "castellax-bronze",
       "name": "Castellax Bronze",
       "rgb": {
-        "r": 198,
-        "g": 131,
-        "b": 81
+        "r": 153,
+        "g": 86,
+        "b": 44
       }
     },
     {
@@ -691,8 +691,8 @@
       "name": "Chaos Black",
       "rgb": {
         "r": 0,
-        "g": 0,
-        "b": 0
+        "g": 21,
+        "b": 34
       }
     },
     {
@@ -735,9 +735,9 @@
       "id": "coelia-greenshade",
       "name": "Coelia Greenshade",
       "rgb": {
-        "r": 27,
-        "g": 143,
-        "b": 133
+        "r": 24,
+        "g": 118,
+        "b": 110
       }
     },
     {
@@ -845,7 +845,7 @@
       "rgb": {
         "r": 53,
         "g": 77,
-        "b": 76
+        "b": 77
       }
     },
     {
@@ -870,9 +870,9 @@
       "id": "death-guard-green",
       "name": "Death Guard Green",
       "rgb": {
-        "r": 85,
-        "g": 98,
-        "b": 41
+        "r": 109,
+        "g": 119,
+        "b": 77
       }
     },
     {
@@ -916,7 +916,7 @@
       "name": "Dechala Lilac",
       "rgb": {
         "r": 181,
-        "g": 152,
+        "g": 151,
         "b": 201
       }
     },
@@ -960,7 +960,7 @@
       "id": "doombull-brown",
       "name": "Doombull Brown",
       "rgb": {
-        "r": 87,
+        "r": 86,
         "g": 0,
         "b": 3
       }
@@ -970,7 +970,7 @@
       "name": "Dorn Yellow",
       "rgb": {
         "r": 255,
-        "g": 245,
+        "g": 244,
         "b": 90
       }
     },
@@ -978,18 +978,18 @@
       "id": "drakenhof-nightshade",
       "name": "Drakenhof Nightshade",
       "rgb": {
-        "r": 161,
-        "g": 165,
-        "b": 175
+        "r": 26,
+        "g": 35,
+        "b": 44
       }
     },
     {
       "id": "druchii-violet",
       "name": "Druchii Violet",
       "rgb": {
-        "r": 143,
-        "g": 101,
-        "b": 146
+        "r": 114,
+        "g": 76,
+        "b": 117
       }
     },
     {
@@ -998,7 +998,7 @@
       "rgb": {
         "r": 43,
         "g": 42,
-        "b": 36
+        "b": 37
       }
     },
     {
@@ -1050,14 +1050,14 @@
       "id": "elysian-green",
       "name": "Elysian Green",
       "rgb": {
-        "r": 107,
+        "r": 106,
         "g": 140,
-        "b": 55
+        "b": 54
       }
     },
     {
-      "id": "emperor-children",
-      "name": "Emperor Children",
+      "id": "emperors-children",
+      "name": "Emperor's Children",
       "rgb": {
         "r": 183,
         "g": 64,
@@ -1086,9 +1086,9 @@
       "id": "etherium-blue",
       "name": "Etherium Blue",
       "rgb": {
-        "r": 158,
+        "r": 157,
         "g": 181,
-        "b": 206
+        "b": 205
       }
     },
     {
@@ -1097,7 +1097,7 @@
       "rgb": {
         "r": 192,
         "g": 20,
-        "b": 17
+        "b": 16
       }
     },
     {
@@ -1149,9 +1149,9 @@
       "id": "flayed-one-flesh",
       "name": "Flayed One Flesh",
       "rgb": {
-        "r": 238,
-        "g": 196,
-        "b": 131
+        "r": 234,
+        "g": 195,
+        "b": 136
       }
     },
     {
@@ -1185,27 +1185,27 @@
       "id": "fuegan-orange",
       "name": "Fuegan Orange",
       "rgb": {
-        "r": 187,
-        "g": 118,
-        "b": 72
+        "r": 165,
+        "g": 93,
+        "b": 53
       }
     },
     {
       "id": "fulgrim-pink",
       "name": "Fulgrim Pink",
       "rgb": {
-        "r": 243,
+        "r": 242,
         "g": 171,
-        "b": 202
+        "b": 201
       }
     },
     {
       "id": "fulgurite-copper",
       "name": "Fulgurite Copper",
       "rgb": {
-        "r": 206,
-        "g": 141,
-        "b": 81
+        "r": 178,
+        "g": 125,
+        "b": 93
       }
     },
     {
@@ -1221,7 +1221,7 @@
       "id": "gal-vorbak-red",
       "name": "Gal Vorbak Red",
       "rgb": {
-        "r": 75,
+        "r": 76,
         "g": 33,
         "b": 60
       }
@@ -1275,9 +1275,9 @@
       "id": "golden-griffon",
       "name": "Golden Griffon",
       "rgb": {
-        "r": 225,
-        "g": 186,
-        "b": 127
+        "r": 198,
+        "g": 183,
+        "b": 145
       }
     },
     {
@@ -1338,27 +1338,27 @@
       "id": "grey-knights-steel",
       "name": "Grey Knights Steel",
       "rgb": {
-        "r": 176,
-        "g": 189,
-        "b": 198
+        "r": 164,
+        "g": 169,
+        "b": 172
       }
     },
     {
       "id": "grey-seer",
       "name": "Grey Seer",
       "rgb": {
-        "r": 162,
+        "r": 161,
         "g": 165,
-        "b": 167
+        "b": 168
       }
     },
     {
       "id": "gryph-charger-grey",
       "name": "Gryph-Charger Grey",
       "rgb": {
-        "r": 37,
-        "g": 105,
-        "b": 138
+        "r": 85,
+        "g": 139,
+        "b": 167
       }
     },
     {
@@ -1401,9 +1401,9 @@
       "id": "hashut-copper",
       "name": "Hashut Copper",
       "rgb": {
-        "r": 186,
-        "g": 136,
-        "b": 95
+        "r": 183,
+        "g": 118,
+        "b": 71
       }
     },
     {
@@ -1437,9 +1437,9 @@
       "id": "hexwraith-flame",
       "name": "Hexwraith Flame",
       "rgb": {
-        "r": 41,
-        "g": 162,
-        "b": 54
+        "r": 0,
+        "g": 161,
+        "b": 55
       }
     },
     {
@@ -1447,15 +1447,15 @@
       "name": "Hobgrot Hide",
       "rgb": {
         "r": 156,
-        "g": 130,
-        "b": 59
+        "g": 129,
+        "b": 50
       }
     },
     {
       "id": "hoeth-blue",
       "name": "Hoeth Blue",
       "rgb": {
-        "r": 76,
+        "r": 77,
         "g": 120,
         "b": 175
       }
@@ -1509,9 +1509,9 @@
       "id": "ionrach-skin",
       "name": "Ionrach Skin",
       "rgb": {
-        "r": 151,
+        "r": 152,
         "g": 163,
-        "b": 132
+        "b": 133
       }
     },
     {
@@ -1572,18 +1572,18 @@
       "id": "jokaero-orange",
       "name": "Jokaero Orange",
       "rgb": {
-        "r": 237,
+        "r": 236,
         "g": 56,
-        "b": 20
+        "b": 19
       }
     },
     {
       "id": "kabalite-green",
       "name": "Kabalite Green",
       "rgb": {
-        "r": 0,
+        "r": 1,
         "g": 137,
-        "b": 98
+        "b": 99
       }
     },
     {
@@ -1592,14 +1592,14 @@
       "rgb": {
         "r": 136,
         "g": 105,
-        "b": 174
+        "b": 173
       }
     },
     {
       "id": "kantor-blue",
       "name": "Kantor Blue",
       "rgb": {
-        "r": 2,
+        "r": 3,
         "g": 19,
         "b": 78
       }
@@ -1626,9 +1626,9 @@
       "id": "khorne-red",
       "name": "Khorne Red",
       "rgb": {
-        "r": 101,
+        "r": 100,
         "g": 0,
-        "b": 1
+        "b": 0
       }
     },
     {
@@ -1662,9 +1662,9 @@
       "id": "knight-questor-flesh",
       "name": "Knight-Questor Flesh",
       "rgb": {
-        "r": 153,
+        "r": 152,
         "g": 101,
-        "b": 99
+        "b": 98
       }
     },
     {
@@ -1680,18 +1680,18 @@
       "id": "krieg-khaki",
       "name": "Krieg Khaki",
       "rgb": {
-        "r": 188,
+        "r": 187,
         "g": 187,
-        "b": 126
+        "b": 125
       }
     },
     {
       "id": "lahmian-medium",
       "name": "Lahmian Medium",
       "rgb": {
-        "r": 249,
-        "g": 249,
-        "b": 249
+        "r": 248,
+        "g": 248,
+        "b": 248
       }
     },
     {
@@ -1707,9 +1707,9 @@
       "id": "leadbelcher",
       "name": "Leadbelcher",
       "rgb": {
-        "r": 134,
-        "g": 134,
-        "b": 134
+        "r": 136,
+        "g": 141,
+        "b": 143
       }
     },
     {
@@ -1726,8 +1726,8 @@
       "name": "Leviadon Blue",
       "rgb": {
         "r": 0,
-        "g": 10,
-        "b": 19
+        "g": 22,
+        "b": 44
       }
     },
     {
@@ -1743,18 +1743,18 @@
       "id": "liberator-gold",
       "name": "Liberator Gold",
       "rgb": {
-        "r": 225,
-        "g": 186,
-        "b": 127
+        "r": 211,
+        "g": 181,
+        "b": 135
       }
     },
     {
       "id": "liche-purple",
       "name": "Liche Purple",
       "rgb": {
-        "r": 44,
-        "g": 45,
-        "b": 139
+        "r": 90,
+        "g": 0,
+        "b": 90
       }
     },
     {
@@ -1781,7 +1781,7 @@
       "rgb": {
         "r": 72,
         "g": 108,
-        "b": 37
+        "b": 38
       }
     },
     {
@@ -1789,8 +1789,8 @@
       "name": "Lothern Blue",
       "rgb": {
         "r": 44,
-        "g": 155,
-        "b": 204
+        "g": 154,
+        "b": 203
       }
     },
     {
@@ -1807,8 +1807,8 @@
       "name": "Lugganath Orange",
       "rgb": {
         "r": 246,
-        "g": 155,
-        "b": 130
+        "g": 154,
+        "b": 129
       }
     },
     {
@@ -1833,9 +1833,9 @@
       "id": "macragge-blue",
       "name": "Macragge Blue",
       "rgb": {
-        "r": 16,
-        "g": 62,
-        "b": 124
+        "r": 15,
+        "g": 61,
+        "b": 123
       }
     },
     {
@@ -1860,9 +1860,9 @@
       "id": "martian-ironcrust",
       "name": "Martian Ironcrust",
       "rgb": {
-        "r": 207,
-        "g": 112,
-        "b": 93
+        "r": 181,
+        "g": 96,
+        "b": 79
       }
     },
     {
@@ -1880,7 +1880,7 @@
       "rgb": {
         "r": 57,
         "g": 72,
-        "b": 74
+        "b": 75
       }
     },
     {
@@ -1932,18 +1932,18 @@
       "id": "moot-green",
       "name": "Moot Green",
       "rgb": {
-        "r": 61,
+        "r": 62,
         "g": 175,
-        "b": 68
+        "b": 69
       }
     },
     {
       "id": "mordant-earth",
       "name": "Mordant Earth",
       "rgb": {
-        "r": 23,
-        "g": 19,
-        "b": 20
+        "r": 30,
+        "g": 30,
+        "b": 30
       }
     },
     {
@@ -1968,7 +1968,7 @@
       "id": "mortarion-green-clear",
       "name": "Mortarion Green Clear",
       "rgb": {
-        "r": 0,
+        "r": 1,
         "g": 131,
         "b": 43
       }
@@ -1978,7 +1978,7 @@
       "name": "Mournfang Brown",
       "rgb": {
         "r": 73,
-        "g": 15,
+        "g": 14,
         "b": 6
       }
     },
@@ -1986,9 +1986,9 @@
       "id": "munitorum-varnish",
       "name": "Munitorum Varnish",
       "rgb": {
-        "r": 250,
-        "g": 250,
-        "b": 250
+        "r": 236,
+        "g": 236,
+        "b": 236
       }
     },
     {
@@ -2013,8 +2013,8 @@
       "id": "nazdreg-yellow",
       "name": "Nazdreg Yellow",
       "rgb": {
-        "r": 108,
-        "g": 76,
+        "r": 126,
+        "g": 89,
         "b": 0
       }
     },
@@ -2031,36 +2031,36 @@
       "id": "necron-compound",
       "name": "Necron Compound",
       "rgb": {
-        "r": 218,
-        "g": 221,
-        "b": 223
+        "r": 203,
+        "g": 206,
+        "b": 208
       }
     },
     {
       "id": "niblet-green",
       "name": "Niblet Green",
       "rgb": {
-        "r": 55,
-        "g": 140,
-        "b": 53
+        "r": 125,
+        "g": 199,
+        "b": 52
       }
     },
     {
       "id": "night-lords-blue",
       "name": "Night Lords Blue",
       "rgb": {
-        "r": 0,
+        "r": 1,
         "g": 43,
-        "b": 92
+        "b": 93
       }
     },
     {
       "id": "nighthaunt-gloom",
       "name": "Nighthaunt Gloom",
       "rgb": {
-        "r": 58,
-        "g": 104,
-        "b": 110
+        "r": 76,
+        "g": 131,
+        "b": 138
       }
     },
     {
@@ -2085,9 +2085,9 @@
       "id": "nuln-oil",
       "name": "Nuln Oil",
       "rgb": {
-        "r": 158,
-        "g": 154,
-        "b": 152
+        "r": 119,
+        "g": 116,
+        "b": 115
       }
     },
     {
@@ -2157,9 +2157,9 @@
       "id": "orruk-flesh",
       "name": "Orruk Flesh",
       "rgb": {
-        "r": 151,
-        "g": 193,
-        "b": 126
+        "r": 147,
+        "g": 194,
+        "b": 122
       }
     },
     {
@@ -2195,7 +2195,7 @@
       "rgb": {
         "r": 68,
         "g": 0,
-        "b": 82
+        "b": 83
       }
     },
     {
@@ -2203,7 +2203,7 @@
       "name": "Pink Horror",
       "rgb": {
         "r": 142,
-        "g": 39,
+        "g": 38,
         "b": 87
       }
     },
@@ -2247,7 +2247,7 @@
       "id": "rakarth-flesh",
       "name": "Rakarth Flesh",
       "rgb": {
-        "r": 156,
+        "r": 155,
         "g": 153,
         "b": 141
       }
@@ -2256,7 +2256,7 @@
       "id": "ratskin-flesh",
       "name": "Ratskin Flesh",
       "rgb": {
-        "r": 168,
+        "r": 167,
         "g": 102,
         "b": 72
       }
@@ -2319,9 +2319,9 @@
       "id": "rhinox-hide",
       "name": "Rhinox Hide",
       "rgb": {
-        "r": 70,
+        "r": 69,
         "g": 47,
-        "b": 48
+        "b": 49
       }
     },
     {
@@ -2337,18 +2337,18 @@
       "id": "runefang-steel",
       "name": "Runefang Steel",
       "rgb": {
-        "r": 194,
-        "g": 200,
-        "b": 204
+        "r": 167,
+        "g": 174,
+        "b": 180
       }
     },
     {
       "id": "runelord-brass",
       "name": "Runelord Brass",
       "rgb": {
-        "r": 141,
-        "g": 128,
-        "b": 111
+        "r": 149,
+        "g": 139,
+        "b": 130
       }
     },
     {
@@ -2418,9 +2418,9 @@
       "id": "screaming-bell",
       "name": "Screaming Bell",
       "rgb": {
-        "r": 209,
-        "g": 138,
-        "b": 94
+        "r": 173,
+        "g": 102,
+        "b": 66
       }
     },
     {
@@ -2428,7 +2428,7 @@
       "name": "Screaming Skull",
       "rgb": {
         "r": 185,
-        "g": 192,
+        "g": 191,
         "b": 153
       }
     },
@@ -2490,9 +2490,9 @@
       "id": "skarsnik-green",
       "name": "Skarsnik Green",
       "rgb": {
-        "r": 88,
+        "r": 87,
         "g": 143,
-        "b": 107
+        "b": 106
       }
     },
     {
@@ -2500,7 +2500,7 @@
       "name": "Skavenblight Dinge",
       "rgb": {
         "r": 69,
-        "g": 65,
+        "g": 66,
         "b": 59
       }
     },
@@ -2508,9 +2508,9 @@
       "id": "skeleton-horde",
       "name": "Skeleton Horde",
       "rgb": {
-        "r": 164,
-        "g": 150,
-        "b": 111
+        "r": 190,
+        "g": 177,
+        "b": 141
       }
     },
     {
@@ -2526,9 +2526,9 @@
       "id": "skrag-brown",
       "name": "Skrag Brown",
       "rgb": {
-        "r": 139,
+        "r": 140,
         "g": 72,
-        "b": 6
+        "b": 7
       }
     },
     {
@@ -2644,7 +2644,7 @@
       "name": "Steel Legion Drab",
       "rgb": {
         "r": 88,
-        "g": 78,
+        "g": 77,
         "b": 45
       }
     },
@@ -2670,8 +2670,8 @@
       "id": "stirland-mud",
       "name": "Stirland Mud",
       "rgb": {
-        "r": 72,
-        "g": 43,
+        "r": 71,
+        "g": 42,
         "b": 0
       }
     },
@@ -2706,9 +2706,9 @@
       "id": "stormshield",
       "name": "Stormshield",
       "rgb": {
-        "r": 249,
-        "g": 249,
-        "b": 249
+        "r": 236,
+        "g": 236,
+        "b": 236
       }
     },
     {
@@ -2716,8 +2716,8 @@
       "name": "Stormvermin Fur",
       "rgb": {
         "r": 109,
-        "g": 101,
-        "b": 95
+        "g": 102,
+        "b": 96
       }
     },
     {
@@ -2760,9 +2760,9 @@
       "id": "sylvaneth-bark",
       "name": "Sylvaneth Bark",
       "rgb": {
-        "r": 78,
-        "g": 72,
-        "b": 59
+        "r": 180,
+        "g": 130,
+        "b": 97
       }
     },
     {
@@ -2824,7 +2824,7 @@
       "name": "Teclis Blue",
       "rgb": {
         "r": 56,
-        "g": 119,
+        "g": 118,
         "b": 191
       }
     },
@@ -2832,9 +2832,9 @@
       "id": "temple-guard-blue",
       "name": "Temple Guard Blue",
       "rgb": {
-        "r": 35,
+        "r": 34,
         "g": 148,
-        "b": 137
+        "b": 138
       }
     },
     {
@@ -2896,7 +2896,7 @@
       "name": "The Fang",
       "rgb": {
         "r": 64,
-        "g": 91,
+        "g": 90,
         "b": 113
       }
     },
@@ -2904,9 +2904,9 @@
       "id": "thondia-brown",
       "name": "Thondia Brown",
       "rgb": {
-        "r": 79,
-        "g": 50,
-        "b": 44
+        "r": 80,
+        "g": 47,
+        "b": 42
       }
     },
     {
@@ -2914,7 +2914,7 @@
       "name": "Thousand Sons Blue",
       "rgb": {
         "r": 0,
-        "g": 80,
+        "g": 81,
         "b": 111
       }
     },
@@ -2986,7 +2986,7 @@
       "name": "Ulthuan Grey",
       "rgb": {
         "r": 196,
-        "g": 221,
+        "g": 222,
         "b": 213
       }
     },
@@ -3003,9 +3003,9 @@
       "id": "ultramarines-blue",
       "name": "Ultramarines Blue",
       "rgb": {
-        "r": 9,
-        "g": 25,
-        "b": 72
+        "r": 32,
+        "g": 64,
+        "b": 115
       }
     },
     {
@@ -3030,9 +3030,9 @@
       "id": "ushabti-bone",
       "name": "Ushabti Bone",
       "rgb": {
-        "r": 171,
-        "g": 161,
-        "b": 115
+        "r": 188,
+        "g": 188,
+        "b": 128
       }
     },
     {
@@ -3120,8 +3120,8 @@
       "id": "waaagh-flesh",
       "name": "Waaagh! Flesh",
       "rgb": {
-        "r": 11,
-        "g": 59,
+        "r": 22,
+        "g": 58,
         "b": 54
       }
     },
@@ -3129,7 +3129,7 @@
       "id": "warboss-green",
       "name": "Warboss Green",
       "rgb": {
-        "r": 49,
+        "r": 50,
         "g": 126,
         "b": 87
       }
@@ -3158,16 +3158,16 @@
       "rgb": {
         "r": 102,
         "g": 101,
-        "b": 110
+        "b": 109
       }
     },
     {
       "id": "warplock-bronze",
       "name": "Warplock Bronze",
       "rgb": {
-        "r": 179,
-        "g": 110,
-        "b": 79
+        "r": 146,
+        "g": 129,
+        "b": 113
       }
     },
     {
@@ -3183,9 +3183,9 @@
       "id": "waystone-green",
       "name": "Waystone Green",
       "rgb": {
-        "r": 35,
-        "g": 81,
-        "b": 61
+        "r": 42,
+        "g": 89,
+        "b": 68
       }
     },
     {
@@ -3202,8 +3202,8 @@
       "name": "Wazdakka Red",
       "rgb": {
         "r": 136,
-        "g": 8,
-        "b": 4
+        "g": 0,
+        "b": 3
       }
     },
     {
@@ -3220,8 +3220,8 @@
       "name": "Wild Rider Red",
       "rgb": {
         "r": 232,
-        "g": 46,
-        "b": 27
+        "g": 45,
+        "b": 26
       }
     },
     {
@@ -3273,9 +3273,9 @@
       "id": "xv-88",
       "name": "XV-88",
       "rgb": {
-        "r": 108,
+        "r": 107,
         "g": 72,
-        "b": 17
+        "b": 16
       }
     },
     {
