@@ -39,6 +39,15 @@
       }
     },
     {
+      "id": "aeldari-emerald",
+      "name": "Aeldari Emerald",
+      "rgb": {
+        "r": 0,
+        "g": 113,
+        "b": 102
+      }
+    },
+    {
       "id": "aethermatic-blue",
       "name": "Aethermatic Blue",
       "rgb": {
@@ -210,6 +219,15 @@
       }
     },
     {
+      "id": "asurmen-blue",
+      "name": "Asurmen Blue",
+      "rgb": {
+        "r": 1,
+        "g": 59,
+        "b": 107
+      }
+    },
+    {
       "id": "asurmen-blue-wash",
       "name": "Asurmen Blue Wash",
       "rgb": {
@@ -243,6 +261,15 @@
         "r": 251,
         "g": 184,
         "b": 28
+      }
+    },
+    {
+      "id": "baal-red",
+      "name": "Baal Red",
+      "rgb": {
+        "r": 194,
+        "g": 24,
+        "b": 35
       }
     },
     {
@@ -333,6 +360,15 @@
         "r": 115,
         "g": 55,
         "b": 45
+      }
+    },
+    {
+      "id": "berserker-bloodshade",
+      "name": "Berserker Bloodshade",
+      "rgb": {
+        "r": 203,
+        "g": 113,
+        "b": 138
       }
     },
     {
@@ -498,6 +534,15 @@
       }
     },
     {
+      "id": "briar-queen-chill",
+      "name": "Briar Queen Chill",
+      "rgb": {
+        "r": 106,
+        "g": 168,
+        "b": 185
+      }
+    },
+    {
       "id": "bronzed-flesh",
       "name": "Bronzed Flesh",
       "rgb": {
@@ -657,6 +702,15 @@
         "r": 69,
         "g": 84,
         "b": 64
+      }
+    },
+    {
+      "id": "celestium-blue",
+      "name": "Celestium Blue",
+      "rgb": {
+        "r": 4,
+        "g": 63,
+        "b": 121
       }
     },
     {
@@ -966,6 +1020,15 @@
       }
     },
     {
+      "id": "doomfire-magenta",
+      "name": "Doomfire Magenta",
+      "rgb": {
+        "r": 201,
+        "g": 0,
+        "b": 119
+      }
+    },
+    {
       "id": "dorn-yellow",
       "name": "Dorn Yellow",
       "rgb": {
@@ -981,6 +1044,15 @@
         "r": 26,
         "g": 35,
         "b": 44
+      }
+    },
+    {
+      "id": "dreadful-visage",
+      "name": "Dreadful Visage",
+      "rgb": {
+        "r": 182,
+        "g": 161,
+        "b": 182
       }
     },
     {
@@ -1182,6 +1254,15 @@
       }
     },
     {
+      "id": "frostheart",
+      "name": "Frostheart",
+      "rgb": {
+        "r": 0,
+        "g": 84,
+        "b": 122
+      }
+    },
+    {
       "id": "fuegan-orange",
       "name": "Fuegan Orange",
       "rgb": {
@@ -1212,9 +1293,9 @@
       "id": "fyreslayer-flesh",
       "name": "Fyreslayer Flesh",
       "rgb": {
-        "r": 114,
-        "g": 78,
-        "b": 60
+        "r": 141,
+        "g": 93,
+        "b": 75
       }
     },
     {
@@ -1224,6 +1305,15 @@
         "r": 76,
         "g": 33,
         "b": 60
+      }
+    },
+    {
+      "id": "garaghaks-sewer",
+      "name": "Garaghak's Sewer",
+      "rgb": {
+        "r": 65,
+        "g": 42,
+        "b": 28
       }
     },
     {
@@ -1380,6 +1470,15 @@
       }
     },
     {
+      "id": "gutrippa-flesh",
+      "name": "Gutrippa Flesh",
+      "rgb": {
+        "r": 84,
+        "g": 136,
+        "b": 86
+      }
+    },
+    {
       "id": "guilliman-blue",
       "name": "Guilliman Blue",
       "rgb": {
@@ -1479,6 +1578,15 @@
       }
     },
     {
+      "id": "imperial-fist",
+      "name": "Imperial Fist",
+      "rgb": {
+        "r": 251,
+        "g": 173,
+        "b": 22
+      }
+    },
+    {
       "id": "imperial-purple",
       "name": "Imperial Purple",
       "rgb": {
@@ -1521,6 +1629,15 @@
         "r": 178,
         "g": 167,
         "b": 159
+      }
+    },
+    {
+      "id": "ironjawz-yellow",
+      "name": "Ironjawz Yellow",
+      "rgb": {
+        "r": 213,
+        "g": 163,
+        "b": 53
       }
     },
     {
@@ -1614,6 +1731,15 @@
       }
     },
     {
+      "id": "karandras-green",
+      "name": "Karandras Green",
+      "rgb": {
+        "r": 0,
+        "g": 121,
+        "b": 56
+      }
+    },
+    {
       "id": "khemri-brown",
       "name": "Khemri Brown",
       "rgb": {
@@ -1686,6 +1812,24 @@
       }
     },
     {
+      "id": "kroak-green",
+      "name": "Kroak Green",
+      "rgb": {
+        "r": 174,
+        "g": 204,
+        "b": 180
+      }
+    },
+    {
+      "id": "kroxigor-scales",
+      "name": "Kroxigor Scales",
+      "rgb": {
+        "r": 0,
+        "g": 121,
+        "b": 141
+      }
+    },
+    {
       "id": "lahmian-medium",
       "name": "Lahmian Medium",
       "rgb": {
@@ -1728,6 +1872,15 @@
         "r": 0,
         "g": 22,
         "b": 44
+      }
+    },
+    {
+      "id": "leviathan-purple",
+      "name": "Leviathan Purple",
+      "rgb": {
+        "r": 23,
+        "g": 3,
+        "b": 76
       }
     },
     {
@@ -1821,6 +1974,15 @@
       }
     },
     {
+      "id": "luxion-purple",
+      "name": "Luxion Purple",
+      "rgb": {
+        "r": 53,
+        "g": 15,
+        "b": 96
+      }
+    },
+    {
       "id": "macharius-solar-orange",
       "name": "Macharius Solar Orange",
       "rgb": {
@@ -1848,12 +2010,30 @@
       }
     },
     {
+      "id": "magmadroth-flame",
+      "name": "Magmadroth Flame",
+      "rgb": {
+        "r": 218,
+        "g": 79,
+        "b": 38
+      }
+    },
+    {
       "id": "magos-purple",
       "name": "Magos Purple",
       "rgb": {
         "r": 122,
         "g": 63,
         "b": 110
+      }
+    },
+    {
+      "id": "mantis-warriors-green",
+      "name": "Mantis Warriors Green",
+      "rgb": {
+        "r": 93,
+        "g": 137,
+        "b": 61
       }
     },
     {
@@ -1971,6 +2151,15 @@
         "r": 1,
         "g": 131,
         "b": 43
+      }
+    },
+    {
+      "id": "mortarion-grime",
+      "name": "Mortarion Grime",
+      "rgb": {
+        "r": 199,
+        "g": 191,
+        "b": 107
       }
     },
     {
@@ -2226,12 +2415,30 @@
       }
     },
     {
+      "id": "poxwalker",
+      "name": "Poxwalker",
+      "rgb": {
+        "r": 153,
+        "g": 185,
+        "b": 185
+      }
+    },
+    {
       "id": "purple-ink",
       "name": "Purple Ink",
       "rgb": {
         "r": 132,
         "g": 41,
         "b": 148
+      }
+    },
+    {
+      "id": "pylar-glacier",
+      "name": "Pylar Glacier",
+      "rgb": {
+        "r": 58,
+        "g": 175,
+        "b": 228
       }
     },
     {
@@ -2250,6 +2457,15 @@
         "r": 155,
         "g": 153,
         "b": 141
+      }
+    },
+    {
+      "id": "ratling-grime",
+      "name": "Ratling Grime",
+      "rgb": {
+        "r": 102,
+        "g": 96,
+        "b": 94
       }
     },
     {
@@ -2487,6 +2703,15 @@
       }
     },
     {
+      "id": "sigvald-burgundy",
+      "name": "Sigvald Burgundy",
+      "rgb": {
+        "r": 93,
+        "g": 0,
+        "b": 73
+      }
+    },
+    {
       "id": "skarsnik-green",
       "name": "Skarsnik Green",
       "rgb": {
@@ -2604,6 +2829,15 @@
       }
     },
     {
+      "id": "soulblight-grey",
+      "name": "Soulblight Grey",
+      "rgb": {
+        "r": 194,
+        "g": 189,
+        "b": 189
+      }
+    },
+    {
       "id": "soulstone-blue",
       "name": "Soulstone Blue",
       "rgb": {
@@ -2694,6 +2928,15 @@
       }
     },
     {
+      "id": "stormfiend",
+      "name": "Stormfiend",
+      "rgb": {
+        "r": 0,
+        "g": 81,
+        "b": 125
+      }
+    },
+    {
       "id": "stormhost-silver",
       "name": "Stormhost Silver",
       "rgb": {
@@ -2727,6 +2970,15 @@
         "r": 89,
         "g": 127,
         "b": 28
+      }
+    },
+    {
+      "id": "striking-scorpion-green",
+      "name": "Striking Scorpion Green",
+      "rgb": {
+        "r": 9,
+        "g": 128,
+        "b": 59
       }
     },
     {
@@ -2799,6 +3051,15 @@
         "r": 169,
         "g": 92,
         "b": 62
+      }
+    },
+    {
+      "id": "targor-rageshade",
+      "name": "Targor Rageshade",
+      "rgb": {
+        "r": 160,
+        "g": 148,
+        "b": 158
       }
     },
     {
@@ -2970,6 +3231,15 @@
         "r": 55,
         "g": 58,
         "b": 34
+      }
+    },
+    {
+      "id": "tyran-blue",
+      "name": "Tyran Blue",
+      "rgb": {
+        "r": 111,
+        "g": 174,
+        "b": 208
       }
     },
     {
