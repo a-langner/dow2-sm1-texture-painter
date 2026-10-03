@@ -435,6 +435,51 @@
       }
     },
     {
+      "id": "blackstone-void-1",
+      "name": "Blackstone Void 1",
+      "rgb": {
+        "r": 0,
+        "g": 2,
+        "b": 8
+      }
+    },
+    {
+      "id": "blackstone-void-2",
+      "name": "Blackstone Void 2",
+      "rgb": {
+        "r": 78,
+        "g": 84,
+        "b": 88
+      }
+    },
+    {
+      "id": "blackstone-void-3",
+      "name": "Blackstone Void 3",
+      "rgb": {
+        "r": 110,
+        "g": 112,
+        "b": 116
+      }
+    },
+    {
+      "id": "blackstone-void-4",
+      "name": "Blackstone Void 4",
+      "rgb": {
+        "r": 155,
+        "g": 157,
+        "b": 159
+      }
+    },
+    {
+      "id": "blackstone-void-5",
+      "name": "Blackstone Void 5",
+      "rgb": {
+        "r": 255,
+        "g": 255,
+        "b": 255
+      }
+    },
+    {
       "id": "blazing-orange",
       "name": "Blazing Orange",
       "rgb": {
@@ -498,12 +543,102 @@
       }
     },
     {
+      "id": "bloodtoof-red-1",
+      "name": "Bloodtoof Red 1",
+      "rgb": {
+        "r": 88,
+        "g": 30,
+        "b": 22
+      }
+    },
+    {
+      "id": "bloodtoof-red-2",
+      "name": "Bloodtoof Red 2",
+      "rgb": {
+        "r": 148,
+        "g": 0,
+        "b": 30
+      }
+    },
+    {
+      "id": "bloodtoof-red-3",
+      "name": "Bloodtoof Red 3",
+      "rgb": {
+        "r": 173,
+        "g": 7,
+        "b": 43
+      }
+    },
+    {
+      "id": "bloodtoof-red-4",
+      "name": "Bloodtoof Red 4",
+      "rgb": {
+        "r": 214,
+        "g": 0,
+        "b": 32
+      }
+    },
+    {
+      "id": "bloodtoof-red-5",
+      "name": "Bloodtoof Red 5",
+      "rgb": {
+        "r": 239,
+        "g": 53,
+        "b": 60
+      }
+    },
+    {
       "id": "blue-horror",
       "name": "Blue Horror",
       "rgb": {
         "r": 157,
         "g": 181,
         "b": 205
+      }
+    },
+    {
+      "id": "blue-gorkshroom-1",
+      "name": "Blue Gorkshroom 1",
+      "rgb": {
+        "r": 0,
+        "g": 35,
+        "b": 86
+      }
+    },
+    {
+      "id": "blue-gorkshroom-2",
+      "name": "Blue Gorkshroom 2",
+      "rgb": {
+        "r": 0,
+        "g": 68,
+        "b": 135
+      }
+    },
+    {
+      "id": "blue-gorkshroom-3",
+      "name": "Blue Gorkshroom 3",
+      "rgb": {
+        "r": 0,
+        "g": 87,
+        "b": 163
+      }
+    },
+    {
+      "id": "blue-gorkshroom-4",
+      "name": "Blue Gorkshroom 4",
+      "rgb": {
+        "r": 0,
+        "g": 108,
+        "b": 173
+      }
+    },
+    {
+      "id": "blue-gorkshroom-5",
+      "name": "Blue Gorkshroom 5",
+      "rgb": {
+        "r": 0,
+        "g": 123,
+        "b": 178
       }
     },
     {
@@ -651,12 +786,102 @@
       }
     },
     {
+      "id": "carmine-blades-1",
+      "name": "Carmine Blades 1",
+      "rgb": {
+        "r": 60,
+        "g": 38,
+        "b": 42
+      }
+    },
+    {
+      "id": "carmine-blades-2",
+      "name": "Carmine Blades 2",
+      "rgb": {
+        "r": 91,
+        "g": 53,
+        "b": 57
+      }
+    },
+    {
+      "id": "carmine-blades-3",
+      "name": "Carmine Blades 3",
+      "rgb": {
+        "r": 117,
+        "g": 0,
+        "b": 25
+      }
+    },
+    {
+      "id": "carmine-blades-4",
+      "name": "Carmine Blades 4",
+      "rgb": {
+        "r": 145,
+        "g": 0,
+        "b": 34
+      }
+    },
+    {
+      "id": "carmine-blades-5",
+      "name": "Carmine Blades 5",
+      "rgb": {
+        "r": 198,
+        "g": 77,
+        "b": 80
+      }
+    },
+    {
       "id": "carroburg-crimson",
       "name": "Carroburg Crimson",
       "rgb": {
         "r": 152,
         "g": 95,
         "b": 121
+      }
+    },
+    {
+      "id": "carthalos-skin-1",
+      "name": "Carthalos Skin 1",
+      "rgb": {
+        "r": 36,
+        "g": 24,
+        "b": 21
+      }
+    },
+    {
+      "id": "carthalos-skin-2",
+      "name": "Carthalos Skin 2",
+      "rgb": {
+        "r": 45,
+        "g": 20,
+        "b": 12
+      }
+    },
+    {
+      "id": "carthalos-skin-3",
+      "name": "Carthalos Skin 3",
+      "rgb": {
+        "r": 78,
+        "g": 34,
+        "b": 18
+      }
+    },
+    {
+      "id": "carthalos-skin-4",
+      "name": "Carthalos Skin 4",
+      "rgb": {
+        "r": 95,
+        "g": 58,
+        "b": 55
+      }
+    },
+    {
+      "id": "carthalos-skin-5",
+      "name": "Carthalos Skin 5",
+      "rgb": {
+        "r": 121,
+        "g": 83,
+        "b": 70
       }
     },
     {
@@ -702,6 +927,51 @@
         "r": 69,
         "g": 84,
         "b": 64
+      }
+    },
+    {
+      "id": "celestine-skin-1",
+      "name": "Celestine Skin 1",
+      "rgb": {
+        "r": 205,
+        "g": 129,
+        "b": 105
+      }
+    },
+    {
+      "id": "celestine-skin-2",
+      "name": "Celestine Skin 2",
+      "rgb": {
+        "r": 213,
+        "g": 139,
+        "b": 112
+      }
+    },
+    {
+      "id": "celestine-skin-3",
+      "name": "Celestine Skin 3",
+      "rgb": {
+        "r": 217,
+        "g": 149,
+        "b": 120
+      }
+    },
+    {
+      "id": "celestine-skin-4",
+      "name": "Celestine Skin 4",
+      "rgb": {
+        "r": 234,
+        "g": 168,
+        "b": 137
+      }
+    },
+    {
+      "id": "celestine-skin-5",
+      "name": "Celestine Skin 5",
+      "rgb": {
+        "r": 221,
+        "g": 179,
+        "b": 152
       }
     },
     {
@@ -768,6 +1038,51 @@
       }
     },
     {
+      "id": "chotec-orange-1",
+      "name": "Chotec Orange 1",
+      "rgb": {
+        "r": 147,
+        "g": 21,
+        "b": 11
+      }
+    },
+    {
+      "id": "chotec-orange-2",
+      "name": "Chotec Orange 2",
+      "rgb": {
+        "r": 184,
+        "g": 47,
+        "b": 45
+      }
+    },
+    {
+      "id": "chotec-orange-3",
+      "name": "Chotec Orange 3",
+      "rgb": {
+        "r": 224,
+        "g": 74,
+        "b": 51
+      }
+    },
+    {
+      "id": "chotec-orange-4",
+      "name": "Chotec Orange 4",
+      "rgb": {
+        "r": 245,
+        "g": 98,
+        "b": 48
+      }
+    },
+    {
+      "id": "chotec-orange-5",
+      "name": "Chotec Orange 5",
+      "rgb": {
+        "r": 247,
+        "g": 128,
+        "b": 48
+      }
+    },
+    {
       "id": "chronus-blue",
       "name": "Chronus Blue",
       "rgb": {
@@ -828,6 +1143,51 @@
         "r": 23,
         "g": 19,
         "b": 20
+      }
+    },
+    {
+      "id": "craventhrone-cloak-1",
+      "name": "Craventhrone Cloak 1",
+      "rgb": {
+        "r": 8,
+        "g": 35,
+        "b": 46
+      }
+    },
+    {
+      "id": "craventhrone-cloak-2",
+      "name": "Craventhrone Cloak 2",
+      "rgb": {
+        "r": 18,
+        "g": 55,
+        "b": 62
+      }
+    },
+    {
+      "id": "craventhrone-cloak-3",
+      "name": "Craventhrone Cloak 3",
+      "rgb": {
+        "r": 22,
+        "g": 72,
+        "b": 88
+      }
+    },
+    {
+      "id": "craventhrone-cloak-4",
+      "name": "Craventhrone Cloak 4",
+      "rgb": {
+        "r": 65,
+        "g": 113,
+        "b": 125
+      }
+    },
+    {
+      "id": "craventhrone-cloak-5",
+      "name": "Craventhrone Cloak 5",
+      "rgb": {
+        "r": 89,
+        "g": 138,
+        "b": 142
       }
     },
     {
@@ -909,6 +1269,51 @@
         "r": 152,
         "g": 97,
         "b": 91
+      }
+    },
+    {
+      "id": "dataslate-grey-1",
+      "name": "Dataslate Grey 1",
+      "rgb": {
+        "r": 43,
+        "g": 45,
+        "b": 40
+      }
+    },
+    {
+      "id": "dataslate-grey-2",
+      "name": "Dataslate Grey 2",
+      "rgb": {
+        "r": 62,
+        "g": 61,
+        "b": 53
+      }
+    },
+    {
+      "id": "dataslate-grey-3",
+      "name": "Dataslate Grey 3",
+      "rgb": {
+        "r": 85,
+        "g": 86,
+        "b": 80
+      }
+    },
+    {
+      "id": "dataslate-grey-4",
+      "name": "Dataslate Grey 4",
+      "rgb": {
+        "r": 115,
+        "g": 112,
+        "b": 105
+      }
+    },
+    {
+      "id": "dataslate-grey-5",
+      "name": "Dataslate Grey 5",
+      "rgb": {
+        "r": 135,
+        "g": 137,
+        "b": 131
       }
     },
     {
@@ -1146,6 +1551,51 @@
       }
     },
     {
+      "id": "enrapturess-dusk-1",
+      "name": "Enrapturess Dusk 1",
+      "rgb": {
+        "r": 30,
+        "g": 20,
+        "b": 53
+      }
+    },
+    {
+      "id": "enrapturess-dusk-2",
+      "name": "Enrapturess Dusk 2",
+      "rgb": {
+        "r": 65,
+        "g": 53,
+        "b": 73
+      }
+    },
+    {
+      "id": "enrapturess-dusk-3",
+      "name": "Enrapturess Dusk 3",
+      "rgb": {
+        "r": 83,
+        "g": 77,
+        "b": 94
+      }
+    },
+    {
+      "id": "enrapturess-dusk-4",
+      "name": "Enrapturess Dusk 4",
+      "rgb": {
+        "r": 110,
+        "g": 103,
+        "b": 115
+      }
+    },
+    {
+      "id": "enrapturess-dusk-5",
+      "name": "Enrapturess Dusk 5",
+      "rgb": {
+        "r": 129,
+        "g": 122,
+        "b": 134
+      }
+    },
+    {
       "id": "eshin-grey",
       "name": "Eshin Grey",
       "rgb": {
@@ -1170,6 +1620,51 @@
         "r": 192,
         "g": 20,
         "b": 16
+      }
+    },
+    {
+      "id": "eye-of-terror-1",
+      "name": "Eye of Terror 1",
+      "rgb": {
+        "r": 146,
+        "g": 0,
+        "b": 48
+      }
+    },
+    {
+      "id": "eye-of-terror-2",
+      "name": "Eye of Terror 2",
+      "rgb": {
+        "r": 189,
+        "g": 0,
+        "b": 71
+      }
+    },
+    {
+      "id": "eye-of-terror-3",
+      "name": "Eye of Terror 3",
+      "rgb": {
+        "r": 194,
+        "g": 0,
+        "b": 96
+      }
+    },
+    {
+      "id": "eye-of-terror-4",
+      "name": "Eye of Terror 4",
+      "rgb": {
+        "r": 212,
+        "g": 65,
+        "b": 123
+      }
+    },
+    {
+      "id": "eye-of-terror-5",
+      "name": "Eye of Terror 5",
+      "rgb": {
+        "r": 219,
+        "g": 100,
+        "b": 153
       }
     },
     {
@@ -1353,6 +1848,51 @@
       }
     },
     {
+      "id": "gnarlwood-1",
+      "name": "Gnarlwood 1",
+      "rgb": {
+        "r": 52,
+        "g": 41,
+        "b": 40
+      }
+    },
+    {
+      "id": "gnarlwood-2",
+      "name": "Gnarlwood 2",
+      "rgb": {
+        "r": 81,
+        "g": 66,
+        "b": 53
+      }
+    },
+    {
+      "id": "gnarlwood-3",
+      "name": "Gnarlwood 3",
+      "rgb": {
+        "r": 114,
+        "g": 92,
+        "b": 68
+      }
+    },
+    {
+      "id": "gnarlwood-4",
+      "name": "Gnarlwood 4",
+      "rgb": {
+        "r": 119,
+        "g": 104,
+        "b": 87
+      }
+    },
+    {
+      "id": "gnarlwood-5",
+      "name": "Gnarlwood 5",
+      "rgb": {
+        "r": 136,
+        "g": 123,
+        "b": 103
+      }
+    },
+    {
       "id": "goblin-green",
       "name": "Goblin Green",
       "rgb": {
@@ -1422,6 +1962,51 @@
         "r": 126,
         "g": 105,
         "b": 48
+      }
+    },
+    {
+      "id": "green-morkshroom-1",
+      "name": "Green Morkshroom 1",
+      "rgb": {
+        "r": 20,
+        "g": 50,
+        "b": 48
+      }
+    },
+    {
+      "id": "green-morkshroom-2",
+      "name": "Green Morkshroom 2",
+      "rgb": {
+        "r": 0,
+        "g": 79,
+        "b": 72
+      }
+    },
+    {
+      "id": "green-morkshroom-3",
+      "name": "Green Morkshroom 3",
+      "rgb": {
+        "r": 0,
+        "g": 100,
+        "b": 88
+      }
+    },
+    {
+      "id": "green-morkshroom-4",
+      "name": "Green Morkshroom 4",
+      "rgb": {
+        "r": 0,
+        "g": 123,
+        "b": 109
+      }
+    },
+    {
+      "id": "green-morkshroom-5",
+      "name": "Green Morkshroom 5",
+      "rgb": {
+        "r": 55,
+        "g": 172,
+        "b": 131
       }
     },
     {
@@ -1515,6 +2100,51 @@
       }
     },
     {
+      "id": "hawkshroud-yellow-1",
+      "name": "Hawkshroud Yellow 1",
+      "rgb": {
+        "r": 246,
+        "g": 145,
+        "b": 19
+      }
+    },
+    {
+      "id": "hawkshroud-yellow-2",
+      "name": "Hawkshroud Yellow 2",
+      "rgb": {
+        "r": 251,
+        "g": 162,
+        "b": 0
+      }
+    },
+    {
+      "id": "hawkshroud-yellow-3",
+      "name": "Hawkshroud Yellow 3",
+      "rgb": {
+        "r": 254,
+        "g": 187,
+        "b": 0
+      }
+    },
+    {
+      "id": "hawkshroud-yellow-4",
+      "name": "Hawkshroud Yellow 4",
+      "rgb": {
+        "r": 255,
+        "g": 211,
+        "b": 0
+      }
+    },
+    {
+      "id": "hawkshroud-yellow-5",
+      "name": "Hawkshroud Yellow 5",
+      "rgb": {
+        "r": 253,
+        "g": 224,
+        "b": 126
+      }
+    },
+    {
       "id": "hellion-green",
       "name": "Hellion Green",
       "rgb": {
@@ -1542,6 +2172,96 @@
       }
     },
     {
+      "id": "hierotek-green-1",
+      "name": "Hierotek Green 1",
+      "rgb": {
+        "r": 0,
+        "g": 50,
+        "b": 28
+      }
+    },
+    {
+      "id": "hierotek-green-2",
+      "name": "Hierotek Green 2",
+      "rgb": {
+        "r": 0,
+        "g": 84,
+        "b": 45
+      }
+    },
+    {
+      "id": "hierotek-green-3",
+      "name": "Hierotek Green 3",
+      "rgb": {
+        "r": 0,
+        "g": 106,
+        "b": 46
+      }
+    },
+    {
+      "id": "hierotek-green-4",
+      "name": "Hierotek Green 4",
+      "rgb": {
+        "r": 0,
+        "g": 137,
+        "b": 78
+      }
+    },
+    {
+      "id": "hierotek-green-5",
+      "name": "Hierotek Green 5",
+      "rgb": {
+        "r": 0,
+        "g": 182,
+        "b": 129
+      }
+    },
+    {
+      "id": "hive-fleet-purple-1",
+      "name": "Hive Fleet Purple 1",
+      "rgb": {
+        "r": 30,
+        "g": 26,
+        "b": 64
+      }
+    },
+    {
+      "id": "hive-fleet-purple-2",
+      "name": "Hive Fleet Purple 2",
+      "rgb": {
+        "r": 60,
+        "g": 30,
+        "b": 84
+      }
+    },
+    {
+      "id": "hive-fleet-purple-3",
+      "name": "Hive Fleet Purple 3",
+      "rgb": {
+        "r": 101,
+        "g": 81,
+        "b": 146
+      }
+    },
+    {
+      "id": "hive-fleet-purple-4",
+      "name": "Hive Fleet Purple 4",
+      "rgb": {
+        "r": 101,
+        "g": 81,
+        "b": 146
+      }
+    },
+    {
+      "id": "hive-fleet-purple-5",
+      "name": "Hive Fleet Purple 5",
+      "rgb": {
+        "r": 143,
+        "g": 130,
+        "b": 174
+      }
+    },
+    {
       "id": "hobgrot-hide",
       "name": "Hobgrot Hide",
       "rgb": {
@@ -1566,6 +2286,51 @@
         "r": 84,
         "g": 73,
         "b": 107
+      }
+    },
+    {
+      "id": "kruleboyz-green-1",
+      "name": "Kruleboyz Green 1",
+      "rgb": {
+        "r": 73,
+        "g": 137,
+        "b": 45
+      }
+    },
+    {
+      "id": "kruleboyz-green-2",
+      "name": "Kruleboyz Green 2",
+      "rgb": {
+        "r": 84,
+        "g": 155,
+        "b": 50
+      }
+    },
+    {
+      "id": "kruleboyz-green-3",
+      "name": "Kruleboyz Green 3",
+      "rgb": {
+        "r": 128,
+        "g": 194,
+        "b": 52
+      }
+    },
+    {
+      "id": "kruleboyz-green-4",
+      "name": "Kruleboyz Green 4",
+      "rgb": {
+        "r": 156,
+        "g": 200,
+        "b": 41
+      }
+    },
+    {
+      "id": "kruleboyz-green-5",
+      "name": "Kruleboyz Green 5",
+      "rgb": {
+        "r": 200, 
+        "g": 214,
+        "b": 0
       }
     },
     {
@@ -1740,12 +2505,102 @@
       }
     },
     {
+      "id": "kasrkin-green-1",
+      "name": "Kasrkin Green 1",
+      "rgb": {
+        "r": 0,
+        "g": 27,
+        "b": 27
+      }
+    },
+    {
+      "id": "kasrkin-green-2",
+      "name": "Kasrkin Green 2",
+      "rgb": {
+        "r": 31,
+        "g": 69,
+        "b": 48
+      }
+    },
+    {
+      "id": "kasrkin-green-3",
+      "name": "Kasrkin Green 3",
+      "rgb": {
+        "r": 64,
+        "g": 113,
+        "b": 60
+      }
+    },
+    {
+      "id": "kasrkin-green-4",
+      "name": "Kasrkin Green 4",
+      "rgb": {
+        "r": 103,
+        "g": 142,
+        "b": 85
+      }
+    },
+    {
+      "id": "kasrkin-green-5",
+      "name": "Kasrkin Green 5",
+      "rgb": {
+        "r": 134,
+        "g": 169,
+        "b": 120
+      }
+    },
+    {
       "id": "khemri-brown",
       "name": "Khemri Brown",
       "rgb": {
         "r": 115,
         "g": 97,
         "b": 77
+      }
+    },
+    {
+      "id": "khemri-sands-1",
+      "name": "Khemri Sands 1",
+      "rgb": {
+        "r": 108,
+        "g": 75,
+        "b": 18
+      }
+    },
+    {
+      "id": "khemri-sands-2",
+      "name": "Khemri Sands 2",
+      "rgb": {
+        "r": 141,
+        "g": 94,
+        "b": 6
+      }
+    },
+    {
+      "id": "khemri-sands-3",
+      "name": "Khemri Sands 3",
+      "rgb": {
+        "r": 177,
+        "g": 121,
+        "b": 30
+      }
+    },
+    {
+      "id": "khemri-sands-4",
+      "name": "Khemri Sands 4",
+      "rgb": {
+        "r": 207,
+        "g": 132,
+        "b": 0
+      }
+    },
+    {
+      "id": "khemri-sands-5",
+      "name": "Khemri Sands 5",
+      "rgb": {
+        "r": 220,
+        "g": 154,
+        "b": 0
       }
     },
     {
@@ -1974,6 +2829,51 @@
       }
     },
     {
+      "id": "lustria-green-1",
+      "name": "Lustria Green 1",
+      "rgb": {
+        "r": 0,
+        "g": 72,
+        "b": 22
+      }
+    },
+    {
+      "id": "lustria-green-2",
+      "name": "Lustria Green 2",
+      "rgb": {
+        "r": 0,
+        "g": 105,
+        "b": 41
+      }
+    },
+    {
+      "id": "lustria-green-3",
+      "name": "Lustria Green 3",
+      "rgb": {
+        "r": 0,
+        "g": 121,
+        "b": 49
+      }
+    },
+    {
+      "id": "lustria-green-4",
+      "name": "Lustria Green 4",
+      "rgb": {
+        "r": 52,
+        "g": 173,
+        "b": 64
+      }
+    },
+    {
+      "id": "lustria-green-5",
+      "name": "Lustria Green 5",
+      "rgb": {
+        "r": 78,
+        "g": 179,
+        "b": 63
+      }
+    },
+    {
       "id": "luxion-purple",
       "name": "Luxion Purple",
       "rgb": {
@@ -2016,6 +2916,51 @@
         "r": 218,
         "g": 79,
         "b": 38
+      }
+    },
+    {
+      "id": "magnus-the-red-1",
+      "name": "Magnus the Red 1",
+      "rgb": {
+        "r": 58,
+        "g": 32,
+        "b": 45
+      }
+    },
+    {
+      "id": "magnus-the-red-2",
+      "name": "Magnus the Red 2",
+      "rgb": {
+        "r": 74,
+        "g": 18,
+        "b": 62
+      }
+    },
+    {
+      "id": "magnus-the-red-3",
+      "name": "Magnus the Red 3",
+      "rgb": {
+        "r": 118,
+        "g": 0,
+        "b": 63
+      }
+    },
+    {
+      "id": "magnus-the-red-4",
+      "name": "Magnus the Red 4",
+      "rgb": {
+        "r": 154,
+        "g": 27,
+        "b": 89
+      }
+    },
+    {
+      "id": "magnus-the-red-5",
+      "name": "Magnus the Red 5",
+      "rgb": {
+        "r": 170,
+        "g": 66,
+        "b": 119
       }
     },
     {
@@ -2070,6 +3015,51 @@
         "r": 168,
         "g": 32,
         "b": 20
+      }
+    },
+    {
+      "id": "megaboss-yellow-1",
+      "name": "Megaboss Yellow 1",
+      "rgb": {
+        "r": 249,
+        "g": 173,
+        "b": 0
+      }
+    },
+    {
+      "id": "megaboss-yellow-2",
+      "name": "Megaboss Yellow 2",
+      "rgb": {
+        "r": 248,
+        "g": 206,
+        "b": 0
+      }
+    },
+    {
+      "id": "megaboss-yellow-3",
+      "name": "Megaboss Yellow 3",
+      "rgb": {
+        "r": 255,
+        "g": 228,
+        "b": 64
+      }
+    },
+    {
+      "id": "megaboss-yellow-4",
+      "name": "Megaboss Yellow 4",
+      "rgb": {
+        "r": 248,
+        "g": 232,
+        "b": 95
+      }
+    },
+    {
+      "id": "megaboss-yellow-5",
+      "name": "Megaboss Yellow 5",
+      "rgb": {
+        "r": 255,
+        "g": 241,
+        "b": 117
       }
     },
     {
@@ -2205,6 +3195,51 @@
         "r": 126,
         "g": 89,
         "b": 0
+      }
+    },
+    {
+      "id": "necrolith-bone-1",
+      "name": "Necrolith Bone 1",
+      "rgb": {
+        "r": 135,
+        "g": 117,
+        "b": 97
+      }
+    },
+    {
+      "id": "necrolith-bone-2",
+      "name": "Necrolith Bone 2",
+      "rgb": {
+        "r": 176,
+        "g": 145,
+        "b": 106
+      }
+    },
+    {
+      "id": "necrolith-bone-3",
+      "name": "Necrolith Bone 3",
+      "rgb": {
+        "r": 185,
+        "g": 159,
+        "b": 125
+      }
+    },
+    {
+      "id": "necrolith-bone-4",
+      "name": "Necrolith Bone 4",
+      "rgb": {
+        "r": 193,
+        "g": 171,
+        "b": 134
+      }
+    },
+    {
+      "id": "necrolith-bone-5",
+      "name": "Necrolith Bone 5",
+      "rgb": {
+        "r": 188,
+        "g": 183,
+        "b": 158
       }
     },
     {
@@ -2394,6 +3429,51 @@
         "r": 142,
         "g": 38,
         "b": 87
+      }
+    },
+    {
+      "id": "plague-toad-venom-1",
+      "name": "Plague Toad Venom 1",
+      "rgb": {
+        "r": 73,
+        "g": 137,
+        "b": 45
+      }
+    },
+    {
+      "id": "plague-toad-venom-2",
+      "name": "Plague Toad Venom 2",
+      "rgb": {
+        "r": 84,
+        "g": 155,
+        "b": 50
+      }
+    },
+    {
+      "id": "plague-toad-venom-3",
+      "name": "Plague Toad Venom 3",
+      "rgb": {
+        "r": 128,
+        "g": 194,
+        "b": 52
+      }
+    },
+    {
+      "id": "plague-toad-venom-4",
+      "name": "Plague Toad Venom 4",
+      "rgb": {
+        "r": 156,
+        "g": 200,
+        "b": 41
+      }
+    },
+    {
+      "id": "plague-toad-venom-5",
+      "name": "Plague Toad Venom 5",
+      "rgb": {
+        "r": 200, 
+        "g": 214,
+        "b": 0
       }
     },
     {
@@ -2604,6 +3684,51 @@
       }
     },
     {
+      "id": "scinari-blue-1",
+      "name": "Scinari Blue 1",
+      "rgb": {
+        "r": 0,
+        "g": 71,
+        "b": 137
+      }
+    },
+    {
+      "id": "scinari-blue-2",
+      "name": "Scinari Blue 2",
+      "rgb": {
+        "r": 0,
+        "g": 88,
+        "b": 149
+      }
+    },
+    {
+      "id": "scinari-blue-3",
+      "name": "Scinari Blue 3",
+      "rgb": {
+        "r": 0,
+        "g": 108,
+        "b": 154
+      }
+    },
+    {
+      "id": "scinari-blue-4",
+      "name": "Scinari Blue 4",
+      "rgb": {
+        "r": 0,
+        "g": 136,
+        "b": 187
+      }
+    },
+    {
+      "id": "scinari-blue-5",
+      "name": "Scinari Blue 5",
+      "rgb": {
+        "r": 0,
+        "g": 154,
+        "b": 185
+      }
+    },
+    {
       "id": "scorched-brown",
       "name": "Scorched Brown",
       "rgb": {
@@ -2658,12 +3783,102 @@
       }
     },
     {
+      "id": "seraphon-blue-1",
+      "name": "Seraphon Blue 1",
+      "rgb": {
+        "r": 0,
+        "g": 47,
+        "b": 52
+      }
+    },
+    {
+      "id": "seraphon-blue-2",
+      "name": "Seraphon Blue 2",
+      "rgb": {
+        "r": 0,
+        "g": 70,
+        "b": 80
+      }
+    },
+    {
+      "id": "seraphon-blue-3",
+      "name": "Seraphon Blue 3",
+      "rgb": {
+        "r": 0,
+        "g": 104,
+        "b": 116
+      }
+    },
+    {
+      "id": "seraphon-blue-4",
+      "name": "Seraphon Blue 4",
+      "rgb": {
+        "r": 0,
+        "g": 141,
+        "b": 146
+      }
+    },
+    {
+      "id": "seraphon-blue-5",
+      "name": "Seraphon Blue 5",
+      "rgb": {
+        "r": 0,
+        "g": 183,
+        "b": 185
+      }
+    },
+    {
       "id": "shadow-grey",
       "name": "Shadow Grey",
       "rgb": {
         "r": 16,
         "g": 105,
         "b": 147
+      }
+    },
+    {
+      "id": "shalaxi-violet-1",
+      "name": "Shalaxi Violet 1",
+      "rgb": {
+        "r": 19,
+        "g": 0,
+        "b": 64
+      }
+    },
+    {
+      "id": "shalaxi-violet-2",
+      "name": "Shalaxi Violet 2",
+      "rgb": {
+        "r": 38,
+        "g": 46,
+        "b": 109
+      }
+    },
+    {
+      "id": "shalaxi-violet-3",
+      "name": "Shalaxi Violet 3",
+      "rgb": {
+        "r": 50,
+        "g": 78,
+        "b": 153
+      }
+    },
+    {
+      "id": "shalaxi-violet-4",
+      "name": "Shalaxi Violet 4",
+      "rgb": {
+        "r": 100,
+        "g": 114,
+        "b": 185
+      }
+    },
+    {
+      "id": "shalaxi-violet-5",
+      "name": "Shalaxi Violet 5",
+      "rgb": {
+        "r": 126,
+        "g": 139,
+        "b": 200
       }
     },
     {
@@ -2919,6 +4134,51 @@
       }
     },
     {
+      "id": "stormwolf-blue-1",
+      "name": "Stormwolf Blue 1",
+      "rgb": {
+        "r": 35,
+        "g": 63,
+        "b": 85
+      }
+    },
+    {
+      "id": "stormwolf-blue-2",
+      "name": "Stormwolf Blue 2",
+      "rgb": {
+        "r": 64,
+        "g": 85,
+        "b": 104
+      }
+    },
+    {
+      "id": "stormwolf-blue-3",
+      "name": "Stormwolf Blue 3",
+      "rgb": {
+        "r": 84,
+        "g": 105,
+        "b": 125
+      }
+    },
+    {
+      "id": "stormwolf-blue-4",
+      "name": "Stormwolf Blue 4",
+      "rgb": {
+        "r": 110,
+        "g": 149,
+        "b": 164
+      }
+    },
+    {
+      "id": "stormwolf-blue-5",
+      "name": "Stormwolf Blue 5",
+      "rgb": {
+        "r": 135,
+        "g": 175,
+        "b": 185
+      }
+    },
+    {
       "id": "stormfang",
       "name": "Stormfang",
       "rgb": {
@@ -3015,6 +4275,51 @@
         "r": 180,
         "g": 130,
         "b": 97
+      }
+    },
+    {
+      "id": "taunar-ochre-1",
+      "name": "Ta'unar Ochre 1",
+      "rgb": {
+        "r": 187,
+        "g": 85,
+        "b": 40
+      }
+    },
+    {
+      "id": "taunar-ochre-2",
+      "name": "Ta'unar Ochre 2",
+      "rgb": {
+        "r": 210,
+        "g": 113,
+        "b": 68
+      }
+    },
+    {
+      "id": "taunar-ochre-3",
+      "name": "Ta'unar Ochre 3",
+      "rgb": {
+        "r": 231,
+        "g": 131,
+        "b": 68
+      }
+    },
+    {
+      "id": "taunar-ochre-4",
+      "name": "Ta'unar Ochre 4",
+      "rgb": {
+        "r": 234,
+        "g": 155,
+        "b": 107
+      }
+    },
+    {
+      "id": "taunar-ochre-5",
+      "name": "Ta'unar Ochre 5",
+      "rgb": {
+        "r": 233,
+        "g": 176,
+        "b": 110
       }
     },
     {
@@ -3258,6 +4563,51 @@
         "r": 196,
         "g": 222,
         "b": 213
+      }
+    },
+    {
+      "id": "ultramar-blue-1",
+      "name": "Ultramar Blue 1",
+      "rgb": {
+        "r": 0,
+        "g": 26,
+        "b": 66
+      }
+    },
+    {
+      "id": "ultramar-blue-2",
+      "name": "Ultramar Blue 2",
+      "rgb": {
+        "r": 15,
+        "g": 48,
+        "b": 98
+      }
+    },
+    {
+      "id": "ultramar-blue-3",
+      "name": "Ultramar Blue 3",
+      "rgb": {
+        "r": 13,
+        "g": 79,
+        "b": 136
+      }
+    },
+    {
+      "id": "ultramar-blue-4",
+      "name": "Ultramar Blue 4",
+      "rgb": {
+        "r": 67,
+        "g": 108,
+        "b": 161
+      }
+    },
+    {
+      "id": "ultramar-blue-5",
+      "name": "Ultramar Blue 5",
+      "rgb": {
+        "r": 109,
+        "g": 158,
+        "b": 207
       }
     },
     {
