@@ -144,6 +144,40 @@ class PaintColorClassificationTests(unittest.TestCase):
                         expected,
                     )
 
+    def test_near_black_tier_has_conservative_lightness_and_chroma_limits(self):
+        cases = (
+            (0.10, 0.030, True),
+            (0.10, 0.0301, False),
+            (0.1001, 0.030, False),
+            (0.1001, 0.022, True),
+        )
+        for lightness, chroma, expected in cases:
+            for hue in (30.0, 150.0, 260.0, 310.0):
+                with self.subTest(lightness=lightness, chroma=chroma, hue=hue):
+                    self.assertEqual(
+                        _is_neutral(PerceptualColorAnalysis(lightness, chroma, hue)),
+                        expected,
+                    )
+
+    def test_near_black_rgb_rule_preserves_chromatic_boundary_samples(self):
+        cases = (
+            ((0, 2, 8), ColorGroup.NEUTRAL),
+            ((8, 0, 0), ColorGroup.RED),
+            ((12, 0, 0), ColorGroup.RED),
+            ((0, 8, 0), ColorGroup.GREEN),
+            ((0, 0, 12), ColorGroup.BLUE),
+            ((0, 2, 16), ColorGroup.BLUE),
+            ((8, 0, 12), ColorGroup.PURPLE),
+            ((0, 4, 10), ColorGroup.BLUE),
+            ((6, 2, 8), ColorGroup.PURPLE),
+        )
+        for rgb, expected_group in cases:
+            with self.subTest(rgb=rgb):
+                self.assertIs(
+                    classify_paint_color(paint("Definitely Orange", *rgb)),
+                    expected_group,
+                )
+
     def test_very_dark_chromatic_rgb_samples_keep_their_groups(self):
         samples = {
             ColorGroup.RED: paint("very-dark-red", 40, 0, 0),
@@ -573,6 +607,7 @@ class CitadelCatalogClassificationSanityTests(unittest.TestCase):
         paints_by_name = {sample.name: sample for sample in self.paints}
         expected_groups = {
             "Carthalos Skin 1": ColorGroup.NEUTRAL,
+            "Blackstone Void 1": ColorGroup.NEUTRAL,
             "Leviathan Purple": ColorGroup.PURPLE,
             "Shalaxi Violet 1": ColorGroup.PURPLE,
             "Hive Fleet Purple 1": ColorGroup.PURPLE,

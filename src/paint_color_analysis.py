@@ -10,6 +10,8 @@ import math
 from src.paint_catalog import PaintColor
 
 
+NEAR_BLACK_MAX_LIGHTNESS = 0.10
+NEAR_BLACK_MAX_CHROMA = 0.030
 DARK_NEUTRAL_MAX_LIGHTNESS = 0.25
 # Allow weak near-black tints while staying below the middle-tone limit.
 DARK_NEUTRAL_MAX_CHROMA = 0.022
@@ -131,6 +133,9 @@ def analyze_perceptual_color(paint: PaintColor) -> PerceptualColorAnalysis:
 
 def _neutral_chroma_limit(lightness: float) -> float:
     """Return a conservative chroma limit for dark, middle, or light colours."""
+    # At extremely low lightness, weak tints still read as near-black.
+    if lightness <= NEAR_BLACK_MAX_LIGHTNESS:
+        return NEAR_BLACK_MAX_CHROMA
     if lightness <= DARK_NEUTRAL_MAX_LIGHTNESS:
         return DARK_NEUTRAL_MAX_CHROMA
     if lightness >= LIGHT_NEUTRAL_MIN_LIGHTNESS:
