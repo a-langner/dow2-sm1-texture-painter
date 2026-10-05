@@ -1,5 +1,6 @@
 import unittest
 from collections import Counter
+from unittest.mock import patch
 
 from src.paint_catalog import PaintColor, load_citadel_catalog
 from src.paint_color_analysis import (
@@ -90,6 +91,24 @@ class PaintColorClassificationTests(unittest.TestCase):
         for sample in neutral_samples:
             with self.subTest(color=sample.id):
                 self.assertIs(classify_paint_color(sample), ColorGroup.NEUTRAL)
+
+    def test_blue_purple_pink_hue_boundary_endpoints(self):
+        sample = paint("boundary-sample", 100, 50, 150)
+        cases = (
+            (279.999, ColorGroup.BLUE),
+            (280.0, ColorGroup.PURPLE),
+            (280.001, ColorGroup.PURPLE),
+            (329.999, ColorGroup.PURPLE),
+            (330.0, ColorGroup.PINK),
+            (330.001, ColorGroup.PINK),
+        )
+        for hue, expected_group in cases:
+            with self.subTest(hue=hue):
+                with patch(
+                    "src.paint_color_analysis.analyze_perceptual_color",
+                    return_value=PerceptualColorAnalysis(0.5, 0.1, hue),
+                ):
+                    self.assertIs(classify_paint_color(sample), expected_group)
 
     def test_near_black_and_charcoal_are_neutral(self):
         for sample in (
@@ -422,6 +441,16 @@ class CitadelCatalogClassificationSanityTests(unittest.TestCase):
             sort_paints_visually(reversed(self.paints)),
         )
 
+    def test_catalog_classification_ignores_names_and_identifiers(self):
+        for sample in self.paints:
+            with self.subTest(name=sample.name):
+                renamed = PaintColor(
+                    "misleading-id", "Definitely Orange", sample.r, sample.g, sample.b
+                )
+                self.assertIs(
+                    classify_paint_color(renamed), classify_paint_color(sample)
+                )
+
     def test_catalog_rgb_values_remain_unchanged_after_analysis(self):
         before = tuple((sample.r, sample.g, sample.b) for sample in self.paints)
 
@@ -471,6 +500,11 @@ class CitadelCatalogClassificationSanityTests(unittest.TestCase):
         paints_by_name = {sample.name: sample for sample in self.paints}
         expected_groups = {
             "Carthalos Skin 1": ColorGroup.NEUTRAL,
+            "Leviathan Purple": ColorGroup.PURPLE,
+            "Shalaxi Violet 1": ColorGroup.PURPLE,
+            "Hive Fleet Purple 1": ColorGroup.PURPLE,
+            "Dreadful Visage": ColorGroup.PURPLE,
+            "Liche Purple": ColorGroup.PURPLE,
             "Corvus Black": ColorGroup.NEUTRAL,
             "Mordant Earth": ColorGroup.NEUTRAL,
             "Mournfang Brown": ColorGroup.BROWN,
