@@ -1,3 +1,4 @@
+import colorsys
 import unittest
 
 from src.color_picker_visual import (
@@ -26,10 +27,59 @@ from src.color_picker_visual import (
     relative_luminance,
     rgb_channels_to_hex,
     rgb_hex_to_channels,
+    render_color_field,
+    _color_field_planes,
 )
 
 
 class ColorPickerVisualTests(unittest.TestCase):
+    def test_bulk_fields_match_colorsys_reference_to_one_rgb_byte(self):
+        for hsl in (False, True):
+            for hue in (0.0, 1 / 6, 1 / 3, 0.5, 2 / 3, 5 / 6, 0.123, 1.0):
+                with self.subTest(hsl=hsl, hue=hue):
+                    width, height = 19, 23
+                    image = render_color_field(width, height, hue, hsl=hsl)
+                    for y in range(height):
+                        component = 1 - y / (height - 1)
+                        for x in range(width):
+                            saturation = x / (width - 1)
+                            reference = (
+                                colorsys.hls_to_rgb(hue, component, saturation)
+                                if hsl else colorsys.hsv_to_rgb(hue, saturation, component)
+                            )
+                            expected = tuple(round(c * 255) for c in reference)
+                            actual = image.getpixel((x, y))
+                            self.assertTrue(
+                                all(abs(a - b) <= 1 for a, b in zip(actual, expected)),
+                                (hsl, hue, x, y, actual, expected),
+                            )
+
+    def test_bulk_fields_preserve_endpoints_at_default_and_enlarged_sizes(self):
+        for width, height in ((350, 240), (1000, 800)):
+            for hsl in (False, True):
+                with self.subTest(size=(width, height), hsl=hsl):
+                    image = render_color_field(width, height, 0.0, hsl=hsl)
+                    self.assertEqual(image.size, (width, height))
+                    self.assertEqual(image.getpixel((0, 0)), (255, 255, 255))
+                    self.assertEqual(image.getpixel((width - 1, height - 1)), (0, 0, 0))
+                    if hsl:
+                        self.assertEqual(image.getpixel((width - 1, 0)), (255, 255, 255))
+                    else:
+                        self.assertEqual(image.getpixel((width - 1, 0)), (255, 0, 0))
+
+    def test_bulk_field_planes_reuse_size_across_hues_and_modes_and_replace_on_resize(self):
+        _color_field_planes.cache_clear()
+        try:
+            render_color_field(19, 23, 0.1, hsl=False)
+            original = _color_field_planes(19, 23)
+            render_color_field(19, 23, 0.7, hsl=True)
+            self.assertIs(_color_field_planes(19, 23), original)
+            render_color_field(29, 31, 0.7, hsl=True)
+            self.assertEqual(_color_field_planes.cache_info().currsize, 1)
+            self.assertIsNot(_color_field_planes(19, 23), original)
+        finally:
+            _color_field_planes.cache_clear()
+
     def test_color_wheel_geometry_is_centered_square_and_unclipped(self):
         geometry = color_wheel_geometry(401, 301)
         self.assertEqual((geometry.center_x, geometry.center_y), (200.0, 150.0))

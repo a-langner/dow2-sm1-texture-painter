@@ -6,6 +6,60 @@ import colorsys
 import math
 from dataclasses import dataclass
 from enum import Enum
+from functools import lru_cache
+
+from PIL import Image, ImageMath
+
+
+@lru_cache(maxsize=1)
+def _color_field_planes(width: int, height: int) -> tuple[Image.Image, ...]:
+    """Cache only the current size's hue-independent floating-point planes."""
+    saturation_row = Image.new("F", (width, 1))
+    saturation_row.putdata([x / (width - 1) for x in range(width)])
+    component_column = Image.new("F", (1, height))
+    component_column.putdata([1.0 - y / (height - 1) for y in range(height)])
+    amplitude_column = Image.new("F", (1, height))
+    amplitude_column.putdata([
+        min(1.0 - y / (height - 1), y / (height - 1)) for y in range(height)
+    ])
+    saturation = saturation_row.resize((width, height), Image.Resampling.NEAREST)
+    component = component_column.resize((width, height), Image.Resampling.NEAREST)
+    amplitude = amplitude_column.resize((width, height), Image.Resampling.NEAREST)
+    value_saturation = ImageMath.lambda_eval(
+        lambda planes: planes["s"] * planes["v"], s=saturation, v=component
+    )
+    lightness_saturation = ImageMath.lambda_eval(
+        lambda planes: planes["s"] * planes["a"], s=saturation, a=amplitude
+    )
+    return component, value_saturation, lightness_saturation
+
+
+def render_color_field(width: int, height: int, hue: float, *, hsl: bool) -> Image.Image:
+    """Render the same HSV/HSL field using bulk Pillow float arithmetic.
+
+    Float32 arithmetic and conversion can differ from Python's double-precision
+    round-to-even by one RGB byte, without changing the colour-space model.
+    """
+    if width < 2 or height < 2:
+        raise ValueError("Color fields require at least two pixels on each axis")
+    component, value_saturation, lightness_saturation = _color_field_planes(width, height)
+    hue_rgb = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
+    channels = []
+    for channel in hue_rgb:
+        if hsl:
+            result = ImageMath.lambda_eval(
+                lambda planes: (planes["v"] + planes["s"] * (2 * channel - 1))
+                * 255 + 0.5,
+                v=component, s=lightness_saturation,
+            )
+        else:
+            result = ImageMath.lambda_eval(
+                lambda planes: (planes["v"] - planes["s"] * (1 - channel))
+                * 255 + 0.5,
+                v=component, s=value_saturation,
+            )
+        channels.append(result.convert("L"))
+    return Image.merge("RGB", channels)
 
 
 DARK_TEXT_COLOR = "#000000"

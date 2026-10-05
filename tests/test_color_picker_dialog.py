@@ -2477,8 +2477,8 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.hue_slider.delete.assert_not_called()
 
     @patch("src.widget.ImageTk.PhotoImage")
-    @patch("src.widget.Image.new")
-    def test_switching_mode_redraws_a_cached_field(self, image_new, _photo_image):
+    @patch("src.widget.render_color_field")
+    def test_switching_mode_redraws_a_cached_field(self, render_field, _photo_image):
         dialog = object.__new__(ColorPickerDialog)
         dialog.hsv_color_field = Mock()
         dialog.hsv_color_field.winfo_width.return_value = 2
@@ -2488,9 +2488,30 @@ class ColorPickerDialogTests(unittest.TestCase):
 
         dialog._render_hsv_field(0.5)
 
-        image_new.assert_called_once_with("RGB", (2, 2))
+        render_field.assert_called_once_with(2, 2, 0.5, hsl=False)
         dialog.hsv_color_field.delete.assert_called_once_with("gradient")
         self.assertEqual(dialog._displayed_field_mode, DEFAULT_COLOR_SPACE_MODE)
+
+    @patch("src.widget.ImageTk.PhotoImage", side_effect=lambda image: image)
+    def test_bulk_field_mode_switches_and_resize_do_not_leave_stale_pixels(self, _photo_image):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.hsv_color_field = Mock()
+        dialog._hsv_field_cache = None
+        dialog._hsl_field_cache = None
+        for width, height in ((101, 101), (301, 201)):
+            dialog.hsv_color_field.winfo_width.return_value = width
+            dialog.hsv_color_field.winfo_height.return_value = height
+            for _ in range(3):
+                dialog._render_hsv_field(0.0)
+                self.assertEqual(dialog._hsv_field_image.size, (width, height))
+                self.assertEqual(
+                    dialog._hsv_field_image.getpixel((width - 1, 0)), (255, 0, 0)
+                )
+                dialog._render_hsl_field(0.0)
+                self.assertEqual(dialog._hsv_field_image.size, (width, height))
+                self.assertEqual(
+                    dialog._hsv_field_image.getpixel((width - 1, 0)), (255, 255, 255)
+                )
 
     @patch("src.widget.ImageTk.PhotoImage", side_effect=lambda image: image)
     def test_color_wheel_renders_clockwise_ring_and_hsv_inner_square(

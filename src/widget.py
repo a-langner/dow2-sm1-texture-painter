@@ -68,6 +68,7 @@ from src.color_picker_visual import (
     rgb_hex_to_channels,
     rgb_hex_to_hsl,
     rgb_hex_to_hsv,
+    render_color_field,
 )
 from src.paint_color_analysis import (
     ColorGroup,
@@ -3383,15 +3384,7 @@ class ColorPickerDialog(tk.Toplevel):
             hue_distance = abs(cached[2] - hue)
             if min(hue_distance, 1.0 - hue_distance) < 1 / 1024:
                 return
-        pixels = []
-        for y in range(height):
-            value = 1.0 - y / (height - 1)
-            for x in range(width):
-                saturation = x / (width - 1)
-                rgb = colorsys.hsv_to_rgb(hue, saturation, value)
-                pixels.append(tuple(round(channel * 255) for channel in rgb))
-        image = Image.new("RGB", (width, height))
-        image.putdata(pixels)
+        image = render_color_field(width, height, hue, hsl=False)
         self._hsv_field_image = ImageTk.PhotoImage(image)
         self.hsv_color_field.delete("gradient")
         self.hsv_color_field.create_image(
@@ -3416,15 +3409,7 @@ class ColorPickerDialog(tk.Toplevel):
             hue_distance = abs(cached[2] - hue)
             if min(hue_distance, 1.0 - hue_distance) < 1 / 1024:
                 return
-        pixels = []
-        for y in range(height):
-            lightness = 1.0 - y / (height - 1)
-            for x in range(width):
-                saturation = x / (width - 1)
-                rgb = colorsys.hls_to_rgb(hue, lightness, saturation)
-                pixels.append(tuple(round(channel * 255) for channel in rgb))
-        image = Image.new("RGB", (width, height))
-        image.putdata(pixels)
+        image = render_color_field(width, height, hue, hsl=True)
         self._hsv_field_image = ImageTk.PhotoImage(image)
         self.hsv_color_field.delete("gradient")
         self.hsv_color_field.create_image(
