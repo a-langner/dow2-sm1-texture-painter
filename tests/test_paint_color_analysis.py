@@ -5,7 +5,9 @@ from src.paint_catalog import PaintColor, load_citadel_catalog
 from src.paint_color_analysis import (
     ColorGroup,
     PaletteSortMode,
+    PerceptualColorAnalysis,
     VISUAL_GROUP_ORDER,
+    _is_neutral,
     analyze_perceptual_color,
     classify_paint_color,
     get_paints_for_group,
@@ -108,6 +110,39 @@ class PaintColorClassificationTests(unittest.TestCase):
         for expected_group, sample in dark_colors.items():
             with self.subTest(color=sample.id):
                 self.assertIs(classify_paint_color(sample), expected_group)
+
+    def test_very_dark_neutral_chroma_limit_is_conservative(self):
+        for chroma, expected in ((0.020, True), (0.022, True), (0.0221, False)):
+            for hue in (30.0, 150.0, 260.0, 310.0):
+                with self.subTest(chroma=chroma, hue=hue):
+                    self.assertEqual(
+                        _is_neutral(PerceptualColorAnalysis(0.25, chroma, hue)),
+                        expected,
+                    )
+
+    def test_very_dark_chromatic_rgb_samples_keep_their_groups(self):
+        samples = {
+            ColorGroup.RED: paint("very-dark-red", 40, 0, 0),
+            ColorGroup.GREEN: paint("very-dark-green", 0, 30, 10),
+            ColorGroup.BLUE: paint("very-dark-blue", 0, 8, 40),
+            ColorGroup.PURPLE: paint("very-dark-purple", 30, 8, 40),
+        }
+        for expected_group, sample in samples.items():
+            with self.subTest(color=sample.id):
+                self.assertLessEqual(analyze_perceptual_color(sample).lightness, 0.25)
+                self.assertIs(classify_paint_color(sample), expected_group)
+
+    def test_weak_near_black_tint_is_neutral_regardless_of_name(self):
+        for name in ("Carthalos Skin 1", "Definitely Orange", "Definitely Blue"):
+            with self.subTest(name=name):
+                self.assertIs(
+                    classify_paint_color(PaintColor(name, name, 36, 24, 21)),
+                    ColorGroup.NEUTRAL,
+                )
+        self.assertIs(
+            classify_paint_color(paint("more-chromatic-dark-purple", 30, 24, 36)),
+            ColorGroup.PURPLE,
+        )
 
     def test_lightness_aware_limit_recognizes_subtly_tinted_light_grey(self):
         light_grey = paint("subtly-tinted-light-grey", 196, 221, 213)
@@ -356,6 +391,7 @@ class CitadelCatalogClassificationSanityTests(unittest.TestCase):
         self.paints = load_citadel_catalog().paints
 
     def test_every_catalog_paint_belongs_to_exactly_one_filtered_group(self):
+        self.assertEqual(len(self.paints), 547)
         grouped = {
             color_group: get_paints_for_group(self.paints, color_group)
             for color_group in ColorGroup
@@ -434,6 +470,7 @@ class CitadelCatalogClassificationSanityTests(unittest.TestCase):
     def test_curated_catalog_classification_regressions(self):
         paints_by_name = {sample.name: sample for sample in self.paints}
         expected_groups = {
+            "Carthalos Skin 1": ColorGroup.NEUTRAL,
             "Corvus Black": ColorGroup.NEUTRAL,
             "Mordant Earth": ColorGroup.NEUTRAL,
             "Mournfang Brown": ColorGroup.BROWN,

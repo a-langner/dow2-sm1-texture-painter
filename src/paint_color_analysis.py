@@ -11,7 +11,8 @@ from src.paint_catalog import PaintColor
 
 
 DARK_NEUTRAL_MAX_LIGHTNESS = 0.25
-DARK_NEUTRAL_MAX_CHROMA = 0.015
+# Allow weak near-black tints while staying below the middle-tone limit.
+DARK_NEUTRAL_MAX_CHROMA = 0.022
 NEUTRAL_MAX_CHROMA = 0.025
 LIGHT_NEUTRAL_MIN_LIGHTNESS = 0.85
 LIGHT_NEUTRAL_MAX_CHROMA = 0.035
