@@ -1,3 +1,4 @@
+import math
 import unittest
 from collections import Counter
 from unittest.mock import patch
@@ -7,8 +8,10 @@ from src.paint_color_analysis import (
     ColorGroup,
     PaletteSortMode,
     PerceptualColorAnalysis,
+    PERCEPTUAL_LIGHTNESS_BAND_SIZE,
     VISUAL_GROUP_ORDER,
     _is_neutral,
+    _group_sort_key,
     analyze_perceptual_color,
     classify_paint_color,
     get_paints_for_group,
@@ -377,6 +380,37 @@ class PaintColorSortingTests(unittest.TestCase):
             [sample.id for sample in sorted_paints],
             ["dark-red", "medium-red", "light-red"],
         )
+
+    def test_each_catalog_chromatic_group_progresses_by_chroma_within_bands(self):
+        catalog = load_citadel_catalog().paints
+        for group in ColorGroup:
+            if group in (ColorGroup.BROWN, ColorGroup.NEUTRAL):
+                continue
+            with self.subTest(group=group.value):
+                samples = get_paints_for_group(catalog, group)
+                ordered = sort_paints_visually(samples)
+                self.assertEqual(ordered, sort_paints_visually(reversed(samples)))
+                regions = [
+                    (
+                        math.floor(analysis.lightness / PERCEPTUAL_LIGHTNESS_BAND_SIZE),
+                        analysis.chroma,
+                    )
+                    for analysis in map(analyze_perceptual_color, ordered)
+                ]
+                self.assertEqual(regions, sorted(regions))
+
+    def test_equal_chroma_hue_direction_is_consistent_in_even_and_odd_bands(self):
+        sample = paint("hue-tie", 100, 50, 150)
+        for lightness in (0.50, 0.58):
+            with self.subTest(lightness=lightness):
+                keys = []
+                for hue in (290.0, 310.0):
+                    with patch(
+                        "src.paint_color_analysis.analyze_perceptual_color",
+                        return_value=PerceptualColorAnalysis(lightness, 0.1, hue),
+                    ):
+                        keys.append(_group_sort_key(sample, ColorGroup.PURPLE))
+                self.assertLess(keys[0], keys[1])
 
     def test_sorting_does_not_modify_paint_records_or_rgb_values(self):
         before = tuple(

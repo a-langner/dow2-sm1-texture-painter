@@ -227,13 +227,12 @@ def _group_sort_key(
     group_hue = (
         perceptual.hue - PERCEPTUAL_SPECTRUM_START_DEGREES
     ) % 360.0
-    # Filtered chromatic groups have a narrow hue range, so lightness bands
-    # prevent isolated dark/light paints while hue and chroma organize peers.
-    band_hue = group_hue if lightness_band % 2 == 0 else -group_hue
+    # Keep dark/light regions together, then progress from muted to intense.
+    # Hue breaks chroma ties in the same direction in every lightness band.
     return (
         lightness_band,
-        band_hue,
         perceptual.chroma,
+        group_hue,
         perceptual.lightness,
         *_stable_paint_key(paint),
     )
