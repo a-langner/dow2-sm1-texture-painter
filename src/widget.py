@@ -2405,6 +2405,13 @@ class ColorPickerDialog(tk.Toplevel):
             width=28,
             highlightthickness=1,
         )
+        self.classic_value_marker = tk.Canvas(
+            self.classic_visualization_area,
+            width=10,
+            bd=0,
+            highlightthickness=0,
+        )
+        self.classic_value_marker.pack(side=tk.RIGHT, fill=tk.Y)
         self.classic_value_slider.pack(
             side=tk.RIGHT,
             fill=tk.Y,
@@ -3216,11 +3223,11 @@ class ColorPickerDialog(tk.Toplevel):
                 for outline in ("black", "white")
             )
         if not getattr(self, "_classic_value_indicator_items", ()):
-            self._classic_value_indicator_items = tuple(
-                self.classic_value_slider.create_line(
-                    0, 0, 0, 0, fill=fill, width=width, tags="indicator"
-                )
-                for fill, width in (("black", 4), ("white", 2))
+            self._classic_value_indicator_items = (
+                self.classic_value_marker.create_polygon(
+                    0, 0, 0, 0, 0, 0,
+                    fill="black", outline="black", tags="indicator",
+                ),
             )
         for item, radius in zip(self._classic_field_indicator_items, (6, 4)):
             self.classic_color_field.coords(
@@ -3230,9 +3237,16 @@ class ColorPickerDialog(tk.Toplevel):
                 field_x + radius,
                 field_y + radius,
             )
-        slider_width = self.classic_value_slider.winfo_width()
+        # Keep the entire triangle visible even when its tip reaches an endpoint.
+        marker_bottom = max(0, self.classic_value_slider.winfo_height() - 1)
+        pointer_height = min(8, marker_bottom)
+        pointer_top = min(
+            max(slider_y - pointer_height / 2, 0), marker_bottom - pointer_height
+        )
         for item in self._classic_value_indicator_items:
-            self.classic_value_slider.coords(item, 0, slider_y, slider_width, slider_y)
+            self.classic_value_marker.coords(
+                item, 1, slider_y, 8, pointer_top, 8, pointer_top + pointer_height
+            )
 
     def _on_color_wheel_press(self, Event) -> None:
         geometry = color_wheel_geometry(
