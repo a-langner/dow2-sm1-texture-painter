@@ -2589,24 +2589,92 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog._classic_field_base_cache = None
         dialog._classic_value_slider_cache = None
 
-        dialog._render_classic_field(0.5)
+        dialog._render_classic_field()
         field_image = photo_image_type.call_args.args[0]
         dialog._render_classic_value_slider(0.0, 1.0)
         slider_image = photo_image_type.call_args.args[0]
 
-        self.assertEqual(field_image.getpixel((0, 0)), (128, 0, 0))
-        self.assertGreater(field_image.getpixel((33, 0))[1], 120)
-        self.assertEqual(field_image.getpixel((50, 100)), (128, 128, 128))
+        self.assertEqual(field_image.getpixel((0, 0)), (255, 0, 0))
+        self.assertGreater(field_image.getpixel((33, 0))[1], 240)
+        self.assertEqual(field_image.getpixel((50, 100)), (255, 255, 255))
         self.assertEqual(slider_image.getpixel((6, 0)), (255, 0, 0))
         self.assertEqual(slider_image.getpixel((6, 100)), (0, 0, 0))
 
-        dialog._render_classic_field(0.5)
+        dialog._render_classic_field()
         dialog._render_classic_value_slider(0.0, 1.0)
         self.assertEqual(photo_image_type.call_count, 2)
         base_image = dialog._classic_field_base_cache[2]
-        dialog._render_classic_field(0.75)
+        dialog._render_classic_field()
         self.assertIs(dialog._classic_field_base_cache[2], base_image)
+        self.assertEqual(photo_image_type.call_count, 2)
+        dialog.classic_color_field.winfo_width.return_value = 121
+        dialog._render_classic_field()
+        self.assertEqual(dialog._classic_field_image.size, (121, 101))
         self.assertEqual(photo_image_type.call_count, 3)
+
+    @patch("src.widget.ImageTk.PhotoImage", side_effect=lambda image: image)
+    def test_classic_value_changes_preserve_field_and_hs_marker_through_black(
+        self, photo_image_type
+    ):
+        dialog = object.__new__(ColorPickerDialog)
+        dialog.current_color = "#00ffff"
+        dialog.color_space_mode = "Classic"
+        dialog._achromatic_hue = 0.5
+        dialog._updating_color_representations = False
+        dialog.classic_color_field = Mock()
+        dialog.classic_value_slider = Mock()
+        for canvas in (dialog.classic_color_field, dialog.classic_value_slider):
+            canvas.winfo_width.return_value = 101
+            canvas.winfo_height.return_value = 101
+        dialog._classic_field_cache = None
+        dialog._classic_value_slider_cache = None
+        dialog.rgb_controls = {name: FakeWidget() for name in ("red", "green", "blue")}
+        dialog.color_model_controls = {
+            name: FakeWidget() for name in ("hue", "saturation", "component")
+        }
+        dialog.hex_input = FakeWidget()
+        dialog._refresh_current_color_preview = Mock()
+        dialog._refresh_favorite_button = Mock()
+        dialog._refresh_closest_citadel_button = Mock()
+        dialog._refresh_visual_picker()
+        field_bytes = dialog._classic_field_image.tobytes()
+        slider_bytes = dialog._classic_value_slider_image.tobytes()
+        marker = dialog.classic_color_field.coords.call_args_list[-2:]
+        for value in (1.0, 0.58, 0.05, 0.0, 1.0):
+            with self.subTest(value=value):
+                dialog._on_classic_value_slider_input(
+                    SimpleNamespace(y=(1.0 - value) * 100)
+                )
+                expected = hsv_to_rgb_hex(0.5, 1.0, value)
+                self.assertEqual(dialog.current_color, expected)
+                self.assertEqual(dialog.hex_input.value, expected.upper())
+                self.assertEqual(
+                    dialog.rgb_controls["green"].value, str(round(value * 255))
+                )
+                self.assertEqual(
+                    dialog.color_model_controls["component"].value,
+                    str(round(value * 100)),
+                )
+                self.assertEqual(dialog._classic_field_image.tobytes(), field_bytes)
+                self.assertEqual(dialog._classic_value_slider_image.tobytes(), slider_bytes)
+                self.assertEqual(
+                    dialog.classic_color_field.coords.call_args_list[-2:], marker
+                )
+                self.assertAlmostEqual(
+                    dialog.classic_value_slider.coords.call_args.args[2],
+                    (1.0 - value) * 100,
+                    delta=0.2,
+                )
+        self.assertEqual(photo_image_type.call_count, 2)
+        self.assertEqual(dialog._refresh_current_color_preview.call_count, 5)
+        # Numeric Value edits in Classic also retain the field's H/S at black.
+        dialog.color_model_controls["component"].value = "0"
+        dialog._on_color_model_control_changed()
+        self.assertEqual(dialog.current_color, "#000000")
+        self.assertEqual(dialog.classic_color_field.coords.call_args_list[-2:], marker)
+        # Direct RGB/Hex edits discard interaction-only black selection metadata.
+        dialog.set_current_color("#000000")
+        self.assertIsNone(dialog._classic_black_hs)
 
     def test_classic_field_and_value_interactions_update_canonical_color(self):
         dialog = object.__new__(ColorPickerDialog)
@@ -2620,11 +2688,15 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.set_current_color = Mock()
 
         dialog._on_classic_field_input(SimpleNamespace(x=2 / 3 * 101, y=-50))
-        dialog.set_current_color.assert_called_once_with("#0000ff")
+        dialog.set_current_color.assert_called_once_with(
+            "#0000ff", classic_hs=(2 / 3, 1.0)
+        )
 
         dialog.set_current_color.reset_mock()
         dialog._on_classic_value_slider_input(SimpleNamespace(y=500))
-        dialog.set_current_color.assert_called_once_with("#000000")
+        dialog.set_current_color.assert_called_once_with(
+            "#000000", classic_hs=(0.0, 1.0)
+        )
 
     def test_programmatic_color_change_moves_classic_markers_without_changing_original(
         self,

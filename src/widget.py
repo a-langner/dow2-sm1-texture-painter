@@ -2639,12 +2639,19 @@ class ColorPickerDialog(tk.Toplevel):
         )
         field_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-    def set_current_color(self, color: str) -> None:
+    def set_current_color(
+        self, color: str, *, classic_hs: tuple[float, float] | None = None
+    ) -> None:
         """Set the canonical working color and synchronize every representation."""
         if getattr(self, "_updating_color_representations", False):
             return
 
         self.current_color = color
+        self._classic_black_hs = (
+            classic_hs
+            if classic_hs is not None and rgb_hex_to_hsv(color)[2] == 0.0
+            else None
+        )
         self.current_custom_favorite = self._resolve_custom_favorite_identity(
             color
         )
@@ -2908,6 +2915,9 @@ class ColorPickerDialog(tk.Toplevel):
             color = hsl_to_rgb_hex(hue, saturation, component)
         else:
             color = hsv_to_rgb_hex(hue, saturation, component)
+        if self._visualization_mode() is ColorVisualizationMode.CLASSIC:
+            self.set_current_color(color, classic_hs=(hue, saturation))
+            return
         self.set_current_color(color)
 
     def _visualization_mode(self) -> ColorVisualizationMode:
@@ -2949,7 +2959,9 @@ class ColorPickerDialog(tk.Toplevel):
                 self._achromatic_hue = hue
             else:
                 hue = getattr(self, "_achromatic_hue", 0.0)
-            self._render_classic_field(value)
+            if value == 0.0 and getattr(self, "_classic_black_hs", None) is not None:
+                hue, saturation = self._classic_black_hs
+            self._render_classic_field()
             self._render_classic_value_slider(hue, saturation)
             self._draw_classic_indicators(hue, saturation, value)
             return
@@ -3091,17 +3103,16 @@ class ColorPickerDialog(tk.Toplevel):
         self.color_wheel_canvas.tag_lower("gradient")
         self._color_wheel_cache = cache_key
 
-    def _render_classic_field(self, value: float) -> None:
-        """Render Hue horizontally and Saturation vertically at current Value."""
+    def _render_classic_field(self) -> None:
+        """Render Hue/Saturation at full Value, independently of selected Value."""
         width = self.classic_color_field.winfo_width()
         height = self.classic_color_field.winfo_height()
-        cache_key = (width, height, value)
+        cache_key = (width, height)
         cached = self._classic_field_cache
         if width <= 1 or height <= 1:
             return
-        if cached is not None and cached[:2] == cache_key[:2]:
-            if abs(cached[2] - value) < 1 / 1024:
-                return
+        if cached == cache_key:
+            return
         base_cache = getattr(self, "_classic_field_base_cache", None)
         if base_cache is None or base_cache[:2] != (width, height):
             pixels = []
@@ -3116,9 +3127,7 @@ class ColorPickerDialog(tk.Toplevel):
             self._classic_field_base_cache = (width, height, base_image)
         else:
             base_image = base_cache[2]
-        value_lut = [round(channel * value) for channel in range(256)] * 3
-        image = base_image.point(value_lut)
-        self._classic_field_image = ImageTk.PhotoImage(image)
+        self._classic_field_image = ImageTk.PhotoImage(base_image)
         self.classic_color_field.delete("gradient")
         self.classic_color_field.create_image(
             0, 0, anchor=tk.NW, image=self._classic_field_image, tags="gradient"
@@ -3170,16 +3179,22 @@ class ColorPickerDialog(tk.Toplevel):
         )
         self._achromatic_hue = hue
         _, _, value = rgb_hex_to_hsv(self.current_color)
-        self.set_current_color(hsv_to_rgb_hex(hue, saturation, value))
+        self.set_current_color(
+            hsv_to_rgb_hex(hue, saturation, value), classic_hs=(hue, saturation)
+        )
 
     def _on_classic_value_slider_input(self, Event) -> None:
         hue, saturation, _ = rgb_hex_to_hsv(self.current_color)
         if saturation == 0.0:
             hue = getattr(self, "_achromatic_hue", 0.0)
+        if getattr(self, "_classic_black_hs", None) is not None:
+            hue, saturation = self._classic_black_hs
         value = classic_value_from_position(
             Event.y, self.classic_value_slider.winfo_height()
         )
-        self.set_current_color(hsv_to_rgb_hex(hue, saturation, value))
+        self.set_current_color(
+            hsv_to_rgb_hex(hue, saturation, value), classic_hs=(hue, saturation)
+        )
 
     def _draw_classic_indicators(
         self, hue: float, saturation: float, value: float
