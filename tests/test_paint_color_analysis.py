@@ -5,6 +5,8 @@ from unittest.mock import patch
 
 from src.paint_catalog import PaintColor, load_citadel_catalog
 from src.paint_color_analysis import (
+    BROWN_HUE_BAND_DEGREES,
+    BROWN_MIN_HUE,
     ColorGroup,
     PaletteSortMode,
     PerceptualColorAnalysis,
@@ -411,6 +413,43 @@ class PaintColorSortingTests(unittest.TestCase):
                     ):
                         keys.append(_group_sort_key(sample, ColorGroup.PURPLE))
                 self.assertLess(keys[0], keys[1])
+
+    def test_catalog_browns_progress_through_perceptual_regions(self):
+        browns = get_paints_for_group(load_citadel_catalog().paints, ColorGroup.BROWN)
+        ordered = sort_paints_visually(browns)
+        self.assertEqual(len(ordered), 106)
+        self.assertEqual(Counter(ordered), Counter(browns))
+        self.assertEqual(ordered, sort_paints_visually(reversed(browns)))
+        regions = [
+            (
+                math.floor(analysis.lightness / PERCEPTUAL_LIGHTNESS_BAND_SIZE),
+                math.floor((analysis.hue - BROWN_MIN_HUE) / BROWN_HUE_BAND_DEGREES),
+                analysis.chroma,
+                analysis.lightness,
+            )
+            for analysis in map(analyze_perceptual_color, ordered)
+        ]
+        self.assertEqual(regions, sorted(regions))
+
+    def test_brown_regions_take_priority_over_small_lightness_and_hue_changes(self):
+        sample = paint("brown-order", 120, 70, 30)
+        # Ordered by lightness region, hue region, chroma, then exact lightness.
+        analyses = (
+            PerceptualColorAnalysis(0.47, 0.14, 90.0),
+            PerceptualColorAnalysis(0.51, 0.04, 29.0),
+            PerceptualColorAnalysis(0.49, 0.06, 20.0),
+            PerceptualColorAnalysis(0.50, 0.06, 19.0),
+            PerceptualColorAnalysis(0.48, 0.03, 30.0),
+        )
+        keys = []
+        for analysis in analyses:
+            with patch(
+                "src.paint_color_analysis.analyze_perceptual_color",
+                return_value=analysis,
+            ):
+                keys.append(_group_sort_key(sample, ColorGroup.BROWN))
+        for earlier, later in zip(keys, keys[1:]):
+            self.assertLess(earlier, later)
 
     def test_sorting_does_not_modify_paint_records_or_rgb_values(self):
         before = tuple(

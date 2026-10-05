@@ -83,6 +83,7 @@ VISUAL_GROUP_ORDER = (
 )
 PERCEPTUAL_HUE_BAND_DEGREES = 12.0
 PERCEPTUAL_LIGHTNESS_BAND_SIZE = 0.08
+BROWN_HUE_BAND_DEGREES = 15.0
 PERCEPTUAL_SPECTRUM_START_DEGREES = 20.0
 
 
@@ -214,11 +215,18 @@ def _group_sort_key(
             *_stable_paint_key(paint),
         )
     if color_group is ColorGroup.BROWN:
+        # Group nearby earth tones before considering small lightness changes.
+        lightness_band = math.floor(
+            perceptual.lightness / PERCEPTUAL_LIGHTNESS_BAND_SIZE
+        )
+        hue_band = math.floor(
+            (perceptual.hue - BROWN_MIN_HUE) / BROWN_HUE_BAND_DEGREES
+        )
         return (
-            perceptual.lightness,
-            perceptual.hue,
+            lightness_band,
+            hue_band,
             perceptual.chroma,
-            0.0,
+            perceptual.lightness,
             *_stable_paint_key(paint),
         )
     lightness_band = math.floor(
