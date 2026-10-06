@@ -55,6 +55,8 @@ from src.color_picker_visual import (
     classic_value_from_position,
     classic_value_position,
     contrasting_text_color,
+    contrast_ratio,
+    relative_luminance,
     hsl_field_position,
     hsl_from_field_position,
     hsl_to_rgb_hex,
@@ -3229,6 +3231,14 @@ class ColorPickerDialog(tk.Toplevel):
         inverse_color = "#" + "".join(
             f"{255 - round(channel * 255):02x}" for channel in gradient_rgb
         )
+        gradient_color = "#" + "".join(
+            f"{round(channel * 255):02x}" for channel in gradient_rgb
+        )
+        # Inversion alone becomes invisible near middle grey.
+        if contrast_ratio(
+            relative_luminance(gradient_color), relative_luminance(inverse_color)
+        ) < 3.0:
+            inverse_color = contrasting_text_color(gradient_color)
         self.classic_value_slider.itemconfigure(
             self._classic_value_line_item, fill=inverse_color
         )

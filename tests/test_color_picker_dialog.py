@@ -2863,7 +2863,9 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.classic_value_slider.winfo_height.return_value = 101
         for hue, saturation, value, expected in (
             (0.0, 0.0, 1.0, "#000000"),
-            (0.0, 0.0, 0.58, "#6b6b6b"),
+            (0.0, 0.0, 0.58, "#000000"),
+            (0.0, 0.0, 128 / 255, "#000000"),
+            (0.0, 0.0, 0.5, "#000000"),
             (0.0, 0.0, 0.0, "#ffffff"),
             (0.0, 1.0, 1.0, "#00ffff"),
         ):
@@ -2882,7 +2884,7 @@ class ColorPickerDialogTests(unittest.TestCase):
                     abs(coords[1] - dialog.classic_value_marker.coords.call_args.args[2]), 1
                 )
         self.assertEqual(dialog.classic_value_slider.create_line.call_count, 1)
-        self.assertEqual(dialog.classic_value_slider.tag_raise.call_count, 4)
+        self.assertEqual(dialog.classic_value_slider.tag_raise.call_count, 6)
         self.assertEqual(
             dialog.classic_value_slider.create_line.call_args.kwargs,
             {"width": 2, "tags": "indicator"},
