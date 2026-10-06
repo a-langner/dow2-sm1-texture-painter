@@ -3097,15 +3097,7 @@ class ColorPickerDialog(tk.Toplevel):
         field_top = round(geometry.field_top)
         field_width = max(2, round(geometry.field_right) - field_left + 1)
         field_height = max(2, round(geometry.field_bottom) - field_top + 1)
-        pixels = []
-        for y in range(field_height):
-            value = 1.0 - y / (field_height - 1)
-            for x in range(field_width):
-                saturation = x / (field_width - 1)
-                rgb = colorsys.hsv_to_rgb(hue, saturation, value)
-                pixels.append(tuple(round(channel * 255) for channel in rgb))
-        field_image = Image.new("RGB", (field_width, field_height))
-        field_image.putdata(pixels)
+        field_image = render_color_field(field_width, field_height, hue, hsl=False)
         image.paste(field_image, (field_left, field_top))
         self._color_wheel_image = ImageTk.PhotoImage(image)
         self.color_wheel_canvas.delete("gradient")

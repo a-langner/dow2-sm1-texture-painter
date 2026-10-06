@@ -2569,6 +2569,15 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog._render_color_wheel(0.25)
         self.assertIs(dialog._color_wheel_ring_cache[2], ring_image)
         self.assertEqual(photo_image_type.call_count, 2)
+        changed = dialog._color_wheel_image
+        left, top = round(geometry.field_left), round(geometry.field_top)
+        right, bottom = round(geometry.field_right), round(geometry.field_bottom)
+        self.assertEqual(changed.getpixel((left, top)), (255, 255, 255, 255))
+        self.assertEqual(changed.getpixel((right, top)), (128, 255, 0, 255))
+        self.assertEqual(changed.getpixel((right, bottom)), (0, 0, 0, 255))
+        self.assertEqual(changed.getpixel((50, 5)), rendered.getpixel((50, 5)))
+        dialog._render_color_wheel(0.25)
+        self.assertEqual(photo_image_type.call_count, 2)
 
     def test_color_wheel_ring_and_clamped_sv_drag_update_canonical_color(self):
         dialog = object.__new__(ColorPickerDialog)
