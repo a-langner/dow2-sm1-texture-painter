@@ -2411,6 +2411,7 @@ class ColorPickerDialog(tk.Toplevel):
             width=10,
             bd=0,
             highlightthickness=0,
+            cursor="sb_v_double_arrow",
         )
         self.classic_value_marker.pack(side=tk.RIGHT, fill=tk.Y)
         self.classic_value_slider.pack(
@@ -2433,6 +2434,9 @@ class ColorPickerDialog(tk.Toplevel):
         for event_name in ("<Button-1>", "<B1-Motion>"):
             self.classic_color_field.bind(event_name, self._on_classic_field_input)
             self.classic_value_slider.bind(
+                event_name, self._on_classic_value_slider_input
+            )
+            self.classic_value_marker.bind(
                 event_name, self._on_classic_value_slider_input
             )
 

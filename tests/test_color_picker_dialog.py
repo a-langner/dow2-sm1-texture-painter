@@ -2280,6 +2280,10 @@ class ColorPickerDialogTests(unittest.TestCase):
                             dialog.classic_value_slider.bindings[event],
                             dialog._on_classic_value_slider_input,
                         )
+                        self.assertEqual(
+                            dialog.classic_value_marker.bindings[event],
+                            dialog._on_classic_value_slider_input,
+                        )
                 else:
                     self.assertIsNone(dialog.color_wheel_canvas.pack_options)
                     self.assertIsNone(dialog.classic_visualization_area.pack_options)
