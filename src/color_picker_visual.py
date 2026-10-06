@@ -66,6 +66,24 @@ DARK_TEXT_COLOR = "#000000"
 LIGHT_TEXT_COLOR = "#ffffff"
 
 
+def classic_indicator_color(background: str) -> str:
+    """Blend inversion and a contrast fallback smoothly as brightness changes."""
+    channels = rgb_hex_to_channels(background)
+    inverted = tuple(255 - channel for channel in channels)
+    inverse_color = rgb_channels_to_hex(*inverted)
+    luminance = relative_luminance(background)
+    contrast = contrast_ratio(luminance, relative_luminance(inverse_color))
+    blend = min(max((3.0 - contrast) / 2.0, 0.0), 1.0)
+    blend = blend * blend * (3.0 - 2.0 * blend)
+    # Fade white to black before middle grey, where inversion is invisible.
+    darkness = min(max((luminance - 0.10) / 0.10, 0.0), 1.0)
+    darkness = darkness * darkness * (3.0 - 2.0 * darkness)
+    fallback = 255 * (1.0 - darkness)
+    return rgb_channels_to_hex(*(
+        round(channel * (1.0 - blend) + fallback * blend) for channel in inverted
+    ))
+
+
 class ColorVisualizationMode(str, Enum):
     """Identify a picker visualization without introducing another colour state."""
 

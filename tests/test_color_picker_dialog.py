@@ -2863,7 +2863,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.classic_value_slider.winfo_height.return_value = 101
         for hue, saturation, value, expected in (
             (0.0, 0.0, 1.0, "#000000"),
-            (0.0, 0.0, 0.58, "#000000"),
+            (0.0, 0.0, 0.58, "#222222"),
             (0.0, 0.0, 128 / 255, "#000000"),
             (0.0, 0.0, 0.5, "#000000"),
             (0.0, 0.0, 0.0, "#ffffff"),

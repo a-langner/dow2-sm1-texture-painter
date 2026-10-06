@@ -13,6 +13,7 @@ from src.color_picker_visual import (
     classic_hs_position,
     classic_value_from_position,
     classic_value_position,
+    classic_indicator_color,
     contrast_ratio,
     contrasting_text_color,
     hsl_field_position,
@@ -33,6 +34,20 @@ from src.color_picker_visual import (
 
 
 class ColorPickerVisualTests(unittest.TestCase):
+    def test_classic_indicator_changes_gradually_and_remains_visible_at_middle_grey(self):
+        colors = [
+            rgb_hex_to_channels(classic_indicator_color(rgb_channels_to_hex(i, i, i)))
+            for i in range(256)
+        ]
+        self.assertEqual(colors[0], (255, 255, 255))
+        self.assertEqual(colors[128], (0, 0, 0))
+        self.assertEqual(colors[255], (0, 0, 0))
+        self.assertTrue(all(r == g == b for r, g, b in colors))
+        self.assertLessEqual(
+            max(abs(a[0] - b[0]) for a, b in zip(colors, colors[1:])), 12
+        )
+        self.assertEqual(classic_indicator_color("#ff0000"), "#00ffff")
+
     def test_bulk_fields_match_colorsys_reference_to_one_rgb_byte(self):
         for hsl in (False, True):
             for hue in (0.0, 1 / 6, 1 / 3, 0.5, 2 / 3, 5 / 6, 0.123, 1.0):
