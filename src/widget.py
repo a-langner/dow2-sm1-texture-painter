@@ -3221,6 +3221,21 @@ class ColorPickerDialog(tk.Toplevel):
         slider_y = classic_value_position(
             value, self.classic_value_slider.winfo_height()
         )
+        if not getattr(self, "_classic_value_line_item", None):
+            self._classic_value_line_item = self.classic_value_slider.create_line(
+                0, 0, 0, 0, width=2, tags="indicator"
+            )
+        gradient_rgb = colorsys.hsv_to_rgb(hue, saturation, value)
+        inverse_color = "#" + "".join(
+            f"{255 - round(channel * 255):02x}" for channel in gradient_rgb
+        )
+        self.classic_value_slider.itemconfigure(
+            self._classic_value_line_item, fill=inverse_color
+        )
+        self.classic_value_slider.coords(
+            self._classic_value_line_item,
+            0, slider_y, self.classic_value_slider.winfo_width(), slider_y,
+        )
         if not getattr(self, "_classic_field_indicator_items", ()):
             self._classic_field_indicator_items = tuple(
                 self.classic_color_field.create_oval(
