@@ -2289,6 +2289,20 @@ class ColorPickerDialogTests(unittest.TestCase):
                     self.assertIsNone(dialog.classic_visualization_area.pack_options)
                     self.assertIsNotNone(dialog.editor_color_field_area.pack_options)
                     self.assertIsNotNone(dialog.editor_slider_area.pack_options)
+                    self.assertEqual(dialog.hue_slider.options["width"], 28)
+                    self.assertEqual(
+                        dialog.editor_slider_area.packed_children,
+                        [dialog.hue_slider_marker, dialog.hue_slider],
+                    )
+                    for event in ("<Button-1>", "<B1-Motion>"):
+                        self.assertEqual(
+                            dialog.hue_slider_marker.bindings[event],
+                            dialog._on_hue_slider_input,
+                        )
+                        self.assertEqual(
+                            dialog.hue_slider.bindings[event],
+                            dialog._on_hue_slider_input,
+                        )
                 self.assertEqual(dialog.current_color, initial_color)
                 self.assertEqual(
                     tuple(
@@ -2438,6 +2452,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog._hue_indicator_items = ()
         dialog.hsv_color_field = Mock()
         dialog.hue_slider = Mock()
+        dialog.hue_slider_marker = Mock()
         dialog.hsv_color_field.winfo_width.return_value = 101
         dialog.hsv_color_field.winfo_height.return_value = 101
         dialog.hue_slider.winfo_width.return_value = 28
@@ -2458,6 +2473,38 @@ class ColorPickerDialogTests(unittest.TestCase):
         )
         for call in dialog.hue_slider.coords.call_args_list:
             self.assertEqual(call.args[2], call.args[4])
+        self.assertEqual(dialog.hue_slider_marker.create_polygon.call_count, 1)
+        self.assertEqual(dialog.hue_slider_marker.coords.call_count, 2)
+
+    def test_hsv_hsl_pointer_tracks_gradient_lines_and_stays_visible_at_endpoints(self):
+        for mode in (DEFAULT_COLOR_SPACE_MODE, "HSL"):
+            dialog = object.__new__(ColorPickerDialog)
+            dialog.color_space_mode = mode
+            dialog.hsv_color_field = Mock()
+            dialog.hue_slider = Mock()
+            dialog.hue_slider_marker = Mock()
+            dialog._field_indicator_items = ()
+            dialog._hue_indicator_items = ()
+            dialog.hsv_color_field.winfo_width.return_value = 101
+            dialog.hsv_color_field.winfo_height.return_value = 101
+            dialog.hue_slider.winfo_width.return_value = 28
+            dialog.hue_slider.winfo_height.return_value = 101
+            for hue in (0.0, 0.58, 1.0):
+                with self.subTest(mode=mode, hue=hue):
+                    dialog._draw_hsv_indicators(hue, 0.75, 0.5)
+                    coords = dialog.hue_slider_marker.coords.call_args.args[1:]
+                    self.assertAlmostEqual(coords[1], hue * 100)
+                    self.assertEqual(coords[1], dialog.hue_slider.coords.call_args.args[2])
+                    self.assertLess(coords[0], coords[2])
+                    self.assertGreaterEqual(coords[3], 0)
+                    self.assertLessEqual(coords[5], 100)
+                    self.assertEqual(coords[5] - coords[3], 8)
+            self.assertEqual(dialog.hue_slider_marker.create_polygon.call_count, 1)
+            self.assertEqual(dialog.hue_slider.create_line.call_count, 2)
+            self.assertEqual(
+                [c.kwargs["fill"] for c in dialog.hue_slider.create_line.call_args_list],
+                ["black", "white"],
+            )
 
     def test_unchanged_gradient_inputs_reuse_cached_images(self):
         dialog = object.__new__(ColorPickerDialog)

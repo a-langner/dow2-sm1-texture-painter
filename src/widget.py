@@ -2389,7 +2389,15 @@ class ColorPickerDialog(tk.Toplevel):
         self.hue_slider = tk.Canvas(
             self.editor_slider_area, width=28, highlightthickness=1, cursor="sb_v_double_arrow"
         )
-        self.hue_slider.pack(fill=tk.BOTH, expand=True)
+        self.hue_slider_marker = tk.Canvas(
+            self.editor_slider_area,
+            width=10,
+            bd=0,
+            highlightthickness=0,
+            cursor="sb_v_double_arrow",
+        )
+        self.hue_slider_marker.pack(side=tk.RIGHT, fill=tk.Y)
+        self.hue_slider.pack(side=tk.LEFT, fill=tk.Y)
         self.color_wheel_canvas = tk.Canvas(
             self.editor_visualization_area,
             height=COLOR_FIELD_PREFERRED_HEIGHT,
@@ -2423,6 +2431,7 @@ class ColorPickerDialog(tk.Toplevel):
         for event_name in ("<Button-1>", "<B1-Motion>"):
             self.hsv_color_field.bind(event_name, self._on_color_field_input)
             self.hue_slider.bind(event_name, self._on_hue_slider_input)
+            self.hue_slider_marker.bind(event_name, self._on_hue_slider_input)
         self.hsv_color_field.bind("<Configure>", self._on_visualization_resized)
         self.hue_slider.bind("<Configure>", self._on_visualization_resized)
         self.color_wheel_canvas.bind("<Configure>", self._on_visualization_resized)
@@ -3460,6 +3469,20 @@ class ColorPickerDialog(tk.Toplevel):
         slider_width = self.hue_slider.winfo_width()
         for item in self._hue_indicator_items:
             self.hue_slider.coords(item, 0, slider_y, slider_width, slider_y)
+        if not getattr(self, "_hue_pointer_item", None):
+            self._hue_pointer_item = self.hue_slider_marker.create_polygon(
+                0, 0, 0, 0, 0, 0,
+                fill="black", outline="black", tags="indicator",
+            )
+        marker_bottom = max(0, self.hue_slider.winfo_height() - 1)
+        pointer_height = min(8, marker_bottom)
+        pointer_top = min(
+            max(slider_y - pointer_height / 2, 0), marker_bottom - pointer_height
+        )
+        self.hue_slider_marker.coords(
+            self._hue_pointer_item,
+            1, slider_y, 8, pointer_top, 8, pointer_top + pointer_height,
+        )
 
     def _refresh_current_color_preview(self) -> None:
         preview = getattr(self, "current_color_preview", None)
