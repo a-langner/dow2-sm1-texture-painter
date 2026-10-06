@@ -2834,6 +2834,7 @@ class ColorPickerDialogTests(unittest.TestCase):
         dialog.classic_color_field.winfo_width.return_value = 101
         dialog.classic_color_field.winfo_height.return_value = 101
         dialog.classic_value_slider.winfo_height.return_value = 101
+        dialog.classic_value_slider.winfo_width.return_value = 28
         for value, expected_y in ((1.0, 0.0), (0.58, 42.0), (0.0, 100.0)):
             with self.subTest(value=value):
                 dialog._draw_classic_indicators(0.5, 1.0, value)
@@ -2873,12 +2874,15 @@ class ColorPickerDialogTests(unittest.TestCase):
                     {"fill": expected},
                 )
                 coords = dialog.classic_value_slider.coords.call_args.args[1:]
-                self.assertEqual(coords[0], 0)
-                self.assertEqual(coords[2], 28)
-                self.assertAlmostEqual(coords[1], (1 - value) * 100)
+                self.assertEqual(coords[0], 1)
+                self.assertEqual(coords[2], 27)
+                self.assertAlmostEqual(coords[1], min(max((1 - value) * 100, 1), 99))
                 self.assertEqual(coords[1], coords[3])
-                self.assertEqual(coords[1], dialog.classic_value_marker.coords.call_args.args[2])
+                self.assertLessEqual(
+                    abs(coords[1] - dialog.classic_value_marker.coords.call_args.args[2]), 1
+                )
         self.assertEqual(dialog.classic_value_slider.create_line.call_count, 1)
+        self.assertEqual(dialog.classic_value_slider.tag_raise.call_count, 4)
         self.assertEqual(
             dialog.classic_value_slider.create_line.call_args.kwargs,
             {"width": 2, "tags": "indicator"},

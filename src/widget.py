@@ -3232,10 +3232,14 @@ class ColorPickerDialog(tk.Toplevel):
         self.classic_value_slider.itemconfigure(
             self._classic_value_line_item, fill=inverse_color
         )
+        # Canvas borders hide endpoint lines at y=0 or height-1 on first display.
+        line_bottom = max(1, self.classic_value_slider.winfo_height() - 2)
+        line_y = min(max(slider_y, 1), line_bottom)
         self.classic_value_slider.coords(
             self._classic_value_line_item,
-            0, slider_y, self.classic_value_slider.winfo_width(), slider_y,
+            1, line_y, self.classic_value_slider.winfo_width() - 1, line_y,
         )
+        self.classic_value_slider.tag_raise(self._classic_value_line_item)
         if not getattr(self, "_classic_field_indicator_items", ()):
             self._classic_field_indicator_items = tuple(
                 self.classic_color_field.create_oval(
